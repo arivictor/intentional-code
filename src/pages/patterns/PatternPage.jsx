@@ -18,6 +18,7 @@ import { getReadingTime } from "@/lib/readingTime";
 import { Clock } from "lucide-react";
 import HighlightableContent from "@/components/content/HighlightableContent";
 import { getHighlights, addHighlight, removeHighlight } from "@/lib/highlights";
+import ReadingProgressBar from "@/components/layout/ReadingProgressBar";
 
 export default function PatternPage() {
   const { slug } = useParams();
@@ -68,6 +69,8 @@ export default function PatternPage() {
   }
 
   return (
+    <>
+    <ReadingProgressBar />
     <div className="flex gap-8 max-w-5xl mx-auto px-6 py-12">
       <div className="flex-1 min-w-0">
         <Breadcrumbs />
@@ -235,5 +238,6 @@ export default function PatternPage() {
 
       <TableOfContents />
     </div>
+    </>
   );
 }
