@@ -52,17 +52,15 @@ export default function PatternPage() {
       <div className="flex-1 min-w-0">
         <Breadcrumbs />
 
-        {/* Title + Badge */}
-        <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
-          <div className="flex items-start gap-3 flex-wrap">
-            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-              {pattern.title}
-            </h1>
-            <CategoryBadge category={pattern.category} />
-          </div>
+        {/* Title */}
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-2">
+          {pattern.title}
+        </h1>
+        <p className="text-lg text-muted-foreground leading-relaxed mb-4">{pattern.intent}</p>
+        <div className="flex items-center gap-3 mb-8">
           <button
             onClick={toggleRead}
-            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-all shrink-0 mt-1 ${
+            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-all ${
               read
                 ? "bg-primary/10 border-primary/30 text-primary font-medium"
                 : "border-border text-muted-foreground hover:border-primary/30 hover:text-primary"
@@ -71,11 +69,8 @@ export default function PatternPage() {
             {read ? <CheckCircle className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
             {read ? "Read" : "Mark as read"}
           </button>
-        </div>
-        <div className="flex items-center gap-3 mb-8">
-          <p className="text-lg text-muted-foreground leading-relaxed flex-1">{pattern.intent}</p>
           {getReadingTime(content) && (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Clock className="h-3.5 w-3.5" />
               {getReadingTime(content)}
             </span>
