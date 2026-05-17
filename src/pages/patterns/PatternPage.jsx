@@ -98,7 +98,7 @@ export default function PatternPage() {
           <button
             onClick={handleBookmark}
             title={bookmarked ? "Remove bookmark" : "Bookmark this pattern"}
-            className={`ml-auto flex items-center gap-1.5 text-sm transition-colors ${
+            className={`flex items-center gap-1.5 text-sm transition-colors ${
               bookmarked ? "text-primary" : "text-muted-foreground hover:text-primary"
             }`}
           >
