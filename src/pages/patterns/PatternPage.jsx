@@ -1,6 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { getPattern } from "@/lib/content/patterns";
+import { isPatternRead, markPatternRead, markPatternUnread } from "@/lib/readingProgress";
+import { CheckCircle, Circle } from "lucide-react";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 import TableOfContents from "@/components/layout/TableOfContents";
@@ -16,6 +18,21 @@ export default function PatternPage() {
   const { slug } = useParams();
   const pattern = getPattern(slug);
   const content = PATTERN_CONTENT[slug];
+  const [read, setRead] = useState(false);
+
+  useEffect(() => {
+    setRead(isPatternRead(slug));
+  }, [slug]);
+
+  const toggleRead = () => {
+    if (read) {
+      markPatternUnread(slug);
+      setRead(false);
+    } else {
+      markPatternRead(slug);
+      setRead(true);
+    }
+  };
 
   if (!pattern || !content) {
     return (
@@ -34,11 +51,24 @@ export default function PatternPage() {
         <Breadcrumbs />
 
         {/* Title + Badge */}
-        <div className="flex items-start gap-3 mb-2 flex-wrap">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
-            {pattern.title}
-          </h1>
-          <CategoryBadge category={pattern.category} />
+        <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+          <div className="flex items-start gap-3 flex-wrap">
+            <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+              {pattern.title}
+            </h1>
+            <CategoryBadge category={pattern.category} />
+          </div>
+          <button
+            onClick={toggleRead}
+            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-all shrink-0 mt-1 ${
+              read
+                ? "bg-primary/10 border-primary/30 text-primary font-medium"
+                : "border-border text-muted-foreground hover:border-primary/30 hover:text-primary"
+            }`}
+          >
+            {read ? <CheckCircle className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+            {read ? "Read" : "Mark as read"}
+          </button>
         </div>
         <p className="text-lg text-muted-foreground leading-relaxed mb-8">{pattern.intent}</p>
 
