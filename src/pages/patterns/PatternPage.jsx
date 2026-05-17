@@ -103,6 +103,7 @@ export default function PatternPage() {
             }`}
           >
             <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-current" : ""}`} />
+            <span>{bookmarked ? "Saved" : "Save for later"}</span>
           </button>
         </div>
 
