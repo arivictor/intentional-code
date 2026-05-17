@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Layers, Box, Puzzle, Workflow, BookText } from "lucide-react";
+import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, BookText } from "lucide-react";
 import { PATTERNS, CATEGORY_ORDER, CATEGORIES, getPatternsByCategory } from "@/lib/content/patterns";
 
 const CATEGORY_ICONS = {
@@ -59,12 +59,6 @@ export default function Sidebar({ open, onClose }) {
         <SidebarLink to="/philosophy/solid" active={currentPath === "/philosophy/solid"}>SOLID Principles</SidebarLink>
         <SidebarLink to="/philosophy/tdd" active={currentPath === "/philosophy/tdd"}>Test-Driven Development</SidebarLink>
       </SidebarSection>
-
-      <div className="my-3">
-        <SidebarLink to="/patterns" active={currentPath === "/patterns"}>
-          <span className="flex items-center gap-2"><Layers className="h-3.5 w-3.5" /> Pattern Catalog</span>
-        </SidebarLink>
-      </div>
 
       {CATEGORY_ORDER.map((catKey) => {
         const cat = CATEGORIES[catKey];

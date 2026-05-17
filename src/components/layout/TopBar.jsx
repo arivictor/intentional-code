@@ -11,7 +11,6 @@ const SEARCHABLE = [
   { title: "Philosophy", path: "/philosophy", type: "page" },
   { title: "SOLID Principles", path: "/philosophy/solid", type: "page" },
   { title: "Test-Driven Development", path: "/philosophy/tdd", type: "page" },
-  { title: "Pattern Catalog", path: "/patterns", type: "page" },
   { title: "Creational Patterns", path: "/patterns/creational", type: "category" },
   { title: "Structural Patterns", path: "/patterns/structural", type: "category" },
   { title: "Behavioral Patterns", path: "/patterns/behavioral", type: "category" },
