@@ -1,34 +1,80 @@
 import React, { useState } from "react";
 import { Copy, Check } from "lucide-react";
 
+const KEYWORDS = new Set([
+  "package","import","func","return","if","else","for","range","switch","case",
+  "default","type","struct","interface","map","chan","go","defer","select","var",
+  "const","break","continue","fallthrough","nil","true","false","make","new","len",
+  "cap","append","delete","close","panic","recover","error",
+]);
+
+const TYPES = new Set([
+  "string","int","int8","int16","int32","int64","uint","uint8","uint16","uint32",
+  "uint64","float32","float64","bool","byte","rune","any",
+]);
+
+function escape(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function span(cls, text) {
+  return `<span class="${cls}">${escape(text)}</span>`;
+}
+
+/**
+ * Single-pass tokenizer. We scan left-to-right, match the longest token at
+ * each position, emit a styled span, and advance past it. This prevents any
+ * regex from matching inside an already-emitted span.
+ */
 function highlightGo(code) {
-  // Simple Go syntax highlighting using regex
-  const keywords = /\b(package|import|func|return|if|else|for|range|switch|case|default|type|struct|interface|map|chan|go|defer|select|var|const|break|continue|fallthrough|nil|true|false|make|new|len|cap|append|delete|close|panic|recover|error)\b/g;
-  const types = /\b(string|int|int8|int16|int32|int64|uint|uint8|uint16|uint32|uint64|float32|float64|bool|byte|rune|any|error|context\.Context)\b/g;
-  const strings = /(\"[^\"]*\"|`[^`]*`|'[^']*')/g;
-  const comments = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)/g;
-  const numbers = /\b(\d+\.?\d*)\b/g;
-  const funcNames = /\b([A-Z]\w*)\s*\(/g;
-  const constructors = /\b(New\w+)\b/g;
+  // Ordered list of token types. First match wins.
+  const TOKEN_RE = [
+    // line comment
+    { re: /^\/\/[^\n]*/,           emit: (m) => span("text-code-comment italic", m) },
+    // block comment
+    { re: /^\/\*[\s\S]*?\*\//,     emit: (m) => span("text-code-comment italic", m) },
+    // backtick string
+    { re: /^`[^`]*`/,              emit: (m) => span("text-code-string", m) },
+    // double-quoted string
+    { re: /^"(?:[^"\\]|\\.)*"/,    emit: (m) => span("text-code-string", m) },
+    // single-quoted rune
+    { re: /^'(?:[^'\\]|\\.)*'/,    emit: (m) => span("text-code-string", m) },
+    // number
+    { re: /^\b\d+\.?\d*\b/,        emit: (m) => span("text-code-number", m) },
+    // identifier or keyword
+    {
+      re: /^[A-Za-z_]\w*/,
+      emit: (m) => {
+        if (KEYWORDS.has(m)) return span("text-code-keyword font-medium", m);
+        if (TYPES.has(m))    return span("text-code-type", m);
+        return escape(m);
+      },
+    },
+    // anything else (punctuation, whitespace handled char-by-char below)
+  ];
 
-  let result = code
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-
-  // Order matters: comments and strings first to avoid highlighting inside them
-  const tokens = [];
-  let idx = 0;
-  
-  // Simple approach: just apply classes
-  result = result
-    .replace(comments, '<span class="text-code-comment italic">$1</span>')
-    .replace(strings, '<span class="text-code-string">$1</span>')
-    .replace(keywords, '<span class="text-code-keyword font-medium">$1</span>')
-    .replace(types, '<span class="text-code-type">$1</span>')
-    .replace(numbers, '<span class="text-code-number">$1</span>');
-
-  return result;
+  let out = "";
+  let i = 0;
+  while (i < code.length) {
+    let matched = false;
+    const slice = code.slice(i);
+    for (const { re, emit } of TOKEN_RE) {
+      const m = slice.match(re);
+      if (m) {
+        out += emit(m[0]);
+        i += m[0].length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      // Emit the raw character (escaped for safety)
+      const ch = code[i];
+      out += ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : ch;
+      i++;
+    }
+  }
+  return out;
 }
 
 export default function CodeBlock({ code, filename, language = "go" }) {
@@ -43,14 +89,9 @@ export default function CodeBlock({ code, filename, language = "go" }) {
   return (
     <div className="my-4 rounded-lg border border-code-border overflow-hidden bg-code-bg">
       <div className="flex items-center justify-between px-4 py-2 border-b border-code-border bg-code-bg">
-        <div className="flex items-center gap-2">
-          {filename && (
-            <span className="text-xs font-mono font-medium text-muted-foreground">{filename}</span>
-          )}
-          {!filename && (
-            <span className="text-xs font-mono text-muted-foreground">{language}</span>
-          )}
-        </div>
+        <span className="text-xs font-mono font-medium text-muted-foreground">
+          {filename || language}
+        </span>
         <button
           onClick={handleCopy}
           className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors p-1 rounded"
