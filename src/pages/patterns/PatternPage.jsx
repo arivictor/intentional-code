@@ -16,6 +16,8 @@ import PatternLink from "@/components/content/PatternLink";
 import { PATTERN_CONTENT } from "@/lib/content/patternContent";
 import { getReadingTime } from "@/lib/readingTime";
 import { Clock } from "lucide-react";
+import HighlightableContent from "@/components/content/HighlightableContent";
+import { getHighlights, addHighlight, removeHighlight } from "@/lib/highlights";
 
 export default function PatternPage() {
   const { slug } = useParams();
@@ -23,11 +25,21 @@ export default function PatternPage() {
   const content = PATTERN_CONTENT[slug];
   const [read, setRead] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
+  const [highlights, setHighlights] = useState([]);
 
   useEffect(() => {
     setRead(isPatternRead(slug));
     setBookmarked(isBookmarked(slug));
+    setHighlights(getHighlights(slug));
   }, [slug]);
+
+  const handleAddHighlight = (hl) => {
+    setHighlights(addHighlight(slug, hl));
+  };
+
+  const handleRemoveHighlight = (id) => {
+    setHighlights(removeHighlight(slug, id));
+  };
 
   const handleBookmark = () => {
     const next = toggleBookmark(slug);
@@ -93,6 +105,12 @@ export default function PatternPage() {
             <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-current" : ""}`} />
           </button>
         </div>
+
+        <HighlightableContent
+          highlights={highlights}
+          onAdd={handleAddHighlight}
+          onRemove={handleRemoveHighlight}
+        >
 
         {/* Intent */}
         <section id="intent">
@@ -208,6 +226,8 @@ export default function PatternPage() {
             ))}
           </div>
         </section>
+
+        </HighlightableContent>
 
         <PrevNextNav />
       </div>
