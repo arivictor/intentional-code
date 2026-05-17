@@ -11,7 +11,6 @@ import Home from '@/pages/Home';
 import PhilosophyLanding from '@/pages/philosophy/PhilosophyLanding';
 import Solid from '@/pages/philosophy/Solid';
 import Tdd from '@/pages/philosophy/Tdd';
-import PatternCatalog from '@/pages/patterns/PatternCatalog';
 import CategoryLanding from '@/pages/patterns/CategoryLanding';
 import PatternPage from '@/pages/patterns/PatternPage';
 import Glossary from '@/pages/Glossary';
@@ -43,7 +42,6 @@ const AuthenticatedApp = () => {
         <Route path="/philosophy" element={<PhilosophyLanding />} />
         <Route path="/philosophy/solid" element={<Solid />} />
         <Route path="/philosophy/tdd" element={<Tdd />} />
-        <Route path="/patterns" element={<PatternCatalog />} />
         <Route path="/patterns/:category" element={<CategoryLanding />} />
         <Route path="/patterns/:category/:slug" element={<PatternPage />} />
         <Route path="/glossary" element={<Glossary />} />

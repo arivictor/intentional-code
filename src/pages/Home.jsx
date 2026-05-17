@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Lightbulb, Layers, BookText, ArrowRight, Box, Puzzle, Workflow } from "lucide-react";
 import { PATTERNS, CATEGORY_ORDER, CATEGORIES, getPatternsByCategory } from "@/lib/content/patterns";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
@@ -17,7 +17,7 @@ const ENTRY_POINTS = [
     icon: Layers,
     title: "Pattern Catalog",
     description: "All 22 GoF patterns, implemented idiomatically in Go with honest assessments.",
-    path: "/patterns",
+    path: "#patterns",
   },
   {
     icon: BookText,
@@ -30,6 +30,15 @@ const ENTRY_POINTS = [
 const CATEGORY_ICONS = { creational: Box, structural: Puzzle, behavioral: Workflow };
 
 export default function Home() {
+  const navigate = useNavigate();
+
+  const handleEntryClick = (e, path) => {
+    if (path.startsWith("#")) {
+      e.preventDefault();
+      document.getElementById(path.slice(1))?.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-12">
       {/* Hero */}
@@ -76,6 +85,7 @@ export default function Home() {
             <Link
               key={ep.path}
               to={ep.path}
+              onClick={(e) => handleEntryClick(e, ep.path)}
               className="group p-5 rounded-lg border border-border hover:border-primary/40 bg-card hover:bg-accent/30 transition-all"
             >
               <ep.icon className="h-6 w-6 text-primary mb-3" />
@@ -92,8 +102,15 @@ export default function Home() {
       </section>
 
       {/* Pattern Catalog Grid */}
-      <section className="mb-12">
+      <section id="patterns" className="mb-12">
         <h2 className="text-2xl font-semibold mb-6 text-foreground">Pattern catalog</h2>
+        <div className="mb-6 rounded-lg border border-primary/20 bg-accent/40 p-4 flex gap-3">
+          <span className="text-primary mt-0.5">💡</span>
+          <div className="text-sm text-foreground/85 leading-relaxed">
+            <strong>How to read a pattern page: </strong>
+            Every pattern follows the same structure: <strong>Intent</strong>, <strong>Problem</strong>, <strong>Solution</strong>, <strong>When to use / not use</strong>, <strong>Advantages & Disadvantages</strong>, and <strong>Related Patterns</strong>.
+          </div>
+        </div>
         {CATEGORY_ORDER.map((catKey) => {
           const cat = CATEGORIES[catKey];
           const patterns = getPatternsByCategory(catKey);
