@@ -14,6 +14,7 @@ import Tdd from '@/pages/philosophy/Tdd';
 import CategoryLanding from '@/pages/patterns/CategoryLanding';
 import PatternPage from '@/pages/patterns/PatternPage';
 import Glossary from '@/pages/Glossary';
+import SavedPatterns from '@/pages/SavedPatterns';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -45,6 +46,7 @@ const AuthenticatedApp = () => {
         <Route path="/patterns/:category" element={<CategoryLanding />} />
         <Route path="/patterns/:category/:slug" element={<PatternPage />} />
         <Route path="/glossary" element={<Glossary />} />
+        <Route path="/saved" element={<SavedPatterns />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

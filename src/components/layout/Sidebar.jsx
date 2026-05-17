@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, BookText } from "lucide-react";
+import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, BookText, Bookmark } from "lucide-react";
 import { PATTERNS, CATEGORY_ORDER, CATEGORIES, getPatternsByCategory } from "@/lib/content/patterns";
 
 const CATEGORY_ICONS = {
@@ -83,9 +83,12 @@ export default function Sidebar({ open, onClose }) {
         );
       })}
 
-      <div className="mt-3">
+      <div className="mt-3 space-y-0.5">
         <SidebarLink to="/glossary" active={currentPath === "/glossary"}>
           <span className="flex items-center gap-2"><BookText className="h-3.5 w-3.5" /> Glossary</span>
+        </SidebarLink>
+        <SidebarLink to="/saved" active={currentPath === "/saved"}>
+          <span className="flex items-center gap-2"><Bookmark className="h-3.5 w-3.5" /> Saved Patterns</span>
         </SidebarLink>
       </div>
     </nav>

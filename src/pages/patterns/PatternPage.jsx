@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { getPattern } from "@/lib/content/patterns";
 import { isPatternRead, markPatternRead, markPatternUnread } from "@/lib/readingProgress";
-import { CheckCircle, Circle } from "lucide-react";
+import { CheckCircle, Circle, Bookmark } from "lucide-react";
+import { isBookmarked, toggleBookmark } from "@/lib/bookmarks";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 import TableOfContents from "@/components/layout/TableOfContents";
@@ -21,10 +22,17 @@ export default function PatternPage() {
   const pattern = getPattern(slug);
   const content = PATTERN_CONTENT[slug];
   const [read, setRead] = useState(false);
+  const [bookmarked, setBookmarked] = useState(false);
 
   useEffect(() => {
     setRead(isPatternRead(slug));
+    setBookmarked(isBookmarked(slug));
   }, [slug]);
+
+  const handleBookmark = () => {
+    const next = toggleBookmark(slug);
+    setBookmarked(next);
+  };
 
   const toggleRead = () => {
     if (read) {
@@ -75,6 +83,15 @@ export default function PatternPage() {
               {getReadingTime(content)}
             </span>
           )}
+          <button
+            onClick={handleBookmark}
+            title={bookmarked ? "Remove bookmark" : "Bookmark this pattern"}
+            className={`ml-auto flex items-center gap-1.5 text-sm transition-colors ${
+              bookmarked ? "text-primary" : "text-muted-foreground hover:text-primary"
+            }`}
+          >
+            <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-current" : ""}`} />
+          </button>
         </div>
 
         {/* Intent */}
