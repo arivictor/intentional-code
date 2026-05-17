@@ -13,6 +13,8 @@ import Callout from "@/components/content/Callout";
 import Diagram from "@/components/content/Diagram";
 import PatternLink from "@/components/content/PatternLink";
 import { PATTERN_CONTENT } from "@/lib/content/patternContent";
+import { getReadingTime } from "@/lib/readingTime";
+import { Clock } from "lucide-react";
 
 export default function PatternPage() {
   const { slug } = useParams();
@@ -70,7 +72,15 @@ export default function PatternPage() {
             {read ? "Read" : "Mark as read"}
           </button>
         </div>
-        <p className="text-lg text-muted-foreground leading-relaxed mb-8">{pattern.intent}</p>
+        <div className="flex items-center gap-3 mb-8">
+          <p className="text-lg text-muted-foreground leading-relaxed flex-1">{pattern.intent}</p>
+          {getReadingTime(content) && (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
+              <Clock className="h-3.5 w-3.5" />
+              {getReadingTime(content)}
+            </span>
+          )}
+        </div>
 
         {/* Intent */}
         <section id="intent">
