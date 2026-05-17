@@ -24,3 +24,21 @@ export function removeHighlight(slug, id) {
   saveHighlights(slug, updated);
   return updated;
 }
+
+/** Returns all highlights across every pattern, each entry tagged with its slug. */
+export function getAllHighlights() {
+  const results = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith("highlights:")) {
+      const slug = key.slice("highlights:".length);
+      try {
+        const items = JSON.parse(localStorage.getItem(key) || "[]");
+        items.forEach((h) => results.push({ ...h, slug }));
+      } catch {
+        // skip malformed entries
+      }
+    }
+  }
+  return results;
+}
