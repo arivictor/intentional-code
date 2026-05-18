@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, BookText, Bookmark } from "lucide-react";
+import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Bookmark } from "lucide-react";
 import { PATTERNS, CATEGORY_ORDER, CATEGORIES, getPatternsByCategory } from "@/lib/content/patterns";
 
 const CATEGORY_ICONS = {
@@ -84,9 +84,6 @@ export default function Sidebar({ open, onClose }) {
       })}
 
       <div className="mt-3 space-y-0.5">
-        <SidebarLink to="/glossary" active={currentPath === "/glossary"}>
-          <span className="flex items-center gap-2"><BookText className="h-3.5 w-3.5" /> Glossary</span>
-        </SidebarLink>
         <SidebarLink to="/saved" active={currentPath === "/saved"}>
           <span className="flex items-center gap-2"><Bookmark className="h-3.5 w-3.5" /> Saved Patterns</span>
         </SidebarLink>
@@ -108,7 +105,7 @@ export default function Sidebar({ open, onClose }) {
           <aside className="fixed left-0 top-0 z-50 w-72 h-full bg-sidebar border-r border-border lg:hidden shadow-xl">
             <div className="h-14 flex items-center px-4 border-b border-border">
               <span className="text-primary font-mono text-lg font-bold">Go</span>
-              <span className="ml-2 text-sm font-semibold">Intentional Architecture</span>
+              <span className="ml-2 text-sm font-semibold">Intentional Code</span>
             </div>
             {content}
           </aside>

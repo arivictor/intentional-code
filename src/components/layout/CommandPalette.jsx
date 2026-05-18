@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, FileText, Layers, BookOpen, BookText, Hash } from "lucide-react";
+import { Search, FileText, Layers, BookOpen } from "lucide-react";
 import { PATTERNS } from "@/lib/content/patterns";
-import { GLOSSARY } from "@/lib/content/glossary";
 
 const TYPE_CONFIG = {
   page:     { label: "Page",     icon: FileText, color: "text-blue-500" },
   category: { label: "Category", icon: Layers,   color: "text-violet-500" },
   pattern:  { label: "Pattern",  icon: BookOpen, color: "text-primary" },
-  glossary: { label: "Glossary", icon: Hash,     color: "text-amber-500" },
 };
 
 const SEARCHABLE = [
@@ -23,13 +21,6 @@ const SEARCHABLE = [
     path: `/patterns/${p.category}/${p.slug}`,
     type: "pattern",
     subtitle: p.intent,
-  })),
-  { title: "Glossary", path: "/glossary", type: "page" },
-  ...GLOSSARY.map((g) => ({
-    title: g.term,
-    path: "/glossary",
-    type: "glossary",
-    subtitle: g.definition?.slice(0, 90) + "…",
   })),
 ];
 
@@ -107,7 +98,7 @@ export default function CommandPalette({ open, onClose }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Search patterns, concepts, glossary…"
+            placeholder="Search patterns and concepts…"
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
           />
           <kbd className="hidden sm:inline-flex items-center gap-0.5 text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded border border-border font-mono">
