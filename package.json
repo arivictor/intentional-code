@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/generate-sitemap.js",
     "build": "vite build",
+    "sitemap": "node scripts/generate-sitemap.js",
     "lint": "eslint . --quiet",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
@@ -62,6 +64,7 @@
     "react": "^18.2.0",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.2.0",
+    "react-helmet-async": "^3.0.0",
     "react-hook-form": "^7.54.2",
     "react-hot-toast": "^2.6.0",
     "react-leaflet": "^4.2.1",

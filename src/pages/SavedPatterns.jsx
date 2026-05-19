@@ -2,9 +2,15 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Bookmark, ArrowRight, Highlighter, X } from "lucide-react";
 import { getBookmarks, removeBookmark } from "@/lib/bookmarks";
+import { HIGHLIGHT_COLORS } from "@/lib/highlight-colors";
 import { getAllHighlights, removeHighlight } from "@/lib/highlights";
-import { getPattern } from "@/lib/content/patterns";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
+import PageMeta from "@/components/PageMeta";
+import { getContent } from "@/lib/content/all-content";
+
+function resolveBookmark(slug) {
+  return getContent(slug);
+}
 
 export default function SavedPatterns() {
   const [slugs, setSlugs] = useState([]);
@@ -25,10 +31,11 @@ export default function SavedPatterns() {
     setHighlights((prev) => prev.filter((h) => !(h.slug === slug && h.id === id)));
   };
 
-  const patterns = slugs.map((s) => getPattern(s)).filter(Boolean);
+  const saved = slugs.map(resolveBookmark).filter(Boolean);
 
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
+      <PageMeta title="Saved Content" description="Your bookmarked pages and highlights." />
       <Breadcrumbs />
       <div className="flex items-center gap-3 mb-2">
         <Bookmark className="h-6 w-6 text-primary" />
@@ -40,39 +47,39 @@ export default function SavedPatterns() {
       <section className="mb-12">
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
           <Bookmark className="h-4 w-4 text-primary" />
-          Saved Patterns
+          Saved Pages
         </h2>
-        {patterns.length === 0 ? (
+        {saved.length === 0 ? (
           <div className="text-center py-10 rounded-lg border border-dashed border-border">
-            <p className="text-muted-foreground text-sm">No saved patterns yet.</p>
+            <p className="text-muted-foreground text-sm">No saved content yet.</p>
             <p className="text-sm text-muted-foreground mt-1">
-              Click "Save for later" on any pattern page to save it here.
+              Click "Save for later" on any page to save it here.
             </p>
           </div>
         ) : (
           <div className="space-y-3">
-            {patterns.map((p) => (
+            {saved.map((item) => (
               <div
-                key={p.slug}
+                key={item.slug}
                 className="group flex items-center gap-3 p-4 rounded-lg border border-border hover:border-primary/30 bg-card transition-all"
               >
                 <div className="flex-1 min-w-0">
                   <Link
-                    to={`/go/patterns/${p.category}/${p.slug}`}
+                    to={item.url}
                     className="font-medium text-foreground group-hover:text-primary transition-colors"
                   >
-                    {p.title}
+                    {item.title}
                   </Link>
-                  <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">{p.intent}</p>
+                  <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">{item.description}</p>
                 </div>
                 <Link
-                  to={`/go/patterns/${p.category}/${p.slug}`}
+                  to={item.url}
                   className="text-muted-foreground hover:text-primary transition-colors shrink-0"
                 >
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <button
-                  onClick={() => handleRemoveBookmark(p.slug)}
+                  onClick={() => handleRemoveBookmark(item.slug)}
                   className="text-primary hover:text-destructive transition-colors shrink-0"
                   title="Remove bookmark"
                 >
@@ -100,7 +107,7 @@ export default function SavedPatterns() {
         ) : (
           <div className="space-y-3">
             {highlights.map((h) => {
-              const pattern = getPattern(h.slug);
+              const source = resolveBookmark(h.slug);
               return (
                 <div
                   key={`${h.slug}-${h.id}`}
@@ -108,16 +115,16 @@ export default function SavedPatterns() {
                 >
                   <div
                     className="mt-1 w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: h.color || "#fde68a" }}
+                    style={{ backgroundColor: HIGHLIGHT_COLORS[h.color] || HIGHLIGHT_COLORS.yellow }}
                   />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-foreground/85 leading-relaxed">"{h.text}"</p>
-                    {pattern && (
+                    {source && (
                       <Link
-                        to={`/go/patterns/${pattern.category}/${pattern.slug}`}
+                        to={source.url}
                         className="text-xs text-primary hover:underline mt-1 inline-block"
                       >
-                        {pattern.title}
+                        {source.title}
                       </Link>
                     )}
                   </div>

@@ -6,6 +6,7 @@ import { CATEGORIES, getPatternsByCategory } from "@/lib/content/patterns";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 import MarkdownCode from "@/components/content/MarkdownCode";
+import PageMeta from "@/components/PageMeta";
 
 export default function CategoryLanding() {
   const { category } = useParams();
@@ -32,6 +33,7 @@ export default function CategoryLanding() {
     <div className="max-w-3xl mx-auto px-6 py-12">
       <Breadcrumbs />
 
+      <PageMeta title={cat.title} description={cat.lede} />
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">{cat.title}</h1>
       <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-2xl">{cat.lede}</p>
 

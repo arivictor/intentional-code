@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Scale, FlaskConical } from "lucide-react";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
+import PageMeta from "@/components/PageMeta";
 
 const PHILOSOPHY_PAGES = [
   {
@@ -22,6 +23,7 @@ const PHILOSOPHY_PAGES = [
 export default function PhilosophyLanding() {
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
+      <PageMeta title="Philosophy" description="The principles that make Go design patterns work: SOLID and Test-Driven Development." />
       <Breadcrumbs />
 
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">Design Philosophy</h1>

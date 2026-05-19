@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
 import { getPattern } from "@/lib/content/patterns";
+import PageMeta from "@/components/PageMeta";
 import MarkdownCode from "@/components/content/MarkdownCode";
 import ComparisonTable from "@/components/content/ComparisonTable";
 import PatternLink from "@/components/content/PatternLink";
@@ -114,8 +115,18 @@ export default function PatternPage() {
     );
   }
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "name": `${pattern.title} Pattern in Go`,
+    "description": pattern.intent,
+    "url": `https://intentionalcode.com/go/patterns/${pattern.category}/${pattern.slug}`,
+    "publisher": { "@type": "Organization", "name": "Intentional Code" },
+  };
+
   return (
     <>
+      <PageMeta title={pattern.title} description={pattern.intent} jsonLd={jsonLd} />
       <ReadingProgressBar />
       <div className="flex gap-8 max-w-5xl mx-auto px-6 py-12">
         <div className="flex-1 min-w-0">

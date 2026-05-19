@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from "react";
 import { Highlighter, X } from "lucide-react";
+import { HIGHLIGHT_COLORS } from "@/lib/highlight-colors";
 
 /**
  * Wraps content and lets users highlight selected text.
@@ -18,12 +19,9 @@ const COLORS = [
   { id: "pink",   label: "Pink",   bg: "bg-pink-200/70   dark:bg-pink-500/30",   mark: "pink"   },
 ];
 
-const COLOR_STYLES = {
-  yellow: "background-color: rgba(253,224,71,0.45)",
-  green:  "background-color: rgba(134,239,172,0.45)",
-  blue:   "background-color: rgba(147,197,253,0.45)",
-  pink:   "background-color: rgba(249,168,212,0.45)",
-};
+const COLOR_STYLES = Object.fromEntries(
+  Object.entries(HIGHLIGHT_COLORS).map(([k, v]) => [k, `background-color: ${v}`])
+);
 
 function applyHighlightsToDOM(container, highlights) {
   if (!container) return;

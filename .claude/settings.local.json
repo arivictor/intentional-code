@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(npm run *)",
-      "Bash(pkill -f \"vite --port 5174\")"
+      "Bash(pkill -f \"vite --port 5174\")",
+      "Bash(node scripts/generate-sitemap.js)"
     ]
   }
 }

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight } from "lucide-react";
 import { useTheme } from "@/lib/theme";
 import { Sun, Moon } from "lucide-react";
+import PageMeta from "@/components/PageMeta";
 
 const TRACKS = [
   {
@@ -32,6 +33,8 @@ export default function LandingPage() {
   const { theme, toggle } = useTheme();
 
   return (
+    <>
+    <PageMeta description="The 22 Gang-of-Four design patterns and SOLID principles, implemented in idiomatic Go." />
     <div className="min-h-screen bg-background flex flex-col">
       <header className="flex items-center justify-between px-6 py-5 border-b border-border">
         <span className="font-mono font-bold text-lg text-primary">Intentional Code</span>
@@ -87,5 +90,6 @@ export default function LandingPage() {
         </div>
       </main>
     </div>
+    </>
   );
 }
