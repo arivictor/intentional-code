@@ -1,6 +1,6 @@
 # Test-Driven Development
 
-Write a failing test. Make it pass. Refactor. Go's tooling makes this loop faster and more pleasant than in most languages — and the design pressure TDD creates naturally produces the small interfaces and clean boundaries that patterns formalize.
+Write a failing test. Make it pass. Refactor. Go's tooling makes this loop faster and more pleasant than in most languages: `go test ./...` needs no configuration, implicit interfaces eliminate the need for mocking frameworks, and table-driven tests keep test cases as data rather than duplicated functions. More importantly, the design pressure TDD creates naturally produces the small interfaces and clean boundaries that patterns like [Strategy](/go/patterns/behavioral/strategy), [Repository](/go/patterns/architectural/repository), and [Observer](/go/patterns/behavioral/observer) formalize — you often arrive at the pattern without setting out to implement it.
 
 ## The red / green / refactor loop
 
@@ -254,7 +254,7 @@ func TestCalculator(t *testing.T) {
 }
 ```
 
-> **Notice what happened.** TDD pressure naturally produced a **Strategy pattern** — `DiscountFunc` is a function type that encapsulates an algorithm. We didn't set out to implement Strategy; the tests drove us toward it. This is how principles and patterns connect: good tests push you toward good design.
+> **Notice what happened.** TDD pressure naturally produced a [Strategy](/go/patterns/behavioral/strategy) pattern — `DiscountFunc` is a function type that encapsulates an algorithm. We didn't set out to implement Strategy; the tests drove us toward it. This is how principles and patterns connect: good tests push you toward good design.
 
 ## TDD anti-patterns to avoid
 

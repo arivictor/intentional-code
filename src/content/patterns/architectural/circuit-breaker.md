@@ -241,7 +241,7 @@ result, err := cb.Execute(func() (interface{}, error) {
 
 ## Related Patterns
 
-- **Event-Driven Architecture** — Use a dead-letter queue when a circuit opens rather than dropping events entirely.
-- **Hexagonal Architecture** — The circuit breaker wraps a driven adapter (external API client); the application core is unaware of it.
-- **Repository** — Circuit breakers can wrap repository calls to external datastores, protecting the application from slow queries.
-- **Layered Architecture** — Place the circuit breaker in the Infrastructure layer — the Service layer calls the repository interface, the infrastructure implementation wraps it in the breaker.
+- **Event-Driven Architecture** — When a circuit opens, push events to a dead-letter queue rather than dropping them; replay once the circuit closes — the async nature of event-driven systems makes them more tolerant of transient open periods.
+- **Hexagonal Architecture** — Place the circuit breaker inside the driven adapter (infrastructure layer), not in the application core; the application calls the port interface transparently, unaware of the breaker operating below.
+- **Repository** — Wrap the repository's infrastructure implementation in a circuit breaker, not the repository interface itself — this keeps the domain layer isolated from the breaker logic and lets the breaker be swapped or removed without touching business code.
+- **Layered Architecture** — The circuit breaker belongs in the Infrastructure layer; Service layer code calls repository interfaces transparently, and the infrastructure implementation wraps outbound network calls in the breaker.

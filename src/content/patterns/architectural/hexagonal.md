@@ -1,6 +1,8 @@
 # Hexagonal Architecture
 
-Hexagonal Architecture (also called Ports and Adapters) places the application's business logic at the centre. Everything else — HTTP, databases, message queues, SMTP — is outside. The application defines *ports* (interfaces expressing what it needs or provides). *Adapters* connect the outside world to those ports. The application core never knows which adapters are active.
+Hexagonal Architecture solves a testability and flexibility problem: when HTTP handlers, SQL queries, and SMTP calls are mixed into business logic, testing requires live infrastructure. Hexagonal draws a boundary — everything inside is pure application logic; everything outside (HTTP, databases, queues, email) is an adapter that plugs in through a defined port (interface).
+
+The core vocabulary: **driving adapters** (HTTP handlers, CLI, tests) call **driving ports** (the application's API); the application calls **driven ports** (repository, notifier interfaces) which **driven adapters** (Postgres, SMTP, in-memory fakes) implement. The application imports none of the adapters — ever.
 
 ## Problem
 
@@ -273,6 +275,6 @@ func TestTransfer(t *testing.T) {
 
 ## Related Patterns
 
-- **Clean Architecture** — Uses the same inward dependency rule with "rings" instead of "hexagon/ports" terminology.
-- **Layered Architecture** — Simpler predecessor; Hexagonal replaces the strict layering with symmetric ports.
-- **Repository** — The canonical driven port — a persistence interface the application defines, implemented by a DB adapter.
+- **Clean Architecture** — Same goals, different vocabulary: uses "concentric rings" where Hexagonal uses "ports and adapters"; use whichever model helps your team most clearly enforce the inward dependency rule — they compose rather than compete.
+- **Layered Architecture** — Layered organises by tier (Handler, Service, Repository, Infrastructure); Hexagonal replaces strict downward layering with symmetric ports that treat HTTP and databases as equally swappable adapters.
+- **Repository** — The canonical driven port: a persistence interface the application defines, implemented by a database adapter that the application never imports directly.

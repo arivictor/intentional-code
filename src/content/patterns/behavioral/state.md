@@ -1,6 +1,8 @@
 # State
 
-State lets an object change its behavior when its internal state changes, as if it changed its type. In Go, the state is an interface, and the context struct holds the current state and delegates behavior to it. State transitions return the next state, keeping the transition logic close to the states themselves.
+State's identifying signal is a type with switch statements in every method, all checking the same state field. Adding a new state means adding a case to every switch across the entire type. State replaces those switches with one interface and one struct per state — each state's behavior is isolated, and transitions are explicit field assignments on the context.
+
+In Go, the context struct holds a `State` interface value and delegates method calls to it. Transition logic lives inside the state that initiates the change, not scattered across the context's methods.
 
 ## Problem
 
@@ -205,5 +207,5 @@ Sold out.
 
 ## Related Patterns
 
-- **Strategy** — Both delegate to interchangeable implementations. State changes the implementation internally; Strategy is set externally.
-- **Command** — Commands can trigger state transitions.
+- **Strategy** — Both delegate behavior to an interchangeable implementation; the distinction is control — Strategy is selected and set by an external caller, State transitions internally in response to events within the object itself.
+- **Command** — Commands can trigger state transitions; combine them when each transition needs to be undoable — the Command holds the transition logic and the previous state to restore.

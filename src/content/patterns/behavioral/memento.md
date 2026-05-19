@@ -1,6 +1,8 @@
 # Memento
 
-Memento captures an object's internal state as an opaque snapshot that can be used to restore the object later, without exposing its internal structure. In Go, this means a type with unexported fields — the originator can set and read them, but external code can only hold the memento, not inspect it.
+Go's package system gives Memento a clean implementation that many languages struggle with: a type's unexported fields are accessible only within its own package. This lets the originator (same package as the memento) save and restore state through a `*Memento` that external code can hold and pass around but cannot read or modify — encapsulation enforced by the compiler, not convention.
+
+The pattern is the encapsulated complement to [Prototype](/go/patterns/creational/prototype): Prototype clones state for independent use; Memento snapshots state for guarded restoration.
 
 ## Problem
 
@@ -151,5 +153,5 @@ After restore: Pos(0,0) HP=100 Lv=1 Items=[sword]
 
 ## Related Patterns
 
-- **Command** — Command can use Memento for complex undo (when reversing the operation isn't enough).
-- **Prototype** — Both involve copying state; Prototype clones for creation, Memento captures for restoration.
+- **Command** — Command records operations for undo; Memento records state for restore — combine them when reversing an operation mathematically is too complex and you'd rather restore the full snapshot.
+- **Prototype** — Both copy object state; Prototype creates an independent new instance to build on, Memento creates an opaque snapshot to roll back to — different purposes, same underlying deep-copy discipline for reference types.

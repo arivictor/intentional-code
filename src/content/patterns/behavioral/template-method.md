@@ -158,7 +158,7 @@ Reading file: users.json
 
 ## When Not to Use
 
-- Most or all steps vary — you don't have a fixed skeleton, you have a completely different algorithm. Use Strategy instead.
+- Most or all steps vary — you don't have a fixed skeleton, you have a completely different algorithm. Use [Strategy](/go/patterns/behavioral/strategy) instead.
 - The skeleton is trivial (2–3 lines). Just inline it.
 
 ## Advantages
@@ -174,5 +174,5 @@ Reading file: users.json
 
 ## Related Patterns
 
-- **Strategy** — Strategy replaces the whole algorithm; Template Method replaces steps within a fixed skeleton.
-- **Factory Method** — Factory Method is often a specific step within a Template Method skeleton.
+- **Strategy** — Strategy replaces the entire algorithm; Template Method holds the skeleton fixed and replaces one or two steps — prefer Strategy when the overall structure varies, Template Method when only the details do.
+- **Factory Method** — Factory Method is commonly used as one pluggable step inside a Template Method skeleton, where the "how to create the object" step varies while the overall process stays fixed.

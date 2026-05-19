@@ -1,6 +1,8 @@
 # Domain-Driven Design
 
-Domain-Driven Design (DDD) is a set of tactical patterns for modelling complex business domains in code. The core building blocks are Entities (identity-based), Value Objects (equality-based), Aggregates (consistency boundaries), Repositories (persistence abstraction), Domain Events (facts that happened), and Domain Services (operations that don't belong to a single entity). The unifying principle: the code should speak the language of the business.
+DDD's identifying problem is the anemic domain model: business logic scattered across service functions, domain types that are just data bags, and invariants — "a subscription can't be activated without a payment method" — enforced in some callers but forgotten in others. DDD moves that logic into the domain type itself, where it's enforced by the compiler and can't be bypassed.
+
+The tactical building blocks: **Entities** (identity-based, stateful), **Value Objects** (equality-based, immutable), **Aggregates** (consistency boundaries mutated only through the root), **Repositories** (persistence interfaces defined by the domain), **Domain Events** (facts that have occurred), and **Domain Services** (operations spanning multiple aggregates). The unifying constraint: code should speak the language of the business.
 
 ## Problem
 
@@ -273,7 +275,7 @@ func (s *ActivationService) Activate(ctx context.Context, id SubscriptionID) err
 
 ## Related Patterns
 
-- **Repository** — The Repository pattern is a first-class DDD tactical pattern.
-- **Event-Driven Architecture** — Domain Events are the natural producer of an event-driven system.
-- **CQRS** — Pairs naturally with DDD: command side uses the rich domain model; query side uses flat read models.
-- **Clean Architecture** — DDD's domain model maps to Clean Architecture's innermost ring.
+- **Repository** — Repositories are a first-class DDD tactical pattern: the domain defines the interface, infrastructure implements it, and the aggregate root is the only unit the repository saves and loads.
+- **Event-Driven Architecture** — Domain Events are the natural source for an event-driven system; aggregates record events as facts, and the application layer dispatches them to consumers after the transaction commits.
+- **CQRS** — Pairs directly with DDD: the command side uses the rich aggregate model with enforced invariants; the query side uses flat DTOs that bypass the domain model entirely for read performance.
+- **Clean Architecture** — DDD's domain model maps to Clean Architecture's innermost Entities ring; the two are complementary, not competing — DDD provides the modelling discipline, Clean Architecture provides the structural boundary.

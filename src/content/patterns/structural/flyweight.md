@@ -1,6 +1,6 @@
 # Flyweight
 
-Flyweight minimizes memory by sharing immutable data (intrinsic state) across many objects, while keeping variable data (extrinsic state) separate. In Go, this typically means a map that interns shared values, returning pointers to the same instance instead of creating duplicates.
+Flyweight is a memory optimization for systems with large numbers of similar objects: instead of each object owning a copy of shared data, they all hold a pointer to one shared instance. In Go, this is an interning map — on first request for a given key, create and store the shared instance; on all subsequent requests, return the same pointer. The intrinsic state (shared, immutable) lives in the interned type; the extrinsic state (unique per object) stays on each individual instance.
 
 `sync.Pool` is a related but different tool — it recycles mutable temporary objects to reduce GC pressure, whereas Flyweight shares immutable permanent state.
 
@@ -149,5 +149,5 @@ Unique tree types: 2 (shared across 4 trees)
 
 ## Related Patterns
 
-- **Composite** — Flyweight nodes can be leaves in a Composite tree.
-- **Singleton** — Both involve shared instances; Singleton is one instance total, Flyweight is one per key.
+- **Composite** — Flyweight types often appear as leaves in a Composite tree: the shared Flyweight instance holds common data (species, texture) while each Composite node holds unique data (position, quantity, parent).
+- **Singleton** — Singleton means one instance of one type; Flyweight means one instance per distinct key — the interning map is effectively a keyed singleton registry; use Singleton when there's genuinely only one, Flyweight when there are several distinct shared values.

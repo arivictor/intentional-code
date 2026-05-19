@@ -1,8 +1,8 @@
 # Builder
 
-Builder separates the construction of a complex object from its representation. In Go, the idiomatic form is the functional options pattern — a variadic list of option functions passed to a constructor. This avoids long parameter lists, eliminates the need for a separate builder type in most cases, and keeps the API extensible without breaking changes.
+Long parameter lists cause two problems: callers must fill every position even for optional fields, and zero values become ambiguous (`maxConns=0` could mean "unlimited" or "no connections"). In Go, the functional options pattern solves both — a variadic list of option functions lets callers specify only what they need, defaults are centralized in the constructor, and adding new options never breaks existing call sites.
 
-The classic chained builder also works in Go and is preferable when construction has a meaningful order or when you want to reuse a partially configured builder.
+The classic chained builder also works in Go and is preferable when construction has a meaningful order or when you want to reuse a partially configured builder across multiple similar objects.
 
 ## Problem
 
@@ -219,5 +219,5 @@ Server{addr=:443, read=30s, write=10s, maxConns=5000, tls=true, log=debug}
 
 ## Related Patterns
 
-- **Factory Method** — Factory Method selects which type to build; Builder configures how to build it.
-- **Abstract Factory** — Abstract Factory creates families of objects; Builder focuses on one complex object.
+- **Factory Method** — Use Factory Method when the choice of *which type* to create is the core decision; use Builder when you need fine-grained control over *how* one specific type is constructed with many optional parameters.
+- **Abstract Factory** — Use Abstract Factory when you need a consistent family of related objects created together; use Builder when you need one complex object configured precisely, with defaults and overrides.

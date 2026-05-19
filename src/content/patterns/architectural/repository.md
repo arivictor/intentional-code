@@ -1,6 +1,6 @@
 # Repository
 
-Repository isolates domain logic from data persistence. You define an interface describing the operations your domain needs — save, find, delete — and provide concrete implementations for each backend. Domain code depends on the interface; infrastructure code implements it.
+The most immediate sign you need Repository is a service function that takes `*sql.DB` as a parameter. That signature says: you cannot test this business rule without a running database. Repository replaces the concrete dependency with an interface defined in the domain package — Go's implicit interface satisfaction means the domain never imports the infrastructure package, and any struct with the right methods becomes a valid backend, including the in-memory fake that makes unit tests fast.
 
 ## Problem
 
@@ -241,7 +241,7 @@ func TestShipOrder(t *testing.T) {
 
 ## Related Patterns
 
-- **Hexagonal Architecture** — Repository is the canonical example of a driven port in Hexagonal Architecture.
-- **Layered Architecture** — Repository sits at the boundary between the Domain and Infrastructure layers.
-- **Domain-Driven Design** — Repositories are a first-class tactical pattern in DDD, one per aggregate root.
-- **Clean Architecture** — Repository interfaces belong in the Use Case ring; implementations belong in the outermost ring.
+- **Hexagonal Architecture** — Repository is the canonical example of a driven port: the application defines the interface, an adapter implements it — use Repository everywhere you need a driven port, and Hexagonal as the overall structure that tells you where each piece lives.
+- **Layered Architecture** — Repository sits at the Service-to-Infrastructure boundary; in a strictly layered codebase it is the primary mechanism for keeping business logic database-agnostic — if you are not doing full Hexagonal or Clean Architecture, Layered + Repository is often enough.
+- **Domain-Driven Design** — Repositories are a first-class DDD tactical pattern with one repository per aggregate root; DDD adds the constraint that a repository must load and save only complete aggregates, never partial state.
+- **Clean Architecture** — Repository interfaces belong in the Use Case (inner) ring; implementations belong in the outermost Frameworks & Drivers ring — the Dependency Rule means the domain references only the interface, never the implementation.

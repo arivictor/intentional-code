@@ -160,7 +160,7 @@ Charging PayPal: $25.00
 
 ## Related Patterns
 
-- **Bridge** — Bridge separates two dimensions; Strategy varies one dimension.
-- **State** — Both swap behavior at runtime. Strategy is chosen externally; State transitions internally.
-- **Template Method** — Template Method uses inheritance for variation points; Strategy uses composition.
-- **Command** — Both encapsulate behavior as a value. Command adds undo and queuing.
+- **Bridge** — Strategy varies one interchangeable algorithm; Bridge separates two independent dimensions of variation simultaneously — if you have two axes (abstraction + implementation), Bridge; if you have one (algorithm selection), Strategy.
+- **State** — Both swap behavior at runtime; the distinction is who controls the swap — Strategy is chosen and set by an external caller, State transitions internally in response to events.
+- **Template Method** — Template Method holds the algorithm skeleton fixed and plugs in one or two steps; Strategy replaces the whole algorithm — prefer Template Method when the structure matters, Strategy when it doesn't.
+- **Command** — Both encapsulate behavior as a value; Command adds undo and queuing on top — if you need those capabilities, use Command; if you only need interchangeability, Strategy is simpler.

@@ -247,7 +247,7 @@ func (r *OrderRepo) Save(ctx context.Context, o *domain.Order) error {
 
 ## Related Patterns
 
-- **Hexagonal Architecture** — Very similar goals and structure; Hexagonal uses "ports and adapters" terminology rather than rings.
-- **Layered Architecture** — Clean Architecture is a refinement of layered thinking with an explicit, enforced dependency rule.
-- **Repository** — The Repository pattern is the idiomatic Go implementation of the persistence port in Clean Architecture.
-- **Domain-Driven Design** — Clean Architecture's Entity ring maps directly to DDD's domain model.
+- **Hexagonal Architecture** — Same goals, different vocabulary: where Clean Architecture uses "concentric rings," Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule — they compose rather than compete, and many codebases use both terminologies interchangeably.
+- **Layered Architecture** — Clean Architecture is a stricter elaboration of layered thinking: Layered gives you the tier structure; Clean Architecture adds an explicit Dependency Rule and forbids inner rings from naming outer ones — prefer Clean Architecture when you need that enforcement to hold under pressure.
+- **Repository** — Repository is the idiomatic Go implementation of the persistence port in Clean Architecture's Use Case ring: the interface belongs in Use Cases, the SQL implementation belongs in the outermost Frameworks & Drivers ring — the inward dependency rule tells you exactly where each lives.
+- **Domain-Driven Design** — Clean Architecture's Entity ring maps directly to DDD's domain model; the two pair naturally — DDD provides the modelling discipline for what belongs in the inner rings, Clean Architecture provides the structural rule that keeps it there.

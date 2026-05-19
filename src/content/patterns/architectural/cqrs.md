@@ -1,6 +1,8 @@
 # CQRS
 
-CQRS (Command Query Responsibility Segregation) splits every operation into one of two kinds: commands (change state, return nothing or an error) and queries (read state, return data, change nothing). Each gets its own handler type, its own input struct, and optionally its own data store. The split makes read and write concerns independently evolvable.
+CQRS (Command Query Responsibility Segregation) separates every operation into one of two kinds: commands (mutate state, return nothing or an error) and queries (read state, return data, change nothing). The core insight: read and write models are different shapes. Commands need rich domain validation; queries need flat, denormalised views. Forcing one model to serve both purposes means either an anemic domain or bloated query results.
+
+Each command and query gets its own handler type, its own input struct, and — when workloads diverge enough — its own data store.
 
 ## Problem
 
@@ -291,7 +293,7 @@ func (h *OrderHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 ## Related Patterns
 
-- **Event-Driven Architecture** — Commands naturally emit Domain Events; read projections are often built by consuming those events.
-- **Domain-Driven Design** — CQRS pairs well with DDD: the command side uses the rich aggregate model; the query side uses flat read models.
-- **Hexagonal Architecture** — Command and query handlers are driving ports; write and read stores are driven ports.
-- **Clean Architecture** — Commands map to Use Cases; the Dependency Rule applies equally to both sides.
+- **Event-Driven Architecture** — Commands naturally emit Domain Events that update read-side projections asynchronously; CQRS and event-driven systems compose well, but CQRS does not require them — a single database with separate read and write models is enough to start.
+- **Domain-Driven Design** — Pairs naturally with DDD: the command side uses the rich aggregate model with enforced invariants; the query side uses flat DTOs that bypass the domain model entirely for read performance.
+- **Hexagonal Architecture** — Command and query handlers are driving ports called by HTTP or queue adapters; write and read stores are driven ports implemented by database adapters.
+- **Clean Architecture** — Commands map to Use Cases in the inner ring; queries can bypass the domain model and read directly from the store — the Dependency Rule applies to both sides.

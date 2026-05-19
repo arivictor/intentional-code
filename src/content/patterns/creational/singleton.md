@@ -1,6 +1,8 @@
 # Singleton
 
-Singleton ensures a type has exactly one instance and provides a global access point. In Go, the idiomatic implementation uses a package-level variable and `sync.Once` for thread-safe lazy initialization. But here's the honest truth: in most Go codebases, Singleton is an anti-pattern. It creates global mutable state, makes testing painful, and hides dependencies. The recommended alternative is dependency injection.
+In most Go codebases, Singleton is an anti-pattern — not because the idea is wrong, but because global mutable state hides dependencies, breaks test isolation, and ties every consumer to a concrete type instead of an injected interface. The idiomatic implementation (`sync.Once` for thread-safe lazy initialization) is correct; correctness doesn't mean you should use it.
+
+The pattern has legitimate uses: hardware drivers, license managers, or immutable package-level values compiled at startup (a compiled regex, a frozen lookup table). For shared resources like database pools and loggers, pass the instance through constructors and let `main()` enforce uniqueness.
 
 ## Problem
 
@@ -156,5 +158,5 @@ func main() {
 
 ## Related Patterns
 
-- **Factory Method** — Factory methods can enforce singleton behavior for specific types.
-- **Builder** — A builder configured once can serve a similar "single configuration" role without global state.
+- **Factory Method** — A factory method can return the same cached instance on every call, giving Singleton-like behavior without a global variable; prefer this when the "one instance" constraint belongs to a specific use case, not to the type itself.
+- **Builder** — A Builder configured once and stored in a regular variable achieves the same "one well-configured instance" goal without global state, and lets tests substitute a differently-configured instance without any contortion.

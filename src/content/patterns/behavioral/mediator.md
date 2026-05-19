@@ -1,8 +1,8 @@
 # Mediator
 
-Mediator defines a central coordinator that colleagues call instead of calling each other directly. It reduces the mesh of dependencies between components to a star topology — everyone talks to the mediator, not to each other.
+In a system where every peer knows about every other peer, adding one participant requires updating every other participant's reference list — O(n²) connections growing as the system scales. Mediator collapses this to O(n): each participant holds only a reference to the mediator, which routes messages to whoever needs them.
 
-In Go, the mediator is a struct that holds references to the participants and routes messages between them.
+In Go, the mediator is a struct that holds references to the participants. The participants' own types stay small and contain no cross-references to each other.
 
 ## Problem
 
@@ -159,5 +159,5 @@ Bob sends: Hey Alice!
 
 ## Related Patterns
 
-- **Facade** — Facade simplifies a subsystem's interface; Mediator coordinates peer interactions.
-- **Observer** — Mediator coordinates directly; Observer uses a publish/subscribe model.
+- **Facade** — Facade coordinates subsystems on behalf of an external caller; Mediator coordinates peers that could otherwise speak directly to each other — use Facade when the complexity is in the subsystem, Mediator when it's in the peer relationships.
+- **Observer** — Mediator coordinates bidirectionally (participants can send and receive through the hub); Observer is unidirectional (subject notifies listeners, listeners don't respond) — use Mediator when peers need to exchange messages, Observer when one object needs to broadcast state changes to passive listeners.

@@ -1,12 +1,22 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import rehypeSlug from "rehype-slug";
 import { CATEGORIES, getPatternsByCategory } from "@/lib/content/patterns";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
+import MarkdownCode from "@/components/content/MarkdownCode";
 
 export default function CategoryLanding() {
   const { category } = useParams();
   const cat = CATEGORIES[category];
+  const [introMd, setIntroMd] = useState("");
+
+  useEffect(() => {
+    import(`../../content/patterns/${category}.md?raw`)
+      .then((m) => setIntroMd(m.default))
+      .catch(() => setIntroMd(""));
+  }, [category]);
 
   if (!cat) {
     return (
@@ -24,6 +34,14 @@ export default function CategoryLanding() {
 
       <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">{cat.title}</h1>
       <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-2xl">{cat.lede}</p>
+
+      {introMd && (
+        <div className="prose-pattern mb-8">
+          <ReactMarkdown rehypePlugins={[rehypeSlug]} components={{ code: MarkdownCode }}>
+            {introMd}
+          </ReactMarkdown>
+        </div>
+      )}
 
       {/* Comparison table */}
       <div className="border border-border rounded-lg overflow-hidden mb-8">

@@ -1,6 +1,8 @@
 # Observer
 
-Observer establishes a one-to-many relationship: when one object (the subject) changes state, all registered observers are notified automatically. In Go, observers can be interface values, function values, or channels. Each approach has different trade-offs around lifecycle, concurrency, and coupling.
+In Go, Observer gives you three subscriber mechanisms: interface values (classic, stateful), function values (lighter, more composable), and channels (goroutine-friendly, but requiring careful lifecycle management — a subscriber goroutine that is never unsubscribed leaks). Picking the wrong form for your lifecycle requirements is the most common Observer mistake in Go.
+
+The pattern's core guarantee: when the subject's state changes, it doesn't know or care who reacts. Registered observers are notified; the subject imports nothing from observer packages.
 
 ## Problem
 
@@ -184,5 +186,5 @@ Output:
 
 ## Related Patterns
 
-- **Mediator** — Mediator centralizes communication; Observer decentralizes it via pub/sub.
-- **Command** — Commands can be queued as a form of event notification.
+- **Mediator** — Mediator is better when several peers need to coordinate bidirectionally (each can send and receive through the hub); prefer Observer when you need one broadcaster and many independent listeners that don't communicate back.
+- **Command** — Use Command alongside Observer when you need to queue, log, or make event notifications undoable — the Command wraps the notification payload; the Observer dispatches it.

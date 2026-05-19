@@ -1,8 +1,8 @@
 # Bridge
 
-Bridge splits a large type into two independent dimensions that can vary separately — the abstraction (what you do) and the implementation (how you do it). In Go, both sides are interfaces composed via struct fields, not inheritance.
+Bridge's identifying signal is a type hierarchy growing in two independent directions at once. Left unchecked, this produces a cartesian explosion: 3 channels × 3 urgency levels = 9 types; add a channel and you add 3 types; add an urgency level and you add 3 more. Bridge collapses this to 3 + 3 = 6 by splitting the two dimensions into two interfaces that compose via struct field, not inheritance.
 
-This pattern is useful when you'd otherwise face a combinatorial explosion of types: 3 shapes × 2 renderers = 6 types without Bridge, but only 3 + 2 = 5 with it.
+The key question before reaching for Bridge: are these two dimensions truly independent? If they always change together, Bridge adds interfaces for no gain. If adding to one dimension never requires touching the other, Bridge is the right structure.
 
 ## Problem
 
@@ -167,5 +167,5 @@ Output:
 
 ## Related Patterns
 
-- **Adapter** — Adapter connects existing incompatible types; Bridge designs the separation upfront.
-- **Strategy** — Strategy varies one algorithm; Bridge varies two dimensions simultaneously.
+- **Adapter** — Adapter fixes an existing mismatch between two interfaces after the fact; Bridge designs the separation upfront so two dimensions can evolve independently without ever creating the mismatch.
+- **Strategy** — Strategy varies one algorithm pluggably via an interface; Bridge varies two dimensions simultaneously — if you only have one dimension of variation, Strategy is simpler and clearer.

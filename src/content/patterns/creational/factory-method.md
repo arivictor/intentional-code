@@ -1,8 +1,8 @@
 # Factory Method
 
-Factory Method lets you produce objects without specifying their exact type. In Go, this means a constructor function that returns an interface type, so the caller works with the interface and doesn't know — or care — which concrete struct it got back.
+In class-based languages, Factory Method is an abstract class with an overridable creation method. In Go, it's a function that returns an interface — the entire pattern reduces to that. The "factory" is the constructor; the "method" is its return type.
 
-This is one of the most natural patterns in Go. Unlike languages that need an abstract class with an overridable factory method, Go just uses a plain function that returns an interface. The "factory" is the function itself.
+The pattern earns its keep when you find yourself extending a switch statement every time you add a new type. That switch is a signal: move the selection logic into one place, hide it behind a constructor, and let new implementations register without touching existing code.
 
 ## Problem
 
@@ -192,6 +192,6 @@ Output:
 
 ## Related Patterns
 
-- **Abstract Factory** — Groups related factory methods into a family-creating interface.
-- **Builder** — Also about object creation, but focuses on step-by-step construction rather than type selection.
-- **Prototype** — Creates objects by cloning rather than by calling constructors.
+- **Abstract Factory** — Use Abstract Factory when you need to guarantee that multiple created types come from the same family and work together (e.g., a macOS button always paired with a macOS dialog); Factory Method is simpler when you only need to select one type.
+- **Builder** — Use Builder when construction requires many optional parameters or a meaningful sequence of steps; Factory Method is for selecting *which* type to create, not for configuring a complex one.
+- **Prototype** — Use Prototype when cloning an existing instance is cheaper or more convenient than calling a constructor; Factory Method when you want to encapsulate the constructor selection logic.

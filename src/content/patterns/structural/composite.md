@@ -1,8 +1,8 @@
 # Composite
 
-Composite lets you treat individual objects and compositions of objects uniformly through a single interface. The classic example is a file system: both files and directories satisfy the same interface, and a directory contains other entries (which may themselves be directories).
+Composite's identifying signal is a tree structure where clients should treat leaves and branches the same way — you call `Price()` and it doesn't matter whether you're calling it on a single product or a bundle of thousands. In Go, this is one interface implemented by both leaf and composite types; the composite holds a `[]InterfaceType` and recursion falls out naturally from each node calling the same method on its children.
 
-In Go, this is one interface implemented by both leaf and composite types, where the composite holds a slice of the interface type and delegates operations recursively.
+The classic example is a file system: both files and directories satisfy the same interface, and a directory simply delegates its operations to its entries.
 
 ## Problem
 
@@ -175,6 +175,6 @@ Workstation     $ 519.97
 
 ## Related Patterns
 
-- **Decorator** — Decorator wraps one object; Composite wraps many.
-- **Iterator** — Iterator provides a way to traverse composite structures.
-- **Visitor** — Visitor separates operations from the composite structure.
+- **Decorator** — Decorator wraps exactly one object to add behavior; Composite holds a collection of the same interface type to aggregate behavior — if you're wrapping one, use Decorator; if you're aggregating many, use Composite.
+- **Iterator** — Composite creates the tree structure; Iterator gives you a consistent way to traverse it without the caller needing to know the tree's shape.
+- **Visitor** — Visitor lets you add new operations to a Composite tree without modifying the component types — reach for it when you have a stable structure but frequently need new traversal operations.

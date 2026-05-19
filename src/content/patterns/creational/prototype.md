@@ -1,6 +1,6 @@
 # Prototype
 
-Prototype creates new objects by copying an existing instance. In Go, this means a `Clone()` method on a type. The pattern is straightforward in concept but treacherous in practice: Go's reference types (slices, maps, pointers) make shallow copies dangerous. The value of this pattern in Go is less about avoiding constructors and more about being explicit about copy semantics.
+Go's struct assignment copies by value — clean for `string` and `int` fields, but silently dangerous for `[]string`, `map[string]string`, and pointer fields, which share the same underlying memory with the original. The value of Prototype in Go is not performance (avoiding expensive constructors) but correctness: a `Clone()` method makes deep-copy semantics explicit and localized, so reference types are never accidentally shared between what you thought were independent copies.
 
 ## Problem
 
@@ -168,7 +168,7 @@ Invoice  para[0]: Dear Acme Corp,
 ## When Not to Use
 
 - Your type is simple and has only value fields — plain struct assignment is the correct copy mechanism.
-- Deep copying is too expensive for your use case — consider immutable shared state (Flyweight) instead.
+- Deep copying is too expensive for your use case — consider immutable shared state ([Flyweight](/go/patterns/structural/flyweight)) instead.
 - You only need a few variations — a constructor with parameters is simpler than cloning and modifying.
 
 ## Advantages
@@ -186,5 +186,5 @@ Invoice  para[0]: Dear Acme Corp,
 
 ## Related Patterns
 
-- **Factory Method** — Factory Method creates via constructors; Prototype creates via cloning.
-- **Memento** — Memento also captures object state, but for save/restore rather than cloning.
+- **Factory Method** — Use Factory Method when creating an object from scratch is straightforward and the choice of which concrete type matters; use Prototype when the existing state of an instance is the right starting point for a new independent copy.
+- **Memento** — Memento also copies object state, but for undo/restore rather than creating new independent instances; the distinction is purpose — Memento saves a snapshot to roll back to, Prototype creates a new peer to build on separately.

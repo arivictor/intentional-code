@@ -1,6 +1,6 @@
 # Layered Architecture
 
-Layered Architecture organises code into horizontal tiers — Handler, Service, Repository, Infrastructure — where each layer only depends on the layer directly below it. A request enters at the top, flows down through the layers, and results travel back up.
+The warning sign that you need Layered Architecture is an HTTP handler that imports `database/sql`. Go encourages small, composable packages, which means a growing service will naturally tangle HTTP, business rules, and SQL if you don't deliberately separate them. Layered Architecture is the first line of defence: four horizontal tiers — Handler, Service, Repository, Infrastructure — where each layer depends only on the layer below it, and Go's implicit interfaces enforce the boundary at no extra cost.
 
 ## Problem
 
@@ -216,6 +216,6 @@ func main() {
 
 ## Related Patterns
 
-- **Repository** — The canonical pattern for the boundary between the Service and Infrastructure layers.
-- **Clean Architecture** — A more opinionated refinement of layered thinking, with an explicit dependency rule.
-- **Hexagonal Architecture** — Replaces "layers" with "ports and adapters" — a more symmetric model that treats HTTP and databases equivalently.
+- **Repository** — The natural pattern to define the Service-to-Infrastructure boundary: the service layer declares the interface it needs; the repository layer implements it — use Repository whenever the persistence logic is complex enough to warrant its own package.
+- **Clean Architecture** — A more opinionated elaboration of layered thinking that enforces the inward dependency rule with ring terminology; prefer Clean Architecture when you need stronger isolation guarantees or multiple delivery mechanisms against the same domain.
+- **Hexagonal Architecture** — Replaces strict downward layering with symmetric ports — HTTP and databases become equivalent adapters plugging into the same hexagon; prefer Hexagonal when you need to test the full application core without any infrastructure, since the port model makes that clearer than strict layers.

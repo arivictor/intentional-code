@@ -1,8 +1,8 @@
 # Abstract Factory
 
-Abstract Factory provides an interface for creating families of related objects without specifying their concrete types. Where Factory Method selects one type, Abstract Factory selects a coherent group of types that are designed to work together.
+Abstract Factory solves a specific problem: your system needs families of related objects that must be used together — a macOS button paired with a macOS dialog, not a macOS button with a Windows dialog — and the entire family should be swappable as a unit.
 
-In Go, this is an interface whose methods each return another interface. One struct per family implements the factory interface, returning concrete types that belong together.
+In Go, the pattern is an interface whose methods each return a product interface. One struct per family satisfies the factory interface, and the compiler enforces that code written against that interface can never accidentally mix families. This is the critical advantage over individual [Factory Methods](/go/patterns/creational/factory-method): a factory method prevents you from picking the wrong *type*, but it can't prevent you from picking types from different families.
 
 ## Problem
 
@@ -187,7 +187,7 @@ Output:
 
 ## When Not to Use
 
-- You only have one product type — use Factory Method instead.
+- You only have one product type — use [Factory Method](/go/patterns/creational/factory-method) instead.
 - The products in each family are trivially different — the abstraction overhead isn't justified.
 - You don't actually need family consistency. If mixing is fine, individual factory functions are simpler.
 
@@ -205,5 +205,5 @@ Output:
 
 ## Related Patterns
 
-- **Factory Method** — Abstract Factory is often implemented using factory methods internally.
-- **Builder** — Builder constructs complex objects step by step; Abstract Factory creates families at once.
+- **Factory Method** — Use Factory Method when you only need to select one type; reach for Abstract Factory when you need to guarantee that multiple types come from the same family and must be used together correctly.
+- **Builder** — Use Builder when constructing one complex object with many optional parts; Abstract Factory is for selecting a consistent set of simpler objects across multiple product types.

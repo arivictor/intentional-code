@@ -1,8 +1,8 @@
 # Adapter
 
-Adapter wraps an existing type so it satisfies a different interface. In Go, this is a struct that holds a reference to the "adaptee" and implements the target interface by delegating calls with any necessary translation.
+Any wrapper struct in Go that makes one package's type compatible with another's interface is an Adapter — one of the most common patterns in the language, frequently written without being recognized as one. The formal structure: a struct holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
 
-This is one of the most commonly used patterns in Go, often without being recognized as a pattern. Any time you write a wrapper struct to make one package's type compatible with another package's interface, you're using Adapter.
+The pattern is especially common when integrating third-party SDKs: you can't modify the SDK, and you don't want to modify your domain interface, so you build a thin wrapper that translates between them once, in one place.
 
 ## Problem
 
@@ -146,7 +146,7 @@ Payment successful: ch_123
 
 ## Related Patterns
 
-- **Bridge** — Bridge separates abstraction from implementation upfront; Adapter retrofits compatibility.
-- **Decorator** — Decorator adds behavior while keeping the same interface; Adapter changes the interface.
-- **Facade** — Facade simplifies a complex API; Adapter makes an incompatible API compatible.
-- **Proxy** — Proxy provides the same interface to control access; Adapter provides a different interface.
+- **Bridge** — Bridge designs two interfaces to vary independently from the start; Adapter is a retrofit that reconciles two existing interfaces that were never designed to work together.
+- **Decorator** — Decorator preserves the same interface and adds behavior; Adapter changes the interface to resolve a mismatch — if your wrapper changes the API, it's an Adapter; if it adds to the same API, it's a Decorator.
+- **Facade** — Facade simplifies a whole subsystem's API into fewer entry points; Adapter makes one specific type compatible with one specific interface.
+- **Proxy** — Proxy preserves the same interface to control access to the real object; Adapter provides a different interface to bridge an incompatibility.

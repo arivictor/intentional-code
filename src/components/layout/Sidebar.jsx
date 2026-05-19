@@ -86,7 +86,7 @@ export default function Sidebar({ open, onClose }) {
 
       <div className="mt-3 space-y-0.5">
         <SidebarLink to="/go/saved" active={currentPath === "/go/saved"}>
-          <span className="flex items-center gap-2"><Bookmark className="h-3.5 w-3.5" /> Saved Patterns</span>
+          <span className="flex items-center gap-2"><Bookmark className="h-3.5 w-3.5" /> Saved Content</span>
         </SidebarLink>
       </div>
     </nav>

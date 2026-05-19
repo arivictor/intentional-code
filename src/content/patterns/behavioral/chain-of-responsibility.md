@@ -1,8 +1,8 @@
 # Chain of Responsibility
 
-Chain of Responsibility passes a request along a sequence of handlers. Each handler decides whether to process the request, modify it, or pass it to the next handler. In Go, this is most commonly seen as HTTP middleware chains, but it applies anywhere you need a pipeline of processors.
+Chain of Responsibility passes a request along a sequence of handlers. Each handler decides whether to process the request, short-circuit with a response, or pass it on. In Go, this is most commonly seen as HTTP middleware chains, but the pattern applies anywhere you need a composable pipeline of independent checks or transformations.
 
-The Go idiom favors a slice of handlers or composed middleware functions over linked lists of handler objects.
+The Go idiom favors a slice of handler functions over linked-list objects — simpler to construct, reorder, and test in isolation.
 
 ## Problem
 
@@ -159,5 +159,5 @@ Output:
 
 ## Related Patterns
 
-- **Decorator** — HTTP middleware is both Decorator and Chain of Responsibility.
-- **Command** — Commands can be chained into a pipeline.
+- **Decorator** — HTTP middleware is both Decorator and Chain of Responsibility: each middleware wraps the next (Decorator) and may short-circuit without calling the inner handler (Chain of Responsibility) — if every step always calls the next, it's pure Decorator; if steps may stop the chain, it's Chain of Responsibility.
+- **Command** — Commands can be the handlers in a chain, combining pipeline composability with undo and queuing capabilities.

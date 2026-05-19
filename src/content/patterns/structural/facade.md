@@ -1,6 +1,6 @@
 # Facade
 
-Facade provides a simplified interface to a complex subsystem. It doesn't add new functionality — it curates existing functionality into a convenient API that covers the most common use cases. In Go, this is typically a struct that coordinates multiple packages or services behind a small set of methods.
+Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch processor all repeat the same multi-step sequence — validate, charge, reserve, notify — that sequence belongs in one struct, not scattered across entry points. In Go, a facade struct accepts its subsystems as interfaces (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.
 
 ## Problem
 
@@ -173,5 +173,5 @@ Order placed: txn_abc123
 
 ## Related Patterns
 
-- **Adapter** — Adapter makes one interface compatible; Facade simplifies a whole subsystem.
-- **Mediator** — Mediator coordinates peer interactions; Facade coordinates subsystem calls.
+- **Adapter** — Adapter makes one incompatible type compatible with one interface; Facade simplifies a whole subsystem into a more convenient API — use Adapter when you have an interface mismatch, Facade when you have a repeated orchestration problem.
+- **Mediator** — Mediator coordinates peers that know about each other and communicate through a central hub; Facade coordinates subsystems on behalf of an external caller — use Mediator when objects need to send messages to each other, Facade when callers just need a simpler entry point into complex subsystem code.

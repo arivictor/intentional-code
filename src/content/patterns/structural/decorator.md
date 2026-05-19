@@ -152,7 +152,7 @@ GET /orders 128µs
 ## When Not to Use
 
 - The added behavior is tightly coupled to the object's internals. A decorator that needs private fields isn't a decorator — it's a refactoring need.
-- Deep decorator stacks (5+ layers) make debugging difficult. Consider whether a pipeline or chain pattern would be clearer.
+- Deep decorator stacks (5+ layers) make debugging difficult. Consider whether a [Chain of Responsibility](/go/patterns/behavioral/chain-of-responsibility) would be clearer.
 - You only ever need one fixed combination. Direct composition in a single handler might be simpler.
 
 ## Advantages
@@ -169,7 +169,7 @@ GET /orders 128µs
 
 ## Related Patterns
 
-- **Adapter** — Adapter changes the interface; Decorator keeps the same interface and adds behavior.
-- **Composite** — Decorator wraps one object; Composite wraps many.
-- **Proxy** — Proxy controls access; Decorator adds behavior. Both wrap with the same interface.
-- **Chain of Responsibility** — Middleware chains are a form of both Decorator and Chain of Responsibility.
+- **Adapter** — Adapter resolves an interface mismatch; Decorator keeps the same interface and adds behavior — if your wrapper changes the API, it's an Adapter; if it preserves the API and enriches it, it's a Decorator.
+- **Composite** — Decorator wraps exactly one object and adds behavior; Composite aggregates many objects of the same type — if you wrap one, Decorator; if you compose many, Composite.
+- **Proxy** — Proxy and Decorator are structurally identical in Go; the distinction is intent — Proxy controls or intercepts access (lazy init, auth, caching), Decorator adds new capabilities without restricting access.
+- **Chain of Responsibility** — HTTP middleware chains are both Decorator and Chain of Responsibility: each middleware wraps the next (Decorator) and may short-circuit the chain without calling the inner handler (Chain of Responsibility).

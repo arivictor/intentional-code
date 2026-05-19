@@ -1,6 +1,8 @@
 # Event-Driven Architecture
 
-Event-Driven Architecture decouples producers from consumers by having components communicate through events — facts that describe something that happened — rather than direct calls. A producer emits an event without knowing who, if anyone, is listening. Consumers subscribe to events they care about and react independently. The pattern spans both in-process (channels, event bus) and cross-service (Kafka, NATS, SQS) contexts.
+Event-Driven Architecture solves the cascading failure problem of synchronous service calls: when service A calls B and C directly, a failure in C also fails A. With events, A publishes a fact and returns — B and C subscribe and react independently. A failed notification service can't block order placement.
+
+The pattern spans both in-process (Go channels, event bus struct) and cross-service (Kafka, NATS, SQS) contexts. Hiding the difference behind a `Publisher` interface lets you start with an in-process bus and graduate to a broker when the system demands it.
 
 ## Problem
 
@@ -285,7 +287,7 @@ func (s *InventoryService) HandleOrderPlaced(ctx context.Context, evt events.Ord
 
 ## Related Patterns
 
-- **Domain-Driven Design** — Domain Events are the natural producer for an event-driven system; aggregates emit events as facts.
-- **CQRS** — Commands produce events; read projections are built by consuming those events.
-- **Circuit Breaker** — Wrap external message broker calls in a circuit breaker to handle broker unavailability gracefully.
-- **Hexagonal Architecture** — The message broker is a driven adapter; the event handler interface is a driven port.
+- **Domain-Driven Design** — Domain Events are the natural producer for an event-driven system; aggregates record events as facts during state transitions, and the application layer dispatches them after the transaction commits.
+- **CQRS** — Commands produce events; read-side projections consume those events to build denormalised views — the two patterns compose into a complete write-and-read model with a full audit history.
+- **Circuit Breaker** — Wrap message broker publish calls in a circuit breaker; if the broker is unavailable, fail fast and route events to a dead-letter queue rather than blocking the producer.
+- **Hexagonal Architecture** — The message broker is a driven adapter implementing a `Publisher` port; the event handler function is a driven port that the infrastructure layer implements.

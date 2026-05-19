@@ -1,10 +1,8 @@
 # SOLID Principles
 
-The five SOLID principles were articulated in the context of class-based OOP with inheritance. Go doesn't have classes or inheritance. But the principles still matter — they just express differently.
+In Go, three of the five SOLID principles apply almost by default: interfaces are implicit and small by convention (ISP), packages compose rather than inherit (OCP), and focused packages are idiomatic (SRP). The two that need deliberate effort are LSP — which in Go is about behavioral contracts for interface implementors, not subclass hierarchies — and DIP, where Go's "accept interfaces, return structs" idiom replaces abstract classes.
 
-Some SOLID framing assumes inheritance that Go doesn't have. Where that happens, we reinterpret honestly rather than force-fitting. ISP, for instance, is almost free in Go because interfaces are implicit and small by convention. LSP has nothing to do with subclasses and everything to do with behavioral contracts.
-
-> **Principles over patterns.** Principles tell you *why* a design is good or bad. Patterns tell you *how* to implement a solution. If you internalize the principles, you'll often arrive at the right pattern naturally — or realize you don't need one.
+Understanding the principles tells you *why* a design choice is good or bad. Patterns tell you *how* to implement a solution. If you internalize the principles, you'll often arrive at the right pattern naturally — or realize you don't need one. The [Repository](/go/patterns/architectural/repository) pattern is DIP applied to persistence; [Observer](/go/patterns/behavioral/observer) is OCP applied to event notification; [Strategy](/go/patterns/behavioral/strategy) is OCP applied to interchangeable algorithms.
 
 ---
 
@@ -364,4 +362,4 @@ func (f *fakeNotifier) NotifyConfirmation(email, id string) error {
 }
 ```
 
-> **Smell:** You can't test a function without spinning up infrastructure. Changing a database or email provider requires modifying business logic.
+> **Smell:** You can't test a function without spinning up infrastructure. Changing a database or email provider requires modifying business logic. If you find yourself writing fakes for complex interfaces, consider the [Repository](/go/patterns/architectural/repository) pattern to define exactly the persistence contract your domain needs.

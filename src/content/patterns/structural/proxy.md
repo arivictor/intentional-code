@@ -158,7 +158,7 @@ Error: access denied: role "viewer" cannot execute queries
 
 - The real object is cheap to create. Lazy initialization adds complexity without benefit.
 - Access control belongs at a higher level (HTTP middleware, gateway) rather than at the object level.
-- You're adding behavior (not controlling access) — that's Decorator, not Proxy.
+- You're adding behavior without restricting access — that's [Decorator](/go/patterns/structural/decorator), not Proxy.
 
 ## Advantages
 
@@ -174,5 +174,5 @@ Error: access denied: role "viewer" cannot execute queries
 
 ## Related Patterns
 
-- **Adapter** — Adapter changes the interface; Proxy preserves it.
-- **Decorator** — Structurally identical to Proxy, but intent differs: Decorator adds behavior, Proxy controls access.
+- **Adapter** — Adapter provides a different interface to bridge a mismatch; Proxy preserves the same interface — if your wrapper changes the API, it's an Adapter; if it intercepts calls through the same API, it's a Proxy.
+- **Decorator** — Proxy and Decorator are structurally identical in Go; the distinction is purpose — Proxy controls or intercepts access (lazy init, auth, caching), Decorator adds new capabilities while allowing unrestricted access to the original object.

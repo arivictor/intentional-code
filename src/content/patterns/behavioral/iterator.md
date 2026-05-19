@@ -1,8 +1,8 @@
 # Iterator
 
-Iterator provides a way to traverse elements of a collection without exposing its internal structure. Go 1.23 introduced range-over-func (`iter.Seq[T]`) as a first-class language feature for this, making external iterator structs largely unnecessary.
+Go 1.23 made Iterator a first-class language feature: `iter.Seq[T]` (a function of the form `func(yield func(T) bool)`) integrates directly with for-range, replacing the channel-based and explicit `Next()`/`Value()` struct approaches that preceded it. Write the traversal once; every consumer gets a plain `for v := range collection.InOrder()` loop.
 
-This is one of the patterns most transformed by Go's evolution. Before 1.23, you'd use channels or explicit `Next()`/`Value()` structs. Now, an `iter.Seq[T]` function is the idiomatic choice.
+This is one of the patterns most transformed by Go's evolution — if you're on 1.23+, external iterator structs are rarely worth reaching for.
 
 ## Problem
 
@@ -185,5 +185,5 @@ First 3: 1 2 3
 
 ## Related Patterns
 
-- **Composite** — Iterators are a natural way to traverse composite structures.
-- **Visitor** — Visitor uses double dispatch to process elements; Iterator provides sequential access.
+- **Composite** — Iterator is the natural way to traverse a Composite tree without exposing its structure; the traversal logic is written once in the iterator and all consumers use for-range.
+- **Visitor** — Iterator provides sequential access to elements; Visitor performs type-specific operations on each element — combine them when you need to traverse a tree and apply different logic per node type.

@@ -1,6 +1,8 @@
 # Command
 
-Command encapsulates a request as an object (or, in Go, a function value). This lets you parameterize functions with operations, queue them, log them, and support undo. In Go, the simplest form of Command is a function value — you don't always need a struct.
+In Go, the simplest command is a function value: `queue := []func(){}`. You don't need a struct unless you need `Undo()` or command metadata. When you do, Command encapsulates each operation as a struct that captures everything required to reverse it — the target object, the position, the data that was there before.
+
+The pattern earns its full weight for text editors, transaction systems, and task queues where operations must be reversible, loggable, or replayable.
 
 ## Problem
 
@@ -185,6 +187,6 @@ After undo: Hello World
 
 ## Related Patterns
 
-- **Chain of Responsibility** — Commands can be handlers in a chain.
-- **Memento** — Memento can save state for more complex undo scenarios.
-- **Strategy** — Both encapsulate algorithms; Command adds undo and queuing capabilities.
+- **Chain of Responsibility** — Commands can be the handlers in a chain, combining pipeline composability with Command's undo and queuing capabilities.
+- **Memento** — Use Memento alongside Command when reversing an operation isn't enough and you need to restore a full state snapshot — Command records what happened, Memento records what was.
+- **Strategy** — Both encapsulate behavior as a value; reach for Strategy when you need interchangeable algorithms, Command when you also need undo, queuing, or logging of the operations.

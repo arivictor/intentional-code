@@ -211,5 +211,5 @@ Result: 14
 
 ## Related Patterns
 
-- **Composite** — Visitor often operates on Composite structures.
-- **Iterator** — Iterator traverses; Visitor performs operations during traversal.
+- **Composite** — Visitor is most powerful when applied to Composite structures: the Composite defines the tree, Visitor adds operations that traverse it without modifying the node types.
+- **Iterator** — Iterator provides sequential access to elements; Visitor performs type-specific operations on each element — combine them when you need to traverse a tree and apply different logic per node type.
