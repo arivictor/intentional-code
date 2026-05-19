@@ -17,9 +17,14 @@ export const CATEGORIES = {
     title: "Behavioral Patterns",
     lede: "Algorithms and the assignment of responsibilities between objects.",
   },
+  architectural: {
+    slug: "architectural",
+    title: "Architectural Patterns",
+    lede: "Patterns for structuring entire applications and services — layering, boundaries, and cross-cutting concerns.",
+  },
 };
 
-export const CATEGORY_ORDER = ["creational", "structural", "behavioral"];
+export const CATEGORY_ORDER = ["creational", "structural", "behavioral", "architectural"];
 
 export const PATTERNS = [
   // ── Creational ──
@@ -201,11 +206,82 @@ export const PATTERNS = [
     goIdiomSummary: "Double dispatch via Accept(Visitor); be honest about verbosity and present type-switch as the Go alternative.",
     relatedSlugs: ["composite", "iterator"],
   },
+
+  // ── Architectural ──
+  {
+    slug: "repository",
+    title: "Repository",
+    category: "architectural",
+    intent: "Isolate domain logic from data persistence by defining an interface for storage operations and providing concrete implementations for each backend.",
+    goIdiomSummary: "A small interface per aggregate (Save, FindByID, etc.); in-memory implementation for tests, sql.DB implementation for production.",
+    relatedSlugs: ["hexagonal", "layered", "domain-driven-design", "clean-architecture"],
+  },
+  {
+    slug: "layered",
+    title: "Layered Architecture",
+    category: "architectural",
+    intent: "Organise code into horizontal layers — Handler, Service, Repository, Infrastructure — where each layer depends only on the layer below it.",
+    goIdiomSummary: "Separate packages per layer; interfaces at each boundary so layers can be tested and swapped independently.",
+    relatedSlugs: ["repository", "clean-architecture", "hexagonal"],
+  },
+  {
+    slug: "clean-architecture",
+    title: "Clean Architecture",
+    category: "architectural",
+    intent: "Structure code in concentric rings — Entities, Use Cases, Interface Adapters, Frameworks — enforcing a strict inward dependency rule so the domain never imports infrastructure.",
+    goIdiomSummary: "Domain types and use-case interfaces in an inner package; HTTP handlers and DB adapters in outer packages that import inward, never the reverse.",
+    relatedSlugs: ["hexagonal", "layered", "repository", "domain-driven-design"],
+  },
+  {
+    slug: "hexagonal",
+    title: "Hexagonal Architecture",
+    category: "architectural",
+    intent: "Place business logic at the centre, define ports (interfaces) for everything the application drives or is driven by, and provide adapters that connect the outside world to those ports.",
+    goIdiomSummary: "Driving ports as use-case interfaces called by HTTP handlers; driven ports as repository and notifier interfaces implemented by DB and queue adapters.",
+    relatedSlugs: ["clean-architecture", "layered", "repository"],
+  },
+  {
+    slug: "domain-driven-design",
+    title: "Domain-Driven Design",
+    category: "architectural",
+    intent: "Model software around the business domain using Entities, Value Objects, Aggregates, Repositories, and Domain Events, keeping the ubiquitous language consistent across code and conversation.",
+    goIdiomSummary: "Structs for entities and value objects; aggregate roots as the only entry point for mutations; domain events as plain structs dispatched after state changes.",
+    relatedSlugs: ["repository", "event-driven", "clean-architecture", "cqrs"],
+  },
+  {
+    slug: "cqrs",
+    title: "CQRS",
+    category: "architectural",
+    intent: "Separate the model used for writing state (Commands) from the model used for reading it (Queries), allowing each side to be optimised independently.",
+    goIdiomSummary: "Command handler functions that accept a command struct and return an error; query functions that accept filter params and return read-model DTOs.",
+    relatedSlugs: ["event-driven", "domain-driven-design", "repository"],
+  },
+  {
+    slug: "event-driven",
+    title: "Event-Driven Architecture",
+    category: "architectural",
+    intent: "Decouple services by having producers emit domain events and consumers react to them asynchronously, without either knowing about the other.",
+    goIdiomSummary: "In-process: Go channels or a simple event bus struct. Cross-service: publish to Kafka/NATS/SQS; consumers implement an idempotent handler interface.",
+    relatedSlugs: ["cqrs", "domain-driven-design", "observer"],
+  },
+  {
+    slug: "circuit-breaker",
+    title: "Circuit Breaker",
+    category: "architectural",
+    intent: "Prevent cascading failures by wrapping remote calls in a state machine that fails fast when a downstream service is unhealthy and probes for recovery.",
+    goIdiomSummary: "A CircuitBreaker struct with Closed/Open/HalfOpen states; wraps any func() error call; uses sync/atomic or a mutex for thread-safe state transitions.",
+    relatedSlugs: ["proxy", "decorator"],
+  },
 ];
 
 // Helpers
 export function getPattern(slug) {
   return PATTERNS.find((p) => p.slug === slug);
+}
+
+export function getPatternByTitle(title) {
+  const normalized = title.toLowerCase().trim();
+  return PATTERNS.find((p) => p.title.toLowerCase() === normalized);
 }
 
 export function getPatternsByCategory(cat) {
@@ -230,29 +306,32 @@ export function getNextPattern(slug) {
   return idx < PATTERNS.length - 1 ? PATTERNS[idx + 1] : null;
 }
 
-// Full navigation order for prev/next across all content pages
+// Full navigation order for prev/next across all Go content pages
 export const NAV_ORDER = [
-  { path: "/", title: "Home" },
-  { path: "/philosophy", title: "Philosophy" },
-  { path: "/philosophy/solid", title: "SOLID Principles" },
-  { path: "/philosophy/tdd", title: "Test-Driven Development" },
-  { path: "/patterns", title: "Pattern Catalog" },
-  { path: "/patterns/creational", title: "Creational Patterns" },
+  { path: "/go", title: "Home" },
+  { path: "/go/philosophy", title: "Philosophy" },
+  { path: "/go/philosophy/solid", title: "SOLID Principles" },
+  { path: "/go/philosophy/tdd", title: "Test-Driven Development" },
+  { path: "/go/patterns/creational", title: "Creational Patterns" },
   ...getPatternsByCategory("creational").map((p) => ({
-    path: `/patterns/creational/${p.slug}`,
+    path: `/go/patterns/creational/${p.slug}`,
     title: p.title,
   })),
-  { path: "/patterns/structural", title: "Structural Patterns" },
+  { path: "/go/patterns/structural", title: "Structural Patterns" },
   ...getPatternsByCategory("structural").map((p) => ({
-    path: `/patterns/structural/${p.slug}`,
+    path: `/go/patterns/structural/${p.slug}`,
     title: p.title,
   })),
-  { path: "/patterns/behavioral", title: "Behavioral Patterns" },
+  { path: "/go/patterns/behavioral", title: "Behavioral Patterns" },
   ...getPatternsByCategory("behavioral").map((p) => ({
-    path: `/patterns/behavioral/${p.slug}`,
+    path: `/go/patterns/behavioral/${p.slug}`,
     title: p.title,
   })),
-  { path: "/glossary", title: "Glossary" },
+  { path: "/go/patterns/architectural", title: "Architectural Patterns" },
+  ...getPatternsByCategory("architectural").map((p) => ({
+    path: `/go/patterns/architectural/${p.slug}`,
+    title: p.title,
+  })),
 ];
 
 export function getNavNeighbors(currentPath) {

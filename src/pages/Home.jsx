@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, Box, Puzzle, Workflow, CheckCircle } from "lucide-react";
+import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2 } from "lucide-react";
 import { PATTERNS, CATEGORY_ORDER, CATEGORIES, getPatternsByCategory } from "@/lib/content/patterns";
 import { getReadPatterns } from "@/lib/readingProgress";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 import CategoryBadge from "@/components/content/CategoryBadge";
 
-const CATEGORY_ICONS = { creational: Box, structural: Puzzle, behavioral: Workflow };
+const CATEGORY_ICONS = { creational: Box, structural: Puzzle, behavioral: Workflow, architectural: Building2 };
 
 export default function Home() {
   const [readSlugs, setReadSlugs] = useState([]);
@@ -57,7 +57,7 @@ export default function Home() {
             <div className="mb-4">
               <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Up next</div>
               <Link
-                to={`/patterns/${nextUnread.category}/${nextUnread.slug}`}
+                to={`/go/patterns/${nextUnread.category}/${nextUnread.slug}`}
                 className="group flex items-center gap-3 p-3 rounded-md border border-border hover:border-primary/40 hover:bg-accent/40 transition-all"
               >
                 <div className="flex-1 min-w-0">
@@ -75,7 +75,7 @@ export default function Home() {
                 {recentlyRead.map((p) => (
                   <Link
                     key={p.slug}
-                    to={`/patterns/${p.category}/${p.slug}`}
+                    to={`/go/patterns/${p.category}/${p.slug}`}
                     className="group flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-accent/50 transition-colors"
                   >
                     <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -98,7 +98,7 @@ export default function Home() {
           return (
             <div key={catKey} className="mb-8">
               <Link
-                to={`/patterns/${catKey}`}
+                to={`/go/patterns/${catKey}`}
                 className="flex items-center gap-2 mb-3 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Icon className="h-4 w-4" />
@@ -108,7 +108,7 @@ export default function Home() {
                 {patterns.map((p) => (
                   <Link
                     key={p.slug}
-                    to={`/patterns/${p.category}/${p.slug}`}
+                    to={`/go/patterns/${p.category}/${p.slug}`}
                     className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
                   >
                     <div className="flex-1 min-w-0">

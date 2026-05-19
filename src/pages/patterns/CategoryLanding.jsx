@@ -41,7 +41,7 @@ export default function CategoryLanding() {
                 <tr key={p.slug} className={i < patterns.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
                     <Link
-                      to={`/patterns/${p.category}/${p.slug}`}
+                      to={`/go/patterns/${p.category}/${p.slug}`}
                       className="font-medium text-primary hover:underline whitespace-nowrap"
                     >
                       {p.title}
@@ -61,7 +61,7 @@ export default function CategoryLanding() {
         {patterns.map((p) => (
           <Link
             key={p.slug}
-            to={`/patterns/${p.category}/${p.slug}`}
+            to={`/go/patterns/${p.category}/${p.slug}`}
             className="group block p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/30 transition-all"
           >
             <div className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1">

@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Bookmark } from "lucide-react";
+import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Building2, Bookmark } from "lucide-react";
 import { PATTERNS, CATEGORY_ORDER, CATEGORIES, getPatternsByCategory } from "@/lib/content/patterns";
 
 const CATEGORY_ICONS = {
   creational: Box,
   structural: Puzzle,
   behavioral: Workflow,
+  architectural: Building2,
 };
 
 function SidebarSection({ title, icon: Icon, children, defaultOpen = false }) {
@@ -49,32 +50,32 @@ export default function Sidebar({ open, onClose }) {
   const content = (
     <nav className="py-4 px-2 overflow-y-auto h-full scrollbar-thin" aria-label="Site navigation">
       <div className="mb-4">
-        <SidebarLink to="/" active={currentPath === "/"}>
+        <SidebarLink to="/go" active={currentPath === "/go"}>
           <span className="flex items-center gap-2"><BookOpen className="h-3.5 w-3.5" /> Home</span>
         </SidebarLink>
       </div>
 
-      <SidebarSection title="Philosophy" icon={Lightbulb} defaultOpen={currentPath.startsWith("/philosophy")}>
-        <SidebarLink to="/philosophy" active={currentPath === "/philosophy"}>Overview</SidebarLink>
-        <SidebarLink to="/philosophy/solid" active={currentPath === "/philosophy/solid"}>SOLID Principles</SidebarLink>
-        <SidebarLink to="/philosophy/tdd" active={currentPath === "/philosophy/tdd"}>Test-Driven Development</SidebarLink>
+      <SidebarSection title="Philosophy" icon={Lightbulb} defaultOpen={currentPath.startsWith("/go/philosophy")}>
+        <SidebarLink to="/go/philosophy" active={currentPath === "/go/philosophy"}>Overview</SidebarLink>
+        <SidebarLink to="/go/philosophy/solid" active={currentPath === "/go/philosophy/solid"}>SOLID Principles</SidebarLink>
+        <SidebarLink to="/go/philosophy/tdd" active={currentPath === "/go/philosophy/tdd"}>Test-Driven Development</SidebarLink>
       </SidebarSection>
 
       {CATEGORY_ORDER.map((catKey) => {
         const cat = CATEGORIES[catKey];
         const patterns = getPatternsByCategory(catKey);
         const Icon = CATEGORY_ICONS[catKey];
-        const isActive = currentPath.includes(`/patterns/${catKey}`);
+        const isActive = currentPath.includes(`/go/patterns/${catKey}`);
         return (
           <SidebarSection key={catKey} title={cat.title} icon={Icon} defaultOpen={isActive}>
-            <SidebarLink to={`/patterns/${catKey}`} active={currentPath === `/patterns/${catKey}`}>
+            <SidebarLink to={`/go/patterns/${catKey}`} active={currentPath === `/go/patterns/${catKey}`}>
               Overview
             </SidebarLink>
             {patterns.map((p) => (
               <SidebarLink
                 key={p.slug}
-                to={`/patterns/${p.category}/${p.slug}`}
-                active={currentPath === `/patterns/${p.category}/${p.slug}`}
+                to={`/go/patterns/${p.category}/${p.slug}`}
+                active={currentPath === `/go/patterns/${p.category}/${p.slug}`}
               >
                 {p.title}
               </SidebarLink>
@@ -84,7 +85,7 @@ export default function Sidebar({ open, onClose }) {
       })}
 
       <div className="mt-3 space-y-0.5">
-        <SidebarLink to="/saved" active={currentPath === "/saved"}>
+        <SidebarLink to="/go/saved" active={currentPath === "/go/saved"}>
           <span className="flex items-center gap-2"><Bookmark className="h-3.5 w-3.5" /> Saved Patterns</span>
         </SidebarLink>
       </div>

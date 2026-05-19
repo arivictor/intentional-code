@@ -10,15 +10,15 @@ const TYPE_CONFIG = {
 };
 
 const SEARCHABLE = [
-  { title: "Philosophy", path: "/philosophy", type: "page" },
-  { title: "SOLID Principles", path: "/philosophy/solid", type: "page" },
-  { title: "Test-Driven Development", path: "/philosophy/tdd", type: "page" },
-  { title: "Creational Patterns", path: "/patterns/creational", type: "category" },
-  { title: "Structural Patterns", path: "/patterns/structural", type: "category" },
-  { title: "Behavioral Patterns", path: "/patterns/behavioral", type: "category" },
+  { title: "Philosophy", path: "/go/philosophy", type: "page" },
+  { title: "SOLID Principles", path: "/go/philosophy/solid", type: "page" },
+  { title: "Test-Driven Development", path: "/go/philosophy/tdd", type: "page" },
+  { title: "Creational Patterns", path: "/go/patterns/creational", type: "category" },
+  { title: "Structural Patterns", path: "/go/patterns/structural", type: "category" },
+  { title: "Behavioral Patterns", path: "/go/patterns/behavioral", type: "category" },
   ...PATTERNS.map((p) => ({
     title: p.title,
-    path: `/patterns/${p.category}/${p.slug}`,
+    path: `/go/patterns/${p.category}/${p.slug}`,
     type: "pattern",
     subtitle: p.intent,
   })),

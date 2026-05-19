@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from "react";
 
 const SECTION_IDS = [
-  { id: "intent", label: "Intent" },
   { id: "problem", label: "Problem" },
   { id: "solution", label: "Solution" },
   { id: "when-to-use", label: "When to Use" },
   { id: "when-not-to-use", label: "When Not to Use" },
-  { id: "advantages-disadvantages", label: "Pros & Cons" },
+  { id: "advantages", label: "Advantages" },
+  { id: "disadvantages", label: "Disadvantages" },
   { id: "related-patterns", label: "Related Patterns" },
 ];
 

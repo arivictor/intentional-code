@@ -9,13 +9,13 @@ const PHILOSOPHY_PAGES = [
     icon: Scale,
     title: "SOLID Principles",
     description: "The five principles of object-oriented design, reinterpreted for Go's composition-first, implicit-interface model. What changes, what stays, and what becomes natural.",
-    path: "/philosophy/solid",
+    path: "/go/philosophy/solid",
   },
   {
     icon: FlaskConical,
     title: "Test-Driven Development",
     description: "The red/green/refactor loop in Go. How Go's tooling — go test, table-driven tests, subtests, fuzzing, and implicit interfaces as test seams — makes TDD practical and pleasant.",
-    path: "/philosophy/tdd",
+    path: "/go/philosophy/tdd",
   },
 ];
 

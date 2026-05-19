@@ -58,7 +58,7 @@ export default function SavedPatterns() {
               >
                 <div className="flex-1 min-w-0">
                   <Link
-                    to={`/patterns/${p.category}/${p.slug}`}
+                    to={`/go/patterns/${p.category}/${p.slug}`}
                     className="font-medium text-foreground group-hover:text-primary transition-colors"
                   >
                     {p.title}
@@ -66,7 +66,7 @@ export default function SavedPatterns() {
                   <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">{p.intent}</p>
                 </div>
                 <Link
-                  to={`/patterns/${p.category}/${p.slug}`}
+                  to={`/go/patterns/${p.category}/${p.slug}`}
                   className="text-muted-foreground hover:text-primary transition-colors shrink-0"
                 >
                   <ArrowRight className="h-4 w-4" />
@@ -114,7 +114,7 @@ export default function SavedPatterns() {
                     <p className="text-sm text-foreground/85 leading-relaxed">"{h.text}"</p>
                     {pattern && (
                       <Link
-                        to={`/patterns/${pattern.category}/${pattern.slug}`}
+                        to={`/go/patterns/${pattern.category}/${pattern.slug}`}
                         className="text-xs text-primary hover:underline mt-1 inline-block"
                       >
                         {pattern.title}

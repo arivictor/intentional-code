@@ -5,6 +5,7 @@ import { getPattern, CATEGORIES } from "@/lib/content/patterns";
 
 const PAGE_TITLES = {
   "": "Home",
+  go: "Go",
   philosophy: "Philosophy",
   solid: "SOLID Principles",
   tdd: "Test-Driven Development",
@@ -12,7 +13,6 @@ const PAGE_TITLES = {
   creational: "Creational",
   structural: "Structural",
   behavioral: "Behavioral",
-  glossary: "Glossary",
 };
 
 export default function Breadcrumbs() {

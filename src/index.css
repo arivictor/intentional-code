@@ -136,6 +136,87 @@
     @apply font-semibold text-foreground;
   }
 
+  .prose-pattern code:not(pre code) {
+    @apply bg-muted text-foreground/90 rounded px-1.5 py-0.5 text-[0.875em] font-mono;
+  }
+
+  .prose-pattern blockquote {
+    @apply border-l-4 border-primary/40 pl-4 italic text-muted-foreground my-6;
+  }
+
+  .prose-pattern pre {
+    @apply my-6 rounded-lg overflow-x-auto;
+  }
+
+  /* highlight.js theme — uses the site's CSS variables for both light and dark */
+  .hljs {
+    display: block;
+    overflow-x: auto;
+    padding: 1rem 1.25rem;
+    background: hsl(var(--code-bg));
+    color: hsl(var(--code-text));
+    font-family: var(--font-mono);
+    font-size: 0.875rem;
+    line-height: 1.7;
+    border-radius: 0.5rem;
+    border: 1px solid hsl(var(--code-border));
+  }
+  .hljs-keyword,
+  .hljs-selector-tag,
+  .hljs-operator {
+    color: hsl(var(--code-keyword));
+    font-weight: 500;
+  }
+  .hljs-string,
+  .hljs-doctag,
+  .hljs-template-variable,
+  .hljs-regexp {
+    color: hsl(var(--code-string));
+  }
+  .hljs-comment,
+  .hljs-quote {
+    color: hsl(var(--code-comment));
+    font-style: italic;
+  }
+  .hljs-title,
+  .hljs-name,
+  .hljs-section {
+    color: hsl(var(--code-function));
+    font-weight: 500;
+  }
+  .hljs-number,
+  .hljs-literal,
+  .hljs-symbol,
+  .hljs-bullet {
+    color: hsl(var(--code-number));
+  }
+  .hljs-type,
+  .hljs-built_in,
+  .hljs-class .hljs-title {
+    color: hsl(var(--code-type));
+  }
+  .hljs-attr,
+  .hljs-variable,
+  .hljs-params {
+    color: hsl(var(--code-text));
+  }
+  .hljs-meta,
+  .hljs-meta .hljs-keyword {
+    color: hsl(var(--code-comment));
+  }
+  .hljs-deletion {
+    color: hsl(var(--destructive));
+  }
+  .hljs-addition {
+    color: hsl(var(--primary));
+  }
+  .hljs-emphasis {
+    font-style: italic;
+  }
+  .hljs-strong {
+    font-weight: bold;
+  }
+
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: hsl(var(--border)) transparent;
