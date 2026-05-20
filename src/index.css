@@ -135,6 +135,9 @@
   .prose-pattern strong {
     @apply font-semibold text-foreground;
   }
+  .prose-pattern a {
+    @apply text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary transition-colors;
+  }
 
   .prose-pattern code:not(pre code) {
     @apply bg-muted text-foreground/90 rounded px-1.5 py-0.5 text-[0.875em] font-mono;

@@ -11,6 +11,8 @@ tags: [interfaces, dependency-inversion, testability]
 
 The most immediate sign you need Repository is a service function that takes `*sql.DB` as a parameter. That signature says: you cannot test this business rule without a running database. Repository replaces the concrete dependency with an interface defined in the domain package — Go's implicit interface satisfaction means the domain never imports the infrastructure package, and any struct with the right methods becomes a valid backend, including the in-memory fake that makes unit tests fast.
 
+This is the [Dependency Inversion Principle](/go/philosophy/solid) applied to persistence: the domain defines what it needs, and infrastructure satisfies it — not the other way around.
+
 ## Problem
 
 Your order-processing logic is scattered with direct database calls. Every function that needs an order calls `sql.DB` directly. Tests require a live database. Switching from PostgreSQL to a different store means hunting through business logic.

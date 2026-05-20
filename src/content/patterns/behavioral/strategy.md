@@ -11,7 +11,7 @@ tags: [interfaces, closures, testability, dependency-inversion]
 
 Strategy defines a family of algorithms and makes them interchangeable. In Go, the most idiomatic form is a function type — you pass a function value rather than creating an interface with a single method. Use the interface form when the strategy has multiple methods or carries state.
 
-This is one of the patterns that becomes nearly invisible in Go. When someone passes a `func` to a constructor or a `sort.Slice` call, they're using Strategy without naming it.
+This is the [Open/Closed Principle](/go/philosophy/solid) applied to algorithms — the context is open to new behaviours without modifying existing code. It's also one of the patterns that becomes nearly invisible in Go. When someone passes a `func` to a constructor or a `sort.Slice` call, they're using Strategy without naming it.
 
 ## Problem
 

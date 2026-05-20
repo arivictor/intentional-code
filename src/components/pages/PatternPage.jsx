@@ -5,7 +5,7 @@ import MarkdownCode from "@/components/content/MarkdownCode";
 import ComparisonTable from "@/components/content/ComparisonTable";
 import PatternLink from "@/components/content/PatternLink";
 import { isPatternRead, markPatternRead, markPatternUnread } from "@/lib/readingProgress";
-import { CheckCircle, Circle, Bookmark, Clock } from "lucide-react";
+import { CheckCircle, Circle, Bookmark, Clock, AlertTriangle } from "lucide-react";
 import { isBookmarked, toggleBookmark } from "@/lib/bookmarks";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
@@ -76,7 +76,25 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
   };
 
   const patternMap = Object.fromEntries((allPatterns ?? []).map((p) => [p.slug, p.title]));
-  const mdProps = { rehypePlugins: [rehypeSlug], components: { code: MarkdownCode, h1: () => null } };
+  const mdProps = {
+    rehypePlugins: [rehypeSlug],
+    components: {
+      code: MarkdownCode,
+      h1: () => null,
+      h2: ({ children, ...props }) => {
+        const text = Array.isArray(children) ? children.join("") : String(children ?? "");
+        if (text === "When Not to Use") {
+          return (
+            <h2 {...props} className="flex items-center gap-2 text-xl font-semibold mt-10 mb-3 text-foreground border-l-[3px] border-amber-500 pl-3">
+              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+              {children}
+            </h2>
+          );
+        }
+        return <h2 {...props}>{children}</h2>;
+      },
+    },
+  };
 
   return (
     <PatternsContext.Provider value={allPatterns ?? []}>

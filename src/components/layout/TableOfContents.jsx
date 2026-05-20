@@ -25,7 +25,7 @@ export default function TableOfContents() {
   if (sections.length === 0) return null;
 
   return (
-    <aside className="hidden xl:block w-48 shrink-0 sticky top-20 h-fit" aria-label="Table of contents">
+    <aside className="hidden xl:block w-60 shrink-0 sticky top-20 h-fit" aria-label="Table of contents">
       <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
         On this page
       </div>

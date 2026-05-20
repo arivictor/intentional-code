@@ -11,7 +11,7 @@ tags: [interfaces, closures, composition, testability]
 
 Decorator wraps an object to add behavior, keeping the same interface. In Go, this pattern is everywhere — it's how HTTP middleware works. Any function that takes an interface and returns the same interface, adding behavior in between, is a decorator.
 
-The canonical Go example is `http.Handler` middleware: a function that takes a handler, returns a new handler that logs, authenticates, compresses, or rate-limits, and then calls the original.
+The canonical Go example is `http.Handler` middleware: a function that takes a handler, returns a new handler that logs, authenticates, compresses, or rate-limits, and then calls the original. It's the [Open/Closed Principle](/go/philosophy/solid) made concrete — each concern is added without touching the code it wraps.
 
 ## Problem
 

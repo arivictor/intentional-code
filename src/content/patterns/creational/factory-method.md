@@ -12,7 +12,7 @@ isFeatured: true
 
 In class-based languages, Factory Method is an abstract class with an overridable creation method. In Go, it's a function that returns an interface — the entire pattern reduces to that. The "factory" is the constructor; the "method" is its return type.
 
-The pattern earns its keep when you find yourself extending a switch statement every time you add a new type. That switch is a signal: move the selection logic into one place, hide it behind a constructor, and let new implementations register without touching existing code.
+The pattern earns its keep when you find yourself extending a switch statement every time you add a new type. That switch is a signal: move the selection logic into one place, hide it behind a constructor, and let new implementations register without touching existing code. This is the [Open/Closed Principle](/go/philosophy/solid) in practice — open for extension, closed for modification.
 
 ## Problem
 

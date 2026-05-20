@@ -11,7 +11,7 @@ tags: [interfaces, closures, concurrency, events, testability]
 
 In Go, Observer gives you three subscriber mechanisms: interface values (classic, stateful), function values (lighter, more composable), and channels (goroutine-friendly, but requiring careful lifecycle management — a subscriber goroutine that is never unsubscribed leaks). Picking the wrong form for your lifecycle requirements is the most common Observer mistake in Go.
 
-The pattern's core guarantee: when the subject's state changes, it doesn't know or care who reacts. Registered observers are notified; the subject imports nothing from observer packages.
+The pattern's core guarantee: when the subject's state changes, it doesn't know or care who reacts. Registered observers are notified; the subject imports nothing from observer packages. This is the [Open/Closed Principle](/go/philosophy/solid) applied to event notification — you add new reactions without touching the thing that changed.
 
 ## Problem
 

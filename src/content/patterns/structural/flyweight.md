@@ -9,7 +9,7 @@ tags: [state, performance, concurrency]
 
 # Flyweight
 
-Flyweight is a memory optimization for systems with large numbers of similar objects: instead of each object owning a copy of shared data, they all hold a pointer to one shared instance. In Go, this is an interning map — on first request for a given key, create and store the shared instance; on all subsequent requests, return the same pointer. The intrinsic state (shared, immutable) lives in the interned type; the extrinsic state (unique per object) stays on each individual instance.
+Flyweight is a memory optimization: when you have thousands of similar objects, most of their data is identical. Instead of each object storing its own copy of that shared data, they all point to one shared instance. In Go this is usually a cache keyed on the shared value — the first time you need a particular entry you create it and store it; every subsequent request returns the same pointer. The data that never changes (a colour, a font, a timezone) lives in the shared instance; the data that varies per object (a position, a quantity) stays on each individual instance.
 
 `sync.Pool` is a related but different tool — it recycles mutable temporary objects to reduce GC pressure, whereas Flyweight shares immutable permanent state.
 

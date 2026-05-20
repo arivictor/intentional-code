@@ -88,6 +88,11 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
               p: ({ children }) => (
                 <p className="text-base text-muted-foreground leading-relaxed mb-3">{children}</p>
               ),
+              a: ({ href, children }) => (
+                <a href={href} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary transition-colors">
+                  {children}
+                </a>
+              ),
             }}
           >
             {heroBody}

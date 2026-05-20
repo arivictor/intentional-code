@@ -9,7 +9,7 @@ tags: [interfaces, state, events, composition, dependency-inversion]
 
 # Domain-Driven Design
 
-DDD's identifying problem is the anemic domain model: business logic scattered across service functions, domain types that are just data bags, and invariants — "a subscription can't be activated without a payment method" — enforced in some callers but forgotten in others. DDD moves that logic into the domain type itself, where it's enforced by the compiler and can't be bypassed.
+The problem DDD solves is logic that leaks. Business rules — "a subscription can't be activated without a payment method" — get written into one service function, forgotten in another, and end up enforced inconsistently across the codebase. Your domain types become plain data structs; the rules that govern them float free. DDD addresses this by putting the logic back inside the type, where the compiler enforces it and no caller can bypass it.
 
 The tactical building blocks: **Entities** (identity-based, stateful), **Value Objects** (equality-based, immutable), **Aggregates** (consistency boundaries mutated only through the root), **Repositories** (persistence interfaces defined by the domain), **Domain Events** (facts that have occurred), and **Domain Services** (operations spanning multiple aggregates). The unifying constraint: code should speak the language of the business.
 

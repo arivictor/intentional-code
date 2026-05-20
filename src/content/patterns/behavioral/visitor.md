@@ -9,7 +9,7 @@ tags: [interfaces, composition]
 
 # Visitor
 
-Visitor separates an algorithm from the object structure it operates on, using double dispatch to invoke the right method for each element type. In Go, this requires an `Accept(Visitor)` method on every element and a `Visit` method per type on the visitor.
+Visitor separates an operation from the types it operates on. Instead of adding a new method to every type each time you need a new operation, the operations live in a visitor struct — each type accepts a visitor and calls the right method on it. In Go, this means every element type implements `Accept(Visitor)`, and the visitor implements one method per element type.
 
 Here's the honest truth: Visitor is verbose in Go and often not the best choice. The Go alternative — a type switch — is simpler and covers most use cases. Use Visitor when you need the open/closed principle for operations (adding new operations without modifying element types). Use type-switch when you need simplicity and your element types are stable.
 

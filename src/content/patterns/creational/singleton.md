@@ -9,7 +9,7 @@ tags: [concurrency, state, testability, performance]
 
 # Singleton
 
-In most Go codebases, Singleton is an anti-pattern — not because the idea is wrong, but because global mutable state hides dependencies, breaks test isolation, and ties every consumer to a concrete type instead of an injected interface. The idiomatic implementation (`sync.Once` for thread-safe lazy initialization) is correct; correctness doesn't mean you should use it.
+In most Go codebases, Singleton is an anti-pattern — not because the idea is wrong, but because global mutable state hides dependencies, makes tests unreliable, and forces every part of your application to use one specific concrete type that you can't swap out. The standard implementation using `sync.Once` initializes the value exactly once, safely across goroutines — and it's correct. Correct isn't the same as advisable.
 
 The pattern has legitimate uses: hardware drivers, license managers, or immutable package-level values compiled at startup (a compiled regex, a frozen lookup table). For shared resources like database pools and loggers, pass the instance through constructors and let `main()` enforce uniqueness.
 
