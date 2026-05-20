@@ -3,19 +3,19 @@ import { Sun, Moon, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CommandPalette from "./CommandPalette";
 
-export default function TopBar({ searchData }) {
+export default function TopBar({ searchData, basePath = "/go", sectionLabel = "Go", themeStorageKey = "go-patterns-theme" }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [theme, setTheme] = useState('light');
 
   useEffect(() => {
-    const stored = localStorage.getItem('go-patterns-theme');
+    const stored = localStorage.getItem(themeStorageKey);
     setTheme(stored ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
-  }, []);
+  }, [themeStorageKey]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
-    localStorage.setItem('go-patterns-theme', theme);
-  }, [theme]);
+    localStorage.setItem(themeStorageKey, theme);
+  }, [theme, themeStorageKey]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -44,8 +44,8 @@ export default function TopBar({ searchData }) {
             <Menu className="h-5 w-5" />
           </Button>
 
-          <a href="/go" className="flex items-center gap-2 font-semibold text-foreground shrink-0">
-            <span className="text-primary font-mono text-lg font-bold">Go</span>
+          <a href={basePath} className="flex items-center gap-2 font-semibold text-foreground shrink-0">
+            <span className="text-primary font-mono text-lg font-bold">{sectionLabel}</span>
             <span className="hidden sm:inline text-sm tracking-tight">Intentional Code</span>
           </a>
 

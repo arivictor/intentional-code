@@ -3,16 +3,16 @@ import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import PhilosophyDetailPage from '@/components/pages/PhilosophyDetailPage';
 import { buildNavOrder } from '@/lib/site-data';
-import { GO_SECTION } from '@/lib/section-config';
+import { TERRAFORM_SECTION } from '@/lib/section-config';
 
 export async function getStaticPaths() {
   const [patterns, philosophy, categories] = await Promise.all([
-    getCollection(GO_SECTION.collections.patterns),
-    getCollection(GO_SECTION.collections.philosophy),
-    getCollection(GO_SECTION.collections.categories),
+    getCollection(TERRAFORM_SECTION.collections.patterns),
+    getCollection(TERRAFORM_SECTION.collections.philosophy),
+    getCollection(TERRAFORM_SECTION.collections.categories),
   ]);
 
-  const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
+  const navOrder = buildNavOrder(patterns, philosophy, categories, TERRAFORM_SECTION);
 
   return philosophy.filter((entry) => entry.id !== 'index').map((entry) => {
     const slug = entry.id.replace(/\.md$/, '');
@@ -35,12 +35,12 @@ const { slug, title, description, markdown, navOrder } = Astro.props;
 <SiteLayout
   title={title}
   description={description}
-  basePath={GO_SECTION.basePath}
-  sectionLabel={GO_SECTION.label}
-  themeStorageKey={GO_SECTION.themeStorageKey}
-  categoryOrder={GO_SECTION.categoryOrder}
-  philosophyOrder={GO_SECTION.philosophyOrder}
-  collections={GO_SECTION.collections}
+  basePath={TERRAFORM_SECTION.basePath}
+  sectionLabel={TERRAFORM_SECTION.label}
+  themeStorageKey={TERRAFORM_SECTION.themeStorageKey}
+  categoryOrder={TERRAFORM_SECTION.categoryOrder}
+  philosophyOrder={TERRAFORM_SECTION.philosophyOrder}
+  collections={TERRAFORM_SECTION.collections}
 >
   <PhilosophyDetailPage
     slug={slug}
@@ -48,7 +48,7 @@ const { slug, title, description, markdown, navOrder } = Astro.props;
     description={description}
     markdown={markdown}
     navOrder={navOrder}
-    pathname={`${GO_SECTION.basePath}/philosophy/${slug}`}
+    pathname={`${TERRAFORM_SECTION.basePath}/philosophy/${slug}`}
     client:load
   />
 </SiteLayout>

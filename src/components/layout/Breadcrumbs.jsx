@@ -3,9 +3,14 @@ import { ChevronRight } from "lucide-react";
 
 const STATIC_TITLES = {
   go: "Go",
+  terraform: "Terraform",
   philosophy: "Philosophy",
   solid: "SOLID Principles",
   tdd: "Test-Driven Development",
+  modules: "Module Patterns",
+  state: "State Patterns",
+  delivery: "Delivery Patterns",
+  architecture: "Platform Architecture Patterns",
   patterns: "Pattern Catalog",
   creational: "Creational",
   structural: "Structural",

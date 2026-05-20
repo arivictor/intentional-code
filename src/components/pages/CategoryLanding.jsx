@@ -1,11 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 import MarkdownCode from "@/components/content/MarkdownCode";
 
-export default function CategoryLanding({ category, introMarkdown, patterns, navOrder, pathname }) {
+export default function CategoryLanding({
+  category,
+  introMarkdown,
+  patterns,
+  navOrder,
+  pathname,
+  basePath = "/go",
+  summaryLabel = "Go Idiom",
+}) {
   if (!category) {
     return (
       <div className="max-w-3xl mx-auto px-6 py-12">
@@ -36,7 +44,7 @@ export default function CategoryLanding({ category, introMarkdown, patterns, nav
               <tr className="bg-muted">
                 <th className="text-left px-4 py-3 font-semibold text-foreground">Pattern</th>
                 <th className="text-left px-4 py-3 font-semibold text-foreground">Intent</th>
-                <th className="text-left px-4 py-3 font-semibold text-foreground hidden md:table-cell">Go Idiom</th>
+                <th className="text-left px-4 py-3 font-semibold text-foreground hidden md:table-cell">{summaryLabel}</th>
               </tr>
             </thead>
             <tbody>
@@ -44,14 +52,14 @@ export default function CategoryLanding({ category, introMarkdown, patterns, nav
                 <tr key={p.slug} className={i < patterns.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
                     <a
-                      href={`/go/patterns/${p.category}/${p.slug}`}
+                      href={`${basePath}/patterns/${p.category}/${p.slug}`}
                       className="font-medium text-primary hover:underline whitespace-nowrap"
                     >
                       {p.title}
                     </a>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{p.intent}</td>
-                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell text-xs font-mono">{p.goIdiomSummary}</td>
+                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell text-xs font-mono">{p.summary}</td>
                 </tr>
               ))}
             </tbody>
@@ -63,7 +71,7 @@ export default function CategoryLanding({ category, introMarkdown, patterns, nav
         {patterns.map((p) => (
           <a
             key={p.slug}
-            href={`/go/patterns/${p.category}/${p.slug}`}
+            href={`${basePath}/patterns/${p.category}/${p.slug}`}
             className="group block p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/30 transition-all"
           >
             <div className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1">

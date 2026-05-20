@@ -3,33 +3,40 @@ import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import PhilosophyLanding from '@/components/pages/PhilosophyLanding';
 import { buildNavOrder } from '@/lib/site-data';
+import { GO_SECTION } from '@/lib/section-config';
 
 const [patterns, philosophy, categories] = await Promise.all([
-  getCollection('patterns'),
-  getCollection('philosophy'),
-  getCollection('pattern-categories'),
+  getCollection(GO_SECTION.collections.patterns),
+  getCollection(GO_SECTION.collections.philosophy),
+  getCollection(GO_SECTION.collections.categories),
 ]);
 
 const philosophyIndex = philosophy.find((p) => p.id === 'index');
 
-const navOrder = buildNavOrder(patterns, philosophy, categories);
+const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
 
 const philosophyItems = philosophy
   .filter((p) => p.id !== 'index')
   .map((p) => {
     const slug = p.id.replace(/\.md$/, '');
-    return { slug, title: p.data.title, description: p.data.description, url: `/go/philosophy/${slug}` };
+    return { slug, title: p.data.title, description: p.data.description, url: `${GO_SECTION.basePath}/philosophy/${slug}` };
   });
 ---
 
 <SiteLayout
   title="Philosophy"
   description="The principles that make Go design patterns work: SOLID and Test-Driven Development."
+  basePath={GO_SECTION.basePath}
+  sectionLabel={GO_SECTION.label}
+  themeStorageKey={GO_SECTION.themeStorageKey}
+  categoryOrder={GO_SECTION.categoryOrder}
+  philosophyOrder={GO_SECTION.philosophyOrder}
+  collections={GO_SECTION.collections}
 >
   <PhilosophyLanding
     philosophyItems={philosophyItems}
     navOrder={navOrder}
-    pathname="/go/philosophy"
+    pathname={`${GO_SECTION.basePath}/philosophy`}
     intro={philosophyIndex?.data.intro}
     introBody={philosophyIndex?.body}
     client:load

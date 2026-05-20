@@ -3,16 +3,16 @@ import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import PatternPage from '@/components/pages/PatternPage';
 import { buildNavOrder, getPatternSummary } from '@/lib/site-data';
-import { GO_SECTION } from '@/lib/section-config';
+import { TERRAFORM_SECTION } from '@/lib/section-config';
 
 export async function getStaticPaths() {
   const [patterns, philosophy, categories] = await Promise.all([
-    getCollection(GO_SECTION.collections.patterns),
-    getCollection(GO_SECTION.collections.philosophy),
-    getCollection(GO_SECTION.collections.categories),
+    getCollection(TERRAFORM_SECTION.collections.patterns),
+    getCollection(TERRAFORM_SECTION.collections.philosophy),
+    getCollection(TERRAFORM_SECTION.collections.categories),
   ]);
 
-  const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
+  const navOrder = buildNavOrder(patterns, philosophy, categories, TERRAFORM_SECTION);
 
   const allPatterns = patterns.map((p) => ({
     slug: p.id.replace(/\.md$/, '').split('/')[1],
@@ -35,7 +35,7 @@ export async function getStaticPaths() {
           intent: entry.data.intent,
           summary: getPatternSummary(entry),
           relatedSlugs: entry.data.relatedSlugs,
-          basePath: GO_SECTION.basePath,
+          basePath: TERRAFORM_SECTION.basePath,
         },
         markdown: entry.body,
         allPatterns,
@@ -50,9 +50,9 @@ const { pattern, markdown, allPatterns, navOrder } = Astro.props;
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'TechArticle',
-  name: `${pattern.title} Pattern in Go`,
+  name: `${pattern.title} Pattern in Terraform`,
   description: pattern.intent,
-  url: `https://intentionalcode.com${GO_SECTION.basePath}/patterns/${pattern.category}/${pattern.slug}`,
+  url: `https://intentionalcode.com${TERRAFORM_SECTION.basePath}/patterns/${pattern.category}/${pattern.slug}`,
   publisher: { '@type': 'Organization', name: 'Intentional Code' },
 };
 ---
@@ -61,19 +61,19 @@ const jsonLd = {
   title={pattern.title}
   description={pattern.intent}
   jsonLd={jsonLd}
-  basePath={GO_SECTION.basePath}
-  sectionLabel={GO_SECTION.label}
-  themeStorageKey={GO_SECTION.themeStorageKey}
-  categoryOrder={GO_SECTION.categoryOrder}
-  philosophyOrder={GO_SECTION.philosophyOrder}
-  collections={GO_SECTION.collections}
+  basePath={TERRAFORM_SECTION.basePath}
+  sectionLabel={TERRAFORM_SECTION.label}
+  themeStorageKey={TERRAFORM_SECTION.themeStorageKey}
+  categoryOrder={TERRAFORM_SECTION.categoryOrder}
+  philosophyOrder={TERRAFORM_SECTION.philosophyOrder}
+  collections={TERRAFORM_SECTION.collections}
 >
   <PatternPage
     pattern={pattern}
     markdown={markdown}
     allPatterns={allPatterns}
     navOrder={navOrder}
-    pathname={`${GO_SECTION.basePath}/patterns/${pattern.category}/${pattern.slug}`}
+    pathname={`${TERRAFORM_SECTION.basePath}/patterns/${pattern.category}/${pattern.slug}`}
     client:load
   />
 </SiteLayout>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect, createContext } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
 import MarkdownCode from "@/components/content/MarkdownCode";
@@ -14,7 +14,7 @@ import HighlightableContent from "@/components/content/HighlightableContent";
 import { getHighlights, addHighlight, removeHighlight } from "@/lib/highlights";
 import ReadingProgressBar from "@/components/layout/ReadingProgressBar";
 
-export const PatternsContext = createContext([]);
+export const PatternsContext = createContext({ allPatterns: [], basePath: "/go" });
 
 function readingTimeFromMarkdown(md) {
   if (!md) return null;
@@ -76,6 +76,7 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
   };
 
   const patternMap = Object.fromEntries((allPatterns ?? []).map((p) => [p.slug, p.title]));
+  const basePath = pattern.basePath ?? "/go";
   const mdProps = {
     rehypePlugins: [rehypeSlug],
     components: {
@@ -97,7 +98,7 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
   };
 
   return (
-    <PatternsContext.Provider value={allPatterns ?? []}>
+      <PatternsContext.Provider value={{ allPatterns: allPatterns ?? [], basePath }}>
       <ReadingProgressBar />
       <div className="flex gap-8 max-w-5xl mx-auto px-6 py-12">
         <div className="flex-1 min-w-0">

@@ -6,11 +6,18 @@ import { getAllHighlights, removeHighlight } from "@/lib/highlights";
 import { generateClaudeMd } from "@/lib/generateClaudeMd";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 
-export default function SavedPatterns({ allContent, allPatterns = [], navOrder, pathname }) {
+export default function SavedPatterns({
+  allContent,
+  allPatterns = [],
+  navOrder,
+  pathname,
+  generatorLanguageLabel = "Go",
+}) {
   const [slugs, setSlugs] = useState([]);
   const [highlights, setHighlights] = useState([]);
   const [mode, setMode] = useState("all"); // 'saved' | 'all'
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   useEffect(() => {
     const bookmarks = getBookmarks();
@@ -50,9 +57,12 @@ export default function SavedPatterns({ allContent, allPatterns = [], navOrder, 
     try {
       await navigator.clipboard.writeText(claudeMd);
       setCopied(true);
+      setCopyFailed(false);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // fallback: select text in the textarea
+      setCopyFailed(true);
+      setCopied(false);
+      setTimeout(() => setCopyFailed(false), 2000);
     }
   };
 
@@ -114,79 +124,86 @@ export default function SavedPatterns({ allContent, allPatterns = [], navOrder, 
         )}
       </section>
 
-      <section className="mb-12">
-        <h2 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
-          <FileCode2 className="h-4 w-4 text-primary" />
-          Generate CLAUDE.md
-        </h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Drop this file in your Go project root. Claude Code will use it as context when helping with architecture decisions.
-        </p>
+      {allPatterns.length > 0 && (
+        <section className="mb-12">
+          <h2 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
+            <FileCode2 className="h-4 w-4 text-primary" />
+            Generate CLAUDE.md
+          </h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Drop this file in your {generatorLanguageLabel} project root. Claude Code will use it as context when helping with architecture decisions.
+          </p>
 
-        {/* Mode toggle */}
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => setMode("saved")}
-            disabled={savedPatternCount === 0}
-            className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-              mode === "saved"
-                ? "bg-primary text-primary-foreground border-primary"
-                : savedPatternCount === 0
-                  ? "border-border text-muted-foreground/40 cursor-not-allowed"
+          {/* Mode toggle */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setMode("saved")}
+              disabled={savedPatternCount === 0}
+              className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                mode === "saved"
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : savedPatternCount === 0
+                    ? "border-border text-muted-foreground/40 cursor-not-allowed"
+                    : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
+              }`}
+            >
+              Saved patterns only {savedPatternCount > 0 && `(${savedPatternCount})`}
+            </button>
+            <button
+              onClick={() => setMode("all")}
+              className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
+                mode === "all"
+                  ? "bg-primary text-primary-foreground border-primary"
                   : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
-            }`}
-          >
-            Saved patterns only {savedPatternCount > 0 && `(${savedPatternCount})`}
-          </button>
-          <button
-            onClick={() => setMode("all")}
-            className={`px-3 py-1.5 text-sm rounded-md border transition-colors ${
-              mode === "all"
-                ? "bg-primary text-primary-foreground border-primary"
-                : "border-border text-muted-foreground hover:border-primary/50 hover:text-foreground"
-            }`}
-          >
-            All patterns ({allPatterns.length})
-          </button>
-        </div>
+              }`}
+            >
+              All patterns ({allPatterns.length})
+            </button>
+          </div>
 
-        {/* Preview */}
-        <div className="relative mb-3">
-          <textarea
-            readOnly
-            value={claudeMd}
-            rows={14}
-            className="w-full rounded-lg border border-border bg-muted/40 px-4 py-3 text-xs font-mono text-foreground/80 leading-relaxed resize-none focus:outline-none scrollbar-thin"
-          />
-        </div>
+          {/* Preview */}
+          <div className="relative mb-3">
+            <textarea
+              readOnly
+              value={claudeMd}
+              rows={14}
+              className="w-full rounded-lg border border-border bg-muted/40 px-4 py-3 text-xs font-mono text-foreground/80 leading-relaxed resize-none focus:outline-none scrollbar-thin"
+            />
+          </div>
 
-        {/* Actions */}
-        <div className="flex gap-2">
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md border border-border bg-card hover:border-primary/50 hover:bg-accent/40 transition-all text-foreground"
-          >
-            {copied ? (
-              <>
-                <Check className="h-3.5 w-3.5 text-primary" />
-                Copied!
-              </>
-            ) : (
-              <>
-                <Copy className="h-3.5 w-3.5" />
-                Copy to clipboard
-              </>
-            )}
-          </button>
-          <button
-            onClick={handleDownload}
-            className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Download CLAUDE.md
-          </button>
-        </div>
-      </section>
+          {/* Actions */}
+          <div className="flex gap-2">
+            <button
+              onClick={handleCopy}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md border border-border bg-card hover:border-primary/50 hover:bg-accent/40 transition-all text-foreground"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3.5 w-3.5 text-primary" />
+                  Copied!
+                </>
+              ) : copyFailed ? (
+                <>
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy failed
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy to clipboard
+                </>
+              )}
+            </button>
+            <button
+              onClick={handleDownload}
+              className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download CLAUDE.md
+            </button>
+          </div>
+        </section>
+      )}
 
       <section>
         <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
