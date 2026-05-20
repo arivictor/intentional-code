@@ -236,6 +236,76 @@
   }
 }
 
+/* ─────────────────────────────────────────────────────────────────
+   Python — Python blue #3776AB (hsl ≈ 210 52% 44%)
+   ───────────────────────────────────────────────────────────────── */
+[data-section="python"] {
+  --primary: 210 52% 38%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 210 55% 93%;
+  --accent-foreground: 210 52% 22%;
+  --ring: 210 52% 38%;
+  --chart-1: 210 52% 38%;
+  --code-keyword: 210 52% 30%;
+  --code-type: 210 48% 36%;
+  --sidebar-primary: 210 52% 38%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 210 55% 93%;
+  --sidebar-accent-foreground: 210 52% 22%;
+  --sidebar-ring: 210 52% 38%;
+}
+
+[data-section="python"].dark {
+  --primary: 210 65% 58%;
+  --primary-foreground: 220 20% 7%;
+  --accent: 210 42% 15%;
+  --accent-foreground: 210 65% 70%;
+  --ring: 210 65% 58%;
+  --chart-1: 210 65% 58%;
+  --code-keyword: 210 65% 58%;
+  --code-type: 210 55% 55%;
+  --sidebar-primary: 210 65% 58%;
+  --sidebar-primary-foreground: 220 20% 7%;
+  --sidebar-accent: 210 42% 15%;
+  --sidebar-accent-foreground: 210 65% 70%;
+  --sidebar-ring: 210 65% 58%;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Terraform — HashiCorp purple #7B42BC (hsl ≈ 274 46% 50%)
+   ───────────────────────────────────────────────────────────────── */
+[data-section="terraform"] {
+  --primary: 274 46% 42%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 274 50% 94%;
+  --accent-foreground: 274 46% 22%;
+  --ring: 274 46% 42%;
+  --chart-1: 274 46% 42%;
+  --code-keyword: 274 46% 34%;
+  --code-type: 274 40% 38%;
+  --sidebar-primary: 274 46% 42%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 274 50% 94%;
+  --sidebar-accent-foreground: 274 46% 22%;
+  --sidebar-ring: 274 46% 42%;
+}
+
+[data-section="terraform"].dark {
+  --primary: 274 55% 63%;
+  --primary-foreground: 220 20% 7%;
+  --accent: 274 38% 16%;
+  --accent-foreground: 274 55% 74%;
+  --ring: 274 55% 63%;
+  --chart-1: 274 55% 63%;
+  --code-keyword: 274 55% 63%;
+  --code-type: 274 45% 58%;
+  --sidebar-primary: 274 55% 63%;
+  --sidebar-primary-foreground: 220 20% 7%;
+  --sidebar-accent: 274 38% 16%;
+  --sidebar-accent-foreground: 274 55% 74%;
+  --sidebar-ring: 274 55% 63%;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

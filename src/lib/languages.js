@@ -1,4 +1,4 @@
-import { GO_SECTION, PYTHON_SECTION, SECTION_SWITCH_OPTIONS } from '@/lib/section-config';
+import { GO_SECTION, SECTION_SWITCH_OPTIONS } from '@/lib/section-config';
 
 export const LANGUAGE_CONFIG = {
   go: {
@@ -12,22 +12,10 @@ export const LANGUAGE_CONFIG = {
     philosophyDescription: GO_SECTION.philosophyDescription,
     themeStorageKey: GO_SECTION.themeStorageKey,
   },
-  python: {
-    slug: PYTHON_SECTION.key,
-    label: PYTHON_SECTION.label,
-    basePath: PYTHON_SECTION.basePath,
-    summaryHeading: PYTHON_SECTION.summaryLabel,
-    siteTitle: `Intentional Code with ${PYTHON_SECTION.label}`,
-    homeTitle: PYTHON_SECTION.homeTitle,
-    homeDescription: PYTHON_SECTION.homeDescription,
-    philosophyDescription: PYTHON_SECTION.philosophyDescription,
-    themeStorageKey: PYTHON_SECTION.themeStorageKey,
-  },
 };
 
 export const COLLECTION_NAMES = {
   go: GO_SECTION.collections,
-  python: PYTHON_SECTION.collections,
 };
 
 export const SWITCHABLE_LANGUAGES = SECTION_SWITCH_OPTIONS;

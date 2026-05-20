@@ -54,10 +54,11 @@ const philosophyItems = philosophy
   .sort((a, b) => philosophyOrder.indexOf(a.id) - philosophyOrder.indexOf(b.id))
   .map((entry) => ({ slug: entry.id.replace(/\.md$/, ''), title: entry.data.title }));
 const pathname = Astro.url.pathname;
+const sectionKey = basePath.replace(/^\//, '') || 'go';
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-section={sectionKey}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

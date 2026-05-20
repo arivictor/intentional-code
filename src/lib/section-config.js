@@ -61,7 +61,7 @@ export const SECTION_MAP = {
   [TERRAFORM_SECTION.key]: TERRAFORM_SECTION,
 };
 
-export const SECTION_SWITCH_OPTIONS = [GO_SECTION, PYTHON_SECTION];
+export const SECTION_SWITCH_OPTIONS = [GO_SECTION];
 
 export function getSection(key = 'go') {
   return SECTION_MAP[key] ?? GO_SECTION;

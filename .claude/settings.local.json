@@ -7,7 +7,9 @@
       "Bash(node scripts/add-frontmatter.mjs)",
       "Bash(mkdir -p /Users/arilaverty/Development/intentional-code/src/pages/go/patterns/\\\\[category\\\\] /Users/arilaverty/Development/intentional-code/src/pages/go/philosophy 2>/dev/null; echo \"dirs created\")",
       "mcp__Claude_Preview__preview_start",
-      "Bash(npm ci *)"
+      "Bash(npm ci *)",
+      "Bash(git -C /Users/arilaverty/Development/intentional-code mv src/pages/python src/pages/_python)",
+      "Bash(git -C /Users/arilaverty/Development/intentional-code mv src/pages/terraform src/pages/_terraform)"
     ]
   }
 }
