@@ -152,6 +152,38 @@ declare module 'astro:content' {
   rendered?: RenderedContent;
   filePath?: string;
 }>;
+"terraform-pages": Record<string, {
+  id: string;
+  body?: string;
+  collection: "terraform-pages";
+  data: InferEntrySchema<"terraform-pages">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
+"terraform-pattern-categories": Record<string, {
+  id: string;
+  body?: string;
+  collection: "terraform-pattern-categories";
+  data: InferEntrySchema<"terraform-pattern-categories">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
+"terraform-patterns": Record<string, {
+  id: string;
+  body?: string;
+  collection: "terraform-patterns";
+  data: InferEntrySchema<"terraform-patterns">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
+"terraform-philosophy": Record<string, {
+  id: string;
+  body?: string;
+  collection: "terraform-philosophy";
+  data: InferEntrySchema<"terraform-philosophy">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
 
 	};
 

@@ -8,10 +8,10 @@
     "category": {
       "type": "string",
       "enum": [
-        "creational",
-        "structural",
-        "behavioral",
-        "architectural"
+        "modules",
+        "state",
+        "delivery",
+        "architecture"
       ]
     },
     "intent": {
