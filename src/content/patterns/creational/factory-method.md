@@ -2,7 +2,7 @@
 title: "Factory Method"
 category: creational
 intent: "Define an interface for creating an object, but let the calling code decide which concrete type to instantiate via constructor functions returning an interface."
-goIdiomSummary: "Constructor functions returning an interface; selection via map of constructors, not a class hierarchy."
+idiomSummary: "Constructor functions returning an interface; selection via map of constructors, not a class hierarchy."
 relatedSlugs: ["abstract-factory", "builder", "prototype"]
 tags: [interfaces, dependency-inversion, testability]
 isFeatured: true

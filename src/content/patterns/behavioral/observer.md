@@ -2,7 +2,7 @@
 title: "Observer"
 category: behavioral
 intent: "Define a one-to-many dependency between objects so that when one changes state, all dependents are notified automatically."
-goIdiomSummary: "Subscriber interface slice or channels; cover unsubscribe and goroutine/lifecycle concerns."
+idiomSummary: "Subscriber interface slice or channels; cover unsubscribe and goroutine/lifecycle concerns."
 relatedSlugs: ["mediator", "command"]
 tags: [interfaces, closures, concurrency, events, testability]
 ---

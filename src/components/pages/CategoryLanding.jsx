@@ -48,18 +48,18 @@ export default function CategoryLanding({
               </tr>
             </thead>
             <tbody>
-              {patterns.map((p, i) => (
-                <tr key={p.slug} className={i < patterns.length - 1 ? "border-b border-border" : ""}>
+              {patterns.map((pattern, index) => (
+                <tr key={pattern.slug} className={index < patterns.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
                     <a
-                      href={`${basePath}/patterns/${p.category}/${p.slug}`}
+                      href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
                       className="font-medium text-primary hover:underline whitespace-nowrap"
                     >
-                      {p.title}
+                      {pattern.title}
                     </a>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{p.intent}</td>
-                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell text-xs font-mono">{p.summary}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{pattern.intent}</td>
+                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell text-xs font-mono">{pattern.summary}</td>
                 </tr>
               ))}
             </tbody>
@@ -68,16 +68,16 @@ export default function CategoryLanding({
       </div>
 
       <div className="space-y-3">
-        {patterns.map((p) => (
+        {patterns.map((pattern) => (
           <a
-            key={p.slug}
-            href={`${basePath}/patterns/${p.category}/${p.slug}`}
+            key={pattern.slug}
+            href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
             className="group block p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/30 transition-all"
           >
             <div className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1">
-              {p.title}
+              {pattern.title}
             </div>
-            <div className="text-sm text-muted-foreground">{p.intent}</div>
+            <div className="text-sm text-muted-foreground">{pattern.intent}</div>
           </a>
         ))}
       </div>

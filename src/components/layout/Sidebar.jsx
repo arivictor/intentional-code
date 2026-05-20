@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Building2, Bookmark, Database, GitBranch } from "lucide-react";
+import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Bookmark, Database, GitBranch, Building2 } from "lucide-react";
 
 const CATEGORY_ICONS = {
   creational: Box,
@@ -55,9 +55,9 @@ export default function Sidebar({
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const handler = () => setOpen((o) => !o);
-    document.addEventListener('sidebar-toggle', handler);
-    return () => document.removeEventListener('sidebar-toggle', handler);
+    const handler = () => setOpen((value) => !value);
+    document.addEventListener("sidebar-toggle", handler);
+    return () => document.removeEventListener("sidebar-toggle", handler);
   }, []);
 
   const nav = (
@@ -81,21 +81,21 @@ export default function Sidebar({
         ))}
       </SidebarSection>
 
-      {(navData ?? []).map((cat) => {
-        const Icon = CATEGORY_ICONS[cat.slug] ?? BookOpen;
-        const isActive = pathname.includes(`${basePath}/patterns/${cat.slug}`);
+      {(navData ?? []).map((category) => {
+        const Icon = CATEGORY_ICONS[category.slug] ?? BookOpen;
+        const isActive = pathname.includes(`${basePath}/patterns/${category.slug}`);
         return (
-          <SidebarSection key={cat.slug} title={cat.title} icon={Icon} defaultOpen={isActive}>
-            <SidebarLink href={`${basePath}/patterns/${cat.slug}`} active={pathname === `${basePath}/patterns/${cat.slug}`}>
+          <SidebarSection key={category.slug} title={category.title} icon={Icon} defaultOpen={isActive}>
+            <SidebarLink href={`${basePath}/patterns/${category.slug}`} active={pathname === `${basePath}/patterns/${category.slug}`}>
               Overview
             </SidebarLink>
-            {cat.patterns.map((p) => (
+            {category.patterns.map((pattern) => (
               <SidebarLink
-                key={p.slug}
-                href={`${basePath}/patterns/${p.category}/${p.slug}`}
-                active={pathname === `${basePath}/patterns/${p.category}/${p.slug}`}
+                key={pattern.slug}
+                href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
+                active={pathname === `${basePath}/patterns/${pattern.category}/${pattern.slug}`}
               >
-                {p.title}
+                {pattern.title}
               </SidebarLink>
             ))}
           </SidebarSection>

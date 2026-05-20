@@ -17,9 +17,7 @@ export default function PatternLink({ slug, title, description }) {
       >
         {pattern.title}
       </a>
-      {description && (
-        <span className="text-sm text-muted-foreground mt-1">{description}</span>
-      )}
+      {description && <span className="text-sm text-muted-foreground mt-1">{description}</span>}
     </div>
   );
 }

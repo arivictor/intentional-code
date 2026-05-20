@@ -2,7 +2,7 @@
 title: "Decorator"
 category: structural
 intent: "Attach additional behavior to an object dynamically by wrapping it in another object that implements the same interface."
-goIdiomSummary: "Wrap an interface to add behavior; canonical Go example: http.Handler / RoundTripper middleware."
+idiomSummary: "Wrap an interface to add behavior; canonical Go example: http.Handler / RoundTripper middleware."
 relatedSlugs: ["adapter", "composite", "proxy", "chain-of-responsibility"]
 tags: [interfaces, closures, composition, testability]
 ---

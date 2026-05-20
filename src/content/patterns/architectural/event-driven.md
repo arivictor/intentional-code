@@ -2,7 +2,7 @@
 title: "Event-Driven Architecture"
 category: architectural
 intent: "Decouple services by having producers emit domain events and consumers react to them asynchronously, without either knowing about the other."
-goIdiomSummary: "In-process: Go channels or a simple event bus struct. Cross-service: publish to Kafka/NATS/SQS; consumers implement an idempotent handler interface."
+idiomSummary: "In-process: Go channels or a simple event bus struct. Cross-service: publish to Kafka/NATS/SQS; consumers implement an idempotent handler interface."
 relatedSlugs: ["cqrs", "domain-driven-design", "observer"]
 tags: [interfaces, concurrency, events, distributed, testability]
 ---

@@ -2,7 +2,7 @@
 title: "Mediator"
 category: behavioral
 intent: "Define an object that encapsulates how a set of objects interact, promoting loose coupling by keeping objects from referring to each other directly."
-goIdiomSummary: "A coordinator struct that colleagues call instead of each other."
+idiomSummary: "A coordinator struct that colleagues call instead of each other."
 relatedSlugs: ["facade", "observer"]
 tags: [interfaces, dependency-inversion, events]
 ---

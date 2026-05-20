@@ -2,33 +2,47 @@ import React, { useState, useEffect } from "react";
 import { Sun, Moon, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CommandPalette from "./CommandPalette";
+import { LANGUAGE_CONFIG, switchLanguagePath } from "@/lib/languages";
 
-export default function TopBar({ searchData, basePath = "/go", sectionLabel = "Go", themeStorageKey = "go-patterns-theme" }) {
+function getSwitchableLanguage(pathname = "", basePath = "/go") {
+  const sectionKey = pathname.split("/").filter(Boolean)[0] ?? basePath.replace(/^\//, "");
+  return LANGUAGE_CONFIG[sectionKey] ? sectionKey : null;
+}
+
+export default function TopBar({
+  searchData,
+  pathname = "/go",
+  basePath = "/go",
+  sectionLabel = "Go",
+  themeStorageKey = "go-patterns-theme",
+}) {
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState("light");
+  const currentLanguage = getSwitchableLanguage(pathname, basePath);
+  const otherLanguage = currentLanguage === "go" ? "python" : currentLanguage === "python" ? "go" : null;
 
   useEffect(() => {
     const stored = localStorage.getItem(themeStorageKey);
-    setTheme(stored ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+    setTheme(stored ?? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
   }, [themeStorageKey]);
 
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
+    document.documentElement.classList.toggle("dark", theme === "dark");
     localStorage.setItem(themeStorageKey, theme);
   }, [theme, themeStorageKey]);
 
   useEffect(() => {
     const handler = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
         e.preventDefault();
-        setPaletteOpen((o) => !o);
+        setPaletteOpen((open) => !open);
       }
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  const toggleSidebar = () => document.dispatchEvent(new CustomEvent('sidebar-toggle'));
+  const toggleSidebar = () => document.dispatchEvent(new CustomEvent("sidebar-toggle"));
 
   return (
     <>
@@ -50,6 +64,23 @@ export default function TopBar({ searchData, basePath = "/go", sectionLabel = "G
           </a>
 
           <div className="flex-1" />
+
+          {currentLanguage && (
+            <div className="hidden sm:flex items-center gap-1 rounded-md border border-border bg-muted/40 p-1">
+              <a
+                href={switchLanguagePath(pathname, "go")}
+                className={`px-2.5 py-1 text-xs rounded transition-colors ${currentLanguage === "go" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Go
+              </a>
+              <a
+                href={switchLanguagePath(pathname, "python")}
+                className={`px-2.5 py-1 text-xs rounded transition-colors ${currentLanguage === "python" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Python
+              </a>
+            </div>
+          )}
 
           <button
             onClick={() => setPaletteOpen(true)}
@@ -74,11 +105,21 @@ export default function TopBar({ searchData, basePath = "/go", sectionLabel = "G
             variant="ghost"
             size="icon"
             className="h-8 w-8"
-            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            onClick={() => setTheme((value) => (value === "dark" ? "light" : "dark"))}
             aria-label="Toggle theme"
           >
-            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
+
+          {currentLanguage && otherLanguage && (
+            <a
+              href={switchLanguagePath(pathname, otherLanguage)}
+              className="sm:hidden text-xs text-muted-foreground hover:text-foreground transition-colors"
+              aria-label={`Switch to ${LANGUAGE_CONFIG[otherLanguage].label}`}
+            >
+              {LANGUAGE_CONFIG[otherLanguage].label}
+            </a>
+          )}
         </div>
       </header>
 

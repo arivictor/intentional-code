@@ -152,6 +152,38 @@ declare module 'astro:content' {
   rendered?: RenderedContent;
   filePath?: string;
 }>;
+"python-pages": Record<string, {
+  id: string;
+  body?: string;
+  collection: "python-pages";
+  data: InferEntrySchema<"python-pages">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
+"python-pattern-categories": Record<string, {
+  id: string;
+  body?: string;
+  collection: "python-pattern-categories";
+  data: InferEntrySchema<"python-pattern-categories">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
+"python-patterns": Record<string, {
+  id: string;
+  body?: string;
+  collection: "python-patterns";
+  data: InferEntrySchema<"python-patterns">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
+"python-philosophy": Record<string, {
+  id: string;
+  body?: string;
+  collection: "python-philosophy";
+  data: InferEntrySchema<"python-philosophy">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
 "terraform-pages": Record<string, {
   id: string;
   body?: string;

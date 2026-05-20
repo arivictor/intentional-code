@@ -2,7 +2,7 @@
 title: "Abstract Factory"
 category: creational
 intent: "Provide an interface whose methods each return related product interfaces, so families of related objects can be created without specifying their concrete types."
-goIdiomSummary: "An interface whose methods each return related product interfaces; one struct per family."
+idiomSummary: "An interface whose methods each return related product interfaces; one struct per family."
 relatedSlugs: ["factory-method", "builder"]
 tags: [interfaces, composition, dependency-inversion, testability]
 ---

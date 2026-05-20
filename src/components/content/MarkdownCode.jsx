@@ -13,6 +13,12 @@ const TYPES = new Set([
   "uint64","float32","float64","bool","byte","rune","any",
 ]);
 
+const PYTHON_KEYWORDS = new Set([
+  "False","None","True","and","as","assert","async","await","break","class","continue",
+  "def","del","elif","else","except","finally","for","from","global","if","import","in",
+  "is","lambda","nonlocal","not","or","pass","raise","return","try","while","with","yield",
+]);
+
 function escape(s) {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
@@ -62,6 +68,45 @@ function highlightGo(code) {
   return out;
 }
 
+function highlightPython(code) {
+  const TOKEN_RE = [
+    { re: /^#[^\n]*/,               emit: (m) => span("text-code-comment italic", m) },
+    { re: /^"""[\s\S]*?"""/,        emit: (m) => span("text-code-string", m) },
+    { re: /^'''[\s\S]*?'''/,        emit: (m) => span("text-code-string", m) },
+    { re: /^"(?:[^"\\]|\\.)*"/,     emit: (m) => span("text-code-string", m) },
+    { re: /^'(?:[^'\\]|\\.)*'/,     emit: (m) => span("text-code-string", m) },
+    { re: /^\b\d+\.?\d*\b/,         emit: (m) => span("text-code-number", m) },
+    {
+      re: /^[A-Za-z_]\w*/,
+      emit: (m) => PYTHON_KEYWORDS.has(m)
+        ? span("text-code-keyword font-medium", m)
+        : escape(m),
+    },
+  ];
+
+  let out = "";
+  let i = 0;
+  while (i < code.length) {
+    let matched = false;
+    const slice = code.slice(i);
+    for (const { re, emit } of TOKEN_RE) {
+      const m = slice.match(re);
+      if (m) {
+        out += emit(m[0]);
+        i += m[0].length;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      const ch = code[i];
+      out += ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : ch;
+      i++;
+    }
+  }
+  return out;
+}
+
 export default function MarkdownCode({ children, className }) {
   const [copied, setCopied] = useState(false);
 
@@ -80,7 +125,7 @@ export default function MarkdownCode({ children, className }) {
 
   // Extract filename from first line if it's a // comment
   const lines = raw.split("\n");
-  const firstLineMatch = lines[0].match(/^\/\/\s*(\S+\.\w+)\s*$/);
+  const firstLineMatch = lines[0].match(/^(?:\/\/|#)\s*(\S+\.\w+)\s*$/);
   const filename = firstLineMatch ? firstLineMatch[1] : null;
   const code = filename ? lines.slice(1).join("\n").replace(/^\n/, "") : raw;
 
@@ -92,6 +137,8 @@ export default function MarkdownCode({ children, className }) {
 
   const highlighted = (language === "go" || language === "golang")
     ? highlightGo(code)
+    : language === "python"
+      ? highlightPython(code)
     : escape(code);
 
   return (

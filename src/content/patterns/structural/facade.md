@@ -2,7 +2,7 @@
 title: "Facade"
 category: structural
 intent: "Provide a simple, unified interface to a complex subsystem, shielding clients from internal complexity."
-goIdiomSummary: "A struct exposing a small API over several subsystem packages."
+idiomSummary: "A struct exposing a small API over several subsystem packages."
 relatedSlugs: ["adapter", "mediator"]
 tags: [interfaces, composition, testability, dependency-inversion]
 isFeatured: true

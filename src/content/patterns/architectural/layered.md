@@ -2,7 +2,7 @@
 title: "Layered Architecture"
 category: architectural
 intent: "Organise code into horizontal layers, Handler, Service, Repository, Infrastructure, where each layer depends only on the layer below it."
-goIdiomSummary: "Separate packages per layer; interfaces at each boundary so layers can be tested and swapped independently."
+idiomSummary: "Separate packages per layer; interfaces at each boundary so layers can be tested and swapped independently."
 relatedSlugs: ["repository", "clean-architecture", "hexagonal"]
 tags: [interfaces, dependency-inversion, testability, composition]
 ---

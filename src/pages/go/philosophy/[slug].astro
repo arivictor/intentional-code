@@ -14,22 +14,25 @@ export async function getStaticPaths() {
 
   const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
 
-  return philosophy.filter((entry) => entry.id !== 'index').map((entry) => {
-    const slug = entry.id.replace(/\.md$/, '');
-    return {
-      params: { slug },
-      props: {
-        slug,
-        title: entry.data.title,
-        description: entry.data.description,
-        markdown: entry.body,
-        navOrder,
-      },
-    };
-  });
+  return philosophy
+    .filter((entry) => entry.id !== 'index')
+    .map((entry) => {
+      const slug = entry.id.replace(/\.md$/, '');
+      return {
+        params: { slug },
+        props: {
+          slug,
+          title: entry.data.title,
+          description: entry.data.description,
+          markdown: entry.body,
+          storageKey: `${GO_SECTION.basePath}/philosophy/${slug}`,
+          navOrder,
+        },
+      };
+    });
 }
 
-const { slug, title, description, markdown, navOrder } = Astro.props;
+const { slug, title, description, markdown, storageKey, navOrder } = Astro.props;
 ---
 
 <SiteLayout
@@ -47,6 +50,7 @@ const { slug, title, description, markdown, navOrder } = Astro.props;
     title={title}
     description={description}
     markdown={markdown}
+    storageKey={storageKey}
     navOrder={navOrder}
     pathname={`${GO_SECTION.basePath}/philosophy/${slug}`}
     client:load

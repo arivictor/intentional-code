@@ -14,23 +14,23 @@ export async function getStaticPaths() {
 
   const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
 
-  return categories.map((cat) => {
-    const catKey = cat.id.replace(/\/index$/, '');
+  return categories.map((category) => {
+    const catKey = category.id.replace(/\/index$/, '');
     const catPatterns = patterns
-      .filter((p) => p.data.category === catKey)
-      .map((p) => ({
-        slug: p.id.replace(/\.md$/, '').split('/')[1],
-        title: p.data.title,
-        category: p.data.category,
-        intent: p.data.intent,
-        summary: getPatternSummary(p),
+      .filter((pattern) => pattern.data.category === catKey)
+      .map((pattern) => ({
+        slug: pattern.id.replace(/\.md$/, '').split('/')[1],
+        title: pattern.data.title,
+        category: pattern.data.category,
+        intent: pattern.data.intent,
+        summary: getPatternSummary(pattern),
       }));
 
     return {
       params: { category: catKey },
       props: {
-        category: { slug: catKey, title: cat.data.title, lede: cat.data.lede },
-        introMarkdown: cat.body,
+        category: { slug: catKey, title: category.data.title, lede: category.data.lede },
+        introMarkdown: category.body,
         patterns: catPatterns,
         navOrder,
       },

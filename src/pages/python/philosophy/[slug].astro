@@ -1,0 +1,58 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import PhilosophyDetailPage from '@/components/pages/PhilosophyDetailPage';
+import { buildNavOrder } from '@/lib/site-data';
+import { PYTHON_SECTION } from '@/lib/section-config';
+
+export async function getStaticPaths() {
+  const [patterns, philosophy, categories] = await Promise.all([
+    getCollection(PYTHON_SECTION.collections.patterns),
+    getCollection(PYTHON_SECTION.collections.philosophy),
+    getCollection(PYTHON_SECTION.collections.categories),
+  ]);
+
+  const navOrder = buildNavOrder(patterns, philosophy, categories, PYTHON_SECTION);
+
+  return philosophy
+    .filter((entry) => entry.id !== 'index')
+    .map((entry) => {
+      const slug = entry.id.replace(/\.md$/, '');
+      return {
+        params: { slug },
+        props: {
+          slug,
+          title: entry.data.title,
+          description: entry.data.description,
+          markdown: entry.body,
+          storageKey: `${PYTHON_SECTION.basePath}/philosophy/${slug}`,
+          navOrder,
+        },
+      };
+    });
+}
+
+const { slug, title, description, markdown, storageKey, navOrder } = Astro.props;
+---
+
+<SiteLayout
+  title={title}
+  description={description}
+  basePath={PYTHON_SECTION.basePath}
+  sectionLabel={PYTHON_SECTION.label}
+  themeStorageKey={PYTHON_SECTION.themeStorageKey}
+  categoryOrder={PYTHON_SECTION.categoryOrder}
+  philosophyOrder={PYTHON_SECTION.philosophyOrder}
+  collections={PYTHON_SECTION.collections}
+>
+  <PhilosophyDetailPage
+    slug={slug}
+    title={title}
+    description={description}
+    markdown={markdown}
+    storageKey={storageKey}
+    navOrder={navOrder}
+    pathname={`${PYTHON_SECTION.basePath}/philosophy/${slug}`}
+    client:load
+  />
+</SiteLayout>

@@ -20,8 +20,8 @@ When reviewing Go code, flag these as opportunities for improvement:
 /**
  * Generate a CLAUDE.md file from a set of patterns.
  *
- * @param {Array<{slug: string, title: string, category: string, intent: string, goIdiomSummary: string, relatedSlugs?: string[]}>} patterns
- *   Array of pattern objects used to build the reference content.
+ * @param {Array<{slug: string, storageKey?: string, title: string, category: string, intent: string, summary: string, relatedSlugs?: string[]}>} patterns
+ *   Array of Go pattern objects used to build the reference content.
  * @param {{includeAll?: boolean, savedSlugs?: string[]}} [options={}]
  *   Options controlling whether all patterns or only bookmarked patterns are included.
  * @returns {string} The generated CLAUDE.md content
@@ -29,7 +29,7 @@ When reviewing Go code, flag these as opportunities for improvement:
 export function generateClaudeMd(patterns, { includeAll = false, savedSlugs = [] } = {}) {
   const selected = includeAll
     ? [...patterns]
-    : patterns.filter((p) => savedSlugs.includes(p.slug));
+    : patterns.filter((p) => savedSlugs.includes(p.storageKey ?? p.slug));
 
   // Sort by category order, then alphabetically within category
   const CATEGORY_ORDER = ['creational', 'structural', 'behavioral', 'architectural'];
@@ -63,7 +63,7 @@ function formatPatternBlock(p) {
   const lines = [
     `### ${p.title} (${p.category})`,
     `**Signal:** ${p.intent}`,
-    `**Go approach:** ${p.goIdiomSummary}`,
+    `**Go approach:** ${p.summary}`,
   ];
 
   if (p.relatedSlugs && p.relatedSlugs.length > 0) {

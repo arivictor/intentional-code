@@ -50,28 +50,32 @@ function createPagesCollection(base: string) {
 }
 
 const patterns = createPatternCollection('./src/content/patterns', ['creational', 'structural', 'behavioral', 'architectural']);
-
+const pythonPatterns = createPatternCollection('./src/content/python/patterns', ['creational', 'structural', 'behavioral', 'architectural']);
 const terraformPatterns = createPatternCollection('./src/content/terraform/patterns', ['modules', 'state', 'delivery', 'architecture']);
 
 const philosophy = createPhilosophyCollection('./src/content/philosophy');
-
+const pythonPhilosophy = createPhilosophyCollection('./src/content/python/philosophy');
 const terraformPhilosophy = createPhilosophyCollection('./src/content/terraform/philosophy');
 
 const patternCategories = createCategoryCollection('./src/content/patterns');
-
+const pythonPatternCategories = createCategoryCollection('./src/content/python/patterns');
 const terraformPatternCategories = createCategoryCollection('./src/content/terraform/patterns');
 
 const pages = createPagesCollection('./src/content/pages');
-
+const pythonPages = createPagesCollection('./src/content/python/pages');
 const terraformPages = createPagesCollection('./src/content/terraform/pages');
 
 export const collections = {
   patterns,
-  philosophy,
-  'pattern-categories': patternCategories,
-  pages,
+  'python-patterns': pythonPatterns,
   'terraform-patterns': terraformPatterns,
+  philosophy,
+  'python-philosophy': pythonPhilosophy,
   'terraform-philosophy': terraformPhilosophy,
+  'pattern-categories': patternCategories,
+  'python-pattern-categories': pythonPatternCategories,
   'terraform-pattern-categories': terraformPatternCategories,
+  pages,
+  'python-pages': pythonPages,
   'terraform-pages': terraformPages,
 };

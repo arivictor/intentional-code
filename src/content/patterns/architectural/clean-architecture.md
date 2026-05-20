@@ -2,7 +2,7 @@
 title: "Clean Architecture"
 category: architectural
 intent: "Structure code in concentric rings, Entities, Use Cases, Interface Adapters, Frameworks, enforcing a strict inward dependency rule so the domain never imports infrastructure."
-goIdiomSummary: "Domain types and use-case interfaces in an inner package; HTTP handlers and DB adapters in outer packages that import inward, never the reverse."
+idiomSummary: "Domain types and use-case interfaces in an inner package; HTTP handlers and DB adapters in outer packages that import inward, never the reverse."
 relatedSlugs: ["hexagonal", "layered", "repository", "domain-driven-design"]
 tags: [interfaces, dependency-inversion, testability, composition]
 ---

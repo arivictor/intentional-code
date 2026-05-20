@@ -27,7 +27,7 @@ export default function SavedPatterns({
     if (bookmarks.length > 0) setMode("saved");
   }, []);
 
-  const contentMap = Object.fromEntries(allContent.map((c) => [c.slug, c]));
+  const contentMap = Object.fromEntries(allContent.map((c) => [c.storageKey, c]));
 
   const handleRemoveBookmark = (slug) => {
     removeBookmark(slug);
@@ -44,6 +44,7 @@ export default function SavedPatterns({
   };
 
   const saved = slugs.map((s) => contentMap[s]).filter(Boolean);
+  const isSavedPattern = (pattern) => slugs.includes(pattern.storageKey ?? pattern.slug);
 
   // Generator
   const claudeMd = generateClaudeMd(allPatterns, {
@@ -51,7 +52,7 @@ export default function SavedPatterns({
     savedSlugs: slugs,
   });
 
-  const savedPatternCount = allPatterns.filter((p) => slugs.includes(p.slug)).length;
+  const savedPatternCount = allPatterns.filter(isSavedPattern).length;
 
   const handleCopy = async () => {
     try {
@@ -98,8 +99,8 @@ export default function SavedPatterns({
         ) : (
           <div className="space-y-3">
             {saved.map((item) => (
-              <div
-                key={item.slug}
+               <div
+                key={item.storageKey}
                 className="group flex items-center gap-3 p-4 rounded-lg border border-border hover:border-primary/30 bg-card transition-all"
               >
                 <div className="flex-1 min-w-0">
@@ -112,7 +113,7 @@ export default function SavedPatterns({
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <button
-                  onClick={() => handleRemoveBookmark(item.slug)}
+                  onClick={() => handleRemoveBookmark(item.storageKey)}
                   className="text-primary hover:text-destructive transition-colors shrink-0"
                   title="Remove bookmark"
                 >

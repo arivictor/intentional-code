@@ -14,13 +14,13 @@ export async function getStaticPaths() {
 
   const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
 
-  const allPatterns = patterns.map((p) => ({
-    slug: p.id.replace(/\.md$/, '').split('/')[1],
-    title: p.data.title,
-    category: p.data.category,
-    intent: p.data.intent,
-    summary: getPatternSummary(p),
-    relatedSlugs: p.data.relatedSlugs,
+  const allPatterns = patterns.map((pattern) => ({
+    slug: pattern.id.replace(/\.md$/, '').split('/')[1],
+    title: pattern.data.title,
+    category: pattern.data.category,
+    intent: pattern.data.intent,
+    summary: getPatternSummary(pattern),
+    relatedSlugs: pattern.data.relatedSlugs,
   }));
 
   return patterns.map((entry) => {
@@ -30,6 +30,7 @@ export async function getStaticPaths() {
       props: {
         pattern: {
           slug,
+          storageKey: `${GO_SECTION.basePath}/patterns/${entry.data.category}/${slug}`,
           title: entry.data.title,
           category: entry.data.category,
           intent: entry.data.intent,
@@ -50,7 +51,7 @@ const { pattern, markdown, allPatterns, navOrder } = Astro.props;
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'TechArticle',
-  name: `${pattern.title} Pattern in Go`,
+  name: `${pattern.title} Pattern in ${GO_SECTION.label}`,
   description: pattern.intent,
   url: `https://intentionalcode.com${GO_SECTION.basePath}/patterns/${pattern.category}/${pattern.slug}`,
   publisher: { '@type': 'Organization', name: 'Intentional Code' },

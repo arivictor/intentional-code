@@ -2,7 +2,6 @@ function entrySlug(entry) {
   return entry.id.replace(/\.md$/, '');
 }
 
-// Category entries now live at patterns/creational/index.md → id = "creational/index"
 function categorySlug(entry) {
   return entry.id.replace(/\/index$/, '');
 }
@@ -22,10 +21,12 @@ export function buildNavData(patterns, categories, options = {}) {
     const category = categories.find((c) => categorySlug(c) === catKey);
     const catPatterns = patterns
       .filter((p) => p.data.category === catKey)
-      .map((p) => {
-        const slug = patternSlug(p);
-        return { slug, title: p.data.title, category: catKey };
-      });
+      .map((p) => ({
+        slug: patternSlug(p),
+        title: p.data.title,
+        category: catKey,
+      }));
+
     return {
       slug: catKey,
       title: category?.data.title ?? catKey,
@@ -47,16 +48,19 @@ export function buildNavOrder(patterns, philosophy, categories, options = {}) {
   ];
 
   for (const slug of philosophyOrder) {
-    const p = philosophy.find((e) => entrySlug(e) === slug);
-    if (p) order.push({ path: `${basePath}/philosophy/${slug}`, title: p.data.title });
+    const page = philosophy.find((entry) => entrySlug(entry) === slug);
+    if (page) {
+      order.push({ path: `${basePath}/philosophy/${slug}`, title: page.data.title });
+    }
   }
 
   for (const catKey of categoryOrder) {
-    const category = categories.find((c) => categorySlug(c) === catKey);
+    const category = categories.find((entry) => categorySlug(entry) === catKey);
     order.push({ path: `${basePath}/patterns/${catKey}`, title: category?.data.title ?? catKey });
-    for (const p of patterns.filter((e) => e.data.category === catKey)) {
-      const slug = patternSlug(p);
-      order.push({ path: `${basePath}/patterns/${catKey}/${slug}`, title: p.data.title });
+
+    for (const pattern of patterns.filter((entry) => entry.data.category === catKey)) {
+      const slug = patternSlug(pattern);
+      order.push({ path: `${basePath}/patterns/${catKey}/${slug}`, title: pattern.data.title });
     }
   }
 
@@ -67,23 +71,25 @@ export function buildAllContent(patterns, philosophy, options = {}) {
   const { basePath = '/go' } = options;
 
   return [
-    ...philosophy.filter((e) => e.id !== 'index').map((e) => {
-      const slug = entrySlug(e);
+    ...philosophy.filter((entry) => entry.id !== 'index').map((entry) => {
+      const slug = entrySlug(entry);
       return {
         slug,
-        title: e.data.title,
-        description: e.data.description,
+        storageKey: `${basePath}/philosophy/${slug}`,
+        title: entry.data.title,
+        description: entry.data.description,
         url: `${basePath}/philosophy/${slug}`,
         type: 'philosophy',
       };
     }),
-    ...patterns.map((e) => {
-      const slug = patternSlug(e);
+    ...patterns.map((entry) => {
+      const slug = patternSlug(entry);
       return {
         slug,
-        title: e.data.title,
-        description: e.data.intent,
-        url: `${basePath}/patterns/${e.data.category}/${slug}`,
+        storageKey: `${basePath}/patterns/${entry.data.category}/${slug}`,
+        title: entry.data.title,
+        description: entry.data.intent,
+        url: `${basePath}/patterns/${entry.data.category}/${slug}`,
         type: 'pattern',
       };
     }),
@@ -95,21 +101,21 @@ export function buildSearchData(patterns, philosophy, categories, options = {}) 
 
   return [
     { title: 'Philosophy', path: `${basePath}/philosophy`, type: 'page' },
-    ...philosophy.filter((e) => e.id !== 'index').map((e) => {
-      const slug = entrySlug(e);
-      return { title: e.data.title, path: `${basePath}/philosophy/${slug}`, type: 'page' };
+    ...philosophy.filter((entry) => entry.id !== 'index').map((entry) => {
+      const slug = entrySlug(entry);
+      return { title: entry.data.title, path: `${basePath}/philosophy/${slug}`, type: 'page' };
     }),
-    ...categories.map((c) => {
-      const catKey = categorySlug(c);
-      return { title: c.data.title, path: `${basePath}/patterns/${catKey}`, type: 'category' };
+    ...categories.map((entry) => {
+      const catKey = categorySlug(entry);
+      return { title: entry.data.title, path: `${basePath}/patterns/${catKey}`, type: 'category' };
     }),
-    ...patterns.map((e) => {
-      const slug = patternSlug(e);
+    ...patterns.map((entry) => {
+      const slug = patternSlug(entry);
       return {
-        title: e.data.title,
-        path: `${basePath}/patterns/${e.data.category}/${slug}`,
+        title: entry.data.title,
+        path: `${basePath}/patterns/${entry.data.category}/${slug}`,
         type: 'pattern',
-        subtitle: e.data.intent,
+        subtitle: entry.data.intent,
       };
     }),
   ];
