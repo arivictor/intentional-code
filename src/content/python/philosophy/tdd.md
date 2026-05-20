@@ -17,92 +17,83 @@ TDD is not "write tests." It's a design discipline with three steps, always in o
 
 The discipline is in the order. You never write production code without a failing test first. You never refactor without green tests. This prevents both over-engineering ("I might need this") and under-testing ("I'll add tests later").
 
-## Why Go makes TDD pleasant
+## Why Python makes TDD pleasant
 
-### go test — zero configuration
+### Fast feedback with pytest or unittest
 
-No test runner to install, no configuration files. Put a `_test.go` file next to your code, write functions starting with `Test`, and run `go test ./...`. The convention is the configuration.
+No heavy harness is required. Put tests next to the code, run `pytest` or `python -m unittest`, and tighten the loop until failing tests turn green quickly. The convention is light, and the tooling is mature.
 
-### Table-driven tests
+### Parameterized tests
 
-Go's most important testing idiom. Define test cases as a slice of structs, iterate with `t.Run`. Adding a new case is one line, not a new function. The test output names each subtest clearly.
+Python's version of table-driven tests is parameterization. Define the examples as data, let the test runner expand them, and keep the behavior under test more visible than the test scaffolding.
 
 ```python
-# amount_test.py
-def test_parse_amount(t):
-    tests = []struct {
-    name    string
-    input   string
-    want    int64
-    wantErr bool
-    :
-    :name: "whole dollars",    input: "42",     want: 4200
-    :name: "with cents",       input: "19.99",  want: 1999
-    :name: "leading zero",     input: "0.50",   want: 50
-    :name: "empty string",     input: "",        wantErr: True
-    :name: "not a number",     input: "abc",    wantErr: True
-    :name: "negative",         input: "-10.00", want: -1000
-for tt in tests:
-    t.Run(tt.name, func(t *testing.T) :
-    got, err := ParseAmount(tt.input)
-    if tt.wantErr :
-        if err is None :
-            t.Fatal("expected error, got None")
-        return
-    if err is not None :
-        t.Fatalf("unexpected error: %v", err)
-    if got != tt.want :
-        t.Errorf("ParseAmount(%q) = %d, want %d", tt.input, got, tt.want)
-    )
+import pytest
+
+from payments import parse_amount
+
+
+@pytest.mark.parametrize(
+    ("raw", "expected"),
+    [
+        ("42", 4200),
+        ("19.99", 1999),
+        ("0.50", 50),
+        ("-10.00", -1000),
+    ],
+)
+def test_parse_amount(raw, expected):
+    assert parse_amount(raw) == expected
+
+
+@pytest.mark.parametrize("raw", ["", "abc"])
+def test_parse_amount_rejects_invalid_values(raw):
+    with pytest.raises(ValueError):
+        parse_amount(raw)
 ```
 
-### Subtests and t.Parallel()
+### Focused tests and selective runs
 
-`t.Run` creates named subtests that can be filtered with `-run` and parallelized with `t.Parallel()`. This encourages granular test cases without function-per-case sprawl.
+Python test runners make it easy to isolate behavior. You can filter by test name, file, marker, or class, and keep expensive integration tests separate from the fast unit tests that drive design.
 
-### Interfaces as natural test seams
+### Protocols as natural test seams
 
-Because Go interfaces are satisfied implicitly, you don't need a mocking framework. Define a small interface where you need a seam, and write a simple struct that implements it for tests. No codegen, no reflection, no magic.
+Because Python works well with duck typing and small protocols, you rarely need a heavyweight mocking framework. Define a narrow protocol where you need a seam, and hand-roll a tiny fake for the test. No code generation, no reflection tricks, no brittle setup.
 
 ```python
 from typing import Protocol
 
 # alert_test.py
 
-# In production code — accepts an interface
 class Sender(Protocol):
     def send(self, to, body): ...
 
 class AlertService:
-    sender: Sender
+    def __init__(self, sender: Sender):
+        self.sender = sender
 
-def alert(self, user, msg):
-    return a.sender.Send(user.Email, msg)
+    def alert(self, user, msg):
+        self.sender.send(user.email, msg)
 
-# In test — a simple fake, not a mock framework
-class fakeSender:
-    calls list[struct: to, body string
+class FakeSender:
+    def __init__(self):
+        self.calls = []
 
-def send(self, to, body):
-    f.calls = append(f.calls, struct: to, body string :to, body)
-    return None
+    def send(self, to, body):
+        self.calls.append((to, body))
 
-def test_alert_service(t):
-    fs = fakeSender{}
-    svc = AlertService{sender: fs}
+def test_alert_service():
+    sender = FakeSender()
+    service = AlertService(sender)
 
-    err = svc.Alert(User{Email: "a@b.com"}, "server down")
-    if err is not None :
-        t.Fatal(err)
-    if len(fs.calls) != 1 :
-        t.Fatalf("expected 1 call, got %d", len(fs.calls))
-    if fs.calls[0].to != "a@b.com" :
-        t.Errorf("sent to %q, want %q", fs.calls[0].to, "a@b.com")
+    service.alert(type("User", (), {"email": "a@b.com"})(), "server down")
+
+    assert sender.calls == [("a@b.com", "server down")]
 ```
 
-### Fuzzing
+### Property-style testing and fuzzing
 
-Go 1.18 added native fuzzing. Write a `Fuzz` function, seed it with a few cases, and Go generates randomized inputs looking for panics, crashes, or assertion failures. Particularly valuable for parsers and serializers.
+Python has strong options here too: `hypothesis` can generate structured inputs for property-based testing, and randomized tests are especially valuable for parsers, serializers, and boundary-heavy business rules.
 
 ## Worked example: TDD driving out a Strategy pattern
 

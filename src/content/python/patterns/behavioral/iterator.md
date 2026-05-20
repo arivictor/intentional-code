@@ -9,9 +9,9 @@ tags: [closures, interfaces]
 
 # Iterator
 
-Go 1.23 made Iterator a first-class language feature: `iter.Seq[T]` (a function of the form `func(yield func(T) bool)`) integrates directly with for-range, replacing the channel-based and explicit `Next()`/`Value()` struct approaches that preceded it. Write the traversal once; every consumer gets a plain `for v := range collection.InOrder()` loop.
+Python makes Iterator a first-class language feature through the iterator protocol and generators. Implement `__iter__()` when an object is naturally iterable, or yield values from a generator function when you want traversal logic decoupled from storage.
 
-This is one of the patterns most transformed by Go's evolution — if you're on 1.23+, external iterator structs are rarely worth reaching for.
+This is one of the patterns most natural in Python because `for value in collection` already speaks the pattern's language. Explicit iterator objects still matter when you need custom stateful traversal, but generators cover many real cases cleanly.
 
 ## Problem
 

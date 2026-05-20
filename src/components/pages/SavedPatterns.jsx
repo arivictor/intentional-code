@@ -50,8 +50,8 @@ export default function SavedPatterns({ allContent, navOrder, pathname }) {
         ) : (
           <div className="space-y-3">
             {saved.map((item) => (
-              <div
-                key={item.slug}
+               <div
+                key={item.storageKey}
                 className="group flex items-center gap-3 p-4 rounded-lg border border-border hover:border-primary/30 bg-card transition-all"
               >
                 <div className="flex-1 min-w-0">
@@ -64,7 +64,7 @@ export default function SavedPatterns({ allContent, navOrder, pathname }) {
                   <ArrowRight className="h-4 w-4" />
                 </a>
                 <button
-                  onClick={() => handleRemoveBookmark(item.slug)}
+                  onClick={() => handleRemoveBookmark(item.storageKey)}
                   className="text-primary hover:text-destructive transition-colors shrink-0"
                   title="Remove bookmark"
                 >

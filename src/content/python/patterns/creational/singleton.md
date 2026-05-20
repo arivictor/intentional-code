@@ -9,9 +9,9 @@ tags: [concurrency, state, testability, performance]
 
 # Singleton
 
-In most Python codebases, Singleton is an anti-pattern — not because the idea is wrong, but because global mutable state hides dependencies, makes tests unreliable, and forces every part of your application to use one specific concrete type that you can't swap out. The standard implementation using `sync.Once` initializes the value exactly once, safely across goroutines — and it's correct. Correct isn't the same as advisable.
+In most Python codebases, Singleton is an anti-pattern — not because the idea is wrong, but because global mutable state hides dependencies, makes tests unreliable, and forces every part of your application to use one specific concrete type that you can't swap out. Python can enforce one-time initialization with module-level caching, a metaclass, or a lock around lazy construction — but even a correct singleton is often still the wrong dependency boundary.
 
-The pattern has legitimate uses: hardware drivers, license managers, or immutable package-level values compiled at startup (a compiled regex, a frozen lookup table). For shared resources like database pools and loggers, pass the instance through constructors and let `main()` enforce uniqueness.
+The pattern has legitimate uses: hardware drivers, license managers, or immutable module-level values created at startup (a compiled regex, a frozen lookup table). For shared resources like database pools and loggers, pass the instance through constructors and let the application's entrypoint enforce uniqueness.
 
 ## Problem
 

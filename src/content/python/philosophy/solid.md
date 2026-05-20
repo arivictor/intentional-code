@@ -22,7 +22,7 @@ Python's module system encourages this naturally. Small modules with focused API
 **Before — the violation:**
 
 ```python
-# user.go — one struct doing everything
+# user.py — one class doing everything
 class UserService:
     db: sql.DB
 

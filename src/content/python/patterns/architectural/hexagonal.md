@@ -10,7 +10,7 @@ isFeatured: true
 
 # Hexagonal Architecture
 
-Hexagonal Architecture solves a testability and flexibility problem: when HTTP handlers, SQL queries, and SMTP calls are mixed into business logic, testing requires live infrastructure. Hexagonal draws a boundary. Everything inside is pure application logic, and everything outside, HTTP, databases, queues, email, is an adapter that plugs in through a defined port (interface).
+Hexagonal Architecture solves a testability and flexibility problem: when HTTP handlers, SQL queries, and SMTP calls are mixed into business logic, testing requires live infrastructure. Hexagonal draws a boundary. Everything inside is pure application logic, and everything outside — HTTP, databases, queues, email — is an adapter that plugs in through a defined port, usually expressed in Python as a protocol or a small abstract interface.
 
 The core vocabulary matters here: **driving adapters** (HTTP handlers, CLI, tests) call **driving ports** (the application's API), while the application calls **driven ports** (repository, notifier interfaces) implemented by **driven adapters** (Postgres, SMTP, in-memory fakes). The application never imports the adapters directly.
 

@@ -9,9 +9,9 @@ tags: [interfaces, composition]
 
 # Visitor
 
-Visitor separates an operation from the types it operates on. Instead of adding a new method to every type each time you need a new operation, the operations live in a visitor struct — each type accepts a visitor and calls the right method on it. In Python, this means every element type implements `Accept(Visitor)`, and the visitor implements one method per element type.
+Visitor separates an operation from the types it operates on. Instead of adding a new method to every type each time you need a new operation, the operations live in a dedicated visitor object — each element delegates to the correct visitor method. In Python, that usually means each element exposes `accept(visitor)`, and the visitor implements one method per element type.
 
-Here's the honest truth: Visitor is verbose in Go and often not the best choice. The Go alternative — a type switch — is simpler and covers most use cases. Use Visitor when you need the open/closed principle for operations (adding new operations without modifying element types). Use type-switch when you need simplicity and your element types are stable.
+Here's the honest truth: Visitor is verbose in Python too, so you should reach for it deliberately. Python alternatives like `match` statements, `functools.singledispatch`, or straightforward polymorphism are often simpler. Use Visitor when you need the open/closed principle for operations (adding new operations without modifying element types), and prefer the simpler alternatives when the node types are stable.
 
 ## Problem
 
