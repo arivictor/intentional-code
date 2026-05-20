@@ -1,14 +1,53 @@
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale } from "lucide-react";
+import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star } from "lucide-react";
 import { getReadPatterns } from "@/lib/readingProgress";
-import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 
 const CATEGORY_ICONS = { creational: Box, structural: Puzzle, behavioral: Workflow, architectural: Building2 };
 
-export default function Home({ allContent, navOrder, categories, categoryOrder, patterns, philosophy, pathname, tagline, heroBody, catalogHeading }) {
+function TagFilter({ allTags, activeTags, filteredCount, totalCount, onToggle, onClear }) {
+  if (!allTags || allTags.length === 0) return null;
+  return (
+    <div className="mb-6">
+      <div className="flex flex-wrap gap-2 items-center">
+        {allTags.map((tag) => {
+          const active = activeTags.includes(tag);
+          return (
+            <button
+              key={tag}
+              onClick={() => onToggle(tag)}
+              className={`px-3 py-1 text-xs rounded-full border transition-colors font-medium ${
+                active
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+              }`}
+            >
+              {tag}
+            </button>
+          );
+        })}
+        {activeTags.length > 0 && (
+          <button
+            onClick={onClear}
+            className="px-3 py-1 text-xs rounded-full border border-border text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      {activeTags.length > 0 && (
+        <p className="text-xs text-muted-foreground mt-2">
+          {filteredCount} of {totalCount} patterns match
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default function Home({ allContent, navOrder, categories, categoryOrder, patterns, philosophy, pathname, tagline, heroBody, catalogHeading, allTags }) {
   const [readSlugs, setReadSlugs] = useState([]);
+  const [activeTags, setActiveTags] = useState([]);
 
   useEffect(() => {
     setReadSlugs(getReadPatterns());
@@ -22,6 +61,16 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
   const nextUnread = allContent.find((c) => !readSlugs.includes(c.slug));
 
   const categoryMap = Object.fromEntries(categories.map((c) => [c.slug, c]));
+
+  const featuredPatterns = patterns.filter((p) => p.isFeatured).slice(0, 3);
+
+  const filteredPatterns = activeTags.length === 0
+    ? patterns
+    : patterns.filter((p) => p.tags && p.tags.some((t) => activeTags.includes(t)));
+
+  const toggleTag = (tag) => setActiveTags((prev) =>
+    prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
+  );
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-12">
@@ -90,43 +139,86 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
         </section>
       )}
 
-      <section id="patterns" className="mb-12">
-        <h2 className="text-2xl font-semibold mb-6 text-foreground">{catalogHeading ?? "Pattern catalog"}</h2>
-
-        <div className="mb-8">
-          <a
-            href="/go/philosophy"
-            className="flex items-center gap-2 mb-3 text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <Scale className="h-4 w-4" />
-            <h3 className="font-semibold text-sm uppercase tracking-wider">Design Philosophy</h3>
-          </a>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {philosophy.map((item) => (
+      {featuredPatterns.length > 0 && (
+        <section className="mb-12">
+          <div className="flex items-center gap-2 mb-4">
+            <Star className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Featured</h2>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {featuredPatterns.map((p) => (
               <a
-                key={item.slug}
-                href={item.url}
-                className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
+                key={p.slug}
+                href={`/go/patterns/${p.category}/${p.slug}`}
+                className="group flex flex-col p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-all"
               >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5">
-                    <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
-                      {item.title}
-                    </span>
-                    {readSlugs.includes(item.slug) && (
-                      <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                    )}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                    {p.title}
+                  </span>
+                  {readSlugs.includes(p.slug) && (
+                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed flex-1">{p.intent}</p>
+                <div className="mt-3 flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                  Read <ArrowRight className="h-3 w-3" />
                 </div>
               </a>
             ))}
           </div>
-        </div>
+        </section>
+      )}
+
+      <section id="patterns" className="mb-12">
+        <h2 className="text-2xl font-semibold mb-4 text-foreground">{catalogHeading ?? "Pattern catalog"}</h2>
+
+        <TagFilter
+          allTags={allTags}
+          activeTags={activeTags}
+          filteredCount={filteredPatterns.length}
+          totalCount={patterns.length}
+          onToggle={toggleTag}
+          onClear={() => setActiveTags([])}
+        />
+
+        {activeTags.length === 0 && (
+          <div className="mb-8">
+            <a
+              href="/go/philosophy"
+              className="flex items-center gap-2 mb-3 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Scale className="h-4 w-4" />
+              <h3 className="font-semibold text-sm uppercase tracking-wider">Design Philosophy</h3>
+            </a>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {philosophy.map((item) => (
+                <a
+                  key={item.slug}
+                  href={item.url}
+                  className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
+                        {item.title}
+                      </span>
+                      {readSlugs.includes(item.slug) && (
+                        <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
 
         {categoryOrder.map((catKey) => {
           const cat = categoryMap[catKey];
-          const catPatterns = patterns.filter((p) => p.category === catKey);
+          const catPatterns = filteredPatterns.filter((p) => p.category === catKey);
+          if (activeTags.length > 0 && catPatterns.length === 0) return null;
           const Icon = CATEGORY_ICONS[catKey];
           return (
             <div key={catKey} className="mb-8">
@@ -138,17 +230,19 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
                 <h3 className="font-semibold text-sm uppercase tracking-wider">{cat.title}</h3>
               </a>
               <div className="grid gap-2 sm:grid-cols-2">
-                <a
-                  href={`/go/patterns/${catKey}`}
-                  className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
-                      {cat.title}
-                    </span>
-                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{cat.lede}</div>
-                  </div>
-                </a>
+                {activeTags.length === 0 && (
+                  <a
+                    href={`/go/patterns/${catKey}`}
+                    className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
+                        {cat.title}
+                      </span>
+                      <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{cat.lede}</div>
+                    </div>
+                  </a>
+                )}
                 {catPatterns.map((p) => (
                   <a
                     key={p.slug}

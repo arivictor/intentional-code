@@ -4,6 +4,7 @@ category: structural
 intent: "Convert the interface of an existing type into another interface clients expect, letting incompatible types work together."
 goIdiomSummary: "A wrapper struct that satisfies the target interface by delegating to the adaptee."
 relatedSlugs: ["bridge", "decorator", "facade", "proxy"]
+tags: [interfaces, composition, dependency-inversion]
 ---
 
 # Adapter

@@ -4,6 +4,7 @@ category: behavioral
 intent: "Define a family of algorithms, encapsulate each one, and make them interchangeable at runtime."
 goIdiomSummary: "A function type is the idiomatic form; show interface-based too and say when each fits."
 relatedSlugs: ["bridge", "state", "template-method", "command"]
+tags: [interfaces, closures, testability, dependency-inversion]
 ---
 
 # Strategy

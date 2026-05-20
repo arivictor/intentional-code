@@ -4,6 +4,7 @@ category: structural
 intent: "Compose objects into tree structures so clients can treat individual objects and compositions uniformly through a single interface."
 goIdiomSummary: "One interface implemented by both leaf and composite types; tree of nodes; recursion."
 relatedSlugs: ["decorator", "iterator", "visitor"]
+tags: [interfaces, composition]
 ---
 
 # Composite

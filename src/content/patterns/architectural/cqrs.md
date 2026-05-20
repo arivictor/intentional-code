@@ -4,6 +4,7 @@ category: architectural
 intent: "Separate the model used for writing state (Commands) from the model used for reading it (Queries), allowing each side to be optimised independently."
 goIdiomSummary: "Command handler functions that accept a command struct and return an error; query functions that accept filter params and return read-model DTOs."
 relatedSlugs: ["event-driven", "domain-driven-design", "repository"]
+tags: [interfaces, dependency-inversion, distributed, events]
 ---
 
 # CQRS

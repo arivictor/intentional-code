@@ -4,6 +4,7 @@ category: structural
 intent: "Split a large type into two separate hierarchies — abstraction and implementation — that can vary independently."
 goIdiomSummary: "Split abstraction and implementation into two interfaces composed by struct fields."
 relatedSlugs: ["adapter", "strategy"]
+tags: [interfaces, composition, dependency-inversion]
 ---
 
 # Bridge

@@ -4,6 +4,7 @@ category: structural
 intent: "Provide a surrogate or placeholder for another object to control access, add lazy initialization, logging, or caching."
 goIdiomSummary: "Same-interface wrapper for lazy init, access control, logging, caching; contrast with Decorator."
 relatedSlugs: ["adapter", "decorator"]
+tags: [interfaces, state, performance, testability, concurrency]
 ---
 
 # Proxy

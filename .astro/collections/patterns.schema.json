@@ -27,6 +27,17 @@
         "type": "string"
       }
     },
+    "tags": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "isFeatured": {
+      "default": false,
+      "type": "boolean"
+    },
     "$schema": {
       "type": "string"
     }

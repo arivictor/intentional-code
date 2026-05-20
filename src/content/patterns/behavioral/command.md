@@ -4,6 +4,7 @@ category: behavioral
 intent: "Encapsulate a request as an object (or function value), letting you parameterize clients, queue requests, and support undo operations."
 goIdiomSummary: "A function value, or a struct with Execute(); queue/undo via a stack of commands."
 relatedSlugs: ["chain-of-responsibility", "memento", "strategy"]
+tags: [closures, state, events]
 ---
 
 # Command

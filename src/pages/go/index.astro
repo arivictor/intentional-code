@@ -26,7 +26,11 @@ const patternsData = patterns.map((p) => ({
   title: p.data.title,
   category: p.data.category,
   intent: p.data.intent,
+  tags: p.data.tags,
+  isFeatured: p.data.isFeatured,
 }));
+
+const allTags = [...new Set(patterns.flatMap((p) => p.data.tags))].sort();
 
 const philosophyData = philosophy.map((p) => {
   const isIndex = p.id === 'index';
@@ -54,6 +58,7 @@ const philosophyData = philosophy.map((p) => {
     tagline={homePage?.data.tagline}
     heroBody={homePage?.body}
     catalogHeading={homePage?.data.catalogHeading}
+    allTags={allTags}
     client:load
   />
 </SiteLayout>

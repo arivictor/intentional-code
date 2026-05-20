@@ -4,6 +4,7 @@ category: behavioral
 intent: "Separate an algorithm from the object structure it operates on by using double dispatch."
 goIdiomSummary: "Double dispatch via Accept(Visitor); be honest about verbosity and present type-switch as the Go alternative."
 relatedSlugs: ["composite", "iterator"]
+tags: [interfaces, composition]
 ---
 
 # Visitor

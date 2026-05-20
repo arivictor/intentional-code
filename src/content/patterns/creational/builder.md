@@ -4,6 +4,7 @@ category: creational
 intent: "Construct complex objects step by step, separating construction from representation so the same process can create different results."
 goIdiomSummary: "Prefer the functional options pattern (func WithTimeout(d) Option); also show classic chained builder."
 relatedSlugs: ["factory-method", "abstract-factory"]
+tags: [closures, composition, dependency-inversion]
 ---
 
 # Builder

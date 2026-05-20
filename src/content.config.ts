@@ -9,6 +9,8 @@ const patterns = defineCollection({
     intent: z.string(),
     goIdiomSummary: z.string(),
     relatedSlugs: z.array(z.string()).default([]),
+    tags: z.array(z.string()).default([]),
+    isFeatured: z.boolean().default(false),
   }),
 });
 

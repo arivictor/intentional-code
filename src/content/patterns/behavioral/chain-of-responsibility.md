@@ -4,6 +4,7 @@ category: behavioral
 intent: "Pass a request along a chain of handlers, where each handler decides whether to process it or pass it to the next handler."
 goIdiomSummary: "A slice or linked list of handlers, or composed middleware that may pass to next."
 relatedSlugs: ["decorator", "command"]
+tags: [interfaces, closures, composition]
 ---
 
 # Chain of Responsibility

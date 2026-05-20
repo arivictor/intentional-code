@@ -4,6 +4,7 @@ category: behavioral
 intent: "Let an object alter its behavior when its internal state changes, appearing to change its type."
 goIdiomSummary: "A State interface; context holds current state and delegates, transitions return the next state."
 relatedSlugs: ["strategy", "command"]
+tags: [interfaces, state]
 ---
 
 # State
