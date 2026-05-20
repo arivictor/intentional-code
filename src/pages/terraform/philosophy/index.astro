@@ -1,0 +1,44 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import PhilosophyLanding from '@/components/pages/PhilosophyLanding';
+import { buildNavOrder } from '@/lib/site-data';
+import { TERRAFORM_SECTION } from '@/lib/section-config';
+
+const [patterns, philosophy, categories] = await Promise.all([
+  getCollection(TERRAFORM_SECTION.collections.patterns),
+  getCollection(TERRAFORM_SECTION.collections.philosophy),
+  getCollection(TERRAFORM_SECTION.collections.categories),
+]);
+
+const philosophyIndex = philosophy.find((p) => p.id === 'index');
+
+const navOrder = buildNavOrder(patterns, philosophy, categories, TERRAFORM_SECTION);
+
+const philosophyItems = philosophy
+  .filter((p) => p.id !== 'index')
+  .map((p) => {
+    const slug = p.id.replace(/\.md$/, '');
+    return { slug, title: p.data.title, description: p.data.description, url: `${TERRAFORM_SECTION.basePath}/philosophy/${slug}` };
+  });
+---
+
+<SiteLayout
+  title="Philosophy"
+  description="The Terraform design principles behind stable modules, clear state boundaries, and maintainable delivery workflows."
+  basePath={TERRAFORM_SECTION.basePath}
+  sectionLabel={TERRAFORM_SECTION.label}
+  themeStorageKey={TERRAFORM_SECTION.themeStorageKey}
+  categoryOrder={TERRAFORM_SECTION.categoryOrder}
+  philosophyOrder={TERRAFORM_SECTION.philosophyOrder}
+  collections={TERRAFORM_SECTION.collections}
+>
+  <PhilosophyLanding
+    philosophyItems={philosophyItems}
+    navOrder={navOrder}
+    pathname={`${TERRAFORM_SECTION.basePath}/philosophy`}
+    intro={philosophyIndex?.data.intro}
+    introBody={philosophyIndex?.body}
+    client:load
+  />
+</SiteLayout>
