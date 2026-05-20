@@ -13,13 +13,13 @@ The Circuit Breaker protects a service from cascading failures when a dependency
 
 ## Problem
 
-Your API calls a payment service. The payment service starts timing out. Every request to your API now blocks for 30 seconds waiting for the timeout. Your goroutine pool fills up. Your service becomes unresponsive — not because of a bug in your code, but because a downstream dependency is slow. The failure cascades up.
+Your API calls a payment service. The payment service starts timing out. Every request to your API now blocks for 30 seconds waiting for the timeout. Your goroutine pool fills up. Your service becomes unresponsive, not because of a bug in your code, but because a downstream dependency is slow. The failure cascades up.
 
 ```go
-// Direct call — a slow dependency blocks the caller
+// Direct call, a slow dependency blocks the caller
 func (s *OrderService) ChargeCustomer(ctx context.Context, customerID string, amount int64) error {
     // If payment service hangs for 30s, this call hangs for 30s
-    // Under load, goroutines pile up waiting — the whole service stalls
+    // Under load, goroutines pile up waiting and the whole service stalls
     return s.paymentClient.Charge(ctx, customerID, amount)
 }
 ```
@@ -91,7 +91,7 @@ func (b *Breaker) Do(fn func() error) error {
             b.mu.Unlock()
             return ErrCircuitOpen
         }
-        // Cooldown expired — allow one probe
+        // Cooldown expired, allow one probe
         b.state = StateHalfOpen
     }
     b.mu.Unlock()
@@ -224,33 +224,33 @@ result, err := cb.Execute(func() (interface{}, error) {
 
 - You call an external service (payment gateway, third-party API, another microservice) that can be slow or unreliable.
 - A slow dependency would otherwise block goroutines and exhaust your thread pool.
-- You want fail-fast behaviour rather than long timeouts under load.
+- You want fail-fast behavior rather than long timeouts under load.
 - You need a way to automatically recover when the dependency comes back online.
 
 ## When Not to Use
 
-- The call is to your own database or a dependency that must succeed — fail fast is not the right behaviour, you want retries or errors.
-- The operation is idempotent and cheap to retry — a simple retry with backoff may be sufficient.
+- The call is to your own database or a dependency that must succeed. Fail-fast is the wrong behavior there, and you probably want retries or a normal error path instead.
+- The operation is idempotent and cheap to retry, so a simple retry with backoff may be enough.
 - You control both sides (in-process calls, same service). Circuit breakers are for network boundaries.
-- The failure mode you're protecting against isn't latency or unavailability — circuit breakers don't help with data corruption or logic errors.
+- The failure mode you're protecting against isn't latency or unavailability. Circuit breakers don't help with data corruption or logic errors.
 
 ## Advantages
 
-- Prevents cascade failures — a slow downstream can't exhaust your goroutine pool.
+- Prevents cascade failures, so a slow downstream can't exhaust your goroutine pool.
 - Fast failure is better UX than a 30-second wait followed by an error.
-- Automatic recovery — the half-open state tests the dependency without manual intervention.
-- Centralised failure policy — one place to tune thresholds and cooldowns.
+- Automatic recovery. The half-open state tests the dependency without manual intervention.
+- Centralized failure policy, one place to tune thresholds and cooldowns.
 
 ## Disadvantages
 
 - Adds complexity to what would otherwise be a direct function call.
-- Threshold tuning is environment-specific — too sensitive opens under normal jitter, too lenient opens too late.
-- Half-open state means some requests still fail during recovery — callers must handle `ErrCircuitOpen`.
+- Threshold tuning is environment-specific. Too sensitive and it opens under normal jitter, too lenient and it opens too late.
+- Half-open state means some requests still fail during recovery, so callers must handle `ErrCircuitOpen`.
 - Distributed circuit breakers (multiple instances of your service) don't share state without a coordination layer.
 
 ## Related Patterns
 
-- **Event-Driven Architecture** — When a circuit opens, push events to a dead-letter queue rather than dropping them; replay once the circuit closes — the async nature of event-driven systems makes them more tolerant of transient open periods.
-- **Hexagonal Architecture** — Place the circuit breaker inside the driven adapter (infrastructure layer), not in the application core; the application calls the port interface transparently, unaware of the breaker operating below.
-- **Repository** — Wrap the repository's infrastructure implementation in a circuit breaker, not the repository interface itself — this keeps the domain layer isolated from the breaker logic and lets the breaker be swapped or removed without touching business code.
-- **Layered Architecture** — The circuit breaker belongs in the Infrastructure layer; Service layer code calls repository interfaces transparently, and the infrastructure implementation wraps outbound network calls in the breaker.
+- **Event-Driven Architecture:** When a circuit opens, push events to a dead-letter queue instead of dropping them, then replay them once the circuit closes. The async nature of event-driven systems makes them more tolerant of short open periods.
+- **Hexagonal Architecture:** Put the circuit breaker inside the driven adapter (the infrastructure layer), not in the application core. The application should call the port interface without caring that a breaker is operating underneath.
+- **Repository:** Wrap the repository's infrastructure implementation in a circuit breaker, not the repository interface itself. That keeps the domain layer isolated from breaker logic and lets you swap the breaker in or out without touching business code.
+- **Layered Architecture:** The circuit breaker belongs in the Infrastructure layer. Service layer code calls repository interfaces normally, and the infrastructure implementation wraps outbound network calls in the breaker.

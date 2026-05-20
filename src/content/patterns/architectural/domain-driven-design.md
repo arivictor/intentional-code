@@ -9,16 +9,16 @@ tags: [interfaces, state, events, composition, dependency-inversion]
 
 # Domain-Driven Design
 
-The problem DDD solves is logic that leaks. Business rules — "a subscription can't be activated without a payment method" — get written into one service function, forgotten in another, and end up enforced inconsistently across the codebase. Your domain types become plain data structs; the rules that govern them float free. DDD addresses this by putting the logic back inside the type, where the compiler enforces it and no caller can bypass it.
+The problem DDD solves is logic that leaks. Business rules like "a subscription can't be activated without a payment method" get written into one service function, forgotten in another, and enforced inconsistently across the codebase. Your domain types become plain data structs, and the rules that govern them float free. DDD puts that logic back inside the type, where the compiler helps you keep callers honest.
 
-The tactical building blocks: **Entities** (identity-based, stateful), **Value Objects** (equality-based, immutable), **Aggregates** (consistency boundaries mutated only through the root), **Repositories** (persistence interfaces defined by the domain), **Domain Events** (facts that have occurred), and **Domain Services** (operations spanning multiple aggregates). The unifying constraint: code should speak the language of the business.
+The tactical building blocks are **Entities** (identity-based, stateful), **Value Objects** (equality-based, immutable), **Aggregates** (consistency boundaries mutated only through the root), **Repositories** (persistence interfaces defined by the domain), **Domain Events** (facts that have occurred), and **Domain Services** (operations spanning multiple aggregates). The unifying constraint is simple: the code should speak the language of the business.
 
 ## Problem
 
-A billing system has a `User` struct carrying 40 fields. It's updated from 12 different places. Some mutations are only valid in certain states. Bugs appear because invariants — "a subscription can't be activated without a payment method" — are enforced in some callers but forgotten in others. The model is an anemic data bag, not a reflection of the business.
+A billing system has a `User` struct carrying 40 fields. It's updated from 12 different places. Some mutations are only valid in certain states. Bugs appear because invariants like "a subscription can't be activated without a payment method" are enforced in some callers but forgotten in others. The model is an anemic data bag, not a reflection of the business.
 
 ```go
-// Anemic domain model — data bag, no behaviour, invariants scattered
+// Anemic domain model, data bag, no behavior, invariants scattered
 type Subscription struct {
     ID            string
     UserID        string
@@ -58,7 +58,7 @@ Model the domain explicitly. Each building block has a specific role.
 │  │  (Value Obj.) │   │  Money, PlanType   │ │
 │  └───────────────┘   └────────────────────┘ │
 │                                             │
-│  Rules enforced inside — no bypass possible │
+│  Rules enforced inside, no bypass possible │
 └───────────────────┬─────────────────────────┘
                     │ persisted via
              SubscriptionRepository (interface)
@@ -66,7 +66,7 @@ Model the domain explicitly. Each building block has a specific role.
               SubscriptionActivated (Domain Event)
 ```
 
-**Value Objects** — immutable, compared by value:
+**Value Objects:** immutable, compared by value:
 
 ```go
 // domain/subscription/value_objects.go
@@ -107,7 +107,7 @@ func (m Money) Add(other Money) (Money, error) {
 }
 ```
 
-**Entity and Aggregate Root** — identity, state, and invariants enforced together:
+**Entity and Aggregate Root:** identity, state, and invariants enforced together:
 
 ```go
 // domain/subscription/subscription.go
@@ -127,13 +127,13 @@ const (
     StatusCancelled Status = "cancelled"
 )
 
-// Domain Event — a fact that occurred inside the aggregate.
+// Domain Event, a fact that occurred inside the aggregate.
 type ActivatedEvent struct {
     SubscriptionID SubscriptionID
     OccurredAt     time.Time
 }
 
-// Subscription is the aggregate root — the only entry point for mutations.
+// Subscription is the aggregate root, the only entry point for mutations.
 type Subscription struct {
     id            SubscriptionID
     userID        string
@@ -165,7 +165,7 @@ func (s *Subscription) SetPaymentMethod(method string) error {
     return nil
 }
 
-// Activate enforces the invariant — it is impossible to bypass.
+// Activate enforces the invariant, so callers can't bypass it.
 func (s *Subscription) Activate() error {
     if s.paymentMethod == "" {
         return fmt.Errorf("cannot activate: no payment method on file")
@@ -201,7 +201,7 @@ func (s *Subscription) PopEvents() []interface{} {
 }
 ```
 
-**Repository interface** — defined by the domain, implemented by infrastructure:
+**Repository interface:** defined by the domain, implemented by infrastructure:
 
 ```go
 // domain/subscription/repository.go
@@ -215,7 +215,7 @@ type Repository interface {
 }
 ```
 
-**Domain Service** — operations spanning multiple aggregates:
+**Domain Service:** operations spanning multiple aggregates:
 
 ```go
 // domain/subscription/service.go
@@ -257,10 +257,10 @@ func (s *ActivationService) Activate(ctx context.Context, id SubscriptionID) err
 
 ## When to Use
 
-- The business domain is complex — multiple interacting concepts, non-trivial rules, frequent change driven by business requirements.
+- The business domain is complex, with multiple interacting concepts, non-trivial rules, and frequent change driven by business requirements.
 - You need to communicate with domain experts and the code should reflect their language (the ubiquitous language).
 - Bugs are caused by invariants being enforced inconsistently in different places.
-- You have aggregates with clear consistency boundaries — things that must change together.
+- You have aggregates with clear consistency boundaries, things that must change together.
 
 ## When Not to Use
 
@@ -270,21 +270,21 @@ func (s *ActivationService) Activate(ctx context.Context, id SubscriptionID) err
 
 ## Advantages
 
-- Invariants are enforced in one place — the aggregate — and can't be bypassed.
+- Invariants are enforced in one place, the aggregate, and can't be bypassed.
 - The ubiquitous language bridges code and business conversation.
 - Domain Events make state changes explicit and auditable.
 - Value Objects eliminate primitive obsession and give meaning to raw types.
 
 ## Disadvantages
 
-- Significant upfront modelling effort — getting aggregates wrong is expensive to fix.
+- Significant upfront modeling effort. Getting aggregates wrong is expensive to fix.
 - More types and more code than a simple struct-and-service approach.
 - Persistence mapping between rich domain types and flat database rows is mechanical work.
-- Not every problem is a domain problem — applying DDD to a simple reporting tool is over-engineering.
+- Not every problem is a domain problem. Applying DDD to a simple reporting tool is over-engineering.
 
 ## Related Patterns
 
-- **Repository** — Repositories are a first-class DDD tactical pattern: the domain defines the interface, infrastructure implements it, and the aggregate root is the only unit the repository saves and loads.
-- **Event-Driven Architecture** — Domain Events are the natural source for an event-driven system; aggregates record events as facts, and the application layer dispatches them to consumers after the transaction commits.
-- **CQRS** — Pairs directly with DDD: the command side uses the rich aggregate model with enforced invariants; the query side uses flat DTOs that bypass the domain model entirely for read performance.
-- **Clean Architecture** — DDD's domain model maps to Clean Architecture's innermost Entities ring; the two are complementary, not competing — DDD provides the modelling discipline, Clean Architecture provides the structural boundary.
+- **Repository:** Repositories are a first-class DDD tactical pattern. The domain defines the interface, infrastructure implements it, and the aggregate root is the only unit the repository saves and loads.
+- **Event-Driven Architecture:** Domain Events are a natural source for an event-driven system. Aggregates record events as facts, and the application layer dispatches them to consumers after the transaction commits.
+- **CQRS:** Pairs directly with DDD. The command side uses the rich aggregate model with enforced invariants, while the query side uses flat DTOs that bypass the domain model for read performance.
+- **Clean Architecture:** DDD's domain model maps to Clean Architecture's innermost Entities ring. The two are complementary, not competing. DDD provides the modeling discipline, and Clean Architecture provides the structural boundary.

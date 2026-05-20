@@ -1,11 +1,11 @@
 ---
 title: Architectural Patterns
-lede: Patterns for structuring entire applications and services — layering, boundaries, and cross-cutting concerns.
+lede: Patterns for structuring entire applications and services, layering, boundaries, and cross-cutting concerns.
 ---
 
 The question architectural patterns answer: **how should the whole system be organised?**
 
-Software architecture is a discipline of intentional decisions. It's not about preferences of patterns, frameworks, or methodologies. It's about understanding which parts of your system need to change easily and protecting them from the parts that don't. When you separate business logic from database details  you're making a deliberate choice about what matters most to your system's longevity.
+Software architecture is a series of choices you keep paying for. It isn't about having the "right" framework or the cleanest diagram. It's about deciding what needs to stay easy to change, then protecting that code from the churn around it. Split business rules from database details, for example, and future you has a much better chance.
 
 ## What Is Software Architecture?
 
@@ -13,7 +13,7 @@ Software architecture is the set of structures needed to reason about a software
 
 **Architecture is the shape of decisions.**
 
-Every codebase has an architecture, whether intentional or accidental. The question isn't "should we have architecture?" The question is "should our architecture serve us or trap us?"
+Every codebase has an architecture, whether intentional or accidental. The real question is whether that architecture helps the team move or quietly makes every change harder than it should be.
 
 Architecture manifests as:
 - **File and folder structure:** Where code lives
@@ -58,7 +58,7 @@ Not all complexity is equal. Some is inherent to the problem. Some you inflict o
 
 This is the difficulty built into the problem you're solving. Tax law is complex because taxes are complex. Flight scheduling across time zones with crew availability constraints is genuinely hard. Multi-currency accounting with historical exchange rates has intrinsic difficulty.
 
-Essential complexity can't be eliminated. It's the problem itself. Your job isn't to remove it—it's to organize it clearly so others can reason about it.
+Essential complexity can't be eliminated. It's the problem itself. Your job isn't to remove it, it's to organize it clearly so other people can reason about it without getting lost.
 
 ### Accidental Complexity
 
@@ -128,9 +128,9 @@ Good architecture constrains. It says:
 - "Dependencies flow this direction, not that one"
 - "This layer can call that layer, but not the reverse"
 
-These constraints aren't restrictions. They're guidance. They eliminate entire categories of bad decisions, leaving only the moves that matter.
+These constraints aren't restrictions. They're guidance. They remove whole categories of bad decisions and leave you with the choices that actually matter.
 
-Think of it like a chess board. The rules limit where pieces can move, but those limits create the game. Without constraints, there's no strategy—just chaos.
+Think of it like a chess board. The rules limit where pieces can move, but those limits create the game. Without constraints, there's no strategy, just chaos.
 
 Architecture does the same for code. It removes the options that hurt you, leaving only the ones that serve you.
 
@@ -207,40 +207,38 @@ Software teams do this constantly:
 
 The patterns go in, but the understanding doesn't.
 
-The original system had reasons—specific constraints, specific goals. Your system doesn't share those constraints. What worked there might be catastrophic here.
+The original system had reasons, specific constraints and specific goals. Your system doesn't share those constraints. What worked there might be catastrophic here.
 
 **Patterns are solutions to specific problems.** If you don't have the problem, you don't need the solution.
 
 Good architects know the patterns. Great architects know when not to use them.
 
-## Summary
+## Where the Catalog Goes Next
 
-Software architecture matters because code changes. Good architecture makes change easy. Bad architecture makes change expensive.
+Architecture matters once code stops being a solo sketch and starts carrying real load. That's when boundaries, dependencies, and naming decisions stop feeling academic.
 
-Architecture isn't about perfection. It's about intention. It's about understanding your constraints, separating essential from accidental complexity, and making deliberate choices about what matters most.
+You won't need every pattern in this section. Some are too heavy for a small CRUD service. Some only start paying off when the domain gets messy or the number of moving parts goes up. That's fine. The point is to recognize the pressure you're under, then pick the structure that relieves it.
 
-You don't need architecture for every project. But when you need it, you need to understand why you need it—not just what patterns to apply.
-
-Now that you understand the philosophy, the rest of this book shows you how to apply it.
+The rest of the catalog gets more concrete from here: layering, persistence boundaries, event flow, and failure handling. Use the parts that match your system, ignore the ones that don't.
 
 
-Architectural patterns operate at a different scale than the creational, structural, and behavioral patterns. They don't describe a single type or a single collaboration — they describe the structure of an entire service or application and the rules that govern where each piece of code lives.
+Architectural patterns operate at a different scale than the creational, structural, and behavioral patterns. They don't describe a single type or a single collaboration. They describe the shape of an entire service or application, and the rules for where each piece of code belongs.
 
-**Start with [Layered Architecture](/go/patterns/architectural/layered)** for any new service. Four tiers — Handler, Service, Repository, Infrastructure — with each depending only on the one below. It's the foundation everything else builds on.
+**Start with [Layered Architecture](/go/patterns/architectural/layered)** for a new service when you mainly need order. Four tiers, Handler, Service, Repository, Infrastructure, with each depending only on the one below. It's a sensible default.
 
-**Add [Repository](/go/patterns/architectural/repository)** immediately. The Repository is the boundary between business logic and the database: define an interface in the domain package, implement it in the infrastructure package, and your service functions become testable without a running database.
+**Add [Repository](/go/patterns/architectural/repository)** when database calls start leaking into business code. Define the interface in the domain package, implement it in infrastructure, and your service logic becomes testable without a running database.
 
-**Graduate to [Hexagonal Architecture](/go/patterns/architectural/hexagonal)** when you need multiple delivery mechanisms (HTTP *and* gRPC *and* CLI) against the same business logic, or when you want to test the application core end-to-end with no infrastructure. Hexagonal formalises what Layered implies: ports are the interfaces, adapters are the implementations, and the application imports none of the adapters.
+**Graduate to [Hexagonal Architecture](/go/patterns/architectural/hexagonal)** when you need multiple delivery mechanisms, HTTP and gRPC and maybe a CLI too, against the same business logic, or when you want to test the application core end-to-end without infrastructure. Hexagonal formalizes what Layered hints at: ports are the interfaces, adapters are the implementations, and the application imports none of them directly.
 
-**[Clean Architecture](/go/patterns/architectural/clean-architecture)** covers the same ground as Hexagonal with "concentric rings" terminology. Use whichever model helps your team enforce the inward dependency rule. The practical difference is negligible — many projects use both vocabularies interchangeably.
+**[Clean Architecture](/go/patterns/architectural/clean-architecture)** covers much of the same ground as Hexagonal, just with "concentric rings" language. Use whichever model helps your team enforce the inward dependency rule. In practice, plenty of teams mix the terms.
 
-**Use [Domain-Driven Design](/go/patterns/architectural/domain-driven-design)** when the business rules are genuinely complex: multiple interacting aggregates, invariants that must be enforced everywhere, and domain experts you can collaborate with. DDD's tactical patterns — Entities, Value Objects, Aggregates, Domain Events — sit inside the inner rings of Hexagonal or Clean Architecture.
+**Use [Domain-Driven Design](/go/patterns/architectural/domain-driven-design)** when the business rules are genuinely complex: multiple interacting aggregates, invariants that have to hold everywhere, and domain experts you can actually talk to. DDD's tactical patterns, Entities, Value Objects, Aggregates, Domain Events, usually live inside the inner rings of Hexagonal or Clean Architecture.
 
-**Add [CQRS](/go/patterns/architectural/cqrs)** when reads and writes have different shapes: the write side needs a rich domain model with invariants; the read side needs flat, denormalised projections. CQRS separates the command handler from the query handler, letting each evolve independently.
+**Add [CQRS](/go/patterns/architectural/cqrs)** when reads and writes want different shapes. Maybe the write side needs a rich domain model with invariants, while the read side just wants flat denormalized projections. CQRS lets those two paths evolve without tripping over each other.
 
-**[Event-Driven Architecture](/go/patterns/architectural/event-driven)** decouples producers from consumers at the event boundary. A failed notification service stops blocking order placement. Start with an in-process event bus; graduate to Kafka or NATS when the workload demands it.
+**[Event-Driven Architecture](/go/patterns/architectural/event-driven)** decouples producers from consumers at the event boundary. A failed notification service stops blocking order placement. Start with an in-process event bus. Move to Kafka or NATS when the workload actually demands it.
 
-**[Circuit Breaker](/go/patterns/architectural/circuit-breaker)** is the resilience pattern for external dependencies. When a downstream service slows or fails, the breaker opens and fast-fails callers rather than letting goroutines pile up waiting for timeouts that will never resolve.
+**[Circuit Breaker](/go/patterns/architectural/circuit-breaker)** is the resilience pattern for external dependencies. When a downstream service slows or fails, the breaker opens and fails fast instead of letting goroutines pile up behind timeouts that are obviously going nowhere.
 
 ---
 

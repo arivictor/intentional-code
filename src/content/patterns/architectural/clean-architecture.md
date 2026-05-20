@@ -1,7 +1,7 @@
 ---
 title: "Clean Architecture"
 category: architectural
-intent: "Structure code in concentric rings — Entities, Use Cases, Interface Adapters, Frameworks — enforcing a strict inward dependency rule so the domain never imports infrastructure."
+intent: "Structure code in concentric rings, Entities, Use Cases, Interface Adapters, Frameworks, enforcing a strict inward dependency rule so the domain never imports infrastructure."
 goIdiomSummary: "Domain types and use-case interfaces in an inner package; HTTP handlers and DB adapters in outer packages that import inward, never the reverse."
 relatedSlugs: ["hexagonal", "layered", "repository", "domain-driven-design"]
 tags: [interfaces, dependency-inversion, testability, composition]
@@ -9,11 +9,11 @@ tags: [interfaces, dependency-inversion, testability, composition]
 
 # Clean Architecture
 
-Clean Architecture organises code in concentric rings — Entities, Use Cases, Interface Adapters, Frameworks & Drivers — with one strict rule: source-code dependencies may only point inward. The innermost rings know nothing about HTTP, databases, or frameworks. Everything outside serves the domain.
+Clean Architecture organizes code in concentric rings, Entities, Use Cases, Interface Adapters, Frameworks and Drivers, with one strict rule: source-code dependencies may only point inward. The innermost rings know nothing about HTTP, databases, or frameworks. Everything outside exists to serve the domain.
 
 ## Problem
 
-You're three years into a project. Switching from PostgreSQL to CockroachDB requires touching service logic. Adding a gRPC endpoint means duplicating validation that lives in the HTTP handler. Your domain types import `database/sql`. The framework is load-bearing — you can't reason about the business logic without understanding the infrastructure.
+You're three years into a project. Switching from PostgreSQL to CockroachDB requires touching service logic. Adding a gRPC endpoint means duplicating validation that lives in the HTTP handler. Your domain types import `database/sql`. The framework has become load-bearing, and you can't reason about business logic without understanding the infrastructure first.
 
 ```go
 // Typical symptom: domain types coupled to infrastructure
@@ -41,7 +41,7 @@ Enforce the Dependency Rule: source code in an inner ring never names, imports, 
 ```
 ┌───────────────────────────────────────────┐
 │          Frameworks & Drivers             │  HTTP handlers, sql.DB,
-│     (outermost — nothing imports this)    │  SMTP clients, CLI
+│     (outermost, nothing imports this)    │  SMTP clients, CLI
 │  ┌─────────────────────────────────────┐  │
 │  │       Interface Adapters            │  │  Controllers, Presenters,
 │  │  (converts between rings)           │  │  Repository implementations
@@ -50,7 +50,7 @@ Enforce the Dependency Rule: source code in an inner ring never names, imports, 
 │  │  │  (application logic)          │  │  │  orchestrate entities
 │  │  │  ┌─────────────────────────┐  │  │  │
 │  │  │  │       Entities          │  │  │  │  Enterprise business rules
-│  │  │  │  (domain types & rules) │  │  │  │  — pure Go, zero imports
+│  │  │  │  (domain types & rules) │  │  │  │  pure Go, zero imports
 │  │  │  └─────────────────────────┘  │  │  │
 │  │  └───────────────────────────────┘  │  │
 │  └─────────────────────────────────────┘  │
@@ -58,7 +58,7 @@ Enforce the Dependency Rule: source code in an inner ring never names, imports, 
             ← dependencies point inward
 ```
 
-**Entities** — pure domain types, no imports beyond the standard library:
+**Entities:** pure domain types, no imports beyond the standard library:
 
 ```go
 // domain/order.go
@@ -112,7 +112,7 @@ func (o *Order) Place() error {
 }
 ```
 
-**Use Cases** — define interfaces for everything they need; implement nothing:
+**Use Cases:** define interfaces for everything they need, implement nothing:
 
 ```go
 // usecase/place_order.go
@@ -124,7 +124,7 @@ import (
     "myapp/domain"
 )
 
-// Ports — defined by the use case, implemented by outer rings.
+// Ports, defined by the use case and implemented by outer rings.
 type OrderRepository interface {
     Save(ctx context.Context, o *domain.Order) error
 }
@@ -169,7 +169,7 @@ func (uc *PlaceOrderUseCase) Execute(ctx context.Context, in PlaceOrderInput) (P
 }
 ```
 
-**Interface Adapters** — convert between the use-case world and the infrastructure world:
+**Interface Adapters:** convert between the use-case world and the infrastructure world:
 
 ```go
 // adapter/http/order_handler.go
@@ -231,32 +231,32 @@ func (r *OrderRepo) Save(ctx context.Context, o *domain.Order) error {
 
 - You're building a long-lived service where domain rules are the core asset.
 - You need to support multiple delivery mechanisms (HTTP, gRPC, CLI, background workers) against the same business logic.
-- The domain is complex enough to justify the structure — multiple aggregates, non-trivial rules, frequent change.
+- The domain is complex enough to justify the structure, multiple aggregates, non-trivial rules, frequent change.
 - You want to test use cases without starting any infrastructure.
 
 ## When Not to Use
 
 - Simple CRUD services with little or no domain logic. The layers add ceremony without payoff.
 - Rapid prototypes where the cost of structure outweighs the benefit of isolation.
-- Small tools or scripts. Clean Architecture is optimised for change over time — it's overkill for throwaway code.
+- Small tools or scripts. Clean Architecture is optimized for change over time, so it's overkill for throwaway code.
 
 ## Advantages
 
-- The domain is completely isolated — it can be tested, reasoned about, and changed without touching infrastructure.
-- Delivery mechanisms (HTTP, CLI, gRPC) are interchangeable — add a new one without touching domain or use-case code.
-- Infrastructure is swappable — change databases, email providers, or payment gateways by replacing an adapter.
+- The domain is completely isolated, so it can be tested, reasoned about, and changed without touching infrastructure.
+- Delivery mechanisms (HTTP, CLI, gRPC) are interchangeable. You can add a new one without touching domain or use-case code.
+- Infrastructure is swappable. Change databases, email providers, or payment gateways by replacing an adapter.
 - Teams can work on different rings independently with minimal conflicts.
 
 ## Disadvantages
 
 - Significant upfront structure, even for small changes.
-- Requires discipline — it's easy to let infrastructure imports creep into inner rings.
+- Requires discipline. It's easy to let infrastructure imports creep into inner rings.
 - Data mapping between layers (domain types ↔ DTOs ↔ DB models) is mechanical but necessary.
 - In Go, without generics in older codebases, the boilerplate for many small interfaces and converters adds up.
 
 ## Related Patterns
 
-- **Hexagonal Architecture** — Same goals, different vocabulary: where Clean Architecture uses "concentric rings," Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule — they compose rather than compete, and many codebases use both terminologies interchangeably.
-- **Layered Architecture** — Clean Architecture is a stricter elaboration of layered thinking: Layered gives you the tier structure; Clean Architecture adds an explicit Dependency Rule and forbids inner rings from naming outer ones — prefer Clean Architecture when you need that enforcement to hold under pressure.
-- **Repository** — Repository is the idiomatic Go implementation of the persistence port in Clean Architecture's Use Case ring: the interface belongs in Use Cases, the SQL implementation belongs in the outermost Frameworks & Drivers ring — the inward dependency rule tells you exactly where each lives.
-- **Domain-Driven Design** — Clean Architecture's Entity ring maps directly to DDD's domain model; the two pair naturally — DDD provides the modelling discipline for what belongs in the inner rings, Clean Architecture provides the structural rule that keeps it there.
+- **Hexagonal Architecture:** Same goals, different vocabulary. Clean Architecture uses "concentric rings," Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule. They work well together, and many codebases use both terms interchangeably.
+- **Layered Architecture:** Clean Architecture is a stricter version of layered thinking. Layered gives you the tier structure, while Clean Architecture adds an explicit Dependency Rule and forbids inner rings from naming outer ones. Reach for it when you need that rule to hold under pressure.
+- **Repository:** Repository is the idiomatic Go implementation of the persistence port in Clean Architecture's Use Case ring. The interface belongs in Use Cases, the SQL implementation belongs in the outermost Frameworks and Drivers ring, and the inward dependency rule tells you exactly where each piece lives.
+- **Domain-Driven Design:** Clean Architecture's Entity ring maps directly to DDD's domain model. The two pair naturally. DDD gives you the modeling discipline for what belongs in the inner rings, and Clean Architecture gives you the structural rule that keeps it there.
