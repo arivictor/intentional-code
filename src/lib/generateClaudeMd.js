@@ -20,10 +20,8 @@ When reviewing Go code, flag these as opportunities for improvement:
 /**
  * Generate a CLAUDE.md file from a set of patterns.
  *
- * @param {Array<{slug: string, storageKey?: string, title: string, category: string, intent: string, goIdiomSummary?: string, summary?: string, relatedSlugs?: string[]}>} patterns
- *   Array of pattern objects used to build the reference content. Go entries may provide
- *   `goIdiomSummary`, while non-Go entries can use the generic `summary` field. The formatter
- *   prefers `goIdiomSummary` and falls back to `summary` when needed.
+ * @param {Array<{slug: string, storageKey?: string, title: string, category: string, intent: string, summary: string, relatedSlugs?: string[]}>} patterns
+ *   Array of Go pattern objects used to build the reference content.
  * @param {{includeAll?: boolean, savedSlugs?: string[]}} [options={}]
  *   Options controlling whether all patterns or only bookmarked patterns are included.
  * @returns {string} The generated CLAUDE.md content
@@ -65,7 +63,7 @@ function formatPatternBlock(p) {
   const lines = [
     `### ${p.title} (${p.category})`,
     `**Signal:** ${p.intent}`,
-    `**Go approach:** ${p.goIdiomSummary ?? p.summary ?? ''}`,
+    `**Go approach:** ${p.summary}`,
   ];
 
   if (p.relatedSlugs && p.relatedSlugs.length > 0) {

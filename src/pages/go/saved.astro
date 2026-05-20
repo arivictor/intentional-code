@@ -21,7 +21,7 @@ const allPatterns = patterns.map((pattern) => {
     title: pattern.data.title,
     category: pattern.data.category,
     intent: pattern.data.intent,
-    goIdiomSummary: getPatternSummary(pattern),
+    summary: getPatternSummary(pattern),
     tags: pattern.data.tags ?? [],
     relatedSlugs: pattern.data.relatedSlugs ?? [],
   };
