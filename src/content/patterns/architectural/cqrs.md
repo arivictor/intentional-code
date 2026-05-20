@@ -9,16 +9,16 @@ tags: [interfaces, dependency-inversion, distributed, events]
 
 # CQRS
 
-CQRS (Command Query Responsibility Segregation) separates every operation into one of two kinds: commands (mutate state, return nothing or an error) and queries (read state, return data, change nothing). The core insight: read and write models are different shapes. Commands need rich domain validation; queries need flat, denormalised views. Forcing one model to serve both purposes means either an anemic domain or bloated query results.
+CQRS (Command Query Responsibility Segregation) separates every operation into one of two kinds: commands (mutate state, return nothing or an error) and queries (read state, return data, change nothing). The core insight is that read and write models want different shapes. Commands need rich domain validation, while queries usually want flat, denormalized views. Force one model to serve both jobs and you'll usually end up with either an anemic domain or bloated query results.
 
-Each command and query gets its own handler type, its own input struct, and — when workloads diverge enough — its own data store.
+Each command and query gets its own handler type, its own input struct, and sometimes its own data store when the workloads diverge far enough.
 
 ## Problem
 
 A single `OrderService` handles both writes and reads. The `GetOrder` method returns the full domain struct, which is expensive to load and exposes internal state. The `CreateOrder` method and `GetOrderSummary` method share the same repository, which means optimising the read path (adding a denormalised view) requires touching the write path too. Every new read shape requires a new method on the same service.
 
 ```go
-// One service doing everything — reads and writes entangled
+// One service doing everything, reads and writes entangled
 type OrderService struct {
     repo OrderRepository
 }
@@ -28,11 +28,11 @@ func (s *OrderService) CreateOrder(ctx context.Context, customerID string, total
 }
 
 func (s *OrderService) GetOrder(ctx context.Context, id string) (*Order, error) {
-    // returns full domain object — expensive, exposes internals
+    // returns full domain object, expensive and exposes internals
 }
 
 func (s *OrderService) GetOrderSummary(ctx context.Context, id string) (*OrderSummary, error) {
-    // different read shape — now the service has two query methods with different return types
+    // different read shape, now the service has two query methods with different return types
 }
 ```
 
@@ -131,7 +131,7 @@ func (h *ShipOrderHandler) Handle(ctx context.Context, cmd ShipOrder) error {
 }
 ```
 
-Queries return purpose-built DTOs — not domain objects:
+Queries return purpose-built DTOs, not domain objects:
 
 ```go
 // query/get_order.go
@@ -139,7 +139,7 @@ package query
 
 import "context"
 
-// OrderView is a read-optimised projection — not the domain type.
+// OrderView is a read-optimized projection, not the domain type.
 type OrderView struct {
     ID           string
     CustomerName string
@@ -226,7 +226,7 @@ func (s *OrderReadStore) ListByCustomer(ctx context.Context, customerID string) 
 }
 ```
 
-Wire up in the HTTP layer — commands and queries have separate endpoints:
+Wire it up in the HTTP layer, where commands and queries have separate endpoints:
 
 ```go
 // adapter/http/order_handler.go
@@ -275,7 +275,7 @@ func (h *OrderHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 ## When to Use
 
-- Read and write workloads have different performance profiles — queries need denormalised views or aggregations that don't fit the write model.
+- Read and write workloads have different performance profiles, and queries need denormalized views or aggregations that don't fit the write model.
 - The domain is complex and the write side needs a rich model, but the read side only needs flat projections.
 - You want to scale reads and writes independently (read replicas, caching layers).
 - Different teams own the read path and the write path.
@@ -283,26 +283,26 @@ func (h *OrderHandler) Get(w http.ResponseWriter, r *http.Request) {
 ## When Not to Use
 
 - Simple CRUD. CQRS adds two handler types, two store interfaces, and two data shapes where one would do.
-- The read and write models are identical — no distinct query shapes or read optimisations needed.
+- The read and write models are identical, so there are no distinct query shapes or read optimizations to justify the split.
 - The team is small and the added structure costs more than it returns.
 
 ## Advantages
 
-- Reads and writes evolve independently — add a new query shape without touching the write model.
-- Query handlers return purpose-built DTOs — no accidental exposure of domain internals.
-- Read stores can be aggressively optimised (materialised views, separate databases, caches) without affecting writes.
-- Commands are a clean audit trail — each is a named, typed intention.
+- Reads and writes evolve independently. You can add a new query shape without touching the write model.
+- Query handlers return purpose-built DTOs, so you avoid accidentally exposing domain internals.
+- Read stores can be aggressively optimized (materialized views, separate databases, caches) without affecting writes.
+- Commands create a clean audit trail because each one is a named, typed intention.
 
 ## Disadvantages
 
 - More types: each operation gets its own struct and handler. A ten-operation service becomes twenty files.
 - Eventual consistency: if write and read stores diverge, queries may return stale data until the projection catches up.
-- Overkill for simple domains — the overhead is real and the payoff only arrives at scale or complexity.
+- Overkill for simple domains. The overhead is real, and the payoff usually arrives only with scale or complexity.
 - Testing both sides doubles the surface area for integration tests.
 
 ## Related Patterns
 
-- **Event-Driven Architecture** — Commands naturally emit Domain Events that update read-side projections asynchronously; CQRS and event-driven systems compose well, but CQRS does not require them — a single database with separate read and write models is enough to start.
-- **Domain-Driven Design** — Pairs naturally with DDD: the command side uses the rich aggregate model with enforced invariants; the query side uses flat DTOs that bypass the domain model entirely for read performance.
-- **Hexagonal Architecture** — Command and query handlers are driving ports called by HTTP or queue adapters; write and read stores are driven ports implemented by database adapters.
-- **Clean Architecture** — Commands map to Use Cases in the inner ring; queries can bypass the domain model and read directly from the store — the Dependency Rule applies to both sides.
+- **Event-Driven Architecture:** Commands naturally emit Domain Events that update read-side projections asynchronously. CQRS and event-driven systems fit together well, but CQRS does not require them. A single database with separate read and write models is enough to get started.
+- **Domain-Driven Design:** Pairs naturally with DDD. The command side uses the rich aggregate model with enforced invariants, while the query side uses flat DTOs that bypass the domain model for read performance.
+- **Hexagonal Architecture:** Command and query handlers are driving ports called by HTTP or queue adapters. Write and read stores are driven ports implemented by database adapters.
+- **Clean Architecture:** Commands map to Use Cases in the inner ring, while queries can bypass the domain model and read directly from the store. The Dependency Rule still applies to both sides.

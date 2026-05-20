@@ -10,13 +10,13 @@ isFeatured: true
 
 # Hexagonal Architecture
 
-Hexagonal Architecture solves a testability and flexibility problem: when HTTP handlers, SQL queries, and SMTP calls are mixed into business logic, testing requires live infrastructure. Hexagonal draws a boundary — everything inside is pure application logic; everything outside (HTTP, databases, queues, email) is an adapter that plugs in through a defined port (interface).
+Hexagonal Architecture solves a testability and flexibility problem: when HTTP handlers, SQL queries, and SMTP calls are mixed into business logic, testing requires live infrastructure. Hexagonal draws a boundary. Everything inside is pure application logic, and everything outside, HTTP, databases, queues, email, is an adapter that plugs in through a defined port (interface).
 
-The core vocabulary: **driving adapters** (HTTP handlers, CLI, tests) call **driving ports** (the application's API); the application calls **driven ports** (repository, notifier interfaces) which **driven adapters** (Postgres, SMTP, in-memory fakes) implement. The application imports none of the adapters — ever.
+The core vocabulary matters here: **driving adapters** (HTTP handlers, CLI, tests) call **driving ports** (the application's API), while the application calls **driven ports** (repository, notifier interfaces) implemented by **driven adapters** (Postgres, SMTP, in-memory fakes). The application never imports the adapters directly.
 
 ## Problem
 
-Your service has an HTTP handler that calls a service that calls `sql.DB` directly. Adding a CLI interface means duplicating the service call setup. Testing requires a live HTTP server and a live database. Switching the message queue means touching business logic. The application has no stable centre — it grows in all directions at once.
+Your service has an HTTP handler that calls a service that calls `sql.DB` directly. Adding a CLI interface means duplicating the service call setup. Testing requires a live HTTP server and a live database. Switching the message queue means touching business logic. The application has no stable center, so it grows in all directions at once.
 
 ```go
 // Everything coupled to concrete infrastructure
@@ -24,19 +24,19 @@ func handleTransfer(w http.ResponseWriter, r *http.Request) {
     var req TransferRequest
     json.NewDecoder(r.Body).Decode(&req)
 
-    // Direct SQL — can't swap this out
+    // Direct SQL, can't swap this out
     _, err := db.Exec("UPDATE accounts SET balance = balance - $1 WHERE id = $2", req.Amount, req.From)
     if err != nil { /* ... */ }
     db.Exec("UPDATE accounts SET balance = balance + $1 WHERE id = $2", req.Amount, req.To)
 
-    // Direct SMTP — can't test without a mail server
+    // Direct SMTP, can't test without a mail server
     smtp.SendMail("...", req.Email, "Transfer complete")
 }
 ```
 
 ## Solution
 
-Draw a hexagon. The application (business logic) lives inside. Ports are the sides of the hexagon — interfaces the application defines. Adapters live outside and plug into the ports.
+Draw a hexagon. The application (business logic) lives inside. Ports are the sides of the hexagon, interfaces the application defines. Adapters live outside and plug into those ports.
 
 ```
           ┌──── Driving Adapters ────┐
@@ -53,8 +53,8 @@ Draw a hexagon. The application (business logic) lives inside. Ports are the sid
           └──────────────────────────┘
 ```
 
-**Left (driving) ports** — interfaces the application exposes *to* be driven. Adapters call them.
-**Right (driven) ports** — interfaces the application uses to *drive* infrastructure. Adapters implement them.
+**Left (driving) ports:** interfaces the application exposes *to* be driven. Adapters call them.
+**Right (driven) ports:** interfaces the application uses to *drive* infrastructure. Adapters implement them.
 
 Define the application core with its driven ports:
 
@@ -67,7 +67,7 @@ import (
     "fmt"
 )
 
-// Driven ports — defined here, implemented by infrastructure adapters.
+// Driven ports, defined here and implemented by infrastructure adapters.
 type AccountRepository interface {
     FindByID(ctx context.Context, id string) (*Account, error)
     Save(ctx context.Context, a *Account) error
@@ -83,7 +83,7 @@ type Account struct {
     Balance int64
 }
 
-// TransferService is the driving port — what callers interact with.
+// TransferService is the driving port, what callers interact with.
 type TransferService struct {
     accounts AccountRepository
     notifier Notifier
@@ -118,7 +118,7 @@ func (s *TransferService) Transfer(ctx context.Context, fromID, toID string, amo
 }
 ```
 
-Left adapter — HTTP driving the application:
+Left adapter, HTTP driving the application:
 
 ```go
 // adapter/http/transfer_handler.go
@@ -149,7 +149,7 @@ func (h *TransferHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-Right adapter — PostgreSQL implementing AccountRepository:
+Right adapter, PostgreSQL implementing AccountRepository:
 
 ```go
 // adapter/postgres/account_repo.go
@@ -179,7 +179,7 @@ func (r *AccountRepo) Save(ctx context.Context, a *app.Account) error {
 }
 ```
 
-Right adapter — in-memory fake for tests:
+Right adapter, in-memory fake for tests:
 
 ```go
 // adapter/memory/account_repo.go
@@ -260,7 +260,7 @@ func TestTransfer(t *testing.T) {
 ## When to Use
 
 - Your application needs to support multiple delivery mechanisms (HTTP, gRPC, CLI, event consumers) against the same business logic.
-- You want to test the full application core — including orchestration — without any real infrastructure.
+- You want to test the full application core, including orchestration, without any real infrastructure.
 - Infrastructure is likely to change (new message queue, different database).
 - You're building a long-lived service where the domain is the primary asset.
 
@@ -271,20 +271,20 @@ func TestTransfer(t *testing.T) {
 
 ## Advantages
 
-- The application core is fully tested without infrastructure — swap any adapter for a fake.
-- Delivery mechanisms are symmetric — HTTP, CLI, queues all call the same driving port.
-- Infrastructure is plug-and-play — add a new adapter without touching the application.
+- The application core is fully tested without infrastructure. Swap any adapter for a fake.
+- Delivery mechanisms are symmetric. HTTP, CLI, and queues all call the same driving port.
+- Infrastructure is plug-and-play. Add a new adapter without touching the application.
 - Clear separation of "what the business does" from "how it communicates with the world."
 
 ## Disadvantages
 
-- More structure than simple layering — requires upfront investment in port design.
+- More structure than simple layering, which means upfront investment in port design.
 - Port proliferation: many small interfaces per aggregate can be verbose.
 - Mapping between adapter types and application types (e.g., protobuf ↔ domain struct) is mechanical but necessary.
 - New team members need to understand the port/adapter mental model before they can be productive.
 
 ## Related Patterns
 
-- **Clean Architecture** — Same goals, different vocabulary: uses "concentric rings" where Hexagonal uses "ports and adapters"; use whichever model helps your team most clearly enforce the inward dependency rule — they compose rather than compete.
-- **Layered Architecture** — Layered organises by tier (Handler, Service, Repository, Infrastructure); Hexagonal replaces strict downward layering with symmetric ports that treat HTTP and databases as equally swappable adapters.
-- **Repository** — The canonical driven port: a persistence interface the application defines, implemented by a database adapter that the application never imports directly.
+- **Clean Architecture:** Same goals, different vocabulary. It uses "concentric rings" where Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule most clearly. They compose more often than they compete.
+- **Layered Architecture:** Layered organizes by tier (Handler, Service, Repository, Infrastructure). Hexagonal replaces strict downward layering with symmetric ports that treat HTTP and databases as equally swappable adapters.
+- **Repository:** The canonical driven port. It's a persistence interface the application defines, implemented by a database adapter that the application never imports directly.

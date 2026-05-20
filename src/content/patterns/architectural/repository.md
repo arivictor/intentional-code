@@ -9,9 +9,9 @@ tags: [interfaces, dependency-inversion, testability]
 
 # Repository
 
-The most immediate sign you need Repository is a service function that takes `*sql.DB` as a parameter. That signature says: you cannot test this business rule without a running database. Repository replaces the concrete dependency with an interface defined in the domain package — Go's implicit interface satisfaction means the domain never imports the infrastructure package, and any struct with the right methods becomes a valid backend, including the in-memory fake that makes unit tests fast.
+The most immediate sign you need Repository is a service function that takes `*sql.DB` as a parameter. That signature tells you something uncomfortable: you can't test this business rule without a running database. Repository replaces the concrete dependency with an interface defined in the domain package. Go's implicit interface satisfaction means the domain never imports the infrastructure package, and any struct with the right methods becomes a valid backend, including the in-memory fake that keeps unit tests fast.
 
-This is the [Dependency Inversion Principle](/go/philosophy/solid) applied to persistence: the domain defines what it needs, and infrastructure satisfies it — not the other way around.
+This is the [Dependency Inversion Principle](/go/philosophy/solid) applied to persistence: the domain defines what it needs, and infrastructure satisfies it, not the other way around.
 
 ## Problem
 
@@ -234,14 +234,14 @@ func TestShipOrder(t *testing.T) {
 
 - Simple CRUD applications where there is no domain logic to protect. A direct `sql.DB` call is cleaner.
 - The application is a thin data service. Adding a repository interface just to have one adds ceremony without value.
-- Your query needs are so varied (complex filters, reporting) that a single interface becomes a leaky abstraction — consider a query builder or direct SQL for reads.
+- Your query needs are so varied (complex filters, reporting) that a single interface becomes a leaky abstraction. In that case, a query builder or direct SQL for reads is usually cleaner.
 
 ## Advantages
 
 - Domain logic is testable with no infrastructure required.
-- Storage backends are swappable — swap PostgreSQL for SQLite or an in-memory map without touching business code.
+- Storage backends are swappable, so you can move from PostgreSQL to SQLite or an in-memory map without touching business code.
 - The interface documents exactly what persistence operations the domain actually needs.
-- Follows the Dependency Inversion Principle — domain defines the contract, infrastructure satisfies it.
+- Follows the Dependency Inversion Principle. The domain defines the contract, and infrastructure satisfies it.
 
 ## Disadvantages
 
@@ -252,7 +252,7 @@ func TestShipOrder(t *testing.T) {
 
 ## Related Patterns
 
-- **Hexagonal Architecture** — Repository is the canonical example of a driven port: the application defines the interface, an adapter implements it — use Repository everywhere you need a driven port, and Hexagonal as the overall structure that tells you where each piece lives.
-- **Layered Architecture** — Repository sits at the Service-to-Infrastructure boundary; in a strictly layered codebase it is the primary mechanism for keeping business logic database-agnostic — if you are not doing full Hexagonal or Clean Architecture, Layered + Repository is often enough.
-- **Domain-Driven Design** — Repositories are a first-class DDD tactical pattern with one repository per aggregate root; DDD adds the constraint that a repository must load and save only complete aggregates, never partial state.
-- **Clean Architecture** — Repository interfaces belong in the Use Case (inner) ring; implementations belong in the outermost Frameworks & Drivers ring — the Dependency Rule means the domain references only the interface, never the implementation.
+- **Hexagonal Architecture:** Repository is the canonical example of a driven port. The application defines the interface, and an adapter implements it. Use Repository anywhere you need a persistence port, and Hexagonal as the larger structure that tells you where each piece lives.
+- **Layered Architecture:** Repository sits at the Service-to-Infrastructure boundary. In a strictly layered codebase, it is the main tool for keeping business logic database-agnostic. If you are not doing full Hexagonal or Clean Architecture, Layered plus Repository is often enough.
+- **Domain-Driven Design:** Repositories are a first-class DDD tactical pattern with one repository per aggregate root. DDD adds the constraint that a repository should load and save complete aggregates, not partial state.
+- **Clean Architecture:** Repository interfaces belong in the Use Case (inner) ring, while implementations belong in the outermost Frameworks and Drivers ring. The Dependency Rule means the domain references only the interface, never the implementation.
