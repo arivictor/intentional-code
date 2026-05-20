@@ -15,32 +15,32 @@ This is the [Dependency Inversion Principle](/go/philosophy/solid) applied to pe
 
 ## Problem
 
-Your order-processing logic is scattered with direct database calls. Every function that needs an order calls `sql.DB` directly. Tests require a live database. Switching from PostgreSQL to a different store means hunting through business logic.
+Your post-publishing logic is scattered with direct database calls. Every function that needs a post calls `sql.DB` directly. Tests require a live database. Switching from PostgreSQL to a different store means hunting through business logic.
 
 ```go
-// orders.go
-package orders
+// posts.go
+package posts
 
 import (
     "database/sql"
     "fmt"
 )
 
-func ShipOrder(db *sql.DB, orderID string) error {
+func PublishPost(db *sql.DB, postID string) error {
     var status string
-    err := db.QueryRow("SELECT status FROM orders WHERE id = $1", orderID).Scan(&status)
+    err := db.QueryRow("SELECT status FROM posts WHERE id = $1", postID).Scan(&status)
     if err != nil {
-        return fmt.Errorf("fetching order: %w", err)
+        return fmt.Errorf("fetching post: %w", err)
     }
-    if status != "paid" {
-        return fmt.Errorf("order %s is not paid", orderID)
+    if status != "draft" {
+        return fmt.Errorf("post %s is not a draft", postID)
     }
-    _, err = db.Exec("UPDATE orders SET status = 'shipped' WHERE id = $1", orderID)
+    _, err = db.Exec("UPDATE posts SET status = 'published' WHERE id = $1", postID)
     return err
 }
 ```
 
-The business rule (`status must be "paid"`) is entangled with SQL. There is no way to test `ShipOrder` without a real database running.
+The business rule (`status must be "draft"`) is entangled with SQL. There is no way to test `PublishPost` without a real database running.
 
 ## Solution
 
@@ -48,54 +48,55 @@ Define a repository interface in the domain package. Business logic depends on t
 
 ```
 Domain package
-  ├── Order (entity)
-  └── OrderRepository (interface)
+  ├── Post (entity)
+  └── Repository (interface)
           │ implemented by
           ▼
-  postgres.OrderRepo   ← talks to sql.DB
-  memory.OrderRepo     ← holds a map, used in tests
+  postgres.PostRepo   ← talks to sql.DB
+  memory.PostRepo     ← holds a map, used in tests
 ```
 
 Define the domain types and the interface together:
 
 ```go
-// domain/orders/order.go
-package orders
+// domain/posts/post.go
+package posts
 
 import "fmt"
 
 type Status string
 
 const (
-    StatusPaid    Status = "paid"
-    StatusShipped Status = "shipped"
+    StatusDraft     Status = "draft"
+    StatusPublished Status = "published"
 )
 
-type Order struct {
+type Post struct {
     ID     string
+    Title  string
     Status Status
 }
 
-func (o *Order) Ship() error {
-    if o.Status != StatusPaid {
-        return fmt.Errorf("order %s cannot be shipped: status is %s", o.ID, o.Status)
+func (p *Post) Publish() error {
+    if p.Status != StatusDraft {
+        return fmt.Errorf("post %s cannot be published: status is %s", p.ID, p.Status)
     }
-    o.Status = StatusShipped
+    p.Status = StatusPublished
     return nil
 }
 
 // Repository is the persistence contract the domain requires.
 type Repository interface {
-    FindByID(id string) (*Order, error)
-    Save(o *Order) error
+    FindByID(id string) (*Post, error)
+    Save(p *Post) error
 }
 ```
 
 The service depends only on the interface:
 
 ```go
-// domain/orders/service.go
-package orders
+// domain/posts/service.go
+package posts
 
 type Service struct {
     repo Repository
@@ -105,52 +106,52 @@ func NewService(repo Repository) *Service {
     return &Service{repo: repo}
 }
 
-func (s *Service) ShipOrder(orderID string) error {
-    order, err := s.repo.FindByID(orderID)
+func (s *Service) PublishPost(postID string) error {
+    post, err := s.repo.FindByID(postID)
     if err != nil {
         return err
     }
-    if err := order.Ship(); err != nil {
+    if err := post.Publish(); err != nil {
         return err
     }
-    return s.repo.Save(order)
+    return s.repo.Save(post)
 }
 ```
 
 The PostgreSQL implementation lives in the infrastructure layer:
 
 ```go
-// infra/postgres/order_repo.go
+// infra/postgres/post_repo.go
 package postgres
 
 import (
     "database/sql"
     "fmt"
-    "orders"
+    "posts"
 )
 
-type OrderRepo struct {
+type PostRepo struct {
     db *sql.DB
 }
 
-func NewOrderRepo(db *sql.DB) *OrderRepo {
-    return &OrderRepo{db: db}
+func NewPostRepo(db *sql.DB) *PostRepo {
+    return &PostRepo{db: db}
 }
 
-func (r *OrderRepo) FindByID(id string) (*orders.Order, error) {
-    var o orders.Order
+func (r *PostRepo) FindByID(id string) (*posts.Post, error) {
+    var p posts.Post
     err := r.db.QueryRow(
-        "SELECT id, status FROM orders WHERE id = $1", id,
-    ).Scan(&o.ID, &o.Status)
+        "SELECT id, title, status FROM posts WHERE id = $1", id,
+    ).Scan(&p.ID, &p.Title, &p.Status)
     if err != nil {
-        return nil, fmt.Errorf("finding order %s: %w", id, err)
+        return nil, fmt.Errorf("finding post %s: %w", id, err)
     }
-    return &o, nil
+    return &p, nil
 }
 
-func (r *OrderRepo) Save(o *orders.Order) error {
+func (r *PostRepo) Save(p *posts.Post) error {
     _, err := r.db.Exec(
-        "UPDATE orders SET status = $1 WHERE id = $2", o.Status, o.ID,
+        "UPDATE posts SET status = $1 WHERE id = $2", p.Status, p.ID,
     )
     return err
 }
@@ -159,66 +160,66 @@ func (r *OrderRepo) Save(o *orders.Order) error {
 An in-memory implementation makes unit tests fast and infrastructure-free:
 
 ```go
-// infra/memory/order_repo.go
+// infra/memory/post_repo.go
 package memory
 
 import (
     "fmt"
-    "orders"
+    "posts"
     "sync"
 )
 
-type OrderRepo struct {
-    mu     sync.RWMutex
-    orders map[string]*orders.Order
+type PostRepo struct {
+    mu    sync.RWMutex
+    posts map[string]*posts.Post
 }
 
-func NewOrderRepo(seed ...*orders.Order) *OrderRepo {
-    m := make(map[string]*orders.Order)
-    for _, o := range seed {
-        m[o.ID] = o
+func NewPostRepo(seed ...*posts.Post) *PostRepo {
+    m := make(map[string]*posts.Post)
+    for _, p := range seed {
+        m[p.ID] = p
     }
-    return &OrderRepo{orders: m}
+    return &PostRepo{posts: m}
 }
 
-func (r *OrderRepo) FindByID(id string) (*orders.Order, error) {
+func (r *PostRepo) FindByID(id string) (*posts.Post, error) {
     r.mu.RLock()
     defer r.mu.RUnlock()
-    o, ok := r.orders[id]
+    p, ok := r.posts[id]
     if !ok {
-        return nil, fmt.Errorf("order %s not found", id)
+        return nil, fmt.Errorf("post %s not found", id)
     }
-    return o, nil
+    return p, nil
 }
 
-func (r *OrderRepo) Save(o *orders.Order) error {
+func (r *PostRepo) Save(p *posts.Post) error {
     r.mu.Lock()
     defer r.mu.Unlock()
-    r.orders[o.ID] = o
+    r.posts[p.ID] = p
     return nil
 }
 ```
 
 ```go
-// domain/orders/service_test.go
-package orders_test
+// domain/posts/service_test.go
+package posts_test
 
 import (
-    "orders"
-    "orders/infra/memory"
+    "posts"
+    "posts/infra/memory"
     "testing"
 )
 
-func TestShipOrder(t *testing.T) {
-    repo := memory.NewOrderRepo(&orders.Order{ID: "o1", Status: orders.StatusPaid})
-    svc := orders.NewService(repo)
+func TestPublishPost(t *testing.T) {
+    repo := memory.NewPostRepo(&posts.Post{ID: "p1", Title: "Hello", Status: posts.StatusDraft})
+    svc := posts.NewService(repo)
 
-    if err := svc.ShipOrder("o1"); err != nil {
+    if err := svc.PublishPost("p1"); err != nil {
         t.Fatal(err)
     }
-    got, _ := repo.FindByID("o1")
-    if got.Status != orders.StatusShipped {
-        t.Errorf("status = %s, want shipped", got.Status)
+    got, _ := repo.FindByID("p1")
+    if got.Status != posts.StatusPublished {
+        t.Errorf("status = %s, want published", got.Status)
     }
 }
 ```
@@ -236,23 +237,13 @@ func TestShipOrder(t *testing.T) {
 - The application is a thin data service. Adding a repository interface just to have one adds ceremony without value.
 - Your query needs are so varied (complex filters, reporting) that a single interface becomes a leaky abstraction. In that case, a query builder or direct SQL for reads is usually cleaner.
 
-## Advantages
+## Tradeoffs
 
-- Domain logic is testable with no infrastructure required.
-- Storage backends are swappable, so you can move from PostgreSQL to SQLite or an in-memory map without touching business code.
-- The interface documents exactly what persistence operations the domain actually needs.
-- Follows the Dependency Inversion Principle. The domain defines the contract, and infrastructure satisfies it.
-
-## Disadvantages
-
-- Adds a layer of indirection. For simple applications this is boilerplate with no payoff.
-- One interface per aggregate can lead to many small interfaces that are tedious to keep in sync.
-- Complex read requirements often leak through the interface (pagination, filtering, sorting) making it hard to keep the interface small and stable.
-- In-memory implementations must be kept in sync with the real implementation, or tests give false confidence.
+The primary benefit is testability: the in-memory implementation lets you test all domain logic with no database process and no slow I/O. The interface also documents exactly what persistence operations the domain actually needs, which makes it obvious when a feature is adding an unusual query. The costs are proportional to the number of aggregates: one interface per aggregate grows into many small interfaces, each requiring both a production implementation and an in-memory fake that must stay in sync or tests give false confidence. Complex read requirements (pagination, filtering, sorting, joins) tend to leak through the interface as method parameters, gradually making the interface harder to satisfy and harder to fake accurately.
 
 ## Related Patterns
 
-- **Hexagonal Architecture:** Repository is the canonical example of a driven port. The application defines the interface, and an adapter implements it. Use Repository anywhere you need a persistence port, and Hexagonal as the larger structure that tells you where each piece lives.
-- **Layered Architecture:** Repository sits at the Service-to-Infrastructure boundary. In a strictly layered codebase, it is the main tool for keeping business logic database-agnostic. If you are not doing full Hexagonal or Clean Architecture, Layered plus Repository is often enough.
-- **Domain-Driven Design:** Repositories are a first-class DDD tactical pattern with one repository per aggregate root. DDD adds the constraint that a repository should load and save complete aggregates, not partial state.
-- **Clean Architecture:** Repository interfaces belong in the Use Case (inner) ring, while implementations belong in the outermost Frameworks and Drivers ring. The Dependency Rule means the domain references only the interface, never the implementation.
+- **Hexagonal Architecture** — Repository is the canonical example of a driven port. The application defines the interface, and an adapter implements it. Use Repository anywhere you need a persistence port, and Hexagonal as the larger structure that tells you where each piece lives.
+- **Layered Architecture** — Repository sits at the Service-to-Infrastructure boundary. In a strictly layered codebase, it is the main tool for keeping business logic database-agnostic. If you are not doing full Hexagonal or Clean Architecture, Layered plus Repository is often enough.
+- **Domain-Driven Design** — Repositories are a first-class DDD tactical pattern with one repository per aggregate root. DDD adds the constraint that a repository should load and save complete aggregates, not partial state.
+- **Clean Architecture** — Repository interfaces belong in the Use Case (inner) ring, while implementations belong in the outermost Frameworks and Drivers ring. The Dependency Rule means the domain references only the interface, never the implementation.

@@ -9,107 +9,109 @@ tags: [interfaces, state, performance, testability, concurrency]
 
 # Proxy
 
-Proxy wraps an object with the same interface to control access to it. The wrapper can add lazy initialization, access control, logging, caching, or remote communication — all without the client knowing it's not talking to the real object.
+Proxy wraps an object with the same interface to control access to it. The wrapper can add lazy initialization, access control, caching, or logging — all without the client knowing it's not talking to the real object.
 
 In Go, Proxy and Decorator look structurally identical (both wrap an interface). The distinction is intent: Decorator adds new behavior; Proxy controls access to existing behavior.
 
 ## Problem
 
-You have a database query service that's expensive to initialize and you don't always need it. Some callers also need access control — only admins should be able to run certain queries. You want to delay initialization until the first actual call and enforce permissions, but you don't want to change the service's interface or litter every call site with auth checks.
+You have an image loader that reads files from disk — expensive on first access. Some callers also shouldn't see certain images. You want to defer loading until the image is actually displayed and enforce visibility rules, but you don't want to modify the loader or check permissions at every call site.
 
 ```go
 // eager.go
-package db
+package images
 
-type QueryService struct {
-    conn *Connection // expensive to create
+type ImageLoader struct {
+    path string
+    data []byte
 }
 
-func NewQueryService() *QueryService {
-    // This connects to the database immediately,
-    // even if no queries are ever made.
-    conn := Connect("prod-db:5432") // slow, may fail
-    return &QueryService{conn: conn}
+func NewImageLoader(path string) *ImageLoader {
+    // Reads from disk immediately, even if the image is never displayed.
+    data, _ := os.ReadFile(path)
+    return &ImageLoader{path: path, data: data}
 }
 
-func (s *QueryService) Execute(query string) ([]Row, error) {
-    return s.conn.Query(query)
+func (l *ImageLoader) Display() string {
+    return fmt.Sprintf("[image: %s (%d bytes)]", l.path, len(l.data))
 }
 ```
 
-The service eagerly connects to the database. If the handler path doesn't always need queries, this wastes a connection. And there's no access control — any caller can execute any query.
+The loader reads the file on construction. If the image is never displayed — a collapsed section, an off-screen element — you've paid the I/O cost for nothing. And there's no access control.
 
 ## Solution
 
-Create a proxy that implements the same interface. It lazily initializes the real service on first use and checks permissions before delegating.
+Create a proxy that implements the same interface. It lazily loads the image on first display and checks access before delegating.
 
 ```
 ┌────────────────────────┐
 │    <<interface>>       │
-│    QueryRunner         │
+│      Image             │
 │────────────────────────│
-│ Execute(q) ([]Row, e)  │
+│ Display() string       │
 └────────────┬───────────┘
              │ implements
      ┌───────┼───────┐
      │               │
-┌────▼────────┐ ┌────▼──────────┐
-│QueryService │ │  QueryProxy   │
-│ (real)      │ │ (proxy)       │
-│             │ │ - lazy init   │
-│ Execute()   │ │ - access ctrl │
-└─────────────┘ │ Execute()     │
-                └───────────────┘
+┌────▼────────┐ ┌────▼───────────┐
+│ ImageLoader │ │  ImageProxy    │
+│ (real)      │ │ (proxy)        │
+│             │ │ - lazy load    │
+│ Display()   │ │ - access ctrl  │
+└─────────────┘ │ Display()      │
+                └────────────────┘
 ```
 
 ```go
 // proxy.go
-package db
+package images
 
 import (
     "fmt"
     "sync"
 )
 
-// QueryRunner is the interface both real service and proxy implement.
-type QueryRunner interface {
-    Execute(query string) ([]string, error)
+// Image is the interface both loader and proxy implement.
+type Image interface {
+    Display() string
 }
 
-// RealQueryService is the expensive real implementation.
-type RealQueryService struct{}
-
-func (s *RealQueryService) Execute(query string) ([]string, error) {
-    fmt.Println("[db] Executing:", query)
-    return []string{"row1", "row2"}, nil
+// RealImage loads and displays an image from disk.
+type RealImage struct {
+    path string
+    data []byte
 }
 
-// QueryProxy adds lazy initialization and access control.
-type QueryProxy struct {
-    real   *RealQueryService
-    once   sync.Once
-    role   string
+func (img *RealImage) load() {
+    fmt.Printf("[disk] loading %s\n", img.path)
+    img.data = []byte("...binary data...")
 }
 
-func NewQueryProxy(role string) *QueryProxy {
-    return &QueryProxy{role: role}
+func (img *RealImage) Display() string {
+    return fmt.Sprintf("[image: %s (%d bytes)]", img.path, len(img.data))
 }
 
-func (p *QueryProxy) init() {
-    fmt.Println("[proxy] Initializing database connection...")
-    p.real = &RealQueryService{}
+// ImageProxy adds lazy loading and access control.
+type ImageProxy struct {
+    path string
+    real *RealImage
+    once sync.Once
+    role string
 }
 
-func (p *QueryProxy) Execute(query string) ([]string, error) {
-    if p.role != "admin" {
-        return nil, fmt.Errorf("access denied: role %q cannot execute queries", p.role)
+func NewImageProxy(path, role string) *ImageProxy {
+    return &ImageProxy{path: path, role: role}
+}
+
+func (p *ImageProxy) Display() string {
+    if p.role != "viewer" && p.role != "admin" {
+        return fmt.Sprintf("[access denied: role %q cannot view images]", p.role)
     }
-
-    p.once.Do(p.init)
-
-    fmt.Printf("[proxy] role=%s query=%s\n", p.role, query)
-
-    return p.real.Execute(query)
+    p.once.Do(func() {
+        p.real = &RealImage{path: p.path}
+        p.real.load()
+    })
+    return p.real.Display()
 }
 ```
 
@@ -118,49 +120,38 @@ func (p *QueryProxy) Execute(query string) ([]string, error) {
 package main
 
 import (
-    "db"
+    "images"
     "fmt"
 )
 
-func runQuery(runner db.QueryRunner, query string) {
-    rows, err := runner.Execute(query)
-    if err != nil {
-        fmt.Printf("Error: %v\n", err)
-        return
-    }
-    fmt.Printf("Results: %v\n\n", rows)
+func show(img images.Image) {
+    fmt.Println(img.Display())
 }
 
 func main() {
-    admin := db.NewQueryProxy("admin")
-    viewer := db.NewQueryProxy("viewer")
+    viewer := images.NewImageProxy("photo.jpg", "viewer")
+    guest := images.NewImageProxy("photo.jpg", "guest")
 
-    runQuery(admin, "SELECT * FROM orders")
-    runQuery(admin, "SELECT * FROM users")
-    runQuery(viewer, "SELECT * FROM secrets")
+    show(viewer) // triggers lazy load on first call
+    show(viewer) // uses cached real image
+    show(guest)  // denied
 }
 ```
 
 Output:
 
 ```
-[proxy] role=admin query=SELECT * FROM orders
-[proxy] Initializing database connection...
-[db] Executing: SELECT * FROM orders
-Results: [row1 row2]
-
-[proxy] role=admin query=SELECT * FROM users
-[db] Executing: SELECT * FROM users
-Results: [row1 row2]
-
-Error: access denied: role "viewer" cannot execute queries
+[disk] loading photo.jpg
+[image: photo.jpg (16 bytes)]
+[image: photo.jpg (16 bytes)]
+[access denied: role "guest" cannot view images]
 ```
 
 ## When to Use
 
 - You need lazy initialization — the real object is expensive to create and may not be needed.
 - You need access control — check permissions before delegating to the real object.
-- You need logging or caching around an interface without modifying the implementation.
+- You need caching around an interface without modifying the implementation.
 - You want a local representative for a remote object.
 
 ## When Not to Use
@@ -169,17 +160,9 @@ Error: access denied: role "viewer" cannot execute queries
 - Access control belongs at a higher level (HTTP middleware, gateway) rather than at the object level.
 - You're adding behavior without restricting access — that's [Decorator](/go/patterns/structural/decorator), not Proxy.
 
-## Advantages
+## Tradeoffs
 
-- Controls access without changing the real object or its clients.
-- Lazy initialization defers costly work until it's actually needed.
-- `sync.Once` makes the initialization goroutine-safe with no contention after first call.
-
-## Disadvantages
-
-- Adds indirection — harder to trace which implementation is actually running.
-- The proxy must stay in sync with the real interface — if methods are added, the proxy must be updated.
-- Lazy initialization can surprise callers if the first call takes unexpectedly long.
+`sync.Once` makes lazy initialization goroutine-safe with no lock contention after the first call — it's the right tool here. The proxy is otherwise transparent: callers use the same interface and never know whether they're talking to the real object or the proxy. The cost is that the proxy must stay in sync with the real interface; if you add a method to `Image`, every proxy in the codebase must implement it too, and the compiler will enforce this — which is actually a feature, not a bug. The harder problem is debuggability: when a call goes wrong, the stack trace shows the proxy method, not the real one, and the first-call latency from lazy loading can surface as an intermittent slowness in the caller rather than a consistent cost at construction time.
 
 ## Related Patterns
 

@@ -9,7 +9,13 @@
       "mcp__Claude_Preview__preview_start",
       "Bash(npm ci *)",
       "Bash(git -C /Users/arilaverty/Development/intentional-code mv src/pages/python src/pages/_python)",
-      "Bash(git -C /Users/arilaverty/Development/intentional-code mv src/pages/terraform src/pages/_terraform)"
+      "Bash(git -C /Users/arilaverty/Development/intentional-code mv src/pages/terraform src/pages/_terraform)",
+      "Bash(git -C /Users/arilaverty/Development/intentional-code branch -a)",
+      "Bash(git -C /Users/arilaverty/Development/intentional-code log --oneline -5)",
+      "Bash(git -C /Users/arilaverty/Development/intentional-code/.claude/worktrees/agent-aa45a8c85be362ec1 log --oneline -3)",
+      "Bash(git -C /Users/arilaverty/Development/intentional-code/.claude/worktrees/agent-aa45a8c85be362ec1 diff --name-only HEAD~1 HEAD)",
+      "Bash(git -C /Users/arilaverty/Development/intentional-code worktree list)",
+      "Bash(git -C /Users/arilaverty/Development/intentional-code status)"
     ]
   }
 }

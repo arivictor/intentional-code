@@ -15,7 +15,7 @@ This is one of the patterns most transformed by Go's evolution — if you're on 
 
 ## Problem
 
-You have a binary tree and need to traverse it in-order. Without an iterator abstraction, the traversal logic gets embedded in every function that processes the tree — search, print, collect, filter all duplicate the walk.
+You have a binary tree and need to traverse it in multiple ways. Without an iterator abstraction, the traversal logic gets embedded in every function that processes the tree — search, print, collect, and filter all duplicate the same recursive walk.
 
 ```go
 // duplicated_walk.go
@@ -29,7 +29,7 @@ type Node struct {
     Right *Node
 }
 
-// Every consumer duplicates the traversal logic
+// Every consumer duplicates the traversal logic.
 func PrintInOrder(n *Node) {
     if n == nil { return }
     PrintInOrder(n.Left)
@@ -49,7 +49,7 @@ func CollectInOrder(n *Node) []int {
     result = append(result, CollectInOrder(n.Right)...)
     return result
 }
-// Same walk, three copies. Adding pre-order or post-order multiplies this.
+// Same walk, three copies. Adding pre-order multiplies this again.
 ```
 
 The traversal logic (go left, visit, go right) is copy-pasted into every function that needs to process the tree. Adding a new traversal order means duplicating all the processing functions.
@@ -63,7 +63,7 @@ With Go 1.23's range-over-func, define an iterator that yields values. Consumers
 │  Node.All() │──► iter.Seq[int]
 └──────┬──────┘
        │
-  for v := range node.All() {
+  for v := range node.InOrder() {
       // v is each value, in order
   }
 ```
@@ -80,7 +80,7 @@ type Node struct {
     Right *Node
 }
 
-// InOrder returns an iterator over the tree's values in-order.
+// InOrder returns an iterator over the tree's values in sorted order.
 // iter.Seq[int] is func(yield func(int) bool).
 func (n *Node) InOrder() iter.Seq[int] {
     return func(yield func(int) bool) {
@@ -178,19 +178,9 @@ First 3: 1 2 3
 - The collection is small and fits in memory — just return a slice from a method.
 - You need bidirectional iteration (prev/next) — `iter.Seq` doesn't support this naturally.
 
-## Advantages
+## Tradeoffs
 
-- Traversal logic written once, used by any consumer.
-- Lazy — values are produced on demand, `break` stops iteration.
-- Integrates with Go's for-range syntax — feels native.
-- No need for `Close()` or cleanup (unlike channel-based iterators).
-
-## Disadvantages
-
-- Requires Go 1.23+ for `iter.Seq`.
-- Recursive iterators (like tree traversal) have some overhead per yield.
-- Not bidirectional — you can't go backwards.
-- Debugging yield-based iteration can be less intuitive than explicit loops.
+The range-over-func form integrates cleanly with Go's syntax and handles early termination via `break` naturally — the `yield` return value propagates the stop signal up the call stack. The main cost is that recursive iterators, like tree traversal, carry goroutine-free stack frames for each level of nesting, which adds overhead compared to a plain recursive function materializing a slice. Before Go 1.23, channel-based iterators were the workaround, but they leak goroutines if the consumer breaks early without draining the channel — a real production bug waiting to happen. The `iter.Seq` approach eliminates that hazard entirely. The trade-off that remains: if you need two-pointer traversal or bidirectional iteration, you'll need to materialize a slice or build an explicit cursor struct.
 
 ## Related Patterns
 

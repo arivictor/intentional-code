@@ -15,121 +15,107 @@ Here's the honest truth: Visitor is verbose in Go and often not the best choice.
 
 ## Problem
 
-You have an AST (abstract syntax tree) with different node types — numbers, binary operations, unary operations. You need to evaluate, pretty-print, and type-check the tree. Without Visitor, each new operation requires modifying every node type.
+You have a small expression tree — numbers, addition, multiplication. You need to evaluate it, print it, and eventually type-check it. Without Visitor, each new operation adds a method to every node type.
 
 ```go
-// bloated_ast.go
-package ast
+// bloated_nodes.go
+package expr
 
 import "fmt"
 
 type Node interface {
     Eval() float64
     Print() string
-    // Adding TypeCheck() means modifying every Node implementation.
-    // Adding Optimize() means modifying every Node again.
+    // Adding TypeCheck() means modifying every implementation.
+    // Adding Optimize() means modifying every implementation again.
 }
 
-type NumberNode struct{ Value float64 }
+type Number struct{ Value float64 }
 
-func (n *NumberNode) Eval() float64   { return n.Value }
-func (n *NumberNode) Print() string   { return fmt.Sprintf("%.0f", n.Value) }
+func (n *Number) Eval() float64  { return n.Value }
+func (n *Number) Print() string  { return fmt.Sprintf("%.0f", n.Value) }
 
-type AddNode struct{ Left, Right Node }
+type Add struct{ Left, Right Node }
 
-func (a *AddNode) Eval() float64 { return a.Left.Eval() + a.Right.Eval() }
-func (a *AddNode) Print() string {
+func (a *Add) Eval() float64 { return a.Left.Eval() + a.Right.Eval() }
+func (a *Add) Print() string {
     return fmt.Sprintf("(%s + %s)", a.Left.Print(), a.Right.Print())
 }
 
 // Every new operation bloats every node type.
 ```
 
-Each new operation (TypeCheck, Optimize, Compile) adds a method to every node type. The node types become dumping grounds for unrelated operations. And you can't add operations from outside the package.
+Each new operation adds a method to every node. The node types become dumping grounds for unrelated operations. You can't add operations from outside the package.
 
 ## Solution
 
 Define a `Visitor` interface with one `Visit` method per node type. Each node has `Accept(Visitor)` that calls the appropriate `Visit` method. New operations are new `Visitor` implementations — node types don't change.
 
 ```
-Visitor interface              Element interface
-├── VisitNumber(NumberNode)    ├── Accept(Visitor)
-├── VisitAdd(AddNode)          │
-├── VisitMul(MulNode)          NumberNode.Accept(v) → v.VisitNumber(n)
-                               AddNode.Accept(v)    → v.VisitAdd(n)
+Visitor interface               Node interface
+├── VisitNumber(*Number)        ├── Accept(Visitor)
+├── VisitAdd(*Add)              │
+└── VisitMul(*Mul)              Number.Accept(v) → v.VisitNumber(n)
+                                Add.Accept(v)    → v.VisitAdd(n)
 ```
 
 Define the visitor and element interfaces:
 
 ```go
-// ast.go
-package ast
+// expr.go
+package expr
 
 import "fmt"
 
 type Visitor interface {
-    VisitNumber(n *NumberNode) interface{}
-    VisitAdd(n *AddNode) interface{}
-    VisitMul(n *MulNode) interface{}
+    VisitNumber(n *Number) interface{}
+    VisitAdd(n *Add) interface{}
+    VisitMul(n *Mul) interface{}
 }
 
 type Node interface {
     Accept(v Visitor) interface{}
 }
 
-type NumberNode struct{ Value float64 }
-type AddNode struct{ Left, Right Node }
-type MulNode struct{ Left, Right Node }
+type Number struct{ Value float64 }
+type Add struct{ Left, Right Node }
+type Mul struct{ Left, Right Node }
 
-func (n *NumberNode) Accept(v Visitor) interface{} { return v.VisitNumber(n) }
-func (n *AddNode) Accept(v Visitor) interface{}    { return v.VisitAdd(n) }
-func (n *MulNode) Accept(v Visitor) interface{}    { return v.VisitMul(n) }
+func (n *Number) Accept(v Visitor) interface{} { return v.VisitNumber(n) }
+func (n *Add) Accept(v Visitor) interface{}    { return v.VisitAdd(n) }
+func (n *Mul) Accept(v Visitor) interface{}    { return v.VisitMul(n) }
 ```
 
-Each operation is a Visitor implementation — no node modifications needed:
+Each operation is a Visitor — no node modifications needed:
 
 ```go
 // visitors.go
-package ast
+package expr
 
 import "fmt"
 
-// Evaluator — computes the result.
+// Evaluator computes the numeric result.
 type Evaluator struct{}
 
-func (e *Evaluator) VisitNumber(n *NumberNode) interface{} {
-    return n.Value
+func (e *Evaluator) VisitNumber(n *Number) interface{} { return n.Value }
+func (e *Evaluator) VisitAdd(n *Add) interface{} {
+    return n.Left.Accept(e).(float64) + n.Right.Accept(e).(float64)
+}
+func (e *Evaluator) VisitMul(n *Mul) interface{} {
+    return n.Left.Accept(e).(float64) * n.Right.Accept(e).(float64)
 }
 
-func (e *Evaluator) VisitAdd(n *AddNode) interface{} {
-    left := n.Left.Accept(e).(float64)
-    right := n.Right.Accept(e).(float64)
-    return left + right
-}
-
-func (e *Evaluator) VisitMul(n *MulNode) interface{} {
-    left := n.Left.Accept(e).(float64)
-    right := n.Right.Accept(e).(float64)
-    return left * right
-}
-
-// Printer — produces a string representation.
+// Printer produces a string representation.
 type Printer struct{}
 
-func (p *Printer) VisitNumber(n *NumberNode) interface{} {
+func (p *Printer) VisitNumber(n *Number) interface{} {
     return fmt.Sprintf("%.0f", n.Value)
 }
-
-func (p *Printer) VisitAdd(n *AddNode) interface{} {
-    left := n.Left.Accept(p).(string)
-    right := n.Right.Accept(p).(string)
-    return fmt.Sprintf("(%s + %s)", left, right)
+func (p *Printer) VisitAdd(n *Add) interface{} {
+    return fmt.Sprintf("(%s + %s)", n.Left.Accept(p).(string), n.Right.Accept(p).(string))
 }
-
-func (p *Printer) VisitMul(n *MulNode) interface{} {
-    left := n.Left.Accept(p).(string)
-    right := n.Right.Accept(p).(string)
-    return fmt.Sprintf("(%s * %s)", left, right)
+func (p *Printer) VisitMul(n *Mul) interface{} {
+    return fmt.Sprintf("(%s * %s)", n.Left.Accept(p).(string), n.Right.Accept(p).(string))
 }
 ```
 
@@ -137,22 +123,22 @@ And here's the simpler type-switch alternative for comparison:
 
 ```go
 // typeswitch_alt.go
-package ast
+package expr
 
 import "fmt"
 
-// TypeSwitch alternative — simpler, but adding new node types
+// TypeSwitch alternative — simpler, but adding a new node type
 // requires modifying every switch.
 func Eval(n Node) float64 {
     switch v := n.(type) {
-    case *NumberNode:
+    case *Number:
         return v.Value
-    case *AddNode:
+    case *Add:
         return Eval(v.Left) + Eval(v.Right)
-    case *MulNode:
+    case *Mul:
         return Eval(v.Left) * Eval(v.Right)
     default:
-        panic(fmt.Sprintf("unknown node type: %T", n))
+        panic(fmt.Sprintf("unknown node: %T", n))
     }
 }
 ```
@@ -162,25 +148,25 @@ func Eval(n Node) float64 {
 package main
 
 import (
-    "ast"
+    "expr"
     "fmt"
 )
 
 func main() {
     // (3 + 4) * 2
-    tree := &ast.MulNode{
-        Left: &ast.AddNode{
-            Left:  &ast.NumberNode{Value: 3},
-            Right: &ast.NumberNode{Value: 4},
+    tree := &expr.Mul{
+        Left: &expr.Add{
+            Left:  &expr.Number{Value: 3},
+            Right: &expr.Number{Value: 4},
         },
-        Right: &ast.NumberNode{Value: 2},
+        Right: &expr.Number{Value: 2},
     }
 
-    eval := &ast.Evaluator{}
-    printer := &ast.Printer{}
+    eval := &expr.Evaluator{}
+    printer := &expr.Printer{}
 
     fmt.Println("Expression:", tree.Accept(printer))
-    fmt.Println("Result:", tree.Accept(eval))
+    fmt.Println("Result:    ", tree.Accept(eval))
 }
 ```
 
@@ -188,10 +174,10 @@ Output:
 
 ```
 Expression: ((3 + 4) * 2)
-Result: 14
+Result:     14
 ```
 
-> In most Go codebases, a type-switch is preferred over Visitor. It's simpler, more readable, and the compiler tells you when you've missed a case (with exhaustive switch linters). Use Visitor only when you truly need the open/closed principle for operations — e.g., a compiler or interpreter where new analysis passes are added frequently but the AST node types are stable.
+> In most Go codebases, a type-switch is preferred over Visitor. It's simpler, more readable, and exhaustive-switch linters tell you when you've missed a case. Use Visitor only when you truly need the open/closed principle for operations — e.g., a compiler or interpreter where new analysis passes are added frequently but the AST node types are stable.
 
 ## When to Use
 
@@ -205,18 +191,9 @@ Result: 14
 - You have few operations — type-switch is simpler and more Go-idiomatic.
 - The double dispatch ceremony (Accept/Visit) feels disproportionate to the problem.
 
-## Advantages
+## Tradeoffs
 
-- Adding new operations doesn't modify element types — Open/Closed for operations.
-- Each operation is cohesive — all the logic for one operation is in one type.
-- Can accumulate state across the traversal.
-
-## Disadvantages
-
-- Extremely verbose in Go — one method per element type in every visitor.
-- Adding a new element type requires updating every visitor — Open/Closed breaks in the other direction.
-- The `interface{}` return type loses type safety (Go generics could help but add complexity).
-- Double dispatch is unfamiliar to many Go developers.
+The open/closed guarantee runs in one direction only: adding a new operation is cheap (one new struct, zero changes to existing code), but adding a new node type forces you to update every existing visitor — the axes are exactly swapped compared to the type-switch. The `interface{}` return type in the example is the main roughness in Go's Visitor: it loses type safety on every `Accept` call and requires type assertions that panic at runtime if you get them wrong. Go generics can help here but add complexity. The verbosity is real and unavoidable — for an expression tree with five node types and ten operations you're writing fifty methods. The pattern pays for itself only when operations genuinely outnumber types and are added more frequently.
 
 ## Related Patterns
 

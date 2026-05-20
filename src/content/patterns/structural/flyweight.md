@@ -9,87 +9,89 @@ tags: [state, performance, concurrency]
 
 # Flyweight
 
-Flyweight is a memory optimization: when you have thousands of similar objects, most of their data is identical. Instead of each object storing its own copy of that shared data, they all point to one shared instance. In Go this is usually a cache keyed on the shared value — the first time you need a particular entry you create it and store it; every subsequent request returns the same pointer. The data that never changes (a colour, a font, a timezone) lives in the shared instance; the data that varies per object (a position, a quantity) stays on each individual instance.
+Flyweight is a memory optimization: when you have thousands of similar objects, most of their data is identical. Instead of each object storing its own copy of that shared data, they all point to one shared instance. In Go this is usually a cache keyed on the shared value — the first time you need a particular entry you create it and store it; every subsequent request returns the same pointer. The data that never changes (a font, a colour, a locale) lives in the shared instance; the data that varies per object (a position, a timestamp, a count) stays on each individual instance.
 
 `sync.Pool` is a related but different tool — it recycles mutable temporary objects to reduce GC pressure, whereas Flyweight shares immutable permanent state.
 
 ## Problem
 
-You're building a game with thousands of tree objects in a forest. Each tree has a species (name, texture, color — large, repeated data) and a position (small, unique data). Storing the full species data on every tree wastes hundreds of megabytes.
+You're rendering a text editor with thousands of characters on screen. Each character has a glyph style (font name, size, bold, italic — large, repeated data) and a position (small, unique data). Storing the full style on every character wastes memory.
 
 ```go
 // bloated.go
-package forest
+package editor
 
-type Tree struct {
-    X, Y    float64
-    Species string  // "Oak", "Pine", "Birch" — same across thousands
-    Texture []byte  // Large texture data — identical for same species
-    Color   [3]byte // RGB — identical for same species
-    Height  float64 // Unique per tree
+type Character struct {
+    Char     rune
+    X, Y     int
+    FontName string  // "Helvetica" — same across thousands of characters
+    FontSize int     // 14 — same across a whole paragraph
+    Bold     bool
+    Italic   bool
 }
 
-// 10,000 oak trees each store the same 2MB texture.
-// That's 20GB of duplicated data.
+// A 10,000-character document where every character stores its own
+// font name string is wasting memory on identical data.
 ```
 
-The species name, texture, and color are the same for all oaks. Storing them on every tree instance is wasteful. With 10,000 trees, you're storing 10,000 copies of data that could be stored once.
+The font name, size, and style flags are the same for all characters in a paragraph. Storing them on every `Character` instance is wasteful. With 10,000 characters, you have 10,000 copies of data that could be stored once.
 
 ## Solution
 
-Extract the shared intrinsic state (species data) into a separate type. Use a factory that interns these types — returning the existing instance if one with the same key already exists.
+Extract the shared intrinsic state (glyph style) into a separate type. Use a factory that interns these types — returning the existing instance if one with the same key already exists.
 
 ```
-┌────────────────┐
-│ TreeType (shared)│ ◄── interned, one per species
-│ Name, Texture,  │
-│ Color           │
-└───────┬────────┘
-        │ many trees reference same TreeType
-┌───────▼────────┐
-│ Tree (unique)  │
-│ X, Y, Height   │
-│ Type *TreeType  │
-└────────────────┘
+┌────────────────────┐
+│  GlyphStyle (shared)│ ◄── interned, one per unique style
+│  FontName, Size,   │
+│  Bold, Italic      │
+└────────┬───────────┘
+         │ many characters reference same GlyphStyle
+┌────────▼───────────┐
+│  Character (unique) │
+│  Char, X, Y        │
+│  Style *GlyphStyle  │
+└────────────────────┘
 ```
 
 ```go
-// forest.go
-package forest
+// editor.go
+package editor
 
 import "fmt"
 
-// TreeType holds shared intrinsic state — one per species.
-type TreeType struct {
-    Name    string
-    Texture string
-    Color   [3]byte
+// GlyphStyle holds shared intrinsic state — one per unique font+style combination.
+type GlyphStyle struct {
+    FontName string
+    FontSize int
+    Bold     bool
+    Italic   bool
 }
 
-// Tree holds unique extrinsic state + a reference to shared data.
-type Tree struct {
-    X, Y   float64
-    Height float64
-    Type   *TreeType
+// Character holds unique extrinsic state + a reference to shared style data.
+type Character struct {
+    Char  rune
+    X, Y  int
+    Style *GlyphStyle
 }
 
-func (t *Tree) Render() string {
-    return fmt.Sprintf("%s at (%.0f,%.0f) h=%.1f color=#%02x%02x%02x",
-        t.Type.Name, t.X, t.Y, t.Height,
-        t.Type.Color[0], t.Type.Color[1], t.Type.Color[2])
+func (c *Character) Render() string {
+    return fmt.Sprintf("'%c' at (%d,%d) font=%s/%d bold=%v",
+        c.Char, c.X, c.Y, c.Style.FontName, c.Style.FontSize, c.Style.Bold)
 }
 
-// Factory interns TreeType instances.
-var typeCache = map[string]*TreeType{}
+// styleCache interns GlyphStyle instances.
+var styleCache = map[string]*GlyphStyle{}
 
-func GetTreeType(name, texture string, color [3]byte) *TreeType {
-    key := name
-    if tt, ok := typeCache[key]; ok {
-        return tt
+// GetStyle returns a shared GlyphStyle, creating it only if it doesn't exist yet.
+func GetStyle(font string, size int, bold, italic bool) *GlyphStyle {
+    key := fmt.Sprintf("%s-%d-%v-%v", font, size, bold, italic)
+    if s, ok := styleCache[key]; ok {
+        return s
     }
-    tt := &TreeType{Name: name, Texture: texture, Color: color}
-    typeCache[key] = tt
-    return tt
+    s := &GlyphStyle{FontName: font, FontSize: size, Bold: bold, Italic: italic}
+    styleCache[key] = s
+    return s
 }
 ```
 
@@ -98,37 +100,39 @@ func GetTreeType(name, texture string, color [3]byte) *TreeType {
 package main
 
 import (
+    "editor"
     "fmt"
-    "forest"
 )
 
 func main() {
-    oak := forest.GetTreeType("Oak", "oak_bark.png", [3]byte{34, 120, 15})
-    pine := forest.GetTreeType("Pine", "pine_bark.png", [3]byte{10, 80, 30})
+    body := editor.GetStyle("Helvetica", 14, false, false)
+    heading := editor.GetStyle("Helvetica", 20, true, false)
 
-    trees := []*forest.Tree{
-        {X: 10, Y: 20, Height: 15.5, Type: oak},
-        {X: 30, Y: 40, Height: 12.0, Type: oak},
-        {X: 50, Y: 60, Height: 20.0, Type: pine},
-        {X: 70, Y: 80, Height: 18.3, Type: pine},
+    chars := []*editor.Character{
+        {Char: 'H', X: 0, Y: 0, Style: heading},
+        {Char: 'e', X: 12, Y: 0, Style: body},
+        {Char: 'l', X: 20, Y: 0, Style: body},
+        {Char: 'l', X: 28, Y: 0, Style: body},
+        {Char: 'o', X: 36, Y: 0, Style: body},
     }
 
-    for _, t := range trees {
-        fmt.Println(t.Render())
+    for _, c := range chars {
+        fmt.Println(c.Render())
     }
-    fmt.Printf("\nUnique tree types: %d (shared across %d trees)\n", 2, len(trees))
+    fmt.Printf("\nUnique styles: 2 (shared across %d characters)\n", len(chars))
 }
 ```
 
 Output:
 
 ```
-Oak at (10,20) h=15.5 color=#22780f
-Oak at (30,40) h=12.0 color=#22780f
-Pine at (50,60) h=20.0 color=#0a501e
-Pine at (70,80) h=18.3 color=#0a501e
+'H' at (0,0) font=Helvetica/20 bold=true
+'e' at (12,0) font=Helvetica/14 bold=false
+'l' at (20,0) font=Helvetica/14 bold=false
+'l' at (28,0) font=Helvetica/14 bold=false
+'o' at (36,0) font=Helvetica/14 bold=false
 
-Unique tree types: 2 (shared across 4 trees)
+Unique styles: 2 (shared across 5 characters)
 ```
 
 ## When to Use
@@ -144,19 +148,11 @@ Unique tree types: 2 (shared across 4 trees)
 - The shared state is mutable — concurrent mutation of shared state creates race conditions.
 - The distinction between intrinsic and extrinsic state is unclear or unstable.
 
-## Advantages
+## Tradeoffs
 
-- Dramatic memory reduction when many objects share the same data.
-- The interning map provides deduplication automatically.
-
-## Disadvantages
-
-- Adds complexity — two types instead of one, plus the interning factory.
-- The intern map is package-level mutable state (use `sync.Mutex` in concurrent code).
-- Trading CPU (hash lookups) for memory — measure both.
-- Shared state must be immutable. If you accidentally mutate it, all referencing objects break.
+The memory savings are real and dramatic when the sharing ratio is high — two style objects serving ten thousand characters is the intended use. The cost is that the intern cache is package-level mutable state: in concurrent code you need a `sync.RWMutex` around reads and writes, and the cache itself never shrinks. An intern cache that grows unboundedly can leak memory if new keys arrive continuously (e.g., per-request keys built from user input). The split between intrinsic and extrinsic state also has to be stable — if what you thought was "shared" turns out to vary per-object, you end up with either incorrect sharing bugs or a cache that's just a thin wrapper around individual allocations with extra indirection.
 
 ## Related Patterns
 
-- **Composite** — Flyweight types often appear as leaves in a Composite tree: the shared Flyweight instance holds common data (species, texture) while each Composite node holds unique data (position, quantity, parent).
+- **Composite** — Flyweight types often appear as leaves in a Composite tree: the shared Flyweight instance holds common data (style, type) while each Composite node holds unique data (position, quantity, parent).
 - **Singleton** — Singleton means one instance of one type; Flyweight means one instance per distinct key — the interning map is effectively a keyed singleton registry; use Singleton when there's genuinely only one, Flyweight when there are several distinct shared values.

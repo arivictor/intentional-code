@@ -15,123 +15,94 @@ The Go solution: pass the variable steps as function values or interfaces via co
 
 ## Problem
 
-You're building data importers for different file formats (CSV, JSON, XML). The overall process is the same: open the file, parse records, validate each record, save to database. The parsing step differs per format, but the skeleton is identical.
+You're generating reports in different formats — plain text, CSV, and JSON. The overall process is identical: write a header, write each row, write a footer. Only the formatting step differs, but the skeleton is duplicated for each format.
 
 ```go
 // duplicated.go
-package importer
+package report
 
-func ImportCSV(path string) error {
-    data := readFile(path)
-    records := parseCSV(data)
-    for _, r := range records {
-        if err := validate(r); err != nil { continue }
-        save(r)
+func RenderText(rows []string) string {
+    out := "=== Report ===\n"
+    for _, r := range rows {
+        out += "  " + r + "\n"
     }
-    return nil
+    out += "==============\n"
+    return out
 }
 
-func ImportJSON(path string) error {
-    data := readFile(path)
-    records := parseJSON(data)
-    for _, r := range records {
-        if err := validate(r); err != nil { continue }
-        save(r)
+func RenderCSV(rows []string) string {
+    out := "row\n"
+    for _, r := range rows {
+        out += r + "\n"
     }
-    return nil
+    return out
 }
 
-// The skeleton (read → parse → validate → save) is duplicated.
-// Only the parse step differs. Adding XML means copying again.
+// The skeleton (header → rows → footer) is duplicated.
+// Only the formatting differs. Adding Markdown means copying again.
 ```
 
-The algorithm skeleton is copied for every format. The validation and save logic is duplicated. Adding a new format means copying the whole function and changing one line.
+The algorithm skeleton is copy-pasted for every format. Adding a new format means duplicating the whole function and changing a few lines.
 
 ## Solution
 
-In Go, inject the variable step as a function parameter. The skeleton is written once; the specific parser is passed in.
+In Go, inject the variable step as a function parameter. The skeleton is written once; the formatting functions are passed in.
 
 ```
-Import(path, parser)
+Render(rows, formatter)
   │
-  ├── readFile(path)        ← fixed
-  ├── parser(data)          ← injected
-  ├── validate(record)      ← fixed
-  └── save(record)          ← fixed
+  ├── header()           ← from formatter
+  ├── formatRow(row)     ← from formatter
+  └── footer()           ← from formatter
 
-parser = parseCSV  │ parseJSON │ parseXML
+formatter = TextFormatter │ CSVFormatter │ JSONFormatter
 ```
 
-Inject the variable step as a function parameter:
+Define a `Formatter` struct carrying the three hook functions:
 
 ```go
-// importer.go
-package importer
+// report.go
+package report
 
-import "fmt"
+import "strings"
 
-type Record struct {
-    ID   string
-    Name string
+// Formatter holds the variable steps of the rendering algorithm.
+type Formatter struct {
+    Header    func() string
+    FormatRow func(row string) string
+    Footer    func() string
 }
 
-// ParseFunc is the pluggable step — the "template method" in Go terms.
-type ParseFunc func(data []byte) ([]Record, error)
-
-// Import is the algorithm skeleton — written once.
-func Import(path string, parse ParseFunc) error {
-    fmt.Printf("Reading file: %s\n", path)
-    data := readFile(path)
-
-    records, err := parse(data)
-    if err != nil {
-        return fmt.Errorf("parse error: %w", err)
+// Render is the algorithm skeleton — written once.
+func Render(rows []string, f Formatter) string {
+    var b strings.Builder
+    b.WriteString(f.Header())
+    for _, row := range rows {
+        b.WriteString(f.FormatRow(row))
     }
-
-    for _, r := range records {
-        if err := validate(r); err != nil {
-            fmt.Printf("  Skip invalid: %s\n", r.ID)
-            continue
-        }
-        save(r)
-    }
-    return nil
+    b.WriteString(f.Footer())
+    return b.String()
 }
 
-func readFile(path string) []byte {
-    return []byte(fmt.Sprintf("data from %s", path))
+// TextFormatter — plain text with borders.
+var TextFormatter = Formatter{
+    Header:    func() string { return "=== Report ===\n" },
+    FormatRow: func(row string) string { return "  " + row + "\n" },
+    Footer:    func() string { return "==============\n" },
 }
 
-func validate(r Record) error {
-    if r.ID == "" {
-        return fmt.Errorf("missing ID")
-    }
-    return nil
+// CSVFormatter — comma-separated values.
+var CSVFormatter = Formatter{
+    Header:    func() string { return "row\n" },
+    FormatRow: func(row string) string { return row + "\n" },
+    Footer:    func() string { return "" },
 }
 
-func save(r Record) {
-    fmt.Printf("  Saved: %s (%s)\n", r.ID, r.Name)
-}
-```
-
-Define parsers as plain functions:
-
-```go
-// parsers.go
-package importer
-
-func ParseCSV(data []byte) ([]Record, error) {
-    return []Record{
-        {ID: "1", Name: "Alice"},
-        {ID: "2", Name: "Bob"},
-    }, nil
-}
-
-func ParseJSON(data []byte) ([]Record, error) {
-    return []Record{
-        {ID: "3", Name: "Charlie"},
-        {ID: "", Name: "Invalid"},
-    }, nil
+// MarkdownFormatter — Markdown table rows.
+var MarkdownFormatter = Formatter{
+    Header:    func() string { return "| row |\n|-----|\n" },
+    FormatRow: func(row string) string { return "| " + row + " |\n" },
+    Footer:    func() string { return "" },
 }
 ```
 
@@ -139,23 +110,37 @@ func ParseJSON(data []byte) ([]Record, error) {
 // main.go
 package main
 
-import "importer"
+import (
+    "fmt"
+    "report"
+)
 
 func main() {
-    importer.Import("users.csv", importer.ParseCSV)
-    importer.Import("users.json", importer.ParseJSON)
+    rows := []string{"Alice", "Bob", "Charlie"}
+
+    fmt.Print(report.Render(rows, report.TextFormatter))
+    fmt.Print(report.Render(rows, report.CSVFormatter))
+    fmt.Print(report.Render(rows, report.MarkdownFormatter))
 }
 ```
 
 Output:
 
 ```
-Reading file: users.csv
-  Saved: 1 (Alice)
-  Saved: 2 (Bob)
-Reading file: users.json
-  Saved: 3 (Charlie)
-  Skip invalid:
+=== Report ===
+  Alice
+  Bob
+  Charlie
+==============
+row
+Alice
+Bob
+Charlie
+| row |
+|-----|
+| Alice |
+| Bob |
+| Charlie |
 ```
 
 > In Go, Template Method as described in the GoF book (using inheritance and method overriding) is impossible and should not be attempted. The idiomatic Go solution — injecting hook functions or accepting an interface with the variable steps — achieves the same goal through composition.
@@ -170,16 +155,9 @@ Reading file: users.json
 - Most or all steps vary — you don't have a fixed skeleton, you have a completely different algorithm. Use [Strategy](/go/patterns/behavioral/strategy) instead.
 - The skeleton is trivial (2–3 lines). Just inline it.
 
-## Advantages
+## Tradeoffs
 
-- The algorithm skeleton is written once — no duplication.
-- New variations only need to implement the pluggable steps.
-- In Go, function injection is lightweight and doesn't require new types.
-
-## Disadvantages
-
-- If there are many hooks, the function signature becomes unwieldy (consider a struct of functions or an interface).
-- The fixed steps can't be customized — that's by design but can be limiting.
+Function injection is lightweight in Go — no new types required, and the variable steps are explicit in the function signature. The cost appears when there are many hooks: a `Formatter` struct with five or six fields of type `func() string` becomes hard to initialize correctly, and callers must fill every field or get a nil panic at runtime. An interface enforces completeness at compile time, so prefer an interface over a struct-of-functions when the number of hooks grows beyond two or three. The fixed steps in the skeleton are deliberately non-overridable — that's the whole point — but this can feel limiting when a caller needs a slightly different skeleton; at that point, reach for Strategy, which replaces the whole algorithm rather than plugging in pieces.
 
 ## Related Patterns
 

@@ -15,7 +15,7 @@ The Go idiom favors a slice of handler functions over linked-list objects — si
 
 ## Problem
 
-You're building a request processing pipeline. Incoming requests need validation, rate limiting, authentication, and finally handling. The logic for deciding which checks to apply is tangled into a single function with deeply nested conditionals.
+You're building a request processing pipeline. Incoming requests need validation, rate limiting, authentication, and finally handling. The logic for all of this is tangled into a single function with nested conditionals.
 
 ```go
 // tangled.go
@@ -29,15 +29,15 @@ func processRequest(req Request) Response {
     if !isAuthenticated(req.Token) {
         return Response{Status: 401, Body: "unauthorized"}
     }
-    return Response{Status: 200, Body: "processed: " + req.Body}
+    return Response{Status: 200, Body: "ok: " + req.Body}
 }
 ```
 
-Every new check requires editing this function. The order is implicit. You can't reuse the auth check without the rate limiter. And testing one check requires setting up all the others.
+Every new check requires editing this function. The order is implicit. You can't reuse the auth check without the rate limiter. Testing one check requires setting up all the others.
 
 ## Solution
 
-Define a `Handler` function type and chain them. Each handler either stops the chain (by returning a response) or calls the next handler.
+Define a `Handler` function type and chain them. Each handler either stops the chain (by returning a response) or signals the next handler to continue.
 
 ```
 Request ──► Validate ──► RateLimit ──► Auth ──► Handle
@@ -62,7 +62,7 @@ type Response struct {
     Body   string
 }
 
-// Handler processes a request. If it returns true, the chain continues.
+// Handler processes a request. Returning false stops the chain.
 type Handler func(req Request) (Response, bool)
 
 // Chain runs handlers in order until one stops the chain.
@@ -100,7 +100,7 @@ func RequireAuth(req Request) (Response, bool) {
 }
 
 func Handle(req Request) (Response, bool) {
-    return Response{Status: 200, Body: fmt.Sprintf("processed: %s", req.Body)}, false
+    return Response{Status: 200, Body: fmt.Sprintf("ok: %s", req.Body)}, false
 }
 ```
 
@@ -138,7 +138,7 @@ func main() {
 Output:
 
 ```
-[200] processed: hello
+[200] ok: hello
 [401] unauthorized
 [429] rate limited
 [400] empty body
@@ -155,16 +155,9 @@ Output:
 - The processing order is fixed and unlikely to change. A straightforward function may be clearer.
 - There's only one or two steps — the chain machinery adds overhead without benefit.
 
-## Advantages
+## Tradeoffs
 
-- Each handler is single-responsibility and independently testable.
-- The chain is composable — add, remove, or reorder handlers without changing existing code.
-- Naturally maps to Go's HTTP middleware pattern.
-
-## Disadvantages
-
-- Harder to trace which handler responded — debugging can require logging at each step.
-- If handlers need to share context, you need to pass it explicitly (e.g., via `context.Context`).
+Each handler is independently testable, which is the main win. The cost you pay is debuggability: when a request returns 401, you know the chain stopped somewhere, but you have to add logging or introspection to know where. If handlers need to share mutable context across the chain — adding a user ID after auth so later handlers can read it — you need to thread that through explicitly, typically via `context.Context` rather than mutating the request. The pattern also silently discards the "continue" bool from the final handler, so forgetting to add a terminal handler produces a confusing 500 from the fallthrough case rather than a compile error.
 
 ## Related Patterns
 

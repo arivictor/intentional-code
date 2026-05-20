@@ -9,117 +9,125 @@ tags: [interfaces, composition, dependency-inversion]
 
 # Bridge
 
-Bridge's identifying signal is a type hierarchy growing in two independent directions at once. Left unchecked, this produces a cartesian explosion: 3 channels × 3 urgency levels = 9 types; add a channel and you add 3 types; add an urgency level and you add 3 more. Bridge collapses this to 3 + 3 = 6 by splitting the two dimensions into two interfaces that compose via struct field, not inheritance.
+Bridge's identifying signal is a type hierarchy growing in two independent directions at once. Left unchecked, this produces a cartesian explosion: 3 formats × 3 outputs = 9 types; add a format and you add 3 types; add an output and you add 3 more. Bridge collapses this to 3 + 3 = 6 by splitting the two dimensions into two interfaces that compose via struct field, not inheritance.
 
 The key question before reaching for Bridge: are these two dimensions truly independent? If they always change together, Bridge adds interfaces for no gain. If adding to one dimension never requires touching the other, Bridge is the right structure.
 
 ## Problem
 
-You're building a notification system that sends messages through different channels (email, SMS, push) with different urgency levels (regular, urgent). Without Bridge, you'd need `RegularEmail`, `UrgentEmail`, `RegularSMS`, `UrgentSMS`, `RegularPush`, `UrgentPush` — six types, growing quadratically.
+You're building a report generator that produces reports in different formats (plain text, JSON) and writes them to different outputs (console, file). Without Bridge, you'd need `PlainTextConsoleReport`, `PlainTextFileReport`, `JSONConsoleReport`, `JSONFileReport` — four types, growing quadratically.
 
 ```go
 // explosion.go
-package notify
+package report
 
-// Without Bridge: one type per (urgency × channel) combination.
-// Adding a new channel means adding one type per urgency level.
-// Adding a new urgency level means adding one type per channel.
-// 3 channels × 3 urgency levels = 9 types.
+// Without Bridge: one type per (format × output) combination.
+// Adding a new output means adding one type per format.
+// Adding a new format means adding one type per output.
 
-type RegularEmailNotification struct{}
-func (n *RegularEmailNotification) Send(msg string) { /* ... */ }
+type PlainTextConsoleReport struct{}
+func (r *PlainTextConsoleReport) Generate(data string) { /* format as text, write to console */ }
 
-type UrgentEmailNotification struct{}
-func (n *UrgentEmailNotification) Send(msg string) { /* prefix [URGENT], send email */ }
+type PlainTextFileReport struct{}
+func (r *PlainTextFileReport) Generate(data string) { /* format as text, write to file */ }
 
-type RegularSMSNotification struct{}
-func (n *RegularSMSNotification) Send(msg string) { /* ... */ }
+type JSONConsoleReport struct{}
+func (r *JSONConsoleReport) Generate(data string) { /* format as JSON, write to console */ }
 
-type UrgentSMSNotification struct{}
-func (n *UrgentSMSNotification) Send(msg string) { /* prefix [URGENT], send SMS */ }
+type JSONFileReport struct{}
+func (r *JSONFileReport) Generate(data string) { /* format as JSON, write to file */ }
 
-// ... and so on. Adding "push" means 3 more types.
+// Adding "CSV" format means 2 more types.
+// Adding "network" output means 2 more types.
 ```
 
-Every combination of two independent dimensions produces a new type. This is a cartesian product that grows unmanageable. Worse, the urgency logic (how to format the message) is duplicated across every channel-specific type.
+The formatting logic (how to shape the data) is duplicated across output-specific types, and the output logic is duplicated across format-specific types. Two independent axes, one tangled mess.
 
 ## Solution
 
-Separate the two dimensions into two interfaces. The abstraction (urgency formatter) holds a reference to the implementation (delivery channel). They vary independently.
+Separate the two dimensions into two interfaces. The abstraction (formatter) holds a reference to the implementation (writer). They vary independently.
 
 ```
 ┌────────────────────┐         ┌──────────────────┐
 │   <<interface>>    │         │  <<interface>>   │
-│   MessageSender    │         │   Channel        │
+│   Formatter        │         │   Writer         │
 │────────────────────│         │──────────────────│
-│ Send(msg)          │────────►│ Deliver(msg)     │
+│ Format(data) string│────────►│ Write(s string)  │
 └────────┬───────────┘  uses   └────────┬─────────┘
          │                              │
    ┌─────┼──────┐               ┌───────┼──────┐
    │            │               │              │
-Regular     Urgent           Email          SMS
-Sender      Sender          Channel        Channel
+ Plain        JSON          Console          File
+ Text         Fmt            Writer          Writer
 ```
 
-Define the implementation interface — the delivery channel:
+Define the implementation interface — where output goes:
 
 ```go
-// channels.go
-package notify
+// writers.go
+package report
+
+import (
+    "fmt"
+    "os"
+)
+
+// Writer is the implementation dimension — where output is sent.
+type Writer interface {
+    Write(s string)
+}
+
+type ConsoleWriter struct{}
+
+func (w *ConsoleWriter) Write(s string) {
+    fmt.Println(s)
+}
+
+type FileWriter struct {
+    Path string
+}
+
+func (w *FileWriter) Write(s string) {
+    f, err := os.OpenFile(w.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+    if err != nil {
+        return
+    }
+    defer f.Close()
+    fmt.Fprintln(f, s)
+}
+```
+
+Define the abstraction — formatters that hold a writer:
+
+```go
+// formatters.go
+package report
 
 import "fmt"
 
-// Channel is the implementation dimension — how messages are delivered.
-type Channel interface {
-    Deliver(message string) error
+// Formatter is the abstraction dimension — how data is shaped.
+type Formatter struct {
+    writer Writer
 }
 
-type EmailChannel struct{ Addr string }
+type PlainTextFormatter struct{ Formatter }
 
-func (e *EmailChannel) Deliver(message string) error {
-    fmt.Printf("[Email → %s] %s\n", e.Addr, message)
-    return nil
+func NewPlainText(w Writer) *PlainTextFormatter {
+    return &PlainTextFormatter{Formatter{writer: w}}
 }
 
-type SMSChannel struct{ Phone string }
-
-func (s *SMSChannel) Deliver(message string) error {
-    fmt.Printf("[SMS → %s] %s\n", s.Phone, message)
-    return nil
-}
-```
-
-Define the abstraction — message senders with different urgency handling:
-
-```go
-// senders.go
-package notify
-
-import "fmt"
-
-// Sender is the abstraction dimension — how messages are formatted.
-type Sender struct {
-    channel Channel
+func (f *PlainTextFormatter) Generate(data string) {
+    f.writer.Write("Report: " + data)
 }
 
-type RegularSender struct{ Sender }
+type JSONFormatter struct{ Formatter }
 
-func NewRegularSender(ch Channel) *RegularSender {
-    return &RegularSender{Sender{channel: ch}}
+func NewJSON(w Writer) *JSONFormatter {
+    return &JSONFormatter{Formatter{writer: w}}
 }
 
-func (s *RegularSender) Send(msg string) error {
-    return s.channel.Deliver(msg)
-}
-
-type UrgentSender struct{ Sender }
-
-func NewUrgentSender(ch Channel) *UrgentSender {
-    return &UrgentSender{Sender{channel: ch}}
-}
-
-func (s *UrgentSender) Send(msg string) error {
-    return s.channel.Deliver(fmt.Sprintf("🚨 URGENT: %s", msg))
+func (f *JSONFormatter) Generate(data string) {
+    f.writer.Write(fmt.Sprintf(`{"report": %q}`, data))
 }
 ```
 
@@ -127,33 +135,31 @@ func (s *UrgentSender) Send(msg string) error {
 // main.go
 package main
 
-import "notify"
+import "report"
 
 func main() {
-    email := &notify.EmailChannel{Addr: "ops@example.com"}
-    sms := &notify.SMSChannel{Phone: "+1-555-0123"}
+    console := &report.ConsoleWriter{}
+    file := &report.FileWriter{Path: "/tmp/report.log"}
 
-    // Mix and match freely — no combinatorial explosion
-    notify.NewRegularSender(email).Send("Deployment complete")
-    notify.NewUrgentSender(email).Send("Server on fire")
-    notify.NewRegularSender(sms).Send("Daily report ready")
-    notify.NewUrgentSender(sms).Send("Database unreachable")
+    // Mix and match freely — no combinatorial explosion.
+    report.NewPlainText(console).Generate("sales up 12%")
+    report.NewJSON(console).Generate("sales up 12%")
+    report.NewPlainText(file).Generate("sales up 12%")
+    report.NewJSON(file).Generate("sales up 12%")
 }
 ```
 
-Output:
+Output (console):
 
 ```
-[Email → ops@example.com] Deployment complete
-[Email → ops@example.com] 🚨 URGENT: Server on fire
-[SMS → +1-555-0123] Daily report ready
-[SMS → +1-555-0123] 🚨 URGENT: Database unreachable
+Report: sales up 12%
+{"report": "sales up 12%"}
 ```
 
 ## When to Use
 
 - You have two or more independent dimensions of variation that would otherwise create a type explosion.
-- You want to change the implementation at runtime (swap email for SMS).
+- You want to change the implementation at runtime (swap console for file).
 - The abstraction and implementation should be able to evolve independently.
 
 ## When Not to Use
@@ -162,17 +168,9 @@ Output:
 - The two dimensions are tightly coupled and always change together — separation adds complexity without benefit.
 - Your type hierarchy is small and unlikely to grow. Two or three concrete types are fine.
 
-## Advantages
+## Tradeoffs
 
-- Eliminates combinatorial type explosion — N + M instead of N × M.
-- Abstraction and implementation evolve independently.
-- You can swap implementations at runtime.
-
-## Disadvantages
-
-- Adds structural complexity — more interfaces and types to understand.
-- Can be overkill for simple hierarchies that don't face a real explosion.
-- The abstraction/implementation split can be hard to identify correctly upfront.
+Bridge prevents a N×M type explosion by decomposing it into N+M — a real win once you have three or more values on each axis. Before that point, the two interfaces and the composition struct feel like overhead for no reason. The abstraction/implementation split is also non-obvious: teams frequently argue about which side a new feature belongs on, and getting it wrong means refactoring later. In Go, Bridge can look identical to Strategy at a glance — the difference is that Strategy varies one algorithm while Bridge explicitly holds two dimensions in a stable, composed relationship. If you have one axis, use Strategy; if you have two, Bridge earns its structure.
 
 ## Related Patterns
 

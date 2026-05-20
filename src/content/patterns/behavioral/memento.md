@@ -15,26 +15,25 @@ The pattern is the encapsulated complement to [Prototype](/go/patterns/creationa
 
 ## Problem
 
-You're building a game with save/load functionality. The game state includes player position, health, inventory, and level. You need to snapshot this state and restore it later, but you don't want external code to access or modify the internals of a save.
+You're building a text editor with an undo history. The editor's state — the text content and the cursor position — needs to be snapshotted and restored. But exposing that state publicly means any code in the program can tamper with a saved snapshot.
 
 ```go
 // exposed.go
-package game
+package editor
 
 // Exposing all state publicly for save/restore
-type GameState struct {
-    PlayerX  int
-    PlayerY  int
-    Health   int
-    Level    int
-    Items    []string
+type Snapshot struct {
+    Content string
+    Cursor  int
 }
 
-// Anyone can read and modify a "save" — no encapsulation
-// Someone could cheat by editing save.Health = 9999
+// Anyone can modify a "save":
+//   snap.Content = "injected content"
+//   snap.Cursor = -1
+// There's no encapsulation boundary between creator and holder.
 ```
 
-With public fields, nothing prevents external code from modifying a saved state. There's no encapsulation boundary between "the game engine that creates saves" and "external code that stores them."
+With public fields, nothing prevents external code from modifying a saved state. The caretaker (whoever stores snapshots) can accidentally — or intentionally — corrupt them.
 
 ## Solution
 
@@ -42,64 +41,54 @@ Create a memento type with unexported fields in the same package as the originat
 
 ```
 ┌──────────────┐  Save()  ┌──────────────┐
-│   Game       │────────►│   Memento    │
+│   Editor     │────────►│   Memento    │
 │ (originator) │         │ (opaque)     │
 │              │◄────────│ unexported   │
 │  Restore()   │         │ fields       │
 └──────────────┘         └──────────────┘
                               │
-                    Caretaker holds []Memento
+                    Caretaker holds []*Memento
                     but can't read contents
 ```
 
 ```go
-// game.go
-package game
+// editor.go
+package editor
 
 import "fmt"
 
 // Memento — unexported fields protect the snapshot.
 type Memento struct {
-    playerX int
-    playerY int
-    health  int
-    level   int
-    items   []string
+    content string
+    cursor  int
 }
 
-// Game is the originator.
-type Game struct {
-    PlayerX int
-    PlayerY int
-    Health  int
-    Level   int
-    Items   []string
+// Editor is the originator.
+type Editor struct {
+    content string
+    cursor  int
 }
 
-func (g *Game) Save() *Memento {
-    items := make([]string, len(g.Items))
-    copy(items, g.Items)
-    return &Memento{
-        playerX: g.PlayerX,
-        playerY: g.PlayerY,
-        health:  g.Health,
-        level:   g.Level,
-        items:   items,
-    }
+func NewEditor(content string) *Editor {
+    return &Editor{content: content}
 }
 
-func (g *Game) Restore(m *Memento) {
-    g.PlayerX = m.playerX
-    g.PlayerY = m.playerY
-    g.Health = m.health
-    g.Level = m.level
-    g.Items = make([]string, len(m.items))
-    copy(g.Items, m.items)
+func (e *Editor) Type(text string) {
+    e.content = e.content[:e.cursor] + text + e.content[e.cursor:]
+    e.cursor += len(text)
 }
 
-func (g *Game) String() string {
-    return fmt.Sprintf("Pos(%d,%d) HP=%d Lv=%d Items=%v",
-        g.PlayerX, g.PlayerY, g.Health, g.Level, g.Items)
+func (e *Editor) Save() *Memento {
+    return &Memento{content: e.content, cursor: e.cursor}
+}
+
+func (e *Editor) Restore(m *Memento) {
+    e.content = m.content
+    e.cursor = m.cursor
+}
+
+func (e *Editor) String() string {
+    return fmt.Sprintf("%q (cursor=%d)", e.content, e.cursor)
 }
 ```
 
@@ -108,32 +97,40 @@ func (g *Game) String() string {
 package main
 
 import (
+    "editor"
     "fmt"
-    "game"
 )
 
 func main() {
-    g := &game.Game{PlayerX: 0, PlayerY: 0, Health: 100, Level: 1, Items: []string{"sword"}}
-    fmt.Println("Start:", g)
+    e := editor.NewEditor("Hello")
+    fmt.Println("Start:  ", e)
 
-    save1 := g.Save()
+    snap1 := e.Save()
 
-    g.PlayerX = 10
-    g.Health = 50
-    g.Items = append(g.Items, "shield")
-    fmt.Println("After playing:", g)
+    e.Type(" World")
+    fmt.Println("After type:", e)
 
-    g.Restore(save1)
-    fmt.Println("After restore:", g)
+    snap2 := e.Save()
+
+    e.Type("!!!")
+    fmt.Println("After more:", e)
+
+    e.Restore(snap2)
+    fmt.Println("Undo:      ", e)
+
+    e.Restore(snap1)
+    fmt.Println("Undo again:", e)
 }
 ```
 
 Output:
 
 ```
-Start: Pos(0,0) HP=100 Lv=1 Items=[sword]
-After playing: Pos(10,0) HP=50 Lv=1 Items=[sword shield]
-After restore: Pos(0,0) HP=100 Lv=1 Items=[sword]
+Start:   "Hello" (cursor=5)
+After type: "Hello World" (cursor=11)
+After more: "Hello World!!!" (cursor=14)
+Undo:       "Hello World" (cursor=11)
+Undo again: "Hello" (cursor=5)
 ```
 
 ## When to Use
@@ -148,17 +145,9 @@ After restore: Pos(0,0) HP=100 Lv=1 Items=[sword]
 - Snapshots would consume too much memory (large or frequent states).
 - You only need undo for individual operations — Command with `Undo()` is lighter.
 
-## Advantages
+## Tradeoffs
 
-- Preserves encapsulation — external code can't tamper with snapshots.
-- Clean separation between the originator (creates/restores) and caretaker (stores).
-- Go's unexported fields naturally enforce the opaqueness.
-
-## Disadvantages
-
-- Memory cost — each snapshot is a full copy of the state.
-- The originator must deep-copy reference types (slices, maps) to prevent sharing.
-- The opaque memento means debugging saved states requires the originator's help.
+Go's unexported fields make the opaqueness genuinely compile-time-enforced — the caretaker literally cannot read or modify the snapshot contents, which is a stronger guarantee than most patterns achieve. The cost is memory: each snapshot is a full copy of the state, so a deep undo history for a large document becomes expensive quickly. Reference types (slices, maps, pointers) must be deep-copied in `Save()` — forgetting this means the snapshot and the live object share underlying memory, and the "snapshot" mutates silently when you edit. The other common trap is that the opaque memento makes debugging hard: if a restore produces the wrong state, you can't inspect the memento without adding a debug method in its package.
 
 ## Related Patterns
 

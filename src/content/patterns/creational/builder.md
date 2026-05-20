@@ -9,45 +9,38 @@ tags: [closures, composition, dependency-inversion]
 
 # Builder
 
-Long parameter lists cause two problems: callers must fill every position even for optional fields, and zero values become ambiguous (`maxConns=0` could mean "unlimited" or "no connections"). In Go, the functional options pattern solves both — a variadic list of option functions lets callers specify only what they need, defaults are centralized in the constructor, and adding new options never breaks existing call sites.
+Long parameter lists cause two problems: callers must fill every position even for optional fields, and zero values become ambiguous (`timeout=0` could mean "no timeout" or "instant timeout"). In Go, the functional options pattern solves both — a variadic list of option functions lets callers specify only what they need, defaults are centralized in the constructor, and adding new options never breaks existing call sites.
 
 The classic chained builder also works in Go and is preferable when construction has a meaningful order or when you want to reuse a partially configured builder across multiple similar objects.
 
 ## Problem
 
-You're building an HTTP server with many optional configuration parameters: timeouts, TLS, middleware, max connections, logging. A constructor with twelve parameters is unreadable. A config struct helps, but requires the caller to know which zero values are meaningful and which mean "use default."
+You're building an HTTP client with many optional configuration parameters: timeouts, retry count, a base URL, and custom headers. A constructor with many parameters is unreadable. A config struct helps, but requires the caller to know which zero values are meaningful and which mean "use the default."
 
 ```go
-// server_naive.go
-package server
+// client_naive.go
+package client
 
 import "time"
 
-// Twelve parameters. Which ones are required? What are the defaults?
-// Zero value of time.Duration is 0 — does that mean "no timeout" or "instant timeout"?
-func NewServer(
-    addr string,
-    readTimeout time.Duration,
-    writeTimeout time.Duration,
-    idleTimeout time.Duration,
-    maxConns int,
-    tlsCert string,
-    tlsKey string,
-    enableLogging bool,
-    logLevel string,
-    enableMetrics bool,
-    metricsAddr string,
-    shutdownTimeout time.Duration,
-) *Server {
+// Which parameters are required? What do the zero values mean?
+// Does timeout=0 mean "no timeout" or "instant timeout"?
+func NewClient(
+    baseURL     string,
+    timeout     time.Duration,
+    retries     int,
+    userAgent   string,
+    apiKey      string,
+    maxIdleConn int,
+) *Client {
     // ...
 }
 
-// Calling this is painful and error-prone:
-// s := NewServer(":8080", 5*time.Second, 10*time.Second, 30*time.Second,
-//     100, "", "", true, "info", false, "", 5*time.Second)
+// Calling this is painful:
+// c := NewClient("https://api.example.com", 5*time.Second, 3, "myapp/1.0", "key-123", 10)
 ```
 
-The caller has to remember the position of twelve arguments. Zero values are ambiguous — is `maxConns=0` "unlimited" or "no connections"? Adding a new option means changing every call site.
+The caller must remember the position of every argument. Zero values are ambiguous — is `retries=0` "no retries" or "use the default"? Adding a new parameter changes every call site.
 
 ## Solution
 
@@ -55,113 +48,102 @@ The functional options pattern solves this elegantly. Define an `Option` type as
 
 ```
 ┌──────────────────────────────────┐
-│          NewServer(addr,         │
-│            ...Option)            │
+│        NewClient(baseURL,        │
+│          ...Option)              │
 │──────────────────────────────────│
-│  1. Set defaults in config      │
-│  2. Apply each Option func      │
-│  3. Build and return *Server    │
+│  1. Set defaults in config       │
+│  2. Apply each Option func       │
+│  3. Build and return *Client     │
 └──────────────────────────────────┘
 
 Option = func(*config)
 
-WithReadTimeout(d) ──► func(c *config) { c.readTimeout = d }
-WithMaxConns(n)    ──► func(c *config) { c.maxConns = n }
-WithTLS(cert, key) ──► func(c *config) { c.tls = ... }
+WithTimeout(d)   ──► func(c *config) { c.timeout = d }
+WithRetries(n)   ──► func(c *config) { c.retries = n }
+WithUserAgent(s) ──► func(c *config) { c.userAgent = s }
 ```
 
 Define the internal config and the `Option` type:
 
 ```go
 // options.go
-package server
+package client
 
 import "time"
 
 type config struct {
-    readTimeout  time.Duration
-    writeTimeout time.Duration
-    idleTimeout  time.Duration
-    maxConns     int
-    tlsCert      string
-    tlsKey       string
-    enableLog    bool
-    logLevel     string
+    timeout     time.Duration
+    retries     int
+    userAgent   string
+    apiKey      string
+    maxIdleConn int
 }
 
-// Option configures a Server.
+// Option configures a Client.
 type Option func(*config)
 ```
 
 Each option is a simple function returning an `Option`:
 
 ```go
-// options.go
-package server
+// options.go (continued)
+package client
 
 import "time"
 
-func WithReadTimeout(d time.Duration) Option {
-    return func(c *config) { c.readTimeout = d }
+func WithTimeout(d time.Duration) Option {
+    return func(c *config) { c.timeout = d }
 }
 
-func WithWriteTimeout(d time.Duration) Option {
-    return func(c *config) { c.writeTimeout = d }
+func WithRetries(n int) Option {
+    return func(c *config) { c.retries = n }
 }
 
-func WithMaxConns(n int) Option {
-    return func(c *config) { c.maxConns = n }
+func WithUserAgent(ua string) Option {
+    return func(c *config) { c.userAgent = ua }
 }
 
-func WithTLS(cert, key string) Option {
-    return func(c *config) {
-        c.tlsCert = cert
-        c.tlsKey = key
-    }
+func WithAPIKey(key string) Option {
+    return func(c *config) { c.apiKey = key }
 }
 
-func WithLogging(level string) Option {
-    return func(c *config) {
-        c.enableLog = true
-        c.logLevel = level
-    }
+func WithMaxIdleConns(n int) Option {
+    return func(c *config) { c.maxIdleConn = n }
 }
 ```
 
 The constructor sets sensible defaults, then applies options:
 
 ```go
-// server.go
-package server
+// client.go
+package client
 
 import (
     "fmt"
     "time"
 )
 
-type Server struct {
-    Addr string
-    cfg  config
+type Client struct {
+    BaseURL string
+    cfg     config
 }
 
-func NewServer(addr string, opts ...Option) *Server {
+func NewClient(baseURL string, opts ...Option) *Client {
     cfg := config{
-        readTimeout:  5 * time.Second,
-        writeTimeout: 10 * time.Second,
-        idleTimeout:  120 * time.Second,
-        maxConns:     1000,
-        logLevel:     "info",
+        timeout:     5 * time.Second,
+        retries:     3,
+        userAgent:   "go-client/1.0",
+        maxIdleConn: 10,
     }
     for _, opt := range opts {
         opt(&cfg)
     }
-    return &Server{Addr: addr, cfg: cfg}
+    return &Client{BaseURL: baseURL, cfg: cfg}
 }
 
-func (s *Server) String() string {
-    return fmt.Sprintf("Server{addr=%s, read=%v, write=%v, maxConns=%d, tls=%v, log=%s}",
-        s.Addr, s.cfg.readTimeout, s.cfg.writeTimeout,
-        s.cfg.maxConns, s.cfg.tlsCert != "", s.cfg.logLevel)
+func (c *Client) String() string {
+    return fmt.Sprintf("Client{url=%s, timeout=%v, retries=%d, ua=%s}",
+        c.BaseURL, c.cfg.timeout, c.cfg.retries, c.cfg.userAgent)
 }
 ```
 
@@ -173,31 +155,31 @@ package main
 
 import (
     "fmt"
-    "server"
+    "client"
     "time"
 )
 
 func main() {
     // Minimal — all defaults
-    s1 := server.NewServer(":8080")
-    fmt.Println(s1)
+    c1 := client.NewClient("https://api.example.com")
+    fmt.Println(c1)
 
     // Custom — only the options you care about
-    s2 := server.NewServer(":443",
-        server.WithTLS("cert.pem", "key.pem"),
-        server.WithReadTimeout(30*time.Second),
-        server.WithMaxConns(5000),
-        server.WithLogging("debug"),
+    c2 := client.NewClient("https://api.example.com",
+        client.WithTimeout(30*time.Second),
+        client.WithRetries(5),
+        client.WithAPIKey("secret-key"),
+        client.WithUserAgent("myapp/2.0"),
     )
-    fmt.Println(s2)
+    fmt.Println(c2)
 }
 ```
 
 Output:
 
 ```
-Server{addr=:8080, read=5s, write=10s, maxConns=1000, tls=false, log=info}
-Server{addr=:443, read=30s, write=10s, maxConns=5000, tls=true, log=debug}
+Client{url=https://api.example.com, timeout=5s, retries=3, ua=go-client/1.0}
+Client{url=https://api.example.com, timeout=30s, retries=5, ua=myapp/2.0}
 ```
 
 ## When to Use
@@ -213,18 +195,9 @@ Server{addr=:443, read=30s, write=10s, maxConns=5000, tls=true, log=debug}
 - Construction has a meaningful sequence of steps that must be followed in order — use a chained builder or a step-interface builder instead.
 - You need to reuse a partially configured builder to stamp out similar objects — the functional options pattern creates a new config each time.
 
-## Advantages
+## Tradeoffs
 
-- Clean call sites — only specify what you need.
-- Adding new options is backward compatible — no existing callers change.
-- Defaults are explicit and centralized in one place.
-- Options are composable — you can build "preset" option bundles.
-
-## Disadvantages
-
-- The pattern requires writing one function per option, which adds boilerplate.
-- Option validation happens at runtime, not compile time. An invalid combination won't be caught until the constructor runs.
-- For very simple types, the pattern is over-engineering.
+The functional options pattern costs almost nothing at the call site — callers only name what they care about, and adding a new option never breaks existing code. The cost is one extra function per option, which adds up in large APIs; a twenty-option type means twenty small functions to write and test. Option validation happens at runtime inside the constructor, not at compile time — an invalid combination (mutually exclusive options, out-of-range values) won't be caught until the constructor runs. The pattern also doesn't compose naturally when you want to reuse a partially built object: each `NewClient` call starts fresh from defaults, so you can't cheaply stamp out five clients that share most settings without building a preset slice of options yourself.
 
 ## Related Patterns
 

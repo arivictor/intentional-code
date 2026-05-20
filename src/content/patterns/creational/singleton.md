@@ -11,36 +11,32 @@ tags: [concurrency, state, testability, performance]
 
 In most Go codebases, Singleton is an anti-pattern — not because the idea is wrong, but because global mutable state hides dependencies, makes tests unreliable, and forces every part of your application to use one specific concrete type that you can't swap out. The standard implementation using `sync.Once` initializes the value exactly once, safely across goroutines — and it's correct. Correct isn't the same as advisable.
 
-The pattern has legitimate uses: hardware drivers, license managers, or immutable package-level values compiled at startup (a compiled regex, a frozen lookup table). For shared resources like database pools and loggers, pass the instance through constructors and let `main()` enforce uniqueness.
+The pattern has legitimate uses: hardware drivers, license managers, or immutable package-level values compiled at startup (a compiled regex, a frozen lookup table). For shared resources like loggers and HTTP clients, pass the instance through constructors and let `main()` enforce uniqueness.
 
 ## Problem
 
-Your application needs a database connection pool. Creating multiple pools wastes resources and can hit connection limits. You want exactly one pool shared across the entire application. The naive approach uses a global variable initialized at package load time — but package init order is fragile, and there's no way to configure the pool differently for tests.
+Your application needs a logger. Creating multiple loggers with different state (different output files, different prefixes) produces inconsistent output and wastes resources. You want exactly one logger shared across the entire application. The naive approach uses a global variable initialized at package load time — but package init order is fragile, and there's no way to configure the logger differently for tests.
 
 ```go
-// db_global.go
-package db
+// log_global.go
+package applog
 
-import "database/sql"
+import "log"
 
 // Global state, initialized at import time.
 // Problems:
 // 1. Can't configure differently for tests
 // 2. Package init order may not have config ready yet
-// 3. Any package that imports db gets a real database connection
-// 4. No way to swap in a mock
-var Pool *sql.DB
+// 3. Any package that imports applog writes to the real log file
+// 4. No way to swap in a silent test logger
+var Logger *log.Logger
 
 func init() {
-    var err error
-    Pool, err = sql.Open("postgres", "host=prod-db ...")
-    if err != nil {
-        panic(err)
-    }
+    Logger = log.New(openLogFile(), "[app] ", log.LstdFlags)
 }
 ```
 
-This global pool couples every consumer to a real database. Tests can't run without a PostgreSQL server. The DSN is hardcoded. And `init()` runs at import time, before your application has a chance to read configuration or set up test fixtures.
+This global logger couples every consumer to a real log file. Tests produce noisy output and can't run without the file being writable. `init()` runs at import time, before your application has a chance to read configuration.
 
 ## Solution
 
@@ -50,16 +46,16 @@ The Go-idiomatic singleton uses `sync.Once` for thread-safe lazy initialization.
         sync.Once
             │
   ┌─────────▼──────────┐
-  │  GetPool()         │
+  │  GetLogger()       │
   │  ┌───────────────┐ │
   │  │  once.Do(     │ │
-  │  │    initPool   │ │
+  │  │    initLogger │ │
   │  │  )            │ │
   │  └───────────────┘ │
-  │  return pool       │
+  │  return logger     │
   └────────────────────┘
             │
-  First call: creates pool
+  First call: creates logger
   All others: returns same instance
 ```
 
@@ -67,79 +63,77 @@ The `sync.Once` singleton — correct but not recommended:
 
 ```go
 // singleton.go
-package db
+package applog
 
 import (
-    "database/sql"
+    "io"
+    "log"
     "sync"
 )
 
 var (
-    pool *sql.DB
-    once sync.Once
+    logger *log.Logger
+    once   sync.Once
 )
 
-func GetPool(dsn string) *sql.DB {
+// GetLogger returns the application-wide logger, initializing it on first call.
+func GetLogger(out io.Writer) *log.Logger {
     once.Do(func() {
-        var err error
-        pool, err = sql.Open("postgres", dsn)
-        if err != nil {
-            panic(err)
-        }
+        logger = log.New(out, "[app] ", log.LstdFlags)
     })
-    return pool
+    return logger
 }
 ```
 
-This works correctly — thread-safe, lazy, and the DSN is configurable. But it's still global mutable state. Tests that call `GetPool` get a real database connection, and there's no way to swap in a fake.
+This works correctly — thread-safe, lazy, and the output writer is configurable on first call. But it's still global mutable state. Any test that calls `GetLogger` gets the same logger as production code, with no way to silence or redirect it.
 
-The recommended alternative: dependency injection. Pass the pool as a parameter.
+The recommended alternative: dependency injection. Pass the logger as a parameter.
 
 ```go
-// store.go
-package orders
+// handler.go
+package web
 
-import "database/sql"
+import (
+    "fmt"
+    "log"
+)
 
-// OrderStore depends on an interface, not a global.
-type OrderStore struct {
-    db *sql.DB
+// Handler depends on an injected logger, not a global.
+type Handler struct {
+    log *log.Logger
 }
 
-func NewOrderStore(db *sql.DB) *OrderStore {
-    return &OrderStore{db: db}
+func NewHandler(log *log.Logger) *Handler {
+    return &Handler{log: log}
 }
 
-func (s *OrderStore) FindByID(id string) (*Order, error) {
-    row := s.db.QueryRow("SELECT ... WHERE id = $1", id)
-    return &Order{}, nil
+func (h *Handler) ServeHTTP(path string) {
+    h.log.Printf("request: %s", path)
+    fmt.Println("ok")
 }
 ```
 
-Wire it up in main — the only place that knows about the real database:
+Wire it up in main — the only place that knows about the real logger:
 
 ```go
 // main.go
 package main
 
 import (
-    "database/sql"
-    "fmt"
     "log"
-    "orders"
+    "os"
+    "web"
 )
 
 func main() {
-    db, err := sql.Open("postgres", "host=prod-db ...")
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer db.Close()
+    logger := log.New(os.Stdout, "[app] ", log.LstdFlags)
 
-    store := orders.NewOrderStore(db)
-    fmt.Println(store)
+    h := web.NewHandler(logger)
+    h.ServeHTTP("/api/users")
 }
 ```
+
+In tests, pass `log.New(io.Discard, "", 0)` to silence the logger entirely — no global to reset, no test pollution.
 
 ## When to Use
 
@@ -148,22 +142,13 @@ func main() {
 
 ## When Not to Use
 
-- The "single instance" is a database pool, logger, or service client. Use dependency injection instead — pass it through constructors. Your tests will thank you.
+- The "single instance" is a logger, HTTP client, or service client. Use dependency injection instead — pass it through constructors. Your tests will thank you.
 - You're using Singleton because "there should only be one." That's an application constraint, not a reason to bake it into the type. Let `main()` enforce uniqueness by creating one and passing it around.
 - You need different instances in tests. Singleton makes this painful.
 
-## Advantages
+## Tradeoffs
 
-- Guarantees exactly one instance — useful for resource-constrained objects.
-- `sync.Once` is simple, correct, and has zero contention after initialization.
-- Lazy initialization defers costly setup until actually needed.
-
-## Disadvantages
-
-- Creates hidden global state that makes code harder to reason about.
-- Extremely difficult to test — you can't swap in a fake without build tags or interface wrappers.
-- Violates the Dependency Inversion Principle — consumers depend on a concrete global, not an injected interface.
-- Concurrency bugs if you mutate the singleton's state without additional synchronization.
+`sync.Once` is genuinely correct — zero-cost after the first call, safe across goroutines, and no more fragile than a plain global var. The problem isn't the mechanism, it's what it produces: a hidden dependency. Any function that calls `GetLogger()` implicitly depends on the global, but that dependency doesn't show up in the function's signature, so callers can't see it, tests can't replace it, and linters can't enforce it. The moment you need two loggers — one for the app, one for a library — or a silent logger in tests, the global becomes a liability. `sync.Once` does have one subtle trap: the first caller configures the instance, and all subsequent callers get whatever the first call set up, even if they pass different arguments. If call order matters for configuration, that's a bug waiting to happen.
 
 ## Related Patterns
 

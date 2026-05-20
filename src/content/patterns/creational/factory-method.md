@@ -16,98 +16,88 @@ The pattern earns its keep when you find yourself extending a switch statement e
 
 ## Problem
 
-You're building a notification system. Initially you only send emails, so you hardcode an email sender. Then you need SMS. Then Slack. Every new channel means editing the same function, retesting everything, and risking breakage in channels that were already working.
+You're building a logging library. Initially you only write plain text logs, so you hardcode a text formatter. Then you need JSON for structured logging. Then logfmt for log aggregators. Every new format means editing the same function, retesting everything, and risking breakage in formats that were already working.
 
 ```go
-// notify.go
-package notify
+// log_naive.go
+package log
 
 import "fmt"
 
-func Send(channel, recipient, message string) error {
-    switch channel {
-    case "email":
-        fmt.Printf("Sending email to %s: %s\n", recipient, message)
-        return nil
-    case "sms":
-        fmt.Printf("Sending SMS to %s: %s\n", recipient, message)
-        return nil
-    // Every new channel: add a case, redeploy, re-test everything.
+func Format(format, level, msg string) string {
+    switch format {
+    case "text":
+        return fmt.Sprintf("%s: %s", level, msg)
+    case "json":
+        return fmt.Sprintf(`{"level":%q,"msg":%q}`, level, msg)
+    // Every new format: add a case, redeploy, re-test everything.
     default:
-        return fmt.Errorf("unsupported channel: %s", channel)
+        return msg
     }
 }
 ```
 
-This switch statement is a magnet for change. Every new notification channel requires modifying this function. You can't add channels from outside the package. Testing one channel means loading the code for all of them. And the string-based channel selection has no compile-time safety.
+This switch is a magnet for change. Every new format requires modifying this function. You can't add formats from outside the package. Testing one format means loading the code for all of them.
 
 ## Solution
 
-Define a `Notifier` interface with a single method. Each channel implements it independently. A constructor function selects the right implementation and returns the interface. The caller never sees the concrete types.
+Define a `Formatter` interface with a single method. Each format implements it independently. A constructor function selects the right implementation and returns the interface. The caller never sees the concrete types.
 
 ```
 ┌─────────────────────────┐
 │     <<interface>>       │
-│       Notifier          │
+│       Formatter         │
 │─────────────────────────│
-│ + Notify(to, msg) error │
+│ + Format(level, msg)    │
+│   string                │
 └────────────┬────────────┘
              │ implements
      ┌───────┼────────┐
      │       │        │
 ┌────▼──┐ ┌──▼───┐ ┌──▼────┐
-│ Email │ │ SMS  │ │ Slack │
-│Notif. │ │Notif.│ │Notif. │
+│ Text  │ │ JSON │ │Logfmt │
+│       │ │      │ │       │
 └───────┘ └──────┘ └───────┘
 
-NewNotifier(channel) ──► Notifier
+NewFormatter(name) ──► Formatter
 ```
 
-First, define the interface. Keep it small — one method is ideal.
+First, define the interface:
 
 ```go
-// notifier.go
-package notify
+// formatter.go
+package log
 
-// Notifier sends a notification to a recipient.
-type Notifier interface {
-    Notify(recipient, message string) error
+// Formatter converts a log level and message into an output string.
+type Formatter interface {
+    Format(level, msg string) string
 }
 ```
 
-Each channel is its own struct satisfying the interface. They can live in separate files or even separate packages.
+Each format is its own struct. They can live in separate files or even separate packages.
 
 ```go
-// channels.go
-package notify
+// formatters.go
+package log
 
 import "fmt"
 
-type EmailNotifier struct {
-    SMTPAddr string
+type textFormatter struct{}
+
+func (f *textFormatter) Format(level, msg string) string {
+    return fmt.Sprintf("%s: %s", level, msg)
 }
 
-func (e *EmailNotifier) Notify(recipient, message string) error {
-    fmt.Printf("[email] to=%s via=%s msg=%s\n", recipient, e.SMTPAddr, message)
-    return nil
+type jsonFormatter struct{}
+
+func (f *jsonFormatter) Format(level, msg string) string {
+    return fmt.Sprintf(`{"level":%q,"msg":%q}`, level, msg)
 }
 
-type SMSNotifier struct {
-    APIKey string
-}
+type logfmtFormatter struct{}
 
-func (s *SMSNotifier) Notify(recipient, message string) error {
-    fmt.Printf("[sms] to=%s msg=%s\n", recipient, message)
-    return nil
-}
-
-type SlackNotifier struct {
-    WebhookURL string
-}
-
-func (sl *SlackNotifier) Notify(recipient, message string) error {
-    fmt.Printf("[slack] channel=%s msg=%s\n", recipient, message)
-    return nil
+func (f *logfmtFormatter) Format(level, msg string) string {
+    return fmt.Sprintf("level=%s msg=%q", level, msg)
 }
 ```
 
@@ -115,30 +105,30 @@ Now the factory: a constructor function that returns the interface. Using a map 
 
 ```go
 // factory.go
-package notify
+package log
 
 import "fmt"
 
-// constructor is a function that creates a Notifier.
-type constructor func() Notifier
+// constructor is a function that creates a Formatter.
+type constructor func() Formatter
 
-// registry maps channel names to their constructors.
+// registry maps format names to their constructors.
 var registry = map[string]constructor{
-    "email": func() Notifier { return &EmailNotifier{SMTPAddr: "smtp.example.com:587"} },
-    "sms":   func() Notifier { return &SMSNotifier{APIKey: "key-123"} },
-    "slack": func() Notifier { return &SlackNotifier{WebhookURL: "https://hooks.slack.com/xxx"} },
+    "text":   func() Formatter { return &textFormatter{} },
+    "json":   func() Formatter { return &jsonFormatter{} },
+    "logfmt": func() Formatter { return &logfmtFormatter{} },
 }
 
-// Register adds a new channel at runtime.
+// Register adds a new format at runtime.
 func Register(name string, c constructor) {
     registry[name] = c
 }
 
-// NewNotifier returns a Notifier for the given channel.
-func NewNotifier(channel string) (Notifier, error) {
-    ctor, ok := registry[channel]
+// NewFormatter returns a Formatter for the given format name.
+func NewFormatter(name string) (Formatter, error) {
+    ctor, ok := registry[name]
     if !ok {
-        return nil, fmt.Errorf("unknown channel: %s", channel)
+        return nil, fmt.Errorf("unknown format: %s", name)
     }
     return ctor(), nil
 }
@@ -150,17 +140,17 @@ package main
 
 import (
     "fmt"
-    "notify"
+    "log"
 )
 
 func main() {
-    for _, ch := range []string{"email", "sms", "slack"} {
-        n, err := notify.NewNotifier(ch)
+    for _, name := range []string{"text", "json", "logfmt"} {
+        f, err := log.NewFormatter(name)
         if err != nil {
             fmt.Println(err)
             continue
         }
-        n.Notify("alice@example.com", "Your order shipped")
+        fmt.Println(f.Format("info", "server started"))
     }
 }
 ```
@@ -168,9 +158,9 @@ func main() {
 Output:
 
 ```
-[email] to=alice@example.com via=smtp.example.com:587 msg=Your order shipped
-[sms] to=alice@example.com msg=Your order shipped
-[slack] channel=alice@example.com msg=Your order shipped
+info: server started
+{"level":"info","msg":"server started"}
+level=info msg="server started"
 ```
 
 ## When to Use
@@ -182,26 +172,16 @@ Output:
 
 ## When Not to Use
 
-- You have only one or two implementations and no expectation of more. A plain constructor function (`NewEmailNotifier`) is simpler and more direct.
+- You have only one or two implementations and no expectation of more. A plain constructor function (`NewJSONFormatter`) is simpler and more direct.
 - The concrete type matters to the caller — they need access to type-specific methods beyond the interface. In that case, return the concrete type.
 - The factory adds indirection without benefit. Don't add a factory "just in case" — add it when you feel the switch-statement pain.
 
-## Advantages
+## Tradeoffs
 
-- New implementations require zero changes to existing code — just register a new constructor.
-- Callers depend only on the interface, so they're easy to test with fakes.
-- The map-of-constructors approach is extensible at runtime (plugins, configuration).
-- Each implementation is isolated — changes to email don't risk breaking SMS.
-
-## Disadvantages
-
-- Adds indirection — you have to look up the registry to find the concrete type.
-- Runtime errors (unknown channel) instead of compile-time errors for unregistered types.
-- For small, stable sets of types, a simple switch or direct construction is clearer.
-- The registry is package-level mutable state, which can complicate testing if not managed carefully.
+The map-of-constructors approach pays for itself quickly: new formats require zero changes to existing code, and each formatter is isolated so a bug in JSON can't break text. The cost is indirection — you must look up the registry to find the concrete type, and unknown format names become runtime errors rather than compile-time ones. The registry is also package-level mutable state, which can cause test flakiness if tests register formats and don't clean up. For small, stable sets of types — say, two formats you're never changing — a plain switch or direct construction is clearer; the factory only earns its overhead when the set of implementations is open-ended or needs to be extended from outside the package.
 
 ## Related Patterns
 
-- **Abstract Factory** — Use Abstract Factory when you need to guarantee that multiple created types come from the same family and work together (e.g., a macOS button always paired with a macOS dialog); Factory Method is simpler when you only need to select one type.
+- **Abstract Factory** — Use Abstract Factory when you need to guarantee that multiple created types come from the same family and work together; Factory Method is simpler when you only need to select one type.
 - **Builder** — Use Builder when construction requires many optional parameters or a meaningful sequence of steps; Factory Method is for selecting *which* type to create, not for configuring a complex one.
 - **Prototype** — Use Prototype when cloning an existing instance is cheaper or more convenient than calling a constructor; Factory Method when you want to encapsulate the constructor selection logic.

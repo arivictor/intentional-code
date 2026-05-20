@@ -15,180 +15,167 @@ In Go, the context struct holds a `State` interface value and delegates method c
 
 ## Problem
 
-You're building a vending machine. Its behavior depends on whether it has items, whether money has been inserted, and whether an item is being dispensed. A single type with conditionals checking state at every method becomes a mess.
+You're modeling a network connection. Its behavior depends on whether it's disconnected, connecting, or connected. A single type with string-based state and switch statements at every method becomes unmanageable.
 
 ```go
-// state_switches.go
-package vending
+// switches.go
+package conn
 
-type Machine struct {
-    state   string
-    balance int
-    items   int
+type Connection struct {
+    state string
 }
 
-func (m *Machine) InsertCoin(amount int) {
-    switch m.state {
-    case "idle":
-        m.balance += amount
-        m.state = "has_money"
-    case "has_money":
-        m.balance += amount
-    case "dispensing":
-        // can't insert while dispensing
-    case "sold_out":
-        // return the coin
+func (c *Connection) Connect() {
+    switch c.state {
+    case "disconnected":
+        c.state = "connecting"
+        dial()
+    case "connecting":
+        // already connecting, ignore
+    case "connected":
+        // already connected
     }
-    // Every method has this switch. Every new state adds a case everywhere.
+    // Every method repeats this switch.
+    // A new state ("reconnecting") adds a case everywhere.
 }
 ```
 
-State logic is scattered across every method. Adding a new state (e.g., "maintenance") means adding a case to every switch in every method. States and their transitions are implicit — you have to read all the switches to understand the state machine.
+State logic is scattered across every method. Adding a new state means adding a case to every switch in every method. States and their transitions are implicit — you have to read all the switches to understand the machine.
 
 ## Solution
 
-Define a `State` interface. Each state is a struct implementing the interface. The machine delegates to the current state, and transitions happen by replacing the current state.
+Define a `State` interface. Each state is a struct implementing the interface. The connection delegates to the current state, and transitions happen by replacing the state field.
 
 ```
 ┌──────────────────┐
-│    Machine       │
+│   Connection     │
 │──────────────────│
 │ state State      │──► current state
-│ InsertCoin(amt)  │
-│ Dispense()       │
+│ Connect()        │
+│ Send(data)       │
+│ Disconnect()     │
 └──────────────────┘
 
 <<interface>> State
-├── IdleState
-├── HasMoneyState
-├── DispensingState
-└── SoldOutState
+├── DisconnectedState
+├── ConnectingState
+└── ConnectedState
 ```
 
 ```go
-// vending.go
-package vending
+// conn.go
+package conn
 
 import "fmt"
 
 type State interface {
-    InsertCoin(m *Machine, amount int)
-    Dispense(m *Machine)
+    Connect(c *Connection)
+    Send(c *Connection, data string)
+    Disconnect(c *Connection)
     String() string
 }
 
-type Machine struct {
-    state   State
-    Balance int
-    Items   int
+type Connection struct {
+    state State
 }
 
-func NewMachine(items int) *Machine {
-    m := &Machine{Items: items}
-    if items > 0 {
-        m.state = &IdleState{}
-    } else {
-        m.state = &SoldOutState{}
-    }
-    return m
+func NewConnection() *Connection {
+    return &Connection{state: &DisconnectedState{}}
 }
 
-func (m *Machine) SetState(s State) { m.state = s }
-
-func (m *Machine) InsertCoin(amount int) {
-    m.state.InsertCoin(m, amount)
+func (c *Connection) SetState(s State) {
+    fmt.Printf("  → %s\n", s)
+    c.state = s
 }
 
-func (m *Machine) Dispense() {
-    m.state.Dispense(m)
+func (c *Connection) Connect()            { c.state.Connect(c) }
+func (c *Connection) Send(data string)    { c.state.Send(c, data) }
+func (c *Connection) Disconnect()         { c.state.Disconnect(c) }
+
+// DisconnectedState — idle, no connection.
+type DisconnectedState struct{}
+
+func (s *DisconnectedState) Connect(c *Connection) {
+    fmt.Println("Dialing...")
+    c.SetState(&ConnectingState{})
 }
-
-// IdleState — waiting for money
-type IdleState struct{}
-
-func (s *IdleState) InsertCoin(m *Machine, amount int) {
-    m.Balance += amount
-    fmt.Printf("Inserted %d cents. Balance: %d\n", amount, m.Balance)
-    m.SetState(&HasMoneyState{})
+func (s *DisconnectedState) Send(c *Connection, data string) {
+    fmt.Println("Cannot send: not connected.")
 }
-
-func (s *IdleState) Dispense(m *Machine) {
-    fmt.Println("Insert coin first.")
+func (s *DisconnectedState) Disconnect(c *Connection) {
+    fmt.Println("Already disconnected.")
 }
+func (s *DisconnectedState) String() string { return "disconnected" }
 
-func (s *IdleState) String() string { return "idle" }
+// ConnectingState — dial in progress.
+type ConnectingState struct{}
 
-// HasMoneyState — money inserted, ready to dispense
-type HasMoneyState struct{}
-
-func (s *HasMoneyState) InsertCoin(m *Machine, amount int) {
-    m.Balance += amount
-    fmt.Printf("Added %d cents. Balance: %d\n", amount, m.Balance)
+func (s *ConnectingState) Connect(c *Connection) {
+    fmt.Println("Already connecting.")
 }
-
-func (s *HasMoneyState) Dispense(m *Machine) {
-    if m.Balance < 100 {
-        fmt.Printf("Not enough. Need 100, have %d\n", m.Balance)
-        return
-    }
-    m.Balance -= 100
-    m.Items--
-    fmt.Println("Dispensing item...")
-    if m.Items == 0 {
-        m.SetState(&SoldOutState{})
-    } else {
-        m.SetState(&IdleState{})
-    }
+func (s *ConnectingState) Send(c *Connection, data string) {
+    fmt.Println("Cannot send: still connecting.")
 }
-
-func (s *HasMoneyState) String() string { return "has_money" }
-
-// SoldOutState — no items left
-type SoldOutState struct{}
-
-func (s *SoldOutState) InsertCoin(m *Machine, amount int) {
-    fmt.Println("Machine is sold out. Returning coin.")
+func (s *ConnectingState) Disconnect(c *Connection) {
+    fmt.Println("Aborting connection.")
+    c.SetState(&DisconnectedState{})
 }
+func (s *ConnectingState) String() string { return "connecting" }
 
-func (s *SoldOutState) Dispense(m *Machine) {
-    fmt.Println("Sold out.")
+// ConnectedState — live connection.
+type ConnectedState struct{}
+
+func (s *ConnectedState) Connect(c *Connection) {
+    fmt.Println("Already connected.")
 }
-
-func (s *SoldOutState) String() string { return "sold_out" }
+func (s *ConnectedState) Send(c *Connection, data string) {
+    fmt.Printf("Sending: %q\n", data)
+}
+func (s *ConnectedState) Disconnect(c *Connection) {
+    fmt.Println("Closing connection.")
+    c.SetState(&DisconnectedState{})
+}
+func (s *ConnectedState) String() string { return "connected" }
 ```
 
 ```go
 // main.go
 package main
 
-import "vending"
+import "conn"
 
 func main() {
-    m := vending.NewMachine(2)
-    m.Dispense()
-    m.InsertCoin(50)
-    m.Dispense()
-    m.InsertCoin(50)
-    m.Dispense()
-    m.InsertCoin(100)
-    m.Dispense()
-    m.InsertCoin(100)
-    m.Dispense()
+    c := conn.NewConnection()
+
+    c.Send("hello")       // blocked — not connected
+    c.Connect()           // transition: disconnected → connecting
+    c.Connect()           // no-op
+    c.Send("hello")       // blocked — still connecting
+
+    // simulate dial completing
+    c.SetState(&conn.ConnectedState{})
+
+    c.Send("hello")       // delivered
+    c.Send("world")       // delivered
+    c.Disconnect()        // transition: connected → disconnected
+    c.Send("hello")       // blocked again
 }
 ```
 
 Output:
 
 ```
-Insert coin first.
-Inserted 50 cents. Balance: 50
-Not enough. Need 100, have 50
-Added 50 cents. Balance: 100
-Dispensing item...
-Inserted 100 cents. Balance: 100
-Dispensing item...
-Machine is sold out. Returning coin.
-Sold out.
+Cannot send: not connected.
+Dialing...
+  → connecting
+Already connecting.
+Cannot send: still connecting.
+  → connected
+Sending: "hello"
+Sending: "world"
+Closing connection.
+  → disconnected
+Cannot send: not connected.
 ```
 
 ## When to Use
@@ -202,17 +189,9 @@ Sold out.
 - There are only two or three states with trivial behavior differences. A boolean or enum is simpler.
 - The state machine is better expressed as a state-transition table (map of state × event → next state).
 
-## Advantages
+## Tradeoffs
 
-- Each state's behavior is isolated in its own type — Single Responsibility.
-- Adding a new state doesn't require modifying existing states.
-- State transitions are explicit and easy to trace.
-
-## Disadvantages
-
-- More types — one per state plus the State interface.
-- States that need to access the machine's internals get a `*Machine` reference, which can feel like a circular dependency.
-- For simple state machines, the pattern is heavier than a switch.
+Each state's behavior is isolated in its own type, which makes adding a new state cheap — you write one new struct and don't touch any existing state. The cost is type proliferation: a machine with seven states produces seven structs plus the interface, which can feel heavy for a relatively simple machine. States that initiate transitions hold a `*Connection` reference, creating a circular-looking dependency between the state and its context — this is normal for the pattern but surprises developers who encounter it for the first time. For machines with many states and mostly uniform behavior differences, a table-driven approach (a `map[State]map[Event]State`) is often more readable than the full struct-per-state form.
 
 ## Related Patterns
 

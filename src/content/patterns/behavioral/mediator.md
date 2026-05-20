@@ -15,7 +15,7 @@ In Go, the mediator is a struct that holds references to the participants. The p
 
 ## Problem
 
-You're building a chat room system. Without a mediator, each user must hold references to every other user and send messages directly. Adding or removing users means updating everyone's contact list.
+You're building a chat room. Without a mediator, each user must hold a reference to every other user and send messages directly. Adding or removing users means updating everyone's contact list.
 
 ```go
 // mesh.go
@@ -33,7 +33,7 @@ func (u *User) Send(msg string) {
 }
 
 func (u *User) Receive(from, msg string) {
-    // ...
+    // handle message
 }
 
 // Every user knows every other user.
@@ -45,18 +45,18 @@ Each participant directly references every other participant. The number of conn
 
 ## Solution
 
-Introduce a `ChatRoom` mediator. Users register with the room and send messages through it. The room decides who receives each message.
+Introduce a `Room` mediator. Users register with the room and send messages through it. The room decides who receives each message.
 
 ```
-     ┌─────────────────┐
-     │   ChatRoom       │
-     │   (mediator)     │
-     │                  │
-     │ Broadcast(msg)   │
-     └──┬────┬────┬─────┘
-        │    │    │
-   ┌────▼┐ ┌▼────▼┐
-   │UserA│ │UserB │  ...
+     ┌──────────────┐
+     │     Room     │
+     │  (mediator)  │
+     │              │
+     │ Broadcast()  │
+     └──┬────┬──────┘
+        │    │
+   ┌────▼┐ ┌─▼────┐
+   │Alice│ │ Bob  │  ...
    └─────┘ └──────┘
 ```
 
@@ -67,13 +67,13 @@ package chat
 import "fmt"
 
 type Mediator interface {
-    Broadcast(sender *User, message string)
+    Broadcast(sender *User, msg string)
     Register(user *User)
 }
 
 type User struct {
-    Name    string
-    room    Mediator
+    Name string
+    room Mediator
 }
 
 func NewUser(name string, room Mediator) *User {
@@ -82,32 +82,32 @@ func NewUser(name string, room Mediator) *User {
     return u
 }
 
-func (u *User) Send(message string) {
-    fmt.Printf("%s sends: %s\n", u.Name, message)
-    u.room.Broadcast(u, message)
+func (u *User) Send(msg string) {
+    fmt.Printf("%s sends: %s\n", u.Name, msg)
+    u.room.Broadcast(u, msg)
 }
 
-func (u *User) Receive(from, message string) {
-    fmt.Printf("  %s received from %s: %s\n", u.Name, from, message)
+func (u *User) Receive(from, msg string) {
+    fmt.Printf("  %s received from %s: %s\n", u.Name, from, msg)
 }
 
-// ChatRoom is the concrete mediator.
-type ChatRoom struct {
+// Room is the concrete mediator.
+type Room struct {
     users []*User
 }
 
-func NewChatRoom() *ChatRoom {
-    return &ChatRoom{}
+func NewRoom() *Room {
+    return &Room{}
 }
 
-func (r *ChatRoom) Register(user *User) {
+func (r *Room) Register(user *User) {
     r.users = append(r.users, user)
 }
 
-func (r *ChatRoom) Broadcast(sender *User, message string) {
+func (r *Room) Broadcast(sender *User, msg string) {
     for _, u := range r.users {
         if u != sender {
-            u.Receive(sender.Name, message)
+            u.Receive(sender.Name, msg)
         }
     }
 }
@@ -120,11 +120,11 @@ package main
 import "chat"
 
 func main() {
-    room := chat.NewChatRoom()
+    room := chat.NewRoom()
 
     alice := chat.NewUser("Alice", room)
     bob := chat.NewUser("Bob", room)
-    charlie := chat.NewUser("Charlie", room)
+    _ = chat.NewUser("Charlie", room)
 
     alice.Send("Hello everyone!")
     bob.Send("Hey Alice!")
@@ -154,17 +154,9 @@ Bob sends: Hey Alice!
 - The mediator becomes a god object that knows too much about its participants.
 - The communication pattern is simple and unlikely to change.
 
-## Advantages
+## Tradeoffs
 
-- Reduces coupling — participants don't reference each other.
-- Communication logic is centralized and easy to modify.
-- Easy to add new participants without changing existing ones.
-
-## Disadvantages
-
-- The mediator can become a god object — all complexity concentrates there.
-- Single point of failure — if the mediator breaks, everything breaks.
-- Indirection makes message flow harder to trace.
+The main gain is that participants stay small — they only know about the mediator, not about each other. This makes adding a new participant a local change: register with the room and you're done. The cost is that the mediator absorbs all the routing complexity, and as you add features (private messages, topic filtering, muting) it becomes the place where everything hard lives. A mediator that reaches into participant internals to implement its logic has quietly become a god object that violates the encapsulation it was meant to protect. In practice, keep the mediator's interface narrow — it should route, not orchestrate — and split it before it grows beyond one responsibility.
 
 ## Related Patterns
 

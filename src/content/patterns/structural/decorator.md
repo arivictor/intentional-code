@@ -15,7 +15,7 @@ The canonical Go example is `http.Handler` middleware: a function that takes a h
 
 ## Problem
 
-You have an HTTP handler that serves an API. You need to add logging. Then authentication. Then CORS headers. Then rate limiting. Each concern is independent, but you don't want to stuff all of them into one giant handler. And you want to compose them differently for different routes.
+You have an HTTP handler that serves an API. You need to add logging. Then authentication. Then CORS headers. Each concern is independent, but you don't want to stuff all of them into one giant handler. And you want to compose them differently for different routes.
 
 ```go
 // fat_handler.go
@@ -27,7 +27,7 @@ import (
     "time"
 )
 
-func handleOrder(w http.ResponseWriter, r *http.Request) {
+func handleItems(w http.ResponseWriter, r *http.Request) {
     // Authentication check (shouldn't be here)
     token := r.Header.Get("Authorization")
     if token == "" {
@@ -44,12 +44,12 @@ func handleOrder(w http.ResponseWriter, r *http.Request) {
     // CORS (shouldn't be here)
     w.Header().Set("Access-Control-Allow-Origin", "*")
 
-    // Actual business logic — buried under cross-cutting concerns
-    w.Write([]byte("order processed"))
+    // Actual response — buried under cross-cutting concerns
+    w.Write([]byte("items: []"))
 }
 ```
 
-Every cross-cutting concern is tangled into the handler. Want logging on another route? Copy-paste. Want auth on some routes but not others? Conditionals. This doesn't scale, and the business logic is obscured by plumbing.
+Every cross-cutting concern is tangled into the handler. Want logging on another route? Copy-paste. Want auth on some routes but not others? Conditionals. This doesn't scale, and the response logic is obscured by plumbing.
 
 ## Solution
 
@@ -117,8 +117,8 @@ import (
     "net/http"
 )
 
-func orderHandler(w http.ResponseWriter, r *http.Request) {
-    w.Write([]byte("order processed"))
+func itemsHandler(w http.ResponseWriter, r *http.Request) {
+    w.Write([]byte("items: []"))
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
@@ -126,11 +126,11 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-    // Orders: logging + auth + CORS
-    orders := middleware.Logging(
+    // Items: logging + auth + CORS
+    items := middleware.Logging(
         middleware.Auth(
             middleware.CORS(
-                http.HandlerFunc(orderHandler),
+                http.HandlerFunc(itemsHandler),
             ),
         ),
     )
@@ -138,7 +138,7 @@ func main() {
     // Health: logging only — no auth, no CORS
     health := middleware.Logging(http.HandlerFunc(healthHandler))
 
-    http.Handle("/orders", orders)
+    http.Handle("/items", items)
     http.Handle("/health", health)
     http.ListenAndServe(":8080", nil)
 }
@@ -148,7 +148,7 @@ Output:
 
 ```
 GET /health 52µs
-GET /orders 128µs
+GET /items 128µs
 ```
 
 ## When to Use
@@ -164,17 +164,9 @@ GET /orders 128µs
 - Deep decorator stacks (5+ layers) make debugging difficult. Consider whether a [Chain of Responsibility](/go/patterns/behavioral/chain-of-responsibility) would be clearer.
 - You only ever need one fixed combination. Direct composition in a single handler might be simpler.
 
-## Advantages
+## Tradeoffs
 
-- Each concern is isolated in its own function — Single Responsibility.
-- Compose any combination at the call site without creating new types.
-- Standard Go idiom for HTTP middleware — instantly recognizable.
-
-## Disadvantages
-
-- Deep wrapping can make stack traces harder to read.
-- Order matters: `Logging(Auth(handler))` logs all requests; `Auth(Logging(handler))` only logs authenticated ones.
-- Each wrapper adds a function call, though the overhead is negligible for HTTP handlers.
+The function-wrapper form is idiomatic Go — returning `http.HandlerFunc(func(...) {...})` adds almost no boilerplate and every Go developer recognises it instantly. The cost that accumulates is order sensitivity: `Logging(Auth(handler))` logs all requests including rejected ones; `Auth(Logging(handler))` only logs authenticated traffic — small difference, large operational impact, and the compiler won't warn you either way. Stack traces through multiple anonymous closures also become hard to read; when `Auth` short-circuits inside a chain five wrappers deep, the request path in logs shows nothing useful. Name your handler functions rather than using anonymous closures, and keep chains to three or four layers.
 
 ## Related Patterns
 

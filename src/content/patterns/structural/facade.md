@@ -10,115 +10,100 @@ isFeatured: true
 
 # Facade
 
-Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch processor all repeat the same multi-step sequence — validate, charge, reserve, notify — that sequence belongs in one struct, not scattered across entry points. In Go, a facade struct accepts its subsystems as interfaces (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.
+Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch job all repeat the same multi-step sequence — validate, process, notify, log — that sequence belongs in one struct, not scattered across entry points. In Go, a facade struct accepts its subsystems as interfaces (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.
 
 ## Problem
 
-You're building an e-commerce checkout. The process involves validating the cart, checking inventory, processing payment, sending a confirmation email, and updating analytics. Each subsystem has its own package with its own API. Orchestrating all of them in every handler that needs "checkout" logic is verbose and error-prone.
+You're building a file conversion tool. The process involves validating the file, converting the format, writing the result, and logging what happened. Each step has its own package. Orchestrating all of them in every place that needs "convert a file" is verbose and error-prone.
 
 ```go
-// checkout_scattered.go
+// scattered.go
 package handler
 
-func HandleCheckout(w http.ResponseWriter, r *http.Request) {
-    cart := cartpkg.Load(r)
-    if err := cartpkg.Validate(cart); err != nil { /* ... */ }
-    for _, item := range cart.Items {
-        if !inventory.Check(item.SKU, item.Qty); err != nil { /* ... */ }
-    }
-    txn, err := payment.Charge(cart.CustomerID, cart.Total())
+func HandleConvert(path string) {
+    if err := validate.CheckFile(path); err != nil { /* ... */ }
+    data, err := reader.Read(path)
     if err != nil { /* ... */ }
-    inventory.Reserve(cart.Items)
-    email.SendConfirmation(cart.CustomerEmail, txn.ID)
-    analytics.Track("checkout", map[string]string{"txn": txn.ID})
-    // Every handler that needs checkout must repeat this dance
+    converted, err := converter.ToJSON(data)
+    if err != nil { /* ... */ }
+    out := strings.TrimSuffix(path, filepath.Ext(path)) + ".json"
+    if err := writer.Write(out, converted); err != nil { /* ... */ }
+    logger.Log("converted " + path + " → " + out)
+    // Every entry point that needs conversion must repeat this dance.
 }
 ```
 
-This orchestration logic is duplicated wherever checkout happens — the HTTP handler, a CLI tool, a batch processor. Change the sequence (e.g., add fraud checking) and you must find and update every copy.
+This orchestration logic is duplicated wherever conversion happens — the HTTP handler, a CLI tool, a batch job. Change the sequence (add a compression step) and you must find and update every copy.
 
 ## Solution
 
-Create a `Checkout` facade struct that encapsulates the multi-step process. Callers get one method; the facade coordinates the subsystems.
+Create a `Converter` facade struct that encapsulates the multi-step process. Callers get one method; the facade coordinates the subsystems.
 
 ```
-                  ┌────────────────────┐
-    Handler ─────►│   CheckoutFacade   │
-    CLI    ─────►│                    │
-    Batch  ─────►│ PlaceOrder(cart)   │
-                  └───────┬────────────┘
-                          │ coordinates
-            ┌─────────────┼─────────────────┐
-            │             │                 │
-      ┌─────▼────┐  ┌─────▼────┐   ┌───────▼──────┐
-      │ Inventory │  │ Payment  │   │ Email/Analyt.│
-      └──────────┘  └──────────┘   └──────────────┘
+                  ┌──────────────────────┐
+    Handler ─────►│   ConverterFacade    │
+    CLI     ─────►│                      │
+    Batch   ─────►│ Convert(src, dst)    │
+                  └──────────┬───────────┘
+                             │ coordinates
+            ┌────────────────┼────────────────┐
+            │                │                │
+      ┌─────▼──────┐  ┌──────▼──────┐  ┌─────▼──────┐
+      │  Validator  │  │  Converter  │  │   Writer   │
+      └────────────┘  └─────────────┘  └────────────┘
 ```
 
 ```go
-// checkout.go
-package checkout
+// converter.go
+package convert
 
 import "fmt"
 
 // Dependencies as interfaces — testable, swappable.
-type InventoryChecker interface {
-    Available(sku string, qty int) bool
-    Reserve(sku string, qty int) error
+type Validator interface {
+    Validate(path string) error
 }
 
-type PaymentProcessor interface {
-    Charge(customerID string, amount int64) (string, error)
+type Transformer interface {
+    Transform(data []byte) ([]byte, error)
 }
 
-type Mailer interface {
-    SendConfirmation(email, txnID string) error
+type Writer interface {
+    Write(path string, data []byte) error
 }
 
-type CartItem struct {
-    SKU string
-    Qty int
+type Logger interface {
+    Log(msg string)
 }
 
-type Cart struct {
-    CustomerID    string
-    CustomerEmail string
-    Items         []CartItem
-    Total         int64
-}
-
-// Facade coordinates the checkout process.
+// Facade coordinates the conversion process.
 type Facade struct {
-    inventory InventoryChecker
-    payment   PaymentProcessor
-    mailer    Mailer
+    validator   Validator
+    transformer Transformer
+    writer      Writer
+    logger      Logger
 }
 
-func NewFacade(inv InventoryChecker, pay PaymentProcessor, mail Mailer) *Facade {
-    return &Facade{inventory: inv, payment: pay, mailer: mail}
+func NewFacade(v Validator, t Transformer, w Writer, l Logger) *Facade {
+    return &Facade{validator: v, transformer: t, writer: w, logger: l}
 }
 
-func (f *Facade) PlaceOrder(cart Cart) (string, error) {
-    for _, item := range cart.Items {
-        if !f.inventory.Available(item.SKU, item.Qty) {
-            return "", fmt.Errorf("item %s not available", item.SKU)
-        }
+func (f *Facade) Convert(src, dst string, data []byte) error {
+    if err := f.validator.Validate(src); err != nil {
+        return fmt.Errorf("validation failed: %w", err)
     }
 
-    txnID, err := f.payment.Charge(cart.CustomerID, cart.Total)
+    result, err := f.transformer.Transform(data)
     if err != nil {
-        return "", fmt.Errorf("payment failed: %w", err)
+        return fmt.Errorf("transform failed: %w", err)
     }
 
-    for _, item := range cart.Items {
-        if err := f.inventory.Reserve(item.SKU, item.Qty); err != nil {
-            return "", fmt.Errorf("reservation failed: %w", err)
-        }
+    if err := f.writer.Write(dst, result); err != nil {
+        return fmt.Errorf("write failed: %w", err)
     }
 
-    f.mailer.SendConfirmation(cart.CustomerEmail, txnID)
-
-    return txnID, nil
+    f.logger.Log(fmt.Sprintf("converted %s → %s", src, dst))
+    return nil
 }
 ```
 
@@ -126,35 +111,31 @@ func (f *Facade) PlaceOrder(cart Cart) (string, error) {
 // main.go
 package main
 
-import "fmt"
+import (
+    "convert"
+    "fmt"
+)
 
 func main() {
-    facade := checkout.NewFacade(
-        &warehouse.InventoryService{},
-        &stripe.PaymentService{APIKey: "sk_live_..."},
-        &sendgrid.Mailer{APIKey: "SG...."},
+    facade := convert.NewFacade(
+        &convert.FileValidator{},
+        &convert.JSONTransformer{},
+        &convert.DiskWriter{},
+        &convert.StdoutLogger{},
     )
 
-    cart := checkout.Cart{
-        CustomerID:    "cust_42",
-        CustomerEmail: "alice@example.com",
-        Items:         []checkout.CartItem{{SKU: "WIDGET-7", Qty: 2}},
-        Total:         4999,
-    }
-
-    txnID, err := facade.PlaceOrder(cart)
-    if err != nil {
-        fmt.Println("checkout failed:", err)
+    data := []byte(`name: Alice\nage: 30`)
+    if err := facade.Convert("person.yaml", "person.json", data); err != nil {
+        fmt.Println("conversion failed:", err)
         return
     }
-    fmt.Println("Order placed:", txnID)
 }
 ```
 
 Output:
 
 ```
-Order placed: txn_abc123
+converted person.yaml → person.json
 ```
 
 ## When to Use
@@ -169,17 +150,9 @@ Order placed: txn_abc123
 - Different callers need different orchestration sequences. The facade becomes a god object with many methods.
 - You're hiding complexity that callers actually need to understand and control.
 
-## Advantages
+## Tradeoffs
 
-- Simplifies client code — one method instead of a multi-step dance.
-- Changes to the process happen in one place.
-- Subsystems remain independent and reusable outside the facade.
-
-## Disadvantages
-
-- Can become a god object if it accumulates too many operations.
-- Hides subsystem capabilities that power users might need.
-- Adds a layer of abstraction that may not be justified for simple workflows.
+The benefit is clear when the same sequence appears in three or more places — one change propagates everywhere. The risk is that the facade becomes a magnet for new concerns: someone adds compression, then encryption, then metrics, and the facade accumulates a dozen dependencies and a `Convert` method with a dozen steps. At that point it's a god object, not a simplification. Fight this by keeping the facade focused on one workflow; if a second distinct workflow emerges, create a second facade rather than extending the first. The interface-based dependencies are worth the ceremony — they make the facade trivially testable with simple fakes, which is difficult if the facade instantiates its own subsystems.
 
 ## Related Patterns
 

@@ -15,110 +15,84 @@ The pattern's core guarantee: when the subject's state changes, it doesn't know 
 
 ## Problem
 
-You're building an order system. When an order status changes, the UI needs to update, an email needs to be sent, and analytics need to be tracked. Hardcoding all three responses into the order update function means every new listener requires modifying core business logic.
+You're building a config loader. When the config reloads, the logger needs to update its log level, the HTTP server needs to update its timeout, and a metrics counter needs to increment. Hardcoding all three reactions inside the reload function means every new listener requires modifying core config logic.
 
 ```go
 // coupled.go
-package orders
+package config
 
-func (o *Order) SetStatus(s Status) {
-    o.Status = s
+func (c *Config) Reload() {
+    c.load()
     // Direct coupling to every listener
-    updateUI(o)
-    sendStatusEmail(o)
-    trackAnalytics("status_change", o.ID)
-    // Adding webhook notification? Edit this function.
-    // Adding audit logging? Edit this function.
+    logger.SetLevel(c.LogLevel)
+    server.SetTimeout(c.Timeout)
+    metrics.Inc("config.reload")
+    // Adding a new listener? Edit this function.
 }
 ```
 
-The order type directly calls every subsystem that cares about status changes. Adding a new listener requires modifying `SetStatus`. The order package imports UI, email, and analytics packages — a dependency mess.
+The config type directly calls every subsystem that cares about changes. Adding a new listener requires modifying `Reload`. The config package imports logger, server, and metrics packages — a dependency tangle.
 
 ## Solution
 
-Define an `Observer` interface and let the subject maintain a list of observers. When state changes, iterate the list and notify each one. Observers register and unregister themselves.
+Define an `Observer` interface and let the subject maintain a list of observers. When state changes, iterate the list and notify each one.
 
 ```
 ┌─────────────────┐
-│   OrderSubject  │
+│   Config        │
 │─────────────────│
 │ Subscribe(obs)  │
 │ Unsubscribe(obs)│
-│ Notify()        │
+│ notify()        │
 │ observers []Obs │
 └────────┬────────┘
          │ notifies
    ┌─────┼──────┐
    │     │      │
- Email  UI   Analytics
+Logger  Server  Metrics
 ```
 
 ```go
-// orders.go
-package orders
+// config.go
+package config
 
 import "fmt"
 
-type Status string
-
-const (
-    Pending   Status = "pending"
-    Confirmed Status = "confirmed"
-    Shipped   Status = "shipped"
-)
-
-type Order struct {
-    ID     string
-    Status Status
-}
-
-// Observer receives order updates.
-type Observer interface {
-    OnOrderUpdate(order Order)
-}
-
-// Subject manages observers and notifications.
-type Subject struct {
+type Config struct {
+    LogLevel string
+    Timeout  int
     observers []Observer
 }
 
-func (s *Subject) Subscribe(obs Observer) {
-    s.observers = append(s.observers, obs)
+// Observer receives config change notifications.
+type Observer interface {
+    OnConfigChange(cfg Config)
 }
 
-func (s *Subject) Unsubscribe(obs Observer) {
-    for i, o := range s.observers {
+func (c *Config) Subscribe(obs Observer) {
+    c.observers = append(c.observers, obs)
+}
+
+func (c *Config) Unsubscribe(obs Observer) {
+    for i, o := range c.observers {
         if o == obs {
-            s.observers = append(s.observers[:i], s.observers[i+1:]...)
+            c.observers = append(c.observers[:i], c.observers[i+1:]...)
             return
         }
     }
 }
 
-func (s *Subject) Notify(order Order) {
-    for _, obs := range s.observers {
-        obs.OnOrderUpdate(order)
+func (c *Config) notify() {
+    for _, obs := range c.observers {
+        obs.OnConfigChange(*c)
     }
 }
 
-// OrderService combines business logic with observer notifications.
-type OrderService struct {
-    Subject
-    orders map[string]*Order
-}
-
-func NewOrderService() *OrderService {
-    return &OrderService{orders: make(map[string]*Order)}
-}
-
-func (s *OrderService) UpdateStatus(id string, status Status) {
-    order, ok := s.orders[id]
-    if !ok {
-        order = &Order{ID: id}
-        s.orders[id] = order
-    }
-    order.Status = status
-    s.Notify(*order)
+func (c *Config) Reload(logLevel string, timeout int) {
+    c.LogLevel = logLevel
+    c.Timeout = timeout
+    fmt.Printf("Config reloaded: level=%s timeout=%d\n", c.LogLevel, c.Timeout)
+    c.notify()
 }
 ```
 
@@ -129,43 +103,50 @@ Observers implement the interface independently:
 package main
 
 import (
+    "config"
     "fmt"
-    "orders"
 )
 
-type EmailNotifier struct{}
+type LoggerObserver struct{ name string }
 
-func (e *EmailNotifier) OnOrderUpdate(o orders.Order) {
-    fmt.Printf("[email] Order %s is now %s\n", o.ID, o.Status)
+func (l *LoggerObserver) OnConfigChange(cfg config.Config) {
+    fmt.Printf("  [logger] log level set to %s\n", cfg.LogLevel)
 }
 
-type AnalyticsTracker struct{}
+type ServerObserver struct{ name string }
 
-func (a *AnalyticsTracker) OnOrderUpdate(o orders.Order) {
-    fmt.Printf("[analytics] track order=%s status=%s\n", o.ID, o.Status)
+func (s *ServerObserver) OnConfigChange(cfg config.Config) {
+    fmt.Printf("  [server] timeout set to %ds\n", cfg.Timeout)
 }
 
 func main() {
-    svc := orders.NewOrderService()
+    cfg := &config.Config{}
 
-    email := &EmailNotifier{}
-    analytics := &AnalyticsTracker{}
+    log := &LoggerObserver{name: "logger"}
+    srv := &ServerObserver{name: "server"}
 
-    svc.Subscribe(email)
-    svc.Subscribe(analytics)
+    cfg.Subscribe(log)
+    cfg.Subscribe(srv)
 
-    svc.UpdateStatus("ORD-1", orders.Confirmed)
-    svc.UpdateStatus("ORD-1", orders.Shipped)
+    cfg.Reload("info", 30)
+    cfg.Reload("debug", 10)
+
+    cfg.Unsubscribe(srv)
+    cfg.Reload("warn", 30)
 }
 ```
 
 Output:
 
 ```
-[email] Order ORD-1 is now confirmed
-[analytics] track order=ORD-1 status=confirmed
-[email] Order ORD-1 is now shipped
-[analytics] track order=ORD-1 status=shipped
+Config reloaded: level=info timeout=30
+  [logger] log level set to info
+  [server] timeout set to 30s
+Config reloaded: level=debug timeout=10
+  [logger] log level set to debug
+  [server] timeout set to 10s
+Config reloaded: level=warn timeout=30
+  [logger] log level set to warn
 ```
 
 ## When to Use
@@ -180,18 +161,9 @@ Output:
 - Notification ordering matters — Observer doesn't guarantee order.
 - The observer needs to send data back to the subject — this creates circular dependencies.
 
-## Advantages
+## Tradeoffs
 
-- Subject and observers are decoupled — the subject doesn't import observer packages.
-- New observers can be added without modifying existing code.
-- Dynamic subscription at runtime.
-
-## Disadvantages
-
-- Notification order is undefined — don't depend on it.
-- Memory leaks if observers aren't unsubscribed (goroutines, long-lived objects).
-- In concurrent Go, the observer list needs synchronization (`sync.Mutex` or `sync.RWMutex`).
-- Debugging notification chains can be difficult — "who's listening?" isn't obvious from the code.
+The decoupling is genuine: the config package never imports the logger or server packages, which keeps the dependency graph clean. What you lose is traceability — "who's listening to this config?" is invisible from the source code, and a missing `Unsubscribe` call on a long-lived observer is a memory leak. In concurrent programs, the observer list needs a `sync.RWMutex`: reads during `notify` race with writes during `Subscribe`/`Unsubscribe`, and this is exactly the kind of bug that only surfaces under load. The channel-based form avoids the mutex but introduces goroutine lifecycle responsibility — a subscriber goroutine that never exits leaks permanently if the subject is long-lived.
 
 ## Related Patterns
 

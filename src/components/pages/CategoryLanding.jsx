@@ -8,11 +8,9 @@ import MarkdownCode from "@/components/content/MarkdownCode";
 export default function CategoryLanding({
   category,
   introMarkdown,
-  patterns,
   navOrder,
   pathname,
   basePath = "/go",
-  summaryLabel = "Go Idiom",
 }) {
   if (!category) {
     return (
@@ -36,51 +34,6 @@ export default function CategoryLanding({
           </ReactMarkdown>
         </div>
       )}
-
-      <div className="border border-border rounded-lg overflow-hidden mb-8">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-muted">
-                <th className="text-left px-4 py-3 font-semibold text-foreground">Pattern</th>
-                <th className="text-left px-4 py-3 font-semibold text-foreground">Intent</th>
-                <th className="text-left px-4 py-3 font-semibold text-foreground hidden md:table-cell">{summaryLabel}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {patterns.map((pattern, index) => (
-                <tr key={pattern.slug} className={index < patterns.length - 1 ? "border-b border-border" : ""}>
-                  <td className="px-4 py-3">
-                    <a
-                      href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
-                      className="font-medium text-primary hover:underline whitespace-nowrap"
-                    >
-                      {pattern.title}
-                    </a>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{pattern.intent}</td>
-                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell text-xs font-mono">{pattern.summary}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        {patterns.map((pattern) => (
-          <a
-            key={pattern.slug}
-            href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
-            className="group block p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/30 transition-all"
-          >
-            <div className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1">
-              {pattern.title}
-            </div>
-            <div className="text-sm text-muted-foreground">{pattern.intent}</div>
-          </a>
-        ))}
-      </div>
 
       <PrevNextNav navOrder={navOrder} pathname={pathname} />
     </div>

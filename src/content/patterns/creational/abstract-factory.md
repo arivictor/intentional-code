@@ -9,83 +9,79 @@ tags: [interfaces, composition, dependency-inversion, testability]
 
 # Abstract Factory
 
-Abstract Factory solves a specific problem: your system needs families of related objects that must be used together — a macOS button paired with a macOS dialog, not a macOS button with a Windows dialog — and the entire family should be swappable as a unit.
+Abstract Factory solves a specific problem: your system needs families of related objects that must be used together — a JSON encoder paired with a JSON decoder, not a JSON encoder with a CSV decoder — and the entire family should be swappable as a unit.
 
 In Go, the pattern is an interface whose methods each return a product interface. One struct per family satisfies the factory interface, and the compiler enforces that code written against that interface can never accidentally mix families. This is the critical advantage over individual [Factory Methods](/go/patterns/creational/factory-method): a factory method prevents you from picking the wrong *type*, but it can't prevent you from picking types from different families.
 
 ## Problem
 
-You're building a UI toolkit that must work across platforms. Buttons, dialogs, and checkboxes look different on macOS, Windows, and Linux, but the application code should use them interchangeably. Hardcoding platform-specific types throughout the app means every new platform requires shotgun surgery.
+You're building a data pipeline that reads records and writes them out in some format. You need to support both JSON and CSV. The naive approach instantiates readers and writers separately, with nothing stopping a caller from pairing a JSON reader with a CSV writer.
 
 ```go
-// ui_naive.go
-package ui
+// pipeline_naive.go
+package pipeline
 
 import "fmt"
 
-func CreateButton(platform string) {
-    switch platform {
-    case "macos":
-        fmt.Println("Creating macOS Aqua button")
-    case "windows":
-        fmt.Println("Creating Windows Fluent button")
-    case "linux":
-        fmt.Println("Creating GTK button")
+func NewReader(format string) {
+    switch format {
+    case "json":
+        fmt.Println("creating JSON reader")
+    case "csv":
+        fmt.Println("creating CSV reader")
     }
 }
 
-func CreateDialog(platform string) {
-    switch platform {
-    case "macos":
-        fmt.Println("Creating macOS sheet dialog")
-    case "windows":
-        fmt.Println("Creating Windows modal dialog")
-    case "linux":
-        fmt.Println("Creating GTK dialog")
+func NewWriter(format string) {
+    switch format {
+    case "json":
+        fmt.Println("creating JSON writer")
+    case "csv":
+        fmt.Println("creating CSV writer")
     }
 }
 
-// Every new component × every new platform = quadratic growth in switch cases.
-// Nothing ensures a macOS button is used with a macOS dialog.
+// Nothing prevents: NewReader("json") + NewWriter("csv")
+// Every new format × every new component = more switch cases.
 ```
 
-Two problems: the switch statements grow with every component and platform, and there's no compile-time guarantee that components from the same family are used together. You could accidentally mix a macOS button with a Windows dialog.
+Two problems: the switch statements grow with every format and component, and there's no guarantee that reader and writer come from the same format family. A mismatched pair silently produces corrupted output.
 
 ## Solution
 
-Define product interfaces (`Button`, `Dialog`) and a factory interface whose methods return them. Each platform gets one factory struct that produces a consistent family of components.
+Define product interfaces (`Reader`, `Writer`) and a factory interface whose methods return them. Each format gets one factory struct that produces a consistent, matched pair.
 
 ```
 ┌─────────────────────┐
 │   <<interface>>     │
-│   UIFactory         │
+│   FormatFactory     │
 │─────────────────────│
-│ + CreateButton()    │──► Button interface
-│ + CreateDialog()    │──► Dialog interface
+│ + NewReader() Reader│──► Reader interface
+│ + NewWriter() Writer│──► Writer interface
 └─────────┬───────────┘
           │ implements
     ┌─────┼──────┐
     │            │
-┌───▼────┐ ┌────▼────┐
-│ macOS  │ │ Windows │
-│Factory │ │ Factory │
-└────────┘ └─────────┘
+┌───▼────┐ ┌────▼───┐
+│  JSON  │ │  CSV   │
+│Factory │ │Factory │
+└────────┘ └────────┘
 ```
 
-Define the product interfaces — what every button and dialog must do:
+Define the product interfaces:
 
 ```go
 // products.go
-package ui
+package pipeline
 
-// Button is a clickable UI element.
-type Button interface {
-    Render() string
+// Reader reads records from an input source.
+type Reader interface {
+    Read() (string, error)
 }
 
-// Dialog is a modal window.
-type Dialog interface {
-    Show(title, message string) string
+// Writer writes records to an output sink.
+type Writer interface {
+    Write(record string) error
 }
 ```
 
@@ -93,64 +89,66 @@ Define the abstract factory interface:
 
 ```go
 // factory.go
-package ui
+package pipeline
 
-// UIFactory creates a family of related UI components.
-type UIFactory interface {
-    CreateButton() Button
-    CreateDialog() Dialog
+// FormatFactory creates a matched reader/writer pair for one format.
+type FormatFactory interface {
+    NewReader() Reader
+    NewWriter() Writer
 }
 ```
 
-Implement a macOS family:
+Implement a JSON family:
 
 ```go
-// mac.go
-package ui
+// json.go
+package pipeline
 
 import "fmt"
 
-type macButton struct{}
+type jsonReader struct{}
 
-func (b *macButton) Render() string { return "[macOS Aqua Button]" }
+func (r *jsonReader) Read() (string, error) { return `{"status":"ok"}`, nil }
 
-type macDialog struct{}
+type jsonWriter struct{}
 
-func (d *macDialog) Show(title, message string) string {
-    return fmt.Sprintf("[macOS Sheet: %s — %s]", title, message)
+func (w *jsonWriter) Write(record string) error {
+    fmt.Println("[json]", record)
+    return nil
 }
 
-type MacFactory struct{}
+type JSONFactory struct{}
 
-func (f *MacFactory) CreateButton() Button { return &macButton{} }
-func (f *MacFactory) CreateDialog() Dialog { return &macDialog{} }
+func (f *JSONFactory) NewReader() Reader { return &jsonReader{} }
+func (f *JSONFactory) NewWriter() Writer { return &jsonWriter{} }
 ```
 
-And a Windows family:
+And a CSV family:
 
 ```go
-// windows.go
-package ui
+// csv.go
+package pipeline
 
 import "fmt"
 
-type winButton struct{}
+type csvReader struct{}
 
-func (b *winButton) Render() string { return "[Windows Fluent Button]" }
+func (r *csvReader) Read() (string, error) { return "status,ok", nil }
 
-type winDialog struct{}
+type csvWriter struct{}
 
-func (d *winDialog) Show(title, message string) string {
-    return fmt.Sprintf("[Windows Modal: %s — %s]", title, message)
+func (w *csvWriter) Write(record string) error {
+    fmt.Println("[csv]", record)
+    return nil
 }
 
-type WinFactory struct{}
+type CSVFactory struct{}
 
-func (f *WinFactory) CreateButton() Button { return &winButton{} }
-func (f *WinFactory) CreateDialog() Dialog { return &winDialog{} }
+func (f *CSVFactory) NewReader() Reader { return &csvReader{} }
+func (f *CSVFactory) NewWriter() Writer { return &csvWriter{} }
 ```
 
-Application code works with the factory interface. It never imports platform-specific types:
+Application code works with the factory interface and never touches concrete types:
 
 ```go
 // main.go
@@ -158,34 +156,37 @@ package main
 
 import (
     "fmt"
-    "ui"
+    "pipeline"
 )
 
-func buildUI(factory ui.UIFactory) {
-    btn := factory.CreateButton()
-    dlg := factory.CreateDialog()
-    fmt.Println(btn.Render())
-    fmt.Println(dlg.Show("Welcome", "Hello from the app"))
+func run(factory pipeline.FormatFactory) {
+    r := factory.NewReader()
+    w := factory.NewWriter()
+
+    record, err := r.Read()
+    if err != nil {
+        fmt.Println("read error:", err)
+        return
+    }
+    w.Write(record)
 }
 
 func main() {
-    fmt.Println("--- macOS ---")
-    buildUI(&ui.MacFactory{})
+    fmt.Println("--- JSON ---")
+    run(&pipeline.JSONFactory{})
 
-    fmt.Println("--- Windows ---")
-    buildUI(&ui.WinFactory{})
+    fmt.Println("--- CSV ---")
+    run(&pipeline.CSVFactory{})
 }
 ```
 
 Output:
 
 ```
---- macOS ---
-[macOS Aqua Button]
-[macOS Sheet: Welcome — Hello from the app]
---- Windows ---
-[Windows Fluent Button]
-[Windows Modal: Welcome — Hello from the app]
+--- JSON ---
+[json] {"status":"ok"}
+--- CSV ---
+[csv] status,ok
 ```
 
 ## When to Use
@@ -200,17 +201,9 @@ Output:
 - The products in each family are trivially different — the abstraction overhead isn't justified.
 - You don't actually need family consistency. If mixing is fine, individual factory functions are simpler.
 
-## Advantages
+## Tradeoffs
 
-- Guarantees consistency within a product family — macOS button always pairs with macOS dialog.
-- Application code is completely decoupled from concrete product types.
-- Adding a new family (e.g., Linux) is one new struct implementing the factory interface.
-
-## Disadvantages
-
-- Adding a new product type (e.g., Checkbox) requires changing the factory interface and every implementation. This is a real cost.
-- More interfaces and types than simpler alternatives — significant overhead for small programs.
-- In Go, the pattern can feel heavy because Go's implicit interfaces already provide much of the decoupling benefit without the ceremony.
+Abstract Factory provides the strongest consistency guarantee in Go's creational toolkit — the compiler makes it impossible to pair a JSON reader with a CSV writer. That guarantee comes at a real cost: adding a new product type (say, a `Compressor`) requires changing the factory interface and every implementation that satisfies it. If you have three families and add one method, you touch four files. In Go, where implicit interfaces already give you most of the decoupling benefit, this can feel like a lot of ceremony for small programs. The pattern pays off when you have two or more product types that genuinely must stay in sync across multiple families — if you only ever need to swap one object type, [Factory Method](/go/patterns/creational/factory-method) is simpler.
 
 ## Related Patterns
 

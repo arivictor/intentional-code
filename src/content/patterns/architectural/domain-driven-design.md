@@ -9,39 +9,38 @@ tags: [interfaces, state, events, composition, dependency-inversion]
 
 # Domain-Driven Design
 
-The problem DDD solves is logic that leaks. Business rules like "a subscription can't be activated without a payment method" get written into one service function, forgotten in another, and enforced inconsistently across the codebase. Your domain types become plain data structs, and the rules that govern them float free. DDD puts that logic back inside the type, where the compiler helps you keep callers honest.
+The problem DDD solves is logic that leaks. Business rules like "a post can't be published without a title" get written into one service function, forgotten in another, and enforced inconsistently across the codebase. Your domain types become plain data structs, and the rules that govern them float free. DDD puts that logic back inside the type, where the compiler helps you keep callers honest.
 
 The tactical building blocks are **Entities** (identity-based, stateful), **Value Objects** (equality-based, immutable), **Aggregates** (consistency boundaries mutated only through the root), **Repositories** (persistence interfaces defined by the domain), **Domain Events** (facts that have occurred), and **Domain Services** (operations spanning multiple aggregates). The unifying constraint is simple: the code should speak the language of the business.
 
 ## Problem
 
-A billing system has a `User` struct carrying 40 fields. It's updated from 12 different places. Some mutations are only valid in certain states. Bugs appear because invariants like "a subscription can't be activated without a payment method" are enforced in some callers but forgotten in others. The model is an anemic data bag, not a reflection of the business.
+A content platform has an `Article` struct carrying 20 fields. It's updated from 8 different places. Some mutations are only valid in certain states. Bugs appear because invariants like "a draft can't be published without a title" are enforced in some callers but forgotten in others. The model is an anemic data bag, not a reflection of the business.
 
 ```go
-// Anemic domain model, data bag, no behavior, invariants scattered
-type Subscription struct {
-    ID            string
-    UserID        string
-    Plan          string
-    Status        string      // "active", "paused", "cancelled"
-    PaymentMethod string
-    StartDate     time.Time
-    EndDate       *time.Time
+// Anemic domain model — data bag, no behavior, invariants scattered
+type Article struct {
+    ID        string
+    AuthorID  string
+    Title     string
+    Body      string
+    Status    string // "draft", "published", "archived"
+    PublishedAt *time.Time
 }
 
-// Invariants live in service code, duplicated and inconsistently enforced
-func ActivateSubscription(db *sql.DB, subID string) error {
-    var sub Subscription
-    db.QueryRow("SELECT * FROM subscriptions WHERE id = $1", subID).Scan(&sub)
-    if sub.PaymentMethod == "" {
-        return errors.New("no payment method")   // enforced here...
+// Invariant lives in service code, duplicated and inconsistently enforced
+func PublishArticle(db *sql.DB, id string) error {
+    var a Article
+    db.QueryRow("SELECT * FROM articles WHERE id = $1", id).Scan(&a)
+    if a.Title == "" {
+        return errors.New("no title")  // enforced here...
     }
-    db.Exec("UPDATE subscriptions SET status = 'active' WHERE id = $1", subID)
+    db.Exec("UPDATE articles SET status = 'published' WHERE id = $1", id)
     return nil
 }
 
-func AdminActivate(sub *Subscription) {
-    sub.Status = "active"   // ...but bypassed here
+func AdminPublish(a *Article) {
+    a.Status = "published"  // ...but bypassed here
 }
 ```
 
@@ -52,66 +51,49 @@ Model the domain explicitly. Each building block has a specific role.
 ```
 ┌─────────────────────────────────────────────┐
 │               Aggregate Root                │
-│           Subscription (Entity)             │
-│  ┌───────────────┐   ┌────────────────────┐ │
-│  │  SubscriptionID│   │  Plan (Value Obj.) │ │
-│  │  (Value Obj.) │   │  Money, PlanType   │ │
-│  └───────────────┘   └────────────────────┘ │
+│             Article (Entity)                │
+│  ┌──────────────────┐  ┌──────────────────┐ │
+│  │  ArticleID       │  │  Slug            │ │
+│  │  (Value Obj.)    │  │  (Value Obj.)    │ │
+│  └──────────────────┘  └──────────────────┘ │
 │                                             │
 │  Rules enforced inside, no bypass possible │
 └───────────────────┬─────────────────────────┘
                     │ persisted via
-             SubscriptionRepository (interface)
+             ArticleRepository (interface)
                     │ emits
-              SubscriptionActivated (Domain Event)
+              ArticlePublished (Domain Event)
 ```
 
 **Value Objects:** immutable, compared by value:
 
 ```go
-// domain/subscription/value_objects.go
-package subscription
+// domain/article/value_objects.go
+package article
 
-import "fmt"
-
-type SubscriptionID string
-
-type PlanType string
-
-const (
-    PlanStarter  PlanType = "starter"
-    PlanPro      PlanType = "pro"
-    PlanEnterprise PlanType = "enterprise"
+import (
+    "fmt"
+    "strings"
 )
 
-type Money struct {
-    Amount   int64  // cents
-    Currency string // "USD", "EUR"
-}
+type ArticleID string
 
-func NewMoney(amount int64, currency string) (Money, error) {
-    if amount < 0 {
-        return Money{}, fmt.Errorf("amount cannot be negative")
-    }
-    if currency == "" {
-        return Money{}, fmt.Errorf("currency is required")
-    }
-    return Money{Amount: amount, Currency: currency}, nil
-}
+type Slug string
 
-func (m Money) Add(other Money) (Money, error) {
-    if m.Currency != other.Currency {
-        return Money{}, fmt.Errorf("currency mismatch: %s vs %s", m.Currency, other.Currency)
+func NewSlug(title string) (Slug, error) {
+    s := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(title), " ", "-"))
+    if s == "" {
+        return "", fmt.Errorf("slug cannot be empty")
     }
-    return Money{Amount: m.Amount + other.Amount, Currency: m.Currency}, nil
+    return Slug(s), nil
 }
 ```
 
 **Entity and Aggregate Root:** identity, state, and invariants enforced together:
 
 ```go
-// domain/subscription/subscription.go
-package subscription
+// domain/article/article.go
+package article
 
 import (
     "fmt"
@@ -121,82 +103,88 @@ import (
 type Status string
 
 const (
-    StatusPending   Status = "pending"
-    StatusActive    Status = "active"
-    StatusPaused    Status = "paused"
-    StatusCancelled Status = "cancelled"
+    StatusDraft     Status = "draft"
+    StatusPublished Status = "published"
+    StatusArchived  Status = "archived"
 )
 
-// Domain Event, a fact that occurred inside the aggregate.
-type ActivatedEvent struct {
-    SubscriptionID SubscriptionID
-    OccurredAt     time.Time
+// Domain Event — a fact that occurred inside the aggregate.
+type PublishedEvent struct {
+    ArticleID   ArticleID
+    Slug        Slug
+    OccurredAt  time.Time
 }
 
-// Subscription is the aggregate root, the only entry point for mutations.
-type Subscription struct {
-    id            SubscriptionID
-    userID        string
-    plan          PlanType
-    status        Status
-    paymentMethod string
-    startDate     time.Time
+// Article is the aggregate root — the only entry point for mutations.
+type Article struct {
+    id       ArticleID
+    authorID string
+    title    string
+    body     string
+    slug     Slug
+    status   Status
 
     events []interface{} // uncommitted domain events
 }
 
-func New(id SubscriptionID, userID string, plan PlanType) *Subscription {
-    return &Subscription{
-        id:     id,
-        userID: userID,
-        plan:   plan,
-        status: StatusPending,
+func New(id ArticleID, authorID, title, body string) (*Article, error) {
+    if title == "" {
+        return nil, fmt.Errorf("title is required")
     }
+    slug, err := NewSlug(title)
+    if err != nil {
+        return nil, err
+    }
+    return &Article{
+        id:       id,
+        authorID: authorID,
+        title:    title,
+        body:     body,
+        slug:     slug,
+        status:   StatusDraft,
+    }, nil
 }
 
-func (s *Subscription) ID() SubscriptionID { return s.id }
-func (s *Subscription) Status() Status     { return s.status }
+func (a *Article) ID() ArticleID { return a.id }
+func (a *Article) Status() Status { return a.status }
+func (a *Article) Slug() Slug     { return a.slug }
 
-func (s *Subscription) SetPaymentMethod(method string) error {
-    if method == "" {
-        return fmt.Errorf("payment method cannot be empty")
-    }
-    s.paymentMethod = method
-    return nil
+func (a *Article) UpdateBody(body string) {
+    a.body = body
 }
 
-// Activate enforces the invariant, so callers can't bypass it.
-func (s *Subscription) Activate() error {
-    if s.paymentMethod == "" {
-        return fmt.Errorf("cannot activate: no payment method on file")
+// Publish enforces the invariant — callers can't bypass it.
+func (a *Article) Publish() error {
+    if a.title == "" {
+        return fmt.Errorf("cannot publish: title is required")
     }
-    if s.status == StatusCancelled {
-        return fmt.Errorf("cannot activate a cancelled subscription")
+    if a.status == StatusArchived {
+        return fmt.Errorf("cannot publish an archived article")
     }
-    if s.status == StatusActive {
+    if a.status == StatusPublished {
         return nil // idempotent
     }
-    s.status = StatusActive
-    s.startDate = time.Now()
-    s.events = append(s.events, ActivatedEvent{
-        SubscriptionID: s.id,
-        OccurredAt:     s.startDate,
+    a.status = StatusPublished
+    a.events = append(a.events, PublishedEvent{
+        ArticleID:  a.id,
+        Slug:       a.slug,
+        OccurredAt: time.Now(),
     })
     return nil
 }
 
-func (s *Subscription) Cancel() error {
-    if s.status == StatusCancelled {
+func (a *Article) Archive() error {
+    if a.status == StatusArchived {
         return nil
     }
-    s.status = StatusCancelled
+    a.status = StatusArchived
     return nil
 }
 
 // PopEvents returns and clears uncommitted domain events.
-func (s *Subscription) PopEvents() []interface{} {
-    evts := s.events
-    s.events = nil
+func (a *Article) PopEvents() []interface{} {
+    evts := a.events
+    a.events = nil
     return evts
 }
 ```
@@ -204,54 +192,57 @@ func (s *Subscription) PopEvents() []interface{} {
 **Repository interface:** defined by the domain, implemented by infrastructure:
 
 ```go
-// domain/subscription/repository.go
-package subscription
+// domain/article/repository.go
+package article
 
 import "context"
 
 type Repository interface {
-    FindByID(ctx context.Context, id SubscriptionID) (*Subscription, error)
-    Save(ctx context.Context, s *Subscription) error
+    FindByID(ctx context.Context, id ArticleID) (*Article, error)
+    Save(ctx context.Context, a *Article) error
 }
 ```
 
-**Domain Service:** operations spanning multiple aggregates:
+**Domain Service:** operations that span the aggregate boundary, like checking for slug uniqueness across all articles:
 
 ```go
-// domain/subscription/service.go
-package subscription
+// domain/article/service.go
+package article
 
 import (
     "context"
     "fmt"
 )
 
-type BillingService interface {
-    ChargeNow(ctx context.Context, userID string, amount Money) error
+type SlugChecker interface {
+    SlugExists(ctx context.Context, slug Slug) (bool, error)
 }
 
-type ActivationService struct {
+type PublishService struct {
     repo    Repository
-    billing BillingService
+    slugs   SlugChecker
 }
 
-func NewActivationService(repo Repository, billing BillingService) *ActivationService {
-    return &ActivationService{repo: repo, billing: billing}
+func NewPublishService(repo Repository, slugs SlugChecker) *PublishService {
+    return &PublishService{repo: repo, slugs: slugs}
 }
 
-func (s *ActivationService) Activate(ctx context.Context, id SubscriptionID) error {
-    sub, err := s.repo.FindByID(ctx, id)
+func (s *PublishService) Publish(ctx context.Context, id ArticleID) error {
+    a, err := s.repo.FindByID(ctx, id)
     if err != nil {
-        return fmt.Errorf("finding subscription: %w", err)
+        return fmt.Errorf("finding article: %w", err)
     }
-    activationFee, _ := NewMoney(999, "USD")
-    if err := s.billing.ChargeNow(ctx, sub.userID, activationFee); err != nil {
-        return fmt.Errorf("charging activation fee: %w", err)
+    exists, err := s.slugs.SlugExists(ctx, a.Slug())
+    if err != nil {
+        return fmt.Errorf("checking slug: %w", err)
     }
-    if err := sub.Activate(); err != nil {
+    if exists {
+        return fmt.Errorf("slug %q is already in use", a.Slug())
+    }
+    if err := a.Publish(); err != nil {
         return err
     }
-    return s.repo.Save(ctx, sub)
+    return s.repo.Save(ctx, a)
 }
 ```
 
@@ -260,7 +251,7 @@ func (s *ActivationService) Activate(ctx context.Context, id SubscriptionID) err
 - The business domain is complex, with multiple interacting concepts, non-trivial rules, and frequent change driven by business requirements.
 - You need to communicate with domain experts and the code should reflect their language (the ubiquitous language).
 - Bugs are caused by invariants being enforced inconsistently in different places.
-- You have aggregates with clear consistency boundaries, things that must change together.
+- You have aggregates with clear consistency boundaries — things that must change together.
 
 ## When Not to Use
 
@@ -268,23 +259,13 @@ func (s *ActivationService) Activate(ctx context.Context, id SubscriptionID) err
 - The team doesn't have access to domain experts. DDD's value compounds with tight collaboration.
 - You're in early exploration. Build a working version first; apply DDD when the domain stabilises.
 
-## Advantages
+## Tradeoffs
 
-- Invariants are enforced in one place, the aggregate, and can't be bypassed.
-- The ubiquitous language bridges code and business conversation.
-- Domain Events make state changes explicit and auditable.
-- Value Objects eliminate primitive obsession and give meaning to raw types.
-
-## Disadvantages
-
-- Significant upfront modeling effort. Getting aggregates wrong is expensive to fix.
-- More types and more code than a simple struct-and-service approach.
-- Persistence mapping between rich domain types and flat database rows is mechanical work.
-- Not every problem is a domain problem. Applying DDD to a simple reporting tool is over-engineering.
+The payoff is concentrated: aggregates enforce invariants in one place so callers can't accidentally bypass them, and the ubiquitous language keeps code and business conversation aligned. The cost is upfront and ongoing. Getting aggregate boundaries wrong is expensive to fix — split them too fine and you get coordination overhead across transactions; merge them too broadly and you get a 40-field struct that every feature touches. Persistence mapping between rich domain types and flat database rows is mechanical work that compounds with every aggregate. And applying DDD to a simple reporting or admin tool is over-engineering — not every problem benefits from a rich domain model.
 
 ## Related Patterns
 
-- **Repository:** Repositories are a first-class DDD tactical pattern. The domain defines the interface, infrastructure implements it, and the aggregate root is the only unit the repository saves and loads.
-- **Event-Driven Architecture:** Domain Events are a natural source for an event-driven system. Aggregates record events as facts, and the application layer dispatches them to consumers after the transaction commits.
-- **CQRS:** Pairs directly with DDD. The command side uses the rich aggregate model with enforced invariants, while the query side uses flat DTOs that bypass the domain model for read performance.
-- **Clean Architecture:** DDD's domain model maps to Clean Architecture's innermost Entities ring. The two are complementary, not competing. DDD provides the modeling discipline, and Clean Architecture provides the structural boundary.
+- **Repository** — Repositories are a first-class DDD tactical pattern. The domain defines the interface, infrastructure implements it, and the aggregate root is the only unit the repository saves and loads.
+- **Event-Driven Architecture** — Domain Events are a natural source for an event-driven system. Aggregates record events as facts, and the application layer dispatches them to consumers after the transaction commits.
+- **CQRS** — Pairs directly with DDD. The command side uses the rich aggregate model with enforced invariants, while the query side uses flat DTOs that bypass the domain model for read performance.
+- **Clean Architecture** — DDD's domain model maps to Clean Architecture's innermost Entities ring. The two are complementary, not competing: DDD provides the modeling discipline, and Clean Architecture provides the structural boundary.

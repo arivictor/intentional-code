@@ -15,7 +15,7 @@ The pattern earns its full weight for text editors, transaction systems, and tas
 
 ## Problem
 
-You're building a text editor with undo support. Operations like insert, delete, and replace need to be recorded so they can be reversed. Without Command, the undo logic is tangled with the editing logic.
+You're building a text editor with undo support. Operations like insert and delete need to be recorded so they can be reversed. Without Command, the undo logic is tangled with the editing logic.
 
 ```go
 // editor_naive.go
@@ -27,8 +27,8 @@ type Editor struct {
 
 func (e *Editor) Insert(pos int, text string) {
     e.content = e.content[:pos] + text + e.content[pos:]
-    // How do you undo this? You'd need to track what was inserted, where.
-    // That tracking logic gets tangled with every operation.
+    // To undo this you need to track what was inserted and where.
+    // That tracking leaks into every operation.
 }
 
 func (e *Editor) Delete(pos, length int) {
@@ -38,24 +38,16 @@ func (e *Editor) Delete(pos, length int) {
 }
 ```
 
-Each operation knows how to do its work but not how to undo it. Adding undo means modifying every operation to also record inverse information. The editor becomes responsible for both editing and history management.
+Each operation knows how to do its work but not how to undo it. The editor becomes responsible for both editing and history management, and those concerns tangle together.
 
 ## Solution
 
-Define a `Command` interface with `Execute()` and `Undo()` methods. Each operation is a struct that captures everything needed to reverse it. A history stack manages undo.
+Define a `Command` interface with `Execute()` and `Undo()`. Each operation is a struct that captures everything needed to reverse it. A history stack manages undo.
 
 ```
-┌─────────────────┐     ┌─────────────────┐
-│   <<interface>> │     │    Editor       │
-│    Command      │     │                 │
-│─────────────────│     │ content string  │
-│ Execute()       │────►│                 │
-│ Undo()          │     └─────────────────┘
-└────────┬────────┘
-         │ implements
-   ┌─────┼──────┐
-   │            │
-InsertCmd   DeleteCmd
+Command interface          Editor
+├── InsertCmd ─────────► content string
+└── DeleteCmd
 
 History: [cmd1, cmd2, cmd3] ← Undo pops and calls Undo()
 ```
@@ -64,48 +56,46 @@ History: [cmd1, cmd2, cmd3] ← Undo pops and calls Undo()
 // editor.go
 package editor
 
-import "fmt"
-
-type Editor struct {
-    Content string
-}
-
 // Command is an undoable operation.
 type Command interface {
     Execute()
     Undo()
 }
 
+type Editor struct {
+    Content string
+}
+
 // InsertCommand inserts text at a position.
 type InsertCommand struct {
-    editor *Editor
-    pos    int
-    text   string
+    Editor *Editor
+    Pos    int
+    Text   string
 }
 
 func (c *InsertCommand) Execute() {
-    c.editor.Content = c.editor.Content[:c.pos] + c.text + c.editor.Content[c.pos:]
+    c.Editor.Content = c.Editor.Content[:c.Pos] + c.Text + c.Editor.Content[c.Pos:]
 }
 
 func (c *InsertCommand) Undo() {
-    c.editor.Content = c.editor.Content[:c.pos] + c.editor.Content[c.pos+len(c.text):]
+    c.Editor.Content = c.Editor.Content[:c.Pos] + c.Editor.Content[c.Pos+len(c.Text):]
 }
 
 // DeleteCommand deletes text at a position.
 type DeleteCommand struct {
-    editor  *Editor
-    pos     int
-    length  int
-    deleted string // saved for undo
+    Editor  *Editor
+    Pos     int
+    Length  int
+    deleted string // saved during Execute for Undo
 }
 
 func (c *DeleteCommand) Execute() {
-    c.deleted = c.editor.Content[c.pos : c.pos+c.length]
-    c.editor.Content = c.editor.Content[:c.pos] + c.editor.Content[c.pos+c.length:]
+    c.deleted = c.Editor.Content[c.Pos : c.Pos+c.Length]
+    c.Editor.Content = c.Editor.Content[:c.Pos] + c.Editor.Content[c.Pos+c.Length:]
 }
 
 func (c *DeleteCommand) Undo() {
-    c.editor.Content = c.editor.Content[:c.pos] + c.deleted + c.editor.Content[c.pos:]
+    c.Editor.Content = c.Editor.Content[:c.Pos] + c.deleted + c.Editor.Content[c.Pos:]
 }
 
 // History manages the undo stack.
@@ -142,7 +132,7 @@ func main() {
     e := &editor.Editor{Content: "Hello World"}
     h := &editor.History{}
 
-    fmt.Println("Start:", e.Content)
+    fmt.Println("Start:       ", e.Content)
 
     h.Run(&editor.InsertCommand{Editor: e, Pos: 5, Text: " Beautiful"})
     fmt.Println("After insert:", e.Content)
@@ -151,21 +141,21 @@ func main() {
     fmt.Println("After delete:", e.Content)
 
     h.Undo()
-    fmt.Println("After undo:", e.Content)
+    fmt.Println("After undo:  ", e.Content)
 
     h.Undo()
-    fmt.Println("After undo:", e.Content)
+    fmt.Println("After undo:  ", e.Content)
 }
 ```
 
 Output:
 
 ```
-Start: Hello World
+Start:        Hello World
 After insert: Hello Beautiful World
 After delete: Beautiful World
-After undo: Hello Beautiful World
-After undo: Hello World
+After undo:   Hello Beautiful World
+After undo:   Hello World
 ```
 
 > When you don't need undo, a Go function value is the simplest command. `queue := []func(){}` — push functions onto it, pop and call. Only use the struct-based form when you need `Undo()` or command metadata.
@@ -182,17 +172,9 @@ After undo: Hello World
 - The operations are fire-and-forget with no need for undo, queuing, or logging. A function call is simpler.
 - In Go, if your "command" has no state and no undo, a `func()` is the command. Don't wrap it in a struct.
 
-## Advantages
+## Tradeoffs
 
-- Decouples the invoker from the operation — the caller doesn't need to know what happens.
-- Enables undo, redo, queuing, and logging of operations.
-- Commands can be serialized, transmitted, and replayed.
-
-## Disadvantages
-
-- Each operation needs its own struct — boilerplate for simple actions.
-- Undo logic can be complex and error-prone for operations with side effects.
-- For simple cases, a function value is less ceremony.
+The function-value form costs nothing and is completely idiomatic — if you just need to queue work, use `[]func()`. The struct form earns its weight only when you need undo: each command must capture a complete snapshot of what it changed, which is easy for simple mutations (a position and a string) but gets expensive fast for operations on large data structures. Undo logic is also where bugs hide — the `Execute` path gets tested constantly, but `Undo` only runs when the user hits ctrl-Z, so subtle state corruption can go unnoticed for a long time. The history stack has no built-in redo: if you undo and then run a new command, the redo branch is silently discarded unless you explicitly track it.
 
 ## Related Patterns
 

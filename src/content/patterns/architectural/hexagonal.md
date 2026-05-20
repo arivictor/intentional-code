@@ -10,7 +10,7 @@ isFeatured: true
 
 # Hexagonal Architecture
 
-Hexagonal Architecture solves a testability and flexibility problem: when HTTP handlers, SQL queries, and SMTP calls are mixed into business logic, testing requires live infrastructure. Hexagonal draws a boundary. Everything inside is pure application logic, and everything outside, HTTP, databases, queues, email, is an adapter that plugs in through a defined port (interface).
+Hexagonal Architecture solves a testability and flexibility problem: when HTTP handlers, SQL queries, and SMTP calls are mixed into business logic, testing requires live infrastructure. Hexagonal draws a boundary. Everything inside is pure application logic, and everything outside — HTTP, databases, queues, email — is an adapter that plugs in through a defined port (interface).
 
 The core vocabulary matters here: **driving adapters** (HTTP handlers, CLI, tests) call **driving ports** (the application's API), while the application calls **driven ports** (repository, notifier interfaces) implemented by **driven adapters** (Postgres, SMTP, in-memory fakes). The application never imports the adapters directly.
 
@@ -36,7 +36,7 @@ func handleTransfer(w http.ResponseWriter, r *http.Request) {
 
 ## Solution
 
-Draw a hexagon. The application (business logic) lives inside. Ports are the sides of the hexagon, interfaces the application defines. Adapters live outside and plug into those ports.
+Draw a hexagon. The application (business logic) lives inside. Ports are the sides of the hexagon — interfaces the application defines. Adapters live outside and plug into those ports.
 
 ```
           ┌──── Driving Adapters ────┐
@@ -67,7 +67,7 @@ import (
     "fmt"
 )
 
-// Driven ports, defined here and implemented by infrastructure adapters.
+// Driven ports — defined here and implemented by infrastructure adapters.
 type AccountRepository interface {
     FindByID(ctx context.Context, id string) (*Account, error)
     Save(ctx context.Context, a *Account) error
@@ -83,7 +83,7 @@ type Account struct {
     Balance int64
 }
 
-// TransferService is the driving port, what callers interact with.
+// TransferService is the driving port — what callers interact with.
 type TransferService struct {
     accounts AccountRepository
     notifier Notifier
@@ -118,7 +118,7 @@ func (s *TransferService) Transfer(ctx context.Context, fromID, toID string, amo
 }
 ```
 
-Left adapter, HTTP driving the application:
+Left adapter — HTTP driving the application:
 
 ```go
 // adapter/http/transfer_handler.go
@@ -149,7 +149,7 @@ func (h *TransferHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-Right adapter, PostgreSQL implementing AccountRepository:
+Right adapter — PostgreSQL implementing AccountRepository:
 
 ```go
 // adapter/postgres/account_repo.go
@@ -179,7 +179,7 @@ func (r *AccountRepo) Save(ctx context.Context, a *app.Account) error {
 }
 ```
 
-Right adapter, in-memory fake for tests:
+Right adapter — in-memory fake for tests:
 
 ```go
 // adapter/memory/account_repo.go
@@ -269,22 +269,14 @@ func TestTransfer(t *testing.T) {
 - Simple CRUD with no real domain logic. The port/adapter indirection adds overhead with no return.
 - Small services where one HTTP handler → one SQL query is the entire pattern. Don't pre-optimise for a complexity that may never arrive.
 
-## Advantages
+## Tradeoffs
 
-- The application core is fully tested without infrastructure. Swap any adapter for a fake.
-- Delivery mechanisms are symmetric. HTTP, CLI, and queues all call the same driving port.
-- Infrastructure is plug-and-play. Add a new adapter without touching the application.
-- Clear separation of "what the business does" from "how it communicates with the world."
-
-## Disadvantages
-
-- More structure than simple layering, which means upfront investment in port design.
-- Port proliferation: many small interfaces per aggregate can be verbose.
-- Mapping between adapter types and application types (e.g., protobuf ↔ domain struct) is mechanical but necessary.
-- New team members need to understand the port/adapter mental model before they can be productive.
+The core benefit is that the application is fully testable without infrastructure: swap any driven adapter for an in-memory fake and run the full application logic with no network or database. This advantage is real but only pays back if you actually write those tests — the structure alone doesn't guarantee test coverage. Port proliferation is the main ongoing cost: many small interfaces per aggregate can become verbose, especially when every aggregate needs a distinct repository port. Mapping between adapter types and application types (protobuf structs to domain structs, SQL rows to domain structs) is mechanical but necessary, and it compounds as the model grows. New team members need to learn the port/adapter mental model before they can navigate the codebase efficiently.
 
 ## Related Patterns
 
-- **Clean Architecture:** Same goals, different vocabulary. It uses "concentric rings" where Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule most clearly. They compose more often than they compete.
-- **Layered Architecture:** Layered organizes by tier (Handler, Service, Repository, Infrastructure). Hexagonal replaces strict downward layering with symmetric ports that treat HTTP and databases as equally swappable adapters.
-- **Repository:** The canonical driven port. It's a persistence interface the application defines, implemented by a database adapter that the application never imports directly.
+- **Clean Architecture** — Same goals, different vocabulary. It uses "concentric rings" where Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule most clearly. They compose more often than they compete.
+- **Adapter (structural)** — The GoF Adapter pattern is the mechanism that makes Hexagonal work. Each infrastructure adapter wraps a third-party client (a `*sql.DB`, a NATS connection) and exposes the interface the application defined. Hexagonal is the architecture; Adapter is the implementation technique.
+- **Layered Architecture** — Layered organizes by tier (Handler, Service, Repository, Infrastructure). Hexagonal replaces strict downward layering with symmetric ports that treat HTTP and databases as equally swappable adapters.
+- **Repository** — The canonical driven port. It's a persistence interface the application defines, implemented by a database adapter that the application never imports directly.
+- **Domain-Driven Design** — DDD's aggregate roots become the application core that hexagonal protects. DDD tells you what should live inside the hexagon; Hexagonal gives you the structural rule for keeping infrastructure out.

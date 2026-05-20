@@ -253,19 +253,6 @@ export default function Home({
                 <h3 className="font-semibold text-sm uppercase tracking-wider">{category.title}</h3>
               </a>
               <div className="grid gap-2 sm:grid-cols-2">
-                {activeTags.length === 0 && (
-                  <a
-                    href={`${basePath}/patterns/${catKey}`}
-                    className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
-                        {category.title}
-                      </span>
-                      <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{category.lede}</div>
-                    </div>
-                  </a>
-                )}
                 {categoryPatterns.map((pattern) => (
                   <a
                     key={pattern.slug}

@@ -11,122 +11,103 @@ tags: [interfaces, composition, dependency-inversion]
 
 Any wrapper struct in Go that makes one package's type compatible with another's interface is an Adapter — one of the most common patterns in the language, frequently written without being recognized as one. The formal structure: a struct holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
 
-The pattern is especially common when integrating third-party SDKs: you can't modify the SDK, and you don't want to modify your domain interface, so you build a thin wrapper that translates between them once, in one place.
+The pattern is especially common when integrating third-party packages: you can't modify the package, and you don't want to modify your domain interface, so you build a thin wrapper that translates between them once, in one place.
 
 ## Problem
 
-You're integrating a third-party payment gateway. Your application works with a `PaymentProcessor` interface, but the gateway's SDK has a completely different method signature. You can't modify the SDK, and you don't want to change your application's interface — it's used in dozens of places.
+Your application writes log lines through a `Logger` interface. A third-party structured logging library is available, but it has a completely different method signature — it takes key-value pairs rather than a formatted string. You can't modify the library, and you don't want to change your `Logger` interface everywhere it's used.
 
 ```go
 // mismatch.go
-package payment
+package log
 
-// Your application's interface
-type PaymentProcessor interface {
-    Charge(customerID string, amountCents int64) (transactionID string, err error)
+// Your application's interface.
+type Logger interface {
+    Log(msg string)
 }
 
-// Third-party SDK — you can't change this
-type StripeGateway struct {
-    APIKey string
-}
+// Third-party library — you can't change this.
+type StructuredLogger struct{}
 
-func (s *StripeGateway) CreateCharge(params map[string]interface{}) (map[string]interface{}, error) {
-    // Completely different signature: map-based, amount in dollars, different naming
-    // Your PaymentProcessor interface expects (string, int64) → (string, error)
-    // These don't match. Now what?
-    return map[string]interface{}{"id": "ch_123"}, nil
+func (l *StructuredLogger) LogFields(fields map[string]string) {
+    // Accepts a map, not a string.
+    // These two signatures are incompatible.
 }
 ```
 
-The SDK's method takes a map and returns a map. Your interface takes typed parameters and returns a string. You can't change either side. Without an adapter, you'd scatter type conversions and map building throughout your codebase.
+The library's method takes a map. Your interface takes a string. Without an adapter, you'd scatter conversion code throughout the codebase — every call site would need to build the map before calling the library.
 
 ## Solution
 
-Create a wrapper struct that holds the SDK client and implements your interface, translating between the two APIs in one place.
+Create a wrapper struct that holds the library client and implements your interface, translating between the two APIs in one place.
 
 ```
 ┌──────────────────────────┐
-│    PaymentProcessor      │
-│    <<interface>>          │
+│    Logger                │
+│    <<interface>>         │
 │──────────────────────────│
-│ Charge(id, amt) (txn, e) │
+│ Log(msg string)          │
 └────────────┬─────────────┘
              │ implements
-     ┌───────▼───────┐         ┌──────────────────┐
-     │StripeAdapter  │────────►│  StripeGateway   │
-     │               │ has-a   │  (third-party)   │
-     │ Charge(...)   │         │ CreateCharge(...) │
-     └───────────────┘         └──────────────────┘
+     ┌───────▼───────┐         ┌──────────────────────┐
+     │StructuredAdap.│────────►│  StructuredLogger    │
+     │               │ has-a   │  (third-party)       │
+     │ Log(msg)      │         │  LogFields(map)      │
+     └───────────────┘         └──────────────────────┘
 ```
-
-The adapter struct wraps the SDK and translates the call:
 
 ```go
 // adapter.go
-package payment
+package log
 
-import "fmt"
-
-// StripeAdapter adapts StripeGateway to the PaymentProcessor interface.
-type StripeAdapter struct {
-    gateway *StripeGateway
+// StructuredAdapter adapts StructuredLogger to the Logger interface.
+type StructuredAdapter struct {
+    logger *StructuredLogger
 }
 
-func NewStripeAdapter(apiKey string) *StripeAdapter {
-    return &StripeAdapter{
-        gateway: &StripeGateway{APIKey: apiKey},
-    }
+func NewStructuredAdapter() *StructuredAdapter {
+    return &StructuredAdapter{logger: &StructuredLogger{}}
 }
 
-func (a *StripeAdapter) Charge(customerID string, amountCents int64) (string, error) {
-    params := map[string]interface{}{
-        "customer": customerID,
-        "amount":   amountCents,
-        "currency": "usd",
-    }
-    result, err := a.gateway.CreateCharge(params)
-    if err != nil {
-        return "", fmt.Errorf("stripe charge failed: %w", err)
-    }
-    txnID, ok := result["id"].(string)
-    if !ok {
-        return "", fmt.Errorf("unexpected response format")
-    }
-    return txnID, nil
+func (a *StructuredAdapter) Log(msg string) {
+    a.logger.LogFields(map[string]string{"msg": msg})
 }
 ```
 
-Application code uses the interface — no knowledge of Stripe:
+Application code uses the interface — no knowledge of the library:
 
 ```go
 // main.go
 package main
 
-import (
-    "fmt"
-    "payment"
-)
+import "log"
 
-func processOrder(pp payment.PaymentProcessor, customerID string, total int64) {
-    txn, err := pp.Charge(customerID, total)
-    if err != nil {
-        fmt.Printf("Payment failed: %v\n", err)
-        return
-    }
-    fmt.Printf("Payment successful: %s\n", txn)
+func run(logger log.Logger) {
+    logger.Log("server started")
+    logger.Log("request received")
 }
 
 func main() {
-    processor := payment.NewStripeAdapter("sk_test_xxx")
-    processOrder(processor, "cust_42", 4999)
+    adapter := log.NewStructuredAdapter()
+    run(adapter)
+
+    // Swap in a plain implementation for tests — same interface, different adaptee.
+    run(&log.ConsoleLogger{})
 }
 ```
 
-Output:
+```go
+// console.go
+package log
 
-```
-Payment successful: ch_123
+import "fmt"
+
+// ConsoleLogger is a simple Logger for tests or development.
+type ConsoleLogger struct{}
+
+func (c *ConsoleLogger) Log(msg string) {
+    fmt.Println(msg)
+}
 ```
 
 ## When to Use
@@ -141,17 +122,9 @@ Payment successful: ch_123
 - The adaptation is trivial (just renaming a method). Go's implicit interface satisfaction might mean you don't need a wrapper at all.
 - You're adapting for hypothetical future flexibility. Only adapt when the mismatch is real.
 
-## Advantages
+## Tradeoffs
 
-- Single Responsibility: translation logic lives in one place, not scattered across callers.
-- Open/Closed: add new adapters for new SDKs without modifying existing code.
-- Testable: your code tests against the interface, not the SDK.
-
-## Disadvantages
-
-- Adds a layer of indirection — one more type to navigate.
-- If the adapted API changes, the adapter must be updated (though this is better than updating every caller).
-- Can mask performance issues if the translation is costly.
+The benefit is concentrated: translation logic lives in one place, not scattered across every call site. Swapping the adapted library requires updating one struct rather than dozens of callers. The cost is a layer of indirection — one more file to open when tracing a call. If the adapted API changes (new parameters, changed return types), the adapter must be updated; the good news is that the compiler will catch this immediately. Adapters can silently lose information — translating a rich structured log entry down to a plain string means callers can never get that structure back. Be deliberate about what the adapter discards.
 
 ## Related Patterns
 

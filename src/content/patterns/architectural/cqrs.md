@@ -15,24 +15,24 @@ Each command and query gets its own handler type, its own input struct, and some
 
 ## Problem
 
-A single `OrderService` handles both writes and reads. The `GetOrder` method returns the full domain struct, which is expensive to load and exposes internal state. The `CreateOrder` method and `GetOrderSummary` method share the same repository, which means optimising the read path (adding a denormalised view) requires touching the write path too. Every new read shape requires a new method on the same service.
+A single `NoteService` handles both writes and reads. The `GetNote` method returns the full domain struct, which exposes internal state. The `CreateNote` and `GetNoteSummary` methods share the same repository, so optimising the read path requires touching the write path too. Every new read shape requires a new method on the same service.
 
 ```go
-// One service doing everything, reads and writes entangled
-type OrderService struct {
-    repo OrderRepository
+// One service doing everything — reads and writes entangled
+type NoteService struct {
+    repo NoteRepository
 }
 
-func (s *OrderService) CreateOrder(ctx context.Context, customerID string, total int64) error {
+func (s *NoteService) CreateNote(ctx context.Context, title, body string) error {
     // mutates state
 }
 
-func (s *OrderService) GetOrder(ctx context.Context, id string) (*Order, error) {
-    // returns full domain object, expensive and exposes internals
+func (s *NoteService) GetNote(ctx context.Context, id string) (*Note, error) {
+    // returns full domain object, exposes internals
 }
 
-func (s *OrderService) GetOrderSummary(ctx context.Context, id string) (*OrderSummary, error) {
-    // different read shape, now the service has two query methods with different return types
+func (s *NoteService) GetNoteSummary(ctx context.Context, id string) (*NoteSummary, error) {
+    // different read shape, service now has two query methods with different return types
 }
 ```
 
@@ -62,44 +62,56 @@ Separate every operation into a command or a query. Commands mutate; queries rea
 Define commands and queries as plain structs:
 
 ```go
-// command/create_order.go
+// command/create_note.go
 package command
 
-import "context"
+import (
+    "context"
+    "fmt"
+    "time"
+)
 
-type CreateOrder struct {
-    CustomerID string
-    Total      int64
+type Note struct {
+    ID        string
+    Title     string
+    Body      string
+    CreatedAt time.Time
 }
 
-type OrderRepository interface {
-    Save(ctx context.Context, o *Order) error
+type NoteRepository interface {
+    Save(ctx context.Context, n *Note) error
 }
 
-type CreateOrderHandler struct {
-    repo OrderRepository
+type CreateNote struct {
+    ID    string
+    Title string
+    Body  string
 }
 
-func NewCreateOrderHandler(repo OrderRepository) *CreateOrderHandler {
-    return &CreateOrderHandler{repo: repo}
+type CreateNoteHandler struct {
+    repo NoteRepository
 }
 
-func (h *CreateOrderHandler) Handle(ctx context.Context, cmd CreateOrder) error {
-    if cmd.CustomerID == "" {
-        return fmt.Errorf("customer_id is required")
+func NewCreateNoteHandler(repo NoteRepository) *CreateNoteHandler {
+    return &CreateNoteHandler{repo: repo}
+}
+
+func (h *CreateNoteHandler) Handle(ctx context.Context, cmd CreateNote) error {
+    if cmd.Title == "" {
+        return fmt.Errorf("title is required")
     }
-    o := &Order{
-        ID:         uuid.NewString(),
-        CustomerID: cmd.CustomerID,
-        Total:      cmd.Total,
-        Status:     StatusDraft,
+    n := &Note{
+        ID:        cmd.ID,
+        Title:     cmd.Title,
+        Body:      cmd.Body,
+        CreatedAt: time.Now(),
     }
-    return h.repo.Save(ctx, o)
+    return h.repo.Save(ctx, n)
 }
 ```
 
 ```go
-// command/ship_order.go
+// command/update_note.go
 package command
 
 import (
@@ -107,83 +119,93 @@ import (
     "fmt"
 )
 
-type ShipOrder struct {
-    OrderID string
+type NoteReader interface {
+    FindByID(ctx context.Context, id string) (*Note, error)
 }
 
-type ShipOrderHandler struct {
-    repo OrderRepository
+type NoteWriter interface {
+    NoteReader
+    Save(ctx context.Context, n *Note) error
 }
 
-func NewShipOrderHandler(repo OrderRepository) *ShipOrderHandler {
-    return &ShipOrderHandler{repo: repo}
+type UpdateNote struct {
+    ID   string
+    Body string
 }
 
-func (h *ShipOrderHandler) Handle(ctx context.Context, cmd ShipOrder) error {
-    o, err := h.repo.FindByID(ctx, cmd.OrderID)
+type UpdateNoteHandler struct {
+    repo NoteWriter
+}
+
+func NewUpdateNoteHandler(repo NoteWriter) *UpdateNoteHandler {
+    return &UpdateNoteHandler{repo: repo}
+}
+
+func (h *UpdateNoteHandler) Handle(ctx context.Context, cmd UpdateNote) error {
+    n, err := h.repo.FindByID(ctx, cmd.ID)
     if err != nil {
-        return fmt.Errorf("finding order: %w", err)
+        return fmt.Errorf("finding note: %w", err)
     }
-    if err := o.Ship(); err != nil {
-        return err
-    }
-    return h.repo.Save(ctx, o)
+    n.Body = cmd.Body
+    return h.repo.Save(ctx, n)
 }
 ```
 
 Queries return purpose-built DTOs, not domain objects:
 
 ```go
-// query/get_order.go
+// query/get_note.go
 package query
 
 import "context"
 
-// OrderView is a read-optimized projection, not the domain type.
-type OrderView struct {
-    ID           string
-    CustomerName string
-    Total        int64
-    Status       string
-    ItemCount    int
+// NoteView is a read-optimized projection, not the domain type.
+type NoteView struct {
+    ID        string
+    Title     string
+    Preview   string // first 100 chars of body
+    WordCount int
 }
 
-type OrderSummary struct {
-    ID     string
-    Total  int64
-    Status string
+type NoteSummary struct {
+    ID    string
+    Title string
 }
 
-type OrderReadStore interface {
-    FindByID(ctx context.Context, id string) (*OrderView, error)
-    ListByCustomer(ctx context.Context, customerID string) ([]OrderSummary, error)
+type NoteReadStore interface {
+    FindByID(ctx context.Context, id string) (*NoteView, error)
+    List(ctx context.Context) ([]NoteSummary, error)
 }
 
-type GetOrderHandler struct {
-    store OrderReadStore
+type GetNoteHandler struct {
+    store NoteReadStore
 }
 
-func NewGetOrderHandler(store OrderReadStore) *GetOrderHandler {
-    return &GetOrderHandler{store: store}
+func NewGetNoteHandler(store NoteReadStore) *GetNoteHandler {
+    return &GetNoteHandler{store: store}
 }
 
-func (h *GetOrderHandler) Handle(ctx context.Context, id string) (*OrderView, error) {
+func (h *GetNoteHandler) Handle(ctx context.Context, id string) (*NoteView, error) {
     return h.store.FindByID(ctx, id)
 }
 
-type ListOrdersHandler struct {
-    store OrderReadStore
+type ListNotesHandler struct {
+    store NoteReadStore
 }
 
-func (h *ListOrdersHandler) Handle(ctx context.Context, customerID string) ([]OrderSummary, error) {
-    return h.store.ListByCustomer(ctx, customerID)
+func NewListNotesHandler(store NoteReadStore) *ListNotesHandler {
+    return &ListNotesHandler{store: store}
+}
+
+func (h *ListNotesHandler) Handle(ctx context.Context) ([]NoteSummary, error) {
+    return h.store.List(ctx)
 }
 ```
 
-The read store can be the same database (a view or query-optimised table) or a separate projection:
+The read store can be the same database with a purpose-built query or a separate projection:
 
 ```go
-// infra/postgres/order_read_store.go
+// infra/postgres/note_read_store.go
 package postgres
 
 import (
@@ -192,34 +214,32 @@ import (
     "myapp/query"
 )
 
-type OrderReadStore struct{ db *sql.DB }
+type NoteReadStore struct{ db *sql.DB }
 
-func (s *OrderReadStore) FindByID(ctx context.Context, id string) (*query.OrderView, error) {
-    var v query.OrderView
+func (s *NoteReadStore) FindByID(ctx context.Context, id string) (*query.NoteView, error) {
+    var v query.NoteView
     err := s.db.QueryRowContext(ctx, `
-        SELECT o.id, c.name, o.total, o.status, COUNT(i.id)
-        FROM orders o
-        JOIN customers c ON c.id = o.customer_id
-        LEFT JOIN order_items i ON i.order_id = o.id
-        WHERE o.id = $1
-        GROUP BY o.id, c.name, o.total, o.status
-    `, id).Scan(&v.ID, &v.CustomerName, &v.Total, &v.Status, &v.ItemCount)
+        SELECT id, title,
+               LEFT(body, 100)                 AS preview,
+               array_length(string_to_array(trim(body), ' '), 1) AS word_count
+        FROM notes
+        WHERE id = $1
+    `, id).Scan(&v.ID, &v.Title, &v.Preview, &v.WordCount)
     return &v, err
 }
 
-func (s *OrderReadStore) ListByCustomer(ctx context.Context, customerID string) ([]query.OrderSummary, error) {
+func (s *NoteReadStore) List(ctx context.Context) ([]query.NoteSummary, error) {
     rows, err := s.db.QueryContext(ctx,
-        "SELECT id, total, status FROM orders WHERE customer_id = $1 ORDER BY created_at DESC",
-        customerID,
+        "SELECT id, title FROM notes ORDER BY created_at DESC",
     )
     if err != nil {
         return nil, err
     }
     defer rows.Close()
-    var result []query.OrderSummary
+    var result []query.NoteSummary
     for rows.Next() {
-        var s query.OrderSummary
-        rows.Scan(&s.ID, &s.Total, &s.Status)
+        var s query.NoteSummary
+        rows.Scan(&s.ID, &s.Title)
         result = append(result, s)
     }
     return result, rows.Err()
@@ -229,7 +249,7 @@ func (s *OrderReadStore) ListByCustomer(ctx context.Context, customerID string) 
 Wire it up in the HTTP layer, where commands and queries have separate endpoints:
 
 ```go
-// adapter/http/order_handler.go
+// adapter/http/note_handler.go
 package httpadapter
 
 import (
@@ -239,22 +259,24 @@ import (
     "net/http"
 )
 
-type OrderHandler struct {
-    createOrder *command.CreateOrderHandler
-    shipOrder   *command.ShipOrderHandler
-    getOrder    *query.GetOrderHandler
-    listOrders  *query.ListOrdersHandler
+type NoteHandler struct {
+    createNote *command.CreateNoteHandler
+    updateNote *command.UpdateNoteHandler
+    getNote    *query.GetNoteHandler
+    listNotes  *query.ListNotesHandler
 }
 
-func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
+func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
     var req struct {
-        CustomerID string `json:"customer_id"`
-        Total      int64  `json:"total"`
+        ID    string `json:"id"`
+        Title string `json:"title"`
+        Body  string `json:"body"`
     }
     json.NewDecoder(r.Body).Decode(&req)
-    if err := h.createOrder.Handle(r.Context(), command.CreateOrder{
-        CustomerID: req.CustomerID,
-        Total:      req.Total,
+    if err := h.createNote.Handle(r.Context(), command.CreateNote{
+        ID:    req.ID,
+        Title: req.Title,
+        Body:  req.Body,
     }); err != nil {
         http.Error(w, err.Error(), 422)
         return
@@ -262,9 +284,9 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(201)
 }
 
-func (h *OrderHandler) Get(w http.ResponseWriter, r *http.Request) {
+func (h *NoteHandler) Get(w http.ResponseWriter, r *http.Request) {
     id := r.PathValue("id")
-    view, err := h.getOrder.Handle(r.Context(), id)
+    view, err := h.getNote.Handle(r.Context(), id)
     if err != nil {
         http.Error(w, err.Error(), 404)
         return
@@ -286,23 +308,14 @@ func (h *OrderHandler) Get(w http.ResponseWriter, r *http.Request) {
 - The read and write models are identical, so there are no distinct query shapes or read optimizations to justify the split.
 - The team is small and the added structure costs more than it returns.
 
-## Advantages
+## Tradeoffs
 
-- Reads and writes evolve independently. You can add a new query shape without touching the write model.
-- Query handlers return purpose-built DTOs, so you avoid accidentally exposing domain internals.
-- Read stores can be aggressively optimized (materialized views, separate databases, caches) without affecting writes.
-- Commands create a clean audit trail because each one is a named, typed intention.
-
-## Disadvantages
-
-- More types: each operation gets its own struct and handler. A ten-operation service becomes twenty files.
-- Eventual consistency: if write and read stores diverge, queries may return stale data until the projection catches up.
-- Overkill for simple domains. The overhead is real, and the payoff usually arrives only with scale or complexity.
-- Testing both sides doubles the surface area for integration tests.
+The most immediate cost is volume: each operation gets its own struct and handler, so a ten-operation service becomes closer to twenty files. The split pays back through independent evolution — you can add a new query shape or optimize a read projection without touching the write model — but that dividend arrives only with enough operations to make the separation feel natural rather than forced. Eventual consistency is the non-obvious danger: if the read store is a separate projection updated asynchronously, queries may return stale data until it catches up, and this surprises users who expect to see their own write immediately. Even with a shared database, the separation doubles the integration test surface because both command handlers and query handlers need coverage.
 
 ## Related Patterns
 
-- **Event-Driven Architecture:** Commands naturally emit Domain Events that update read-side projections asynchronously. CQRS and event-driven systems fit together well, but CQRS does not require them. A single database with separate read and write models is enough to get started.
-- **Domain-Driven Design:** Pairs naturally with DDD. The command side uses the rich aggregate model with enforced invariants, while the query side uses flat DTOs that bypass the domain model for read performance.
-- **Hexagonal Architecture:** Command and query handlers are driving ports called by HTTP or queue adapters. Write and read stores are driven ports implemented by database adapters.
-- **Clean Architecture:** Commands map to Use Cases in the inner ring, while queries can bypass the domain model and read directly from the store. The Dependency Rule still applies to both sides.
+- **Event-Driven Architecture** — Commands naturally emit Domain Events that update read-side projections asynchronously. CQRS and event-driven systems fit together well, but CQRS does not require them. A single database with separate read and write models is enough to get started.
+- **Domain-Driven Design** — Pairs naturally with DDD. The command side uses the rich aggregate model with enforced invariants, while the query side uses flat DTOs that bypass the domain model for read performance.
+- **Hexagonal Architecture** — Command and query handlers are driving ports called by HTTP or queue adapters. Write and read stores are driven ports implemented by database adapters.
+- **Clean Architecture** — Commands map to Use Cases in the inner ring, while queries can bypass the domain model and read directly from the store. The Dependency Rule still applies to both sides.
+- **Repository** — The write side of CQRS typically uses a Repository for its write store, while the read side often uses a lighter read store interface that returns projections rather than aggregates.

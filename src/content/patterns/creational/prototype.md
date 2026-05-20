@@ -13,116 +13,77 @@ Go's struct assignment copies by value — clean for `string` and `int` fields, 
 
 ## Problem
 
-You have a document template system. Users start from a template and customize it. The template has nested structures — paragraphs, metadata maps, style settings. You need independent copies, but Go's assignment operator only does a shallow copy. Modifying the "copy" mutates the original.
+You have an HTTP request template — a base request with preset headers and query parameters that many parts of the code build on. The template has nested structures: a header map, a slice of query parameters. You need independent copies per request, but Go's assignment operator only does a shallow copy. Modifying the "copy" mutates the template.
 
 ```go
 // shallow_bug.go
-package document
+package main
 
-type Document struct {
-    Title      string
-    Author     string
-    Tags       []string
-    Metadata   map[string]string
-    Paragraphs []*Paragraph
-}
-
-type Paragraph struct {
-    Text  string
-    Style string
+type Request struct {
+    Method  string
+    URL     string
+    Headers map[string]string
+    Tags    []string
 }
 
 func main() {
-    original := &Document{
-        Title:  "Template",
-        Tags:   []string{"draft"},
-        Metadata: map[string]string{"version": "1"},
-        Paragraphs: []*Paragraph{{Text: "Hello", Style: "normal"}},
+    base := &Request{
+        Method:  "GET",
+        Headers: map[string]string{"Accept": "application/json"},
+        Tags:    []string{"v1"},
     }
 
-    // WRONG: shallow copy — slices and maps share underlying memory
-    copy := *original
-    copy.Title = "My Document"     // safe — string is a value
-    copy.Tags = append(copy.Tags, "mine") // DANGER: mutates original.Tags!
-    copy.Metadata["author"] = "me"       // DANGER: mutates original.Metadata!
-    copy.Paragraphs[0].Text = "Changed"  // DANGER: mutates original!
+    // WRONG: shallow copy — map and slice share underlying memory
+    req := *base
+    req.URL = "/users"
+    req.Headers["Authorization"] = "Bearer token" // DANGER: mutates base!
+    req.Tags = append(req.Tags, "auth")            // DANGER: may mutate base!
 }
 ```
 
-The struct assignment copies the struct's fields by value, but slices, maps, and pointers hold references. The "copy" and original share the same underlying arrays and maps. This is a common source of subtle bugs in Go, especially in concurrent code.
+The struct assignment copies fields by value, but maps and slices hold references. The "copy" and the template share the same underlying data. This is a common source of subtle bugs in Go, especially when templates are reused concurrently.
 
 ## Solution
 
-Implement a `Clone()` method that explicitly deep-copies every reference type. This is tedious but necessary, and making it a method ensures the copy logic lives with the type rather than scattered across callers.
+Implement a `Clone()` method that explicitly deep-copies every reference type. Making it a method ensures the copy logic lives with the type rather than scattered across callers.
 
 ```
-┌───────────────┐    Clone()    ┌───────────────┐
-│   original    │──────────────►│     copy      │
-│───────────────│               │───────────────│
-│ Title: "Tmpl" │               │ Title: "Tmpl" │
-│ Tags ──────►[draft]           │ Tags ──────►[draft]  ◄── new slice
-│ Meta ──────►{v:1}             │ Meta ──────►{v:1}    ◄── new map
-│ Paras ─────►[*P1]            │ Paras ─────►[*P2]    ◄── new slice
-│              │                │              │           of new ptrs
-└───────────────┘               └───────────────┘
+┌───────────────────┐    Clone()    ┌───────────────────┐
+│      base         │──────────────►│      copy         │
+│───────────────────│               │───────────────────│
+│ Method: "GET"     │               │ Method: "GET"     │
+│ Headers ────────►{Accept:json}    │ Headers ────────►{Accept:json}  ◄── new map
+│ Tags ───────────►["v1"]           │ Tags ───────────►["v1"]         ◄── new slice
+└───────────────────┘               └───────────────────┘
 ```
-
-The `Paragraph` type gets its own Clone method:
 
 ```go
-// paragraph.go
-package document
+// request.go
+package httptpl
 
-type Paragraph struct {
-    Text  string
-    Style string
+type Request struct {
+    Method  string
+    URL     string
+    Headers map[string]string
+    Tags    []string
 }
 
-func (p *Paragraph) Clone() *Paragraph {
-    return &Paragraph{
-        Text:  p.Text,
-        Style: p.Style,
-    }
-}
-```
-
-The `Document`'s Clone method deep-copies every field:
-
-```go
-// document.go
-package document
-
-type Document struct {
-    Title      string
-    Author     string
-    Tags       []string
-    Metadata   map[string]string
-    Paragraphs []*Paragraph
-}
-
-func (d *Document) Clone() *Document {
-    clone := &Document{
-        Title:  d.Title,
-        Author: d.Author,
+func (r *Request) Clone() *Request {
+    clone := &Request{
+        Method: r.Method,
+        URL:    r.URL,
     }
 
-    if d.Tags != nil {
-        clone.Tags = make([]string, len(d.Tags))
-        copy(clone.Tags, d.Tags)
-    }
-
-    if d.Metadata != nil {
-        clone.Metadata = make(map[string]string, len(d.Metadata))
-        for k, v := range d.Metadata {
-            clone.Metadata[k] = v
+    if r.Headers != nil {
+        clone.Headers = make(map[string]string, len(r.Headers))
+        for k, v := range r.Headers {
+            clone.Headers[k] = v
         }
     }
 
-    if d.Paragraphs != nil {
-        clone.Paragraphs = make([]*Paragraph, len(d.Paragraphs))
-        for i, p := range d.Paragraphs {
-            clone.Paragraphs[i] = p.Clone()
-        }
+    if r.Tags != nil {
+        clone.Tags = make([]string, len(r.Tags))
+        copy(clone.Tags, r.Tags)
     }
 
     return clone
@@ -136,36 +97,38 @@ package main
 import "fmt"
 
 func main() {
-    template := &Document{
-        Title:    "Invoice Template",
-        Tags:     []string{"template", "finance"},
-        Metadata: map[string]string{"version": "1.0"},
-        Paragraphs: []*Paragraph{
-            {Text: "Dear Customer,", Style: "heading"},
-            {Text: "Thank you for your purchase.", Style: "body"},
-        },
+    base := &Request{
+        Method:  "GET",
+        Headers: map[string]string{"Accept": "application/json"},
+        Tags:    []string{"v1"},
     }
 
-    invoice := template.Clone()
-    invoice.Title = "Invoice #1042"
-    invoice.Tags = append(invoice.Tags, "sent")
-    invoice.Metadata["customer"] = "Acme Corp"
-    invoice.Paragraphs[0].Text = "Dear Acme Corp,"
+    // Each request starts as an independent copy of the template.
+    users := base.Clone()
+    users.URL = "/users"
+    users.Headers["Authorization"] = "Bearer token-a"
+    users.Tags = append(users.Tags, "users")
 
-    fmt.Printf("Template: %s, tags=%v\n", template.Title, template.Tags)
-    fmt.Printf("Invoice:  %s, tags=%v\n", invoice.Title, invoice.Tags)
-    fmt.Printf("Template para[0]: %s\n", template.Paragraphs[0].Text)
-    fmt.Printf("Invoice  para[0]: %s\n", invoice.Paragraphs[0].Text)
+    metrics := base.Clone()
+    metrics.URL = "/metrics"
+    metrics.Headers["Authorization"] = "Bearer token-b"
+
+    fmt.Printf("base headers:    %v\n", base.Headers)
+    fmt.Printf("users headers:   %v\n", users.Headers)
+    fmt.Printf("metrics headers: %v\n", metrics.Headers)
+    fmt.Printf("base tags:       %v\n", base.Tags)
+    fmt.Printf("users tags:      %v\n", users.Tags)
 }
 ```
 
 Output:
 
 ```
-Template: Invoice Template, tags=[template finance]
-Invoice:  Invoice #1042, tags=[template finance sent]
-Template para[0]: Dear Customer,
-Invoice  para[0]: Dear Acme Corp,
+base headers:    map[Accept:application/json]
+users headers:   map[Accept:application/json Authorization:Bearer token-a]
+metrics headers: map[Accept:application/json Authorization:Bearer token-b]
+base tags:       [v1]
+users tags:      [v1 users]
 ```
 
 ## When to Use
@@ -180,18 +143,9 @@ Invoice  para[0]: Dear Acme Corp,
 - Deep copying is too expensive for your use case — consider immutable shared state ([Flyweight](/go/patterns/structural/flyweight)) instead.
 - You only need a few variations — a constructor with parameters is simpler than cloning and modifying.
 
-## Advantages
+## Tradeoffs
 
-- Makes copy semantics explicit — no hidden sharing of reference types.
-- New objects without knowing their concrete type (via a `Cloneable` interface).
-- Avoids complex construction when the prototype already has the right shape.
-
-## Disadvantages
-
-- Deep copy code is tedious and must be updated whenever fields are added.
-- No compiler enforcement — if you add a slice field and forget to clone it, you get a subtle bug.
-- Circular references make deep copying significantly harder.
-- Performance cost of copying large object graphs.
+The `Clone()` method is the right tool when correctness requires truly independent copies of reference types — but it has to be maintained manually. Every time you add a slice, map, or pointer field to a struct, you must also update `Clone()` or you silently introduce a sharing bug. The Go compiler gives you no help here: a forgotten field passes all type checks and only fails at runtime when a mutation bleeds through. Deep-copying large object graphs is also proportionally expensive — if the object you're cloning contains many nested pointers, the clone walks all of them. For objects with circular references, you need to track visited nodes, which adds real complexity. If the primary goal is snapshotting state for undo rather than creating a new independent instance, [Memento](/go/patterns/behavioral/memento) is a more targeted fit.
 
 ## Related Patterns
 

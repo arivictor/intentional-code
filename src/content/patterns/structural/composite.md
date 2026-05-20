@@ -9,120 +9,116 @@ tags: [interfaces, composition]
 
 # Composite
 
-Composite's identifying signal is a tree structure where clients should treat leaves and branches the same way — you call `Price()` and it doesn't matter whether you're calling it on a single product or a bundle of thousands. In Go, this is one interface implemented by both leaf and composite types; the composite holds a `[]InterfaceType` and recursion falls out naturally from each node calling the same method on its children.
+Composite's identifying signal is a tree structure where clients should treat leaves and branches the same way — you call `Size()` and it doesn't matter whether you're calling it on a single file or a directory containing thousands. In Go, this is one interface implemented by both leaf and composite types; the composite holds a `[]InterfaceType` and recursion falls out naturally from each node calling the same method on its children.
 
-The classic example is a file system: both files and directories satisfy the same interface, and a directory simply delegates its operations to its entries.
+The canonical example is a file system: both files and directories satisfy the same interface, and a directory simply delegates its operations to its entries.
 
 ## Problem
 
-You're building a pricing engine for product bundles. Products have a price. Bundles contain products and other bundles. You need to calculate the total price of any combination, but the code treats products and bundles differently, with type checks everywhere.
+You're tracking disk usage. Files have a size. Directories contain files and other directories. You need to calculate the total size of any entry, but the code treats files and directories differently, with type checks everywhere.
 
 ```go
-// pricing_naive.go
-package pricing
+// naive.go
+package fs
 
-import "fmt"
+type File struct {
+    Name string
+    Size int64
+}
 
-type Product struct {
+type Directory struct {
     Name  string
-    Price int64
+    Files []File
+    Dirs  []Directory
 }
 
-type Bundle struct {
-    Name     string
-    Products []Product
-    Bundles  []Bundle
-}
-
-func TotalPrice(b Bundle) int64 {
+func TotalSize(d Directory) int64 {
     total := int64(0)
-    for _, p := range b.Products {
-        total += p.Price
+    for _, f := range d.Files {
+        total += f.Size
     }
-    for _, sub := range b.Bundles {
-        total += TotalPrice(sub) // manual recursion, type-aware
+    for _, sub := range d.Dirs {
+        total += TotalSize(sub) // manual recursion, type-aware
     }
     return total
 }
 
-// Adding a "DiscountedProduct" or "SubscriptionBundle" requires
-// modifying this function and every function like it.
+// Adding a "SymLink" or "MountPoint" type requires
+// modifying TotalSize and every function like it.
 ```
 
-The code must know about every type in the hierarchy. Adding a new kind of priceable item (a subscription, a gift card, a discount wrapper) means changing `TotalPrice` and every similar function.
+The code must know about every type in the hierarchy. Adding a new kind of entry means changing `TotalSize` and every similar traversal function.
 
 ## Solution
 
-Define a single interface — `PriceComponent` — that both leaf items and composites implement. The composite delegates to its children, and the tree structure emerges naturally.
+Define a single interface — `Entry` — that both leaf files and composite directories implement. The directory delegates to its children, and the tree structure emerges naturally.
 
 ```
 ┌─────────────────────────┐
 │     <<interface>>       │
-│    PriceComponent       │
+│         Entry           │
 │─────────────────────────│
-│ + Price() int64         │
-│ + Name()  string        │
+│ + Size() int64          │
+│ + Name() string         │
 └────────────┬────────────┘
              │ implements
      ┌───────┼────────┐
      │                │
 ┌────▼──────┐  ┌──────▼──────┐
-│  Product  │  │   Bundle    │
+│   File    │  │  Directory  │
 │ (leaf)    │  │ (composite) │
 │           │  │             │
-│ Price()   │  │ children    │──► []PriceComponent
-│ Name()    │  │ Price()     │    (recursive)
+│ Size()    │  │ children    │──► []Entry
+│ Name()    │  │ Size()      │    (recursive)
 └───────────┘  │ Name()      │
                └─────────────┘
 ```
 
 ```go
-// pricing.go
-package pricing
+// fs.go
+package fs
 
-import "fmt"
-
-// PriceComponent is anything with a price.
-type PriceComponent interface {
-    Price() int64
+// Entry is anything that has a name and a size.
+type Entry interface {
+    Size() int64
     Name() string
 }
 
-// Product is a leaf node.
-type Product struct {
-    name  string
-    price int64
+// File is a leaf node.
+type File struct {
+    name string
+    size int64
 }
 
-func NewProduct(name string, price int64) *Product {
-    return &Product{name: name, price: price}
+func NewFile(name string, size int64) *File {
+    return &File{name: name, size: size}
 }
 
-func (p *Product) Price() int64  { return p.price }
-func (p *Product) Name() string  { return p.name }
+func (f *File) Size() int64 { return f.size }
+func (f *File) Name() string { return f.name }
 
-// Bundle is a composite node.
-type Bundle struct {
+// Directory is a composite node.
+type Directory struct {
     name     string
-    children []PriceComponent
+    children []Entry
 }
 
-func NewBundle(name string, children ...PriceComponent) *Bundle {
-    return &Bundle{name: name, children: children}
+func NewDirectory(name string, children ...Entry) *Directory {
+    return &Directory{name: name, children: children}
 }
 
-func (b *Bundle) Price() int64 {
+func (d *Directory) Size() int64 {
     total := int64(0)
-    for _, c := range b.children {
-        total += c.Price()
+    for _, c := range d.children {
+        total += c.Size()
     }
     return total
 }
 
-func (b *Bundle) Name() string { return b.name }
+func (d *Directory) Name() string { return d.name }
 
-func (b *Bundle) Add(c PriceComponent) {
-    b.children = append(b.children, c)
+func (d *Directory) Add(e Entry) {
+    d.children = append(d.children, e)
 }
 ```
 
@@ -132,20 +128,20 @@ package main
 
 import (
     "fmt"
-    "pricing"
+    "fs"
 )
 
 func main() {
-    keyboard := pricing.NewProduct("Keyboard", 7999)
-    mouse := pricing.NewProduct("Mouse", 3999)
-    monitor := pricing.NewProduct("Monitor", 39999)
+    readme := fs.NewFile("README.md", 4096)
+    main := fs.NewFile("main.go", 8192)
+    config := fs.NewFile("config.yaml", 512)
 
-    peripherals := pricing.NewBundle("Peripherals", keyboard, mouse)
-    workstation := pricing.NewBundle("Workstation", peripherals, monitor)
+    src := fs.NewDirectory("src", main)
+    root := fs.NewDirectory("project", readme, config, src)
 
-    items := []pricing.PriceComponent{keyboard, peripherals, workstation}
-    for _, item := range items {
-        fmt.Printf("%-15s $%6.2f\n", item.Name(), float64(item.Price())/100)
+    entries := []fs.Entry{readme, src, root}
+    for _, e := range entries {
+        fmt.Printf("%-20s %6d bytes\n", e.Name(), e.Size())
     }
 }
 ```
@@ -153,9 +149,9 @@ func main() {
 Output:
 
 ```
-Keyboard        $  79.99
-Peripherals     $ 119.98
-Workstation     $ 519.97
+README.md               4096 bytes
+src                     8192 bytes
+project                12800 bytes
 ```
 
 ## When to Use
@@ -170,17 +166,9 @@ Workstation     $ 519.97
 - Leaf and composite types have very different operations. Forcing a common interface creates methods that don't make sense for one side.
 - You don't need uniform treatment — it's fine to treat items and groups differently.
 
-## Advantages
+## Tradeoffs
 
-- Uniform interface for individual items and groups — clean, recursive code.
-- New component types are easy to add without changing existing traversal logic.
-- Tree depth is unlimited and naturally recursive.
-
-## Disadvantages
-
-- The common interface may be too general — some methods might not make sense for all components.
-- Harder to restrict what can go where (e.g., preventing a product from being added to itself).
-- Debugging deep trees can be tricky — errors may be buried many levels deep.
+The interface gives you clean recursive code and unlimited tree depth with no special cases, but it forces every type in the tree to implement every method on the interface. In practice this means adding a method that makes sense for files but not directories (or vice versa) either requires a no-op implementation or a redesign. The shared interface can also become too coarse — once `Entry` has `Size()`, `Name()`, `Permissions()`, and `ModTime()`, new leaf types must stub out fields they don't have. Debugging is the other pain point: an error buried six directories deep surfaces at the top with a stack trace that crosses many identical `Size()` calls; you need to add path context to find which node failed.
 
 ## Related Patterns
 
