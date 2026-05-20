@@ -6,7 +6,8 @@
       "Bash(node scripts/generate-sitemap.js)",
       "Bash(node scripts/add-frontmatter.mjs)",
       "Bash(mkdir -p /Users/arilaverty/Development/intentional-code/src/pages/go/patterns/\\\\[category\\\\] /Users/arilaverty/Development/intentional-code/src/pages/go/philosophy 2>/dev/null; echo \"dirs created\")",
-      "mcp__Claude_Preview__preview_start"
+      "mcp__Claude_Preview__preview_start",
+      "Bash(npm ci *)"
     ]
   }
 }
