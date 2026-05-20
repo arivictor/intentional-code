@@ -3,41 +3,48 @@ import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import PhilosophyDetailPage from '@/components/pages/PhilosophyDetailPage';
 import { buildNavOrder } from '@/lib/site-data';
-import { getLanguageConfig } from '@/lib/languages';
-
-const language = 'go';
-const languageConfig = getLanguageConfig(language);
+import { GO_SECTION } from '@/lib/section-config';
 
 export async function getStaticPaths() {
-  const basePath = '/go';
   const [patterns, philosophy, categories] = await Promise.all([
-    getCollection('patterns'),
-    getCollection('philosophy'),
-    getCollection('pattern-categories'),
+    getCollection(GO_SECTION.collections.patterns),
+    getCollection(GO_SECTION.collections.philosophy),
+    getCollection(GO_SECTION.collections.categories),
   ]);
 
-  const navOrder = buildNavOrder(patterns, philosophy, categories, basePath);
+  const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
 
-  return philosophy.filter((entry) => entry.id !== 'index').map((entry) => {
-    const slug = entry.id.replace(/\.md$/, '');
-    return {
-      params: { slug },
-      props: {
-        slug,
-        title: entry.data.title,
-        description: entry.data.description,
-        markdown: entry.body,
-        storageKey: `${basePath}/philosophy/${slug}`,
-        navOrder,
-      },
-    };
-  });
+  return philosophy
+    .filter((entry) => entry.id !== 'index')
+    .map((entry) => {
+      const slug = entry.id.replace(/\.md$/, '');
+      return {
+        params: { slug },
+        props: {
+          slug,
+          title: entry.data.title,
+          description: entry.data.description,
+          markdown: entry.body,
+          storageKey: `${GO_SECTION.basePath}/philosophy/${slug}`,
+          navOrder,
+        },
+      };
+    });
 }
 
 const { slug, title, description, markdown, storageKey, navOrder } = Astro.props;
 ---
 
-<SiteLayout title={title} description={description} language={language}>
+<SiteLayout
+  title={title}
+  description={description}
+  basePath={GO_SECTION.basePath}
+  sectionLabel={GO_SECTION.label}
+  themeStorageKey={GO_SECTION.themeStorageKey}
+  categoryOrder={GO_SECTION.categoryOrder}
+  philosophyOrder={GO_SECTION.philosophyOrder}
+  collections={GO_SECTION.collections}
+>
   <PhilosophyDetailPage
     slug={slug}
     title={title}
@@ -45,7 +52,7 @@ const { slug, title, description, markdown, storageKey, navOrder } = Astro.props
     markdown={markdown}
     storageKey={storageKey}
     navOrder={navOrder}
-    pathname={`${languageConfig.basePath}/philosophy/${slug}`}
+    pathname={`${GO_SECTION.basePath}/philosophy/${slug}`}
     client:load
   />
 </SiteLayout>

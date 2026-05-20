@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "modules",
+        "state",
+        "delivery",
+        "architecture"
+      ]
+    },
+    "intent": {
+      "type": "string"
+    },
+    "goIdiomSummary": {
+      "type": "string"
+    },
+    "idiomSummary": {
+      "type": "string"
+    },
+    "relatedSlugs": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "tags": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "isFeatured": {
+      "default": false,
+      "type": "boolean"
+    },
+    "$schema": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "category",
+    "intent"
+  ]
+}

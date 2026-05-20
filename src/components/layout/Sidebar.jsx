@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Building2, Bookmark } from "lucide-react";
-import { getLanguageConfig } from "@/lib/languages";
+import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Bookmark, Database, GitBranch, Building2 } from "lucide-react";
 
-const CATEGORY_ICONS = { creational: Box, structural: Puzzle, behavioral: Workflow, architectural: Building2 };
+const CATEGORY_ICONS = {
+  creational: Box,
+  structural: Puzzle,
+  behavioral: Workflow,
+  architectural: Building2,
+  modules: Box,
+  state: Database,
+  delivery: GitBranch,
+  architecture: Building2,
+};
 
 function SidebarSection({ title, icon: Icon, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -37,15 +45,19 @@ function SidebarLink({ href, children, active }) {
   );
 }
 
-export default function Sidebar({ navData, pathname, currentLanguage = "go" }) {
+export default function Sidebar({
+  navData,
+  pathname,
+  basePath = "/go",
+  sectionLabel = "Go",
+  philosophyItems = [],
+}) {
   const [open, setOpen] = useState(false);
-  const languageConfig = getLanguageConfig(currentLanguage);
-  const { basePath, label } = languageConfig;
 
   useEffect(() => {
-    const handler = () => setOpen((o) => !o);
-    document.addEventListener('sidebar-toggle', handler);
-    return () => document.removeEventListener('sidebar-toggle', handler);
+    const handler = () => setOpen((value) => !value);
+    document.addEventListener("sidebar-toggle", handler);
+    return () => document.removeEventListener("sidebar-toggle", handler);
   }, []);
 
   const nav = (
@@ -58,25 +70,32 @@ export default function Sidebar({ navData, pathname, currentLanguage = "go" }) {
 
       <SidebarSection title="Philosophy" icon={Lightbulb} defaultOpen={pathname.startsWith(`${basePath}/philosophy`)}>
         <SidebarLink href={`${basePath}/philosophy`} active={pathname === `${basePath}/philosophy`}>Overview</SidebarLink>
-        <SidebarLink href={`${basePath}/philosophy/solid`} active={pathname === `${basePath}/philosophy/solid`}>SOLID Principles</SidebarLink>
-        <SidebarLink href={`${basePath}/philosophy/tdd`} active={pathname === `${basePath}/philosophy/tdd`}>Test-Driven Development</SidebarLink>
+        {philosophyItems.map((item) => (
+          <SidebarLink
+            key={item.slug}
+            href={`${basePath}/philosophy/${item.slug}`}
+            active={pathname === `${basePath}/philosophy/${item.slug}`}
+          >
+            {item.title}
+          </SidebarLink>
+        ))}
       </SidebarSection>
 
-      {(navData ?? []).map((cat) => {
-        const Icon = CATEGORY_ICONS[cat.slug] ?? BookOpen;
-        const isActive = pathname.includes(`${basePath}/patterns/${cat.slug}`);
+      {(navData ?? []).map((category) => {
+        const Icon = CATEGORY_ICONS[category.slug] ?? BookOpen;
+        const isActive = pathname.includes(`${basePath}/patterns/${category.slug}`);
         return (
-          <SidebarSection key={cat.slug} title={cat.title} icon={Icon} defaultOpen={isActive}>
-            <SidebarLink href={`${basePath}/patterns/${cat.slug}`} active={pathname === `${basePath}/patterns/${cat.slug}`}>
+          <SidebarSection key={category.slug} title={category.title} icon={Icon} defaultOpen={isActive}>
+            <SidebarLink href={`${basePath}/patterns/${category.slug}`} active={pathname === `${basePath}/patterns/${category.slug}`}>
               Overview
             </SidebarLink>
-            {cat.patterns.map((p) => (
+            {category.patterns.map((pattern) => (
               <SidebarLink
-                key={p.slug}
-                href={`${basePath}/patterns/${p.category}/${p.slug}`}
-                active={pathname === `${basePath}/patterns/${p.category}/${p.slug}`}
+                key={pattern.slug}
+                href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
+                active={pathname === `${basePath}/patterns/${pattern.category}/${pattern.slug}`}
               >
-                {p.title}
+                {pattern.title}
               </SidebarLink>
             ))}
           </SidebarSection>
@@ -102,7 +121,7 @@ export default function Sidebar({ navData, pathname, currentLanguage = "go" }) {
           <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />
           <aside className="fixed left-0 top-0 z-50 w-72 h-full bg-sidebar border-r border-border lg:hidden shadow-xl">
             <div className="h-14 flex items-center px-4 border-b border-border">
-              <span className="text-primary font-mono text-lg font-bold">{label}</span>
+              <span className="text-primary font-mono text-lg font-bold">{sectionLabel}</span>
               <span className="ml-2 text-sm font-semibold">Intentional Code</span>
             </div>
             {nav}

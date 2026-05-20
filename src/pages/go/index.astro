@@ -2,73 +2,78 @@
 import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import Home from '@/components/pages/Home';
-import { buildAllContent, buildNavOrder, CATEGORY_ORDER } from '@/lib/site-data';
-import { getLanguageConfig } from '@/lib/languages';
-
-const language = 'go';
-const languageConfig = getLanguageConfig(language);
+import { buildAllContent, buildNavOrder, getPatternSummary } from '@/lib/site-data';
+import { GO_SECTION } from '@/lib/section-config';
 
 const [patterns, philosophy, categories, sitePages] = await Promise.all([
-  getCollection('patterns'),
-  getCollection('philosophy'),
-  getCollection('pattern-categories'),
-  getCollection('pages'),
+  getCollection(GO_SECTION.collections.patterns),
+  getCollection(GO_SECTION.collections.philosophy),
+  getCollection(GO_SECTION.collections.categories),
+  getCollection(GO_SECTION.collections.pages),
 ]);
 
-const homePage = sitePages.find((p) => p.id === 'home');
+const homePage = sitePages.find((entry) => entry.id === 'home');
 
-const allContent = buildAllContent(patterns, philosophy, languageConfig.basePath);
-const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
+const allContent = buildAllContent(patterns, philosophy, { basePath: GO_SECTION.basePath });
+const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
 
-const categoriesData = CATEGORY_ORDER.map((key) => {
-  const cat = categories.find((c) => c.id.replace(/\/index$/, '') === key);
-  return { slug: key, title: cat?.data.title ?? key, lede: cat?.data.lede ?? '' };
+const categoriesData = GO_SECTION.categoryOrder.map((key) => {
+  const category = categories.find((entry) => entry.id.replace(/\/index$/, '') === key);
+  return { slug: key, title: category?.data.title ?? key, lede: category?.data.lede ?? '' };
 });
 
-const patternsData = patterns.map((p) => ({
-  slug: p.id.replace(/\.md$/, '').split('/')[1],
-  storageKey: `${languageConfig.basePath}/patterns/${p.data.category}/${p.id.replace(/\.md$/, '').split('/')[1]}`,
-  title: p.data.title,
-  category: p.data.category,
-  intent: p.data.intent,
-  idiomSummary: p.data.idiomSummary,
-  tags: p.data.tags,
-  isFeatured: p.data.isFeatured,
-}));
-
-const allTags = [...new Set(patterns.flatMap((p) => p.data.tags))].sort();
-
-const philosophyData = philosophy.map((p) => {
-  const isIndex = p.id === 'index';
+const patternsData = patterns.map((entry) => {
+  const slug = entry.id.replace(/\.md$/, '').split('/')[1];
   return {
-    slug: p.id,
-    storageKey: isIndex ? `${languageConfig.basePath}/philosophy` : `${languageConfig.basePath}/philosophy/${p.id}`,
-    title: p.data.title,
-    description: isIndex ? p.data.intro : p.data.description,
-    url: isIndex ? `${languageConfig.basePath}/philosophy` : `${languageConfig.basePath}/philosophy/${p.id}`,
+    slug,
+    storageKey: `${GO_SECTION.basePath}/patterns/${entry.data.category}/${slug}`,
+    title: entry.data.title,
+    category: entry.data.category,
+    intent: entry.data.intent,
+    summary: getPatternSummary(entry),
+    tags: entry.data.tags,
+    isFeatured: entry.data.isFeatured,
+  };
+});
+
+const allTags = [...new Set(patterns.flatMap((entry) => entry.data.tags))].sort();
+
+const philosophyData = philosophy.map((entry) => {
+  const isIndex = entry.id === 'index';
+  return {
+    slug: entry.id,
+    storageKey: isIndex ? `${GO_SECTION.basePath}/philosophy` : `${GO_SECTION.basePath}/philosophy/${entry.id}`,
+    title: entry.data.title,
+    description: isIndex ? entry.data.intro : entry.data.description,
+    url: isIndex ? `${GO_SECTION.basePath}/philosophy` : `${GO_SECTION.basePath}/philosophy/${entry.id}`,
   };
 });
 ---
 
 <SiteLayout
-  title={languageConfig.homeTitle}
-  description={languageConfig.homeDescription}
-  language={language}
+  title={GO_SECTION.homeTitle}
+  description={GO_SECTION.homeDescription}
+  basePath={GO_SECTION.basePath}
+  sectionLabel={GO_SECTION.label}
+  themeStorageKey={GO_SECTION.themeStorageKey}
+  categoryOrder={GO_SECTION.categoryOrder}
+  philosophyOrder={GO_SECTION.philosophyOrder}
+  collections={GO_SECTION.collections}
 >
   <Home
     allContent={allContent}
     navOrder={navOrder}
     categories={categoriesData}
-    categoryOrder={CATEGORY_ORDER}
+    categoryOrder={GO_SECTION.categoryOrder}
     patterns={patternsData}
     philosophy={philosophyData}
-    pathname={languageConfig.basePath}
-    currentLanguage={language}
-    basePath={languageConfig.basePath}
+    pathname={GO_SECTION.basePath}
     tagline={homePage?.data.tagline}
     heroBody={homePage?.body}
     catalogHeading={homePage?.data.catalogHeading}
     allTags={allTags}
+    basePath={GO_SECTION.basePath}
+    languageLabel={GO_SECTION.label}
     client:load
   />
 </SiteLayout>

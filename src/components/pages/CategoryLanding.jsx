@@ -5,7 +5,15 @@ import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 import MarkdownCode from "@/components/content/MarkdownCode";
 
-export default function CategoryLanding({ category, introMarkdown, patterns, navOrder, pathname, basePath = "/go", summaryHeading = "Go Idiom" }) {
+export default function CategoryLanding({
+  category,
+  introMarkdown,
+  patterns,
+  navOrder,
+  pathname,
+  basePath = "/go",
+  summaryLabel = "Go Idiom",
+}) {
   if (!category) {
     return (
       <div className="max-w-3xl mx-auto px-6 py-12">
@@ -36,22 +44,22 @@ export default function CategoryLanding({ category, introMarkdown, patterns, nav
               <tr className="bg-muted">
                 <th className="text-left px-4 py-3 font-semibold text-foreground">Pattern</th>
                 <th className="text-left px-4 py-3 font-semibold text-foreground">Intent</th>
-                <th className="text-left px-4 py-3 font-semibold text-foreground hidden md:table-cell">{summaryHeading}</th>
+                <th className="text-left px-4 py-3 font-semibold text-foreground hidden md:table-cell">{summaryLabel}</th>
               </tr>
             </thead>
             <tbody>
-              {patterns.map((p, i) => (
-                <tr key={p.slug} className={i < patterns.length - 1 ? "border-b border-border" : ""}>
+              {patterns.map((pattern, index) => (
+                <tr key={pattern.slug} className={index < patterns.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
                     <a
-                      href={`${basePath}/patterns/${p.category}/${p.slug}`}
+                      href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
                       className="font-medium text-primary hover:underline whitespace-nowrap"
                     >
-                      {p.title}
+                      {pattern.title}
                     </a>
                   </td>
-                  <td className="px-4 py-3 text-muted-foreground">{p.intent}</td>
-                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell text-xs font-mono">{p.idiomSummary}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{pattern.intent}</td>
+                  <td className="px-4 py-3 text-muted-foreground hidden md:table-cell text-xs font-mono">{pattern.summary}</td>
                 </tr>
               ))}
             </tbody>
@@ -60,16 +68,16 @@ export default function CategoryLanding({ category, introMarkdown, patterns, nav
       </div>
 
       <div className="space-y-3">
-        {patterns.map((p) => (
+        {patterns.map((pattern) => (
           <a
-            key={p.slug}
-            href={`${basePath}/patterns/${p.category}/${p.slug}`}
+            key={pattern.slug}
+            href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
             className="group block p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/30 transition-all"
           >
             <div className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1">
-              {p.title}
+              {pattern.title}
             </div>
-            <div className="text-sm text-muted-foreground">{p.intent}</div>
+            <div className="text-sm text-muted-foreground">{pattern.intent}</div>
           </a>
         ))}
       </div>

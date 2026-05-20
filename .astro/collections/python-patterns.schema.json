@@ -17,6 +17,9 @@
     "intent": {
       "type": "string"
     },
+    "goIdiomSummary": {
+      "type": "string"
+    },
     "idiomSummary": {
       "type": "string"
     },
@@ -45,7 +48,6 @@
   "required": [
     "title",
     "category",
-    "intent",
-    "idiomSummary"
+    "intent"
   ]
 }

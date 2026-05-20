@@ -1,42 +1,36 @@
+import { GO_SECTION, PYTHON_SECTION, SECTION_SWITCH_OPTIONS } from '@/lib/section-config';
+
 export const LANGUAGE_CONFIG = {
   go: {
-    slug: 'go',
-    label: 'Go',
-    basePath: '/go',
-    summaryHeading: 'Go Idiom',
-    siteTitle: 'Intentional Code with Go',
-    homeTitle: 'Design Patterns in Go',
-    homeDescription: 'Design patterns and SOLID principles, implemented in idiomatic Go — with examples, tradeoffs, and cross-references.',
-    philosophyDescription: 'The principles that make Go design patterns work: SOLID and Test-Driven Development.',
-    themeStorageKey: 'intentional-code-theme',
+    slug: GO_SECTION.key,
+    label: GO_SECTION.label,
+    basePath: GO_SECTION.basePath,
+    summaryHeading: GO_SECTION.summaryLabel,
+    siteTitle: `Intentional Code with ${GO_SECTION.label}`,
+    homeTitle: GO_SECTION.homeTitle,
+    homeDescription: GO_SECTION.homeDescription,
+    philosophyDescription: GO_SECTION.philosophyDescription,
+    themeStorageKey: GO_SECTION.themeStorageKey,
   },
   python: {
-    slug: 'python',
-    label: 'Python',
-    basePath: '/python',
-    summaryHeading: 'Python Style',
-    siteTitle: 'Intentional Code with Python',
-    homeTitle: 'Design Patterns in Python',
-    homeDescription: 'Design patterns and SOLID principles, implemented in idiomatic Python — with examples, tradeoffs, and cross-references.',
-    philosophyDescription: 'The principles that make Python design patterns work: SOLID and Test-Driven Development.',
-    themeStorageKey: 'intentional-code-theme',
+    slug: PYTHON_SECTION.key,
+    label: PYTHON_SECTION.label,
+    basePath: PYTHON_SECTION.basePath,
+    summaryHeading: PYTHON_SECTION.summaryLabel,
+    siteTitle: `Intentional Code with ${PYTHON_SECTION.label}`,
+    homeTitle: PYTHON_SECTION.homeTitle,
+    homeDescription: PYTHON_SECTION.homeDescription,
+    philosophyDescription: PYTHON_SECTION.philosophyDescription,
+    themeStorageKey: PYTHON_SECTION.themeStorageKey,
   },
 };
 
 export const COLLECTION_NAMES = {
-  go: {
-    patterns: 'patterns',
-    philosophy: 'philosophy',
-    categories: 'pattern-categories',
-    pages: 'pages',
-  },
-  python: {
-    patterns: 'python-patterns',
-    philosophy: 'python-philosophy',
-    categories: 'python-pattern-categories',
-    pages: 'python-pages',
-  },
+  go: GO_SECTION.collections,
+  python: PYTHON_SECTION.collections,
 };
+
+export const SWITCHABLE_LANGUAGES = SECTION_SWITCH_OPTIONS;
 
 export function getLanguageConfig(language = 'go') {
   return LANGUAGE_CONFIG[language] ?? LANGUAGE_CONFIG.go;

@@ -3,7 +3,7 @@ import { getCollection } from 'astro:content';
 import TopBar from '@/components/layout/TopBar';
 import Sidebar from '@/components/layout/Sidebar';
 import { buildNavData, buildNavOrder, buildSearchData } from '@/lib/site-data';
-import { getCollectionNames, getLanguageConfig } from '@/lib/languages';
+import { GO_SECTION } from '@/lib/section-config';
 import '@/index.css';
 
 interface Props {
@@ -11,24 +11,48 @@ interface Props {
   description?: string;
   canonical?: string;
   jsonLd?: object;
-  language?: 'go' | 'python';
+  basePath?: string;
+  sectionLabel?: string;
+  themeStorageKey?: string;
+  categoryOrder?: string[];
+  philosophyOrder?: string[];
+  collections?: {
+    patterns: string;
+    philosophy: string;
+    categories: string;
+    pages?: string;
+  };
 }
 
-const { title, description, canonical, jsonLd, language = 'go' } = Astro.props;
-const languageConfig = getLanguageConfig(language);
-const collectionNames = getCollectionNames(language);
-const siteTitle = title ? `${title} | Intentional Code` : languageConfig.siteTitle;
+const {
+  title,
+  description,
+  canonical,
+  jsonLd,
+  basePath = GO_SECTION.basePath,
+  sectionLabel = GO_SECTION.label,
+  themeStorageKey = GO_SECTION.themeStorageKey,
+  categoryOrder = GO_SECTION.categoryOrder,
+  philosophyOrder = GO_SECTION.philosophyOrder,
+  collections = GO_SECTION.collections,
+} = Astro.props;
+
+const siteTitle = title ? `${title} | Intentional Code` : `Intentional Code with ${sectionLabel}`;
 const canonicalUrl = canonical ?? `https://intentionalcode.com${Astro.url.pathname}`;
 
 const [patterns, philosophy, categories] = await Promise.all([
-  getCollection(collectionNames.patterns),
-  getCollection(collectionNames.philosophy),
-  getCollection(collectionNames.categories),
+  getCollection(collections.patterns),
+  getCollection(collections.philosophy),
+  getCollection(collections.categories),
 ]);
 
-const navData = buildNavData(patterns, categories);
-const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
-const searchData = buildSearchData(patterns, philosophy, categories, languageConfig.basePath);
+const navData = buildNavData(patterns, categories, { categoryOrder });
+const navOrder = buildNavOrder(patterns, philosophy, categories, { basePath, categoryOrder, philosophyOrder });
+const searchData = buildSearchData(patterns, philosophy, categories, { basePath });
+const philosophyItems = philosophy
+  .filter((entry) => entry.id !== 'index')
+  .sort((a, b) => philosophyOrder.indexOf(a.id) - philosophyOrder.indexOf(b.id))
+  .map((entry) => ({ slug: entry.id.replace(/\.md$/, ''), title: entry.data.title }));
 const pathname = Astro.url.pathname;
 ---
 
@@ -50,21 +74,34 @@ const pathname = Astro.url.pathname;
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:image" content="https://intentionalcode.com/og-image.png" />
-    {jsonLd && (
-      <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
-    )}
-    <script is:inline>
+    {jsonLd && <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />}
+    <script is:inline define:vars={{ themeStorageKey }}>
       (function () {
-        var t = localStorage.getItem('intentional-code-theme');
+        var t = localStorage.getItem(themeStorageKey);
         if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         if (t === 'dark') document.documentElement.classList.add('dark');
       })();
     </script>
   </head>
   <body class="min-h-screen flex flex-col bg-background text-foreground">
-    <TopBar searchData={searchData} pathname={pathname} currentLanguage={language} client:load />
+    <TopBar
+      searchData={searchData}
+      pathname={pathname}
+      basePath={basePath}
+      sectionLabel={sectionLabel}
+      themeStorageKey={themeStorageKey}
+      client:load
+    />
     <div class="flex flex-1">
-      <Sidebar navData={navData} pathname={pathname} currentLanguage={language} client:load />
+      <Sidebar
+        navData={navData}
+        navOrder={navOrder}
+        pathname={pathname}
+        basePath={basePath}
+        sectionLabel={sectionLabel}
+        philosophyItems={philosophyItems}
+        client:load
+      />
       <main class="flex-1 min-w-0">
         <slot />
       </main>

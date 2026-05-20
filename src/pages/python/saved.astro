@@ -3,27 +3,32 @@ import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import SavedPatterns from '@/components/pages/SavedPatterns';
 import { buildAllContent, buildNavOrder } from '@/lib/site-data';
-import { getCollectionNames, getLanguageConfig } from '@/lib/languages';
-
-const language = 'python';
-const languageConfig = getLanguageConfig(language);
-const collectionNames = getCollectionNames(language);
+import { PYTHON_SECTION } from '@/lib/section-config';
 
 const [patterns, philosophy, categories] = await Promise.all([
-  getCollection(collectionNames.patterns),
-  getCollection(collectionNames.philosophy),
-  getCollection(collectionNames.categories),
+  getCollection(PYTHON_SECTION.collections.patterns),
+  getCollection(PYTHON_SECTION.collections.philosophy),
+  getCollection(PYTHON_SECTION.collections.categories),
 ]);
 
-const allContent = buildAllContent(patterns, philosophy, languageConfig.basePath);
-const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
+const allContent = buildAllContent(patterns, philosophy, { basePath: PYTHON_SECTION.basePath });
+const navOrder = buildNavOrder(patterns, philosophy, categories, PYTHON_SECTION);
 ---
 
-<SiteLayout title="Saved Content" description="Your bookmarked pages and highlights." language={language}>
+<SiteLayout
+  title="Saved Content"
+  description="Your bookmarked pages and highlights."
+  basePath={PYTHON_SECTION.basePath}
+  sectionLabel={PYTHON_SECTION.label}
+  themeStorageKey={PYTHON_SECTION.themeStorageKey}
+  categoryOrder={PYTHON_SECTION.categoryOrder}
+  philosophyOrder={PYTHON_SECTION.philosophyOrder}
+  collections={PYTHON_SECTION.collections}
+>
   <SavedPatterns
     allContent={allContent}
     navOrder={navOrder}
-    pathname={`${languageConfig.basePath}/saved`}
+    pathname={`${PYTHON_SECTION.basePath}/saved`}
     client:load
   />
 </SiteLayout>

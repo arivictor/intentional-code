@@ -2,31 +2,25 @@
 import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import PatternPage from '@/components/pages/PatternPage';
-import { buildNavOrder } from '@/lib/site-data';
-import { getCollectionNames, getLanguageConfig } from '@/lib/languages';
-
-const language = 'python';
-const languageConfig = getLanguageConfig(language);
-const collectionNames = getCollectionNames(language);
+import { buildNavOrder, getPatternSummary } from '@/lib/site-data';
+import { PYTHON_SECTION } from '@/lib/section-config';
 
 export async function getStaticPaths() {
-  const collectionNames = getCollectionNames('python');
-  const basePath = '/python';
   const [patterns, philosophy, categories] = await Promise.all([
-    getCollection(collectionNames.patterns),
-    getCollection(collectionNames.philosophy),
-    getCollection(collectionNames.categories),
+    getCollection(PYTHON_SECTION.collections.patterns),
+    getCollection(PYTHON_SECTION.collections.philosophy),
+    getCollection(PYTHON_SECTION.collections.categories),
   ]);
 
-  const navOrder = buildNavOrder(patterns, philosophy, categories, basePath);
+  const navOrder = buildNavOrder(patterns, philosophy, categories, PYTHON_SECTION);
 
-  const allPatterns = patterns.map((p) => ({
-    slug: p.id.replace(/\.md$/, '').split('/')[1],
-    title: p.data.title,
-    category: p.data.category,
-    intent: p.data.intent,
-    idiomSummary: p.data.idiomSummary,
-    relatedSlugs: p.data.relatedSlugs,
+  const allPatterns = patterns.map((pattern) => ({
+    slug: pattern.id.replace(/\.md$/, '').split('/')[1],
+    title: pattern.data.title,
+    category: pattern.data.category,
+    intent: pattern.data.intent,
+    summary: getPatternSummary(pattern),
+    relatedSlugs: pattern.data.relatedSlugs,
   }));
 
   return patterns.map((entry) => {
@@ -36,12 +30,13 @@ export async function getStaticPaths() {
       props: {
         pattern: {
           slug,
-          storageKey: `${basePath}/patterns/${entry.data.category}/${slug}`,
+          storageKey: `${PYTHON_SECTION.basePath}/patterns/${entry.data.category}/${slug}`,
           title: entry.data.title,
           category: entry.data.category,
           intent: entry.data.intent,
-          idiomSummary: entry.data.idiomSummary,
+          summary: getPatternSummary(entry),
           relatedSlugs: entry.data.relatedSlugs,
+          basePath: PYTHON_SECTION.basePath,
         },
         markdown: entry.body,
         allPatterns,
@@ -56,21 +51,30 @@ const { pattern, markdown, allPatterns, navOrder } = Astro.props;
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'TechArticle',
-  name: `${pattern.title} Pattern in ${languageConfig.label}`,
+  name: `${pattern.title} Pattern in ${PYTHON_SECTION.label}`,
   description: pattern.intent,
-  url: `https://intentionalcode.com${languageConfig.basePath}/patterns/${pattern.category}/${pattern.slug}`,
+  url: `https://intentionalcode.com${PYTHON_SECTION.basePath}/patterns/${pattern.category}/${pattern.slug}`,
   publisher: { '@type': 'Organization', name: 'Intentional Code' },
 };
 ---
 
-<SiteLayout title={pattern.title} description={pattern.intent} jsonLd={jsonLd} language={language}>
+<SiteLayout
+  title={pattern.title}
+  description={pattern.intent}
+  jsonLd={jsonLd}
+  basePath={PYTHON_SECTION.basePath}
+  sectionLabel={PYTHON_SECTION.label}
+  themeStorageKey={PYTHON_SECTION.themeStorageKey}
+  categoryOrder={PYTHON_SECTION.categoryOrder}
+  philosophyOrder={PYTHON_SECTION.philosophyOrder}
+  collections={PYTHON_SECTION.collections}
+>
   <PatternPage
     pattern={pattern}
     markdown={markdown}
     allPatterns={allPatterns}
     navOrder={navOrder}
-    pathname={`${languageConfig.basePath}/patterns/${pattern.category}/${pattern.slug}`}
-    basePath={languageConfig.basePath}
+    pathname={`${PYTHON_SECTION.basePath}/patterns/${pattern.category}/${pattern.slug}`}
     client:load
   />
 </SiteLayout>

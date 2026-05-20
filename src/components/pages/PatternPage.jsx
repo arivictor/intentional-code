@@ -14,7 +14,7 @@ import HighlightableContent from "@/components/content/HighlightableContent";
 import { getHighlights, addHighlight, removeHighlight } from "@/lib/highlights";
 import ReadingProgressBar from "@/components/layout/ReadingProgressBar";
 
-export const PatternsContext = createContext([]);
+export const PatternsContext = createContext({ allPatterns: [], basePath: "/go" });
 
 function readingTimeFromMarkdown(md) {
   if (!md) return null;
@@ -23,14 +23,14 @@ function readingTimeFromMarkdown(md) {
 }
 
 function parseList(block) {
-  return block.trim().split("\n").filter((l) => l.startsWith("- ")).map((l) => l.slice(2).trim());
+  return block.trim().split("\n").filter((line) => line.startsWith("- ")).map((line) => line.slice(2).trim());
 }
 
 function parseRelated(block) {
   return block.trim().split("\n")
-    .filter((l) => l.startsWith("- "))
-    .map((l) => {
-      const inner = l.slice(2).trim();
+    .filter((line) => line.startsWith("- "))
+    .map((line) => {
+      const inner = line.slice(2).trim();
       const match = inner.match(/^\*\*(.+?)\*\*\s*[—–-]\s*(.+)$/);
       if (match) return { title: match[1], description: match[2] };
       return { title: inner.replace(/\*\*/g, ""), description: "" };
@@ -60,6 +60,7 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
   const [bookmarked, setBookmarked] = useState(false);
   const [highlights, setHighlights] = useState([]);
   const { storageKey } = pattern;
+  const resolvedBasePath = pattern.basePath ?? basePath;
 
   useEffect(() => {
     setRead(isPatternRead(storageKey));
@@ -67,15 +68,20 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
     setHighlights(getHighlights(storageKey));
   }, [storageKey]);
 
-  const handleAddHighlight = (hl) => setHighlights(addHighlight(storageKey, hl));
+  const handleAddHighlight = (highlight) => setHighlights(addHighlight(storageKey, highlight));
   const handleRemoveHighlight = (id) => setHighlights(removeHighlight(storageKey, id));
   const handleBookmark = () => setBookmarked(toggleBookmark(storageKey));
   const toggleRead = () => {
-    if (read) { markPatternUnread(storageKey); setRead(false); }
-    else { markPatternRead(storageKey); setRead(true); }
+    if (read) {
+      markPatternUnread(storageKey);
+      setRead(false);
+    } else {
+      markPatternRead(storageKey);
+      setRead(true);
+    }
   };
 
-  const patternMap = Object.fromEntries((allPatterns ?? []).map((p) => [p.slug, p.title]));
+  const patternMap = Object.fromEntries((allPatterns ?? []).map((entry) => [entry.slug, entry.title]));
   const mdProps = {
     rehypePlugins: [rehypeSlug],
     components: {
@@ -97,7 +103,7 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
   };
 
   return (
-    <PatternsContext.Provider value={{ allPatterns: allPatterns ?? [], basePath }}>
+    <PatternsContext.Provider value={{ allPatterns: allPatterns ?? [], basePath: resolvedBasePath }}>
       <ReadingProgressBar />
       <div className="flex gap-8 max-w-5xl mx-auto px-6 py-12">
         <div className="flex-1 min-w-0">
@@ -146,6 +152,7 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
                   </div>
                 );
               }
+
               return (
                 <>
                   <div className="prose-pattern">
@@ -156,8 +163,8 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
                     <section id="related-patterns" className="mt-12">
                       <h2 className="text-2xl font-semibold mb-4 text-foreground">Related Patterns</h2>
                       <div className="space-y-3">
-                        {sections.relatedPatterns.map((rp, i) => (
-                          <PatternLink key={i} title={rp.title} description={rp.description} />
+                        {sections.relatedPatterns.map((relatedPattern, index) => (
+                          <PatternLink key={index} title={relatedPattern.title} description={relatedPattern.description} />
                         ))}
                       </div>
                     </section>

@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import { PatternsContext } from "@/components/pages/PatternPage";
 
 export default function PatternLink({ slug, title, description }) {
-  const { allPatterns = [], basePath = '/go' } = useContext(PatternsContext) ?? {};
+  const { allPatterns = [], basePath = "/go" } = useContext(PatternsContext) ?? {};
   const pattern = slug
     ? allPatterns.find((p) => p.slug === slug)
     : allPatterns.find((p) => p.title.toLowerCase() === title?.toLowerCase().trim());
@@ -17,9 +17,7 @@ export default function PatternLink({ slug, title, description }) {
       >
         {pattern.title}
       </a>
-      {description && (
-        <span className="text-sm text-muted-foreground mt-1">{description}</span>
-      )}
+      {description && <span className="text-sm text-muted-foreground mt-1">{description}</span>}
     </div>
   );
 }

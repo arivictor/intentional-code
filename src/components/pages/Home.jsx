@@ -1,13 +1,23 @@
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star } from "lucide-react";
+import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch } from "lucide-react";
 import { getReadPatterns } from "@/lib/readingProgress";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 
-const CATEGORY_ICONS = { creational: Box, structural: Puzzle, behavioral: Workflow, architectural: Building2 };
+const CATEGORY_ICONS = {
+  creational: Box,
+  structural: Puzzle,
+  behavioral: Workflow,
+  architectural: Building2,
+  modules: Box,
+  state: Database,
+  delivery: GitBranch,
+  architecture: Building2,
+};
 
 function TagFilter({ allTags, activeTags, filteredCount, totalCount, onToggle, onClear }) {
   if (!allTags || allTags.length === 0) return null;
+
   return (
     <div className="mb-6">
       <div className="flex flex-wrap gap-2 items-center">
@@ -45,7 +55,21 @@ function TagFilter({ allTags, activeTags, filteredCount, totalCount, onToggle, o
   );
 }
 
-export default function Home({ allContent, navOrder, categories, categoryOrder, patterns, philosophy, pathname, tagline, heroBody, catalogHeading, allTags, currentLanguage = "go", basePath = "/go" }) {
+export default function Home({
+  allContent,
+  navOrder,
+  categories,
+  categoryOrder,
+  patterns,
+  philosophy,
+  pathname,
+  tagline,
+  heroBody,
+  catalogHeading,
+  allTags,
+  basePath = "/go",
+  languageLabel = "Go",
+}) {
   const [readSlugs, setReadSlugs] = useState([]);
   const [activeTags, setActiveTags] = useState([]);
 
@@ -53,41 +77,34 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
     setReadSlugs(getReadPatterns());
   }, []);
 
-  const readCount = allContent.filter((c) => readSlugs.includes(c.storageKey)).length;
+  const readCount = allContent.filter((content) => readSlugs.includes(content.storageKey)).length;
   const totalCount = allContent.length;
   const progressPct = totalCount > 0 ? Math.round((readCount / totalCount) * 100) : 0;
 
-  const recentlyRead = allContent.filter((c) => readSlugs.includes(c.storageKey)).slice(-3).reverse();
-  const nextUnread = allContent.find((c) => !readSlugs.includes(c.storageKey));
+  const recentlyRead = allContent.filter((content) => readSlugs.includes(content.storageKey)).slice(-3).reverse();
+  const nextUnread = allContent.find((content) => !readSlugs.includes(content.storageKey));
 
-  const categoryMap = Object.fromEntries(categories.map((c) => [c.slug, c]));
-
-  const featuredPatterns = patterns.filter((p) => p.isFeatured).slice(0, 3);
-
+  const categoryMap = Object.fromEntries(categories.map((category) => [category.slug, category]));
+  const featuredPatterns = patterns.filter((pattern) => pattern.isFeatured).slice(0, 3);
   const filteredPatterns = activeTags.length === 0
     ? patterns
-    : patterns.filter((p) => p.tags && p.tags.some((t) => activeTags.includes(t)));
+    : patterns.filter((pattern) => pattern.tags && pattern.tags.some((tag) => activeTags.includes(tag)));
 
-  const toggleTag = (tag) => setActiveTags((prev) =>
-    prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
-  );
+  const toggleTag = (tag) => setActiveTags((current) => (
+    current.includes(tag) ? current.filter((value) => value !== tag) : [...current, tag]
+  ));
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-12">
       <div className="mb-12">
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-4">
-          Intentional Code{" "}
-          <span className="text-primary">with {currentLanguage === "python" ? "Python" : "Go"}</span>
+          Intentional Code <span className="text-primary">with {languageLabel}</span>
         </h1>
-        {tagline && (
-          <p className="text-xl text-foreground leading-relaxed mb-4 font-medium">{tagline}</p>
-        )}
+        {tagline && <p className="text-xl text-foreground leading-relaxed mb-4 font-medium">{tagline}</p>}
         {heroBody && (
           <ReactMarkdown
             components={{
-              p: ({ children }) => (
-                <p className="text-base text-muted-foreground leading-relaxed mb-3">{children}</p>
-              ),
+              p: ({ children }) => <p className="text-base text-muted-foreground leading-relaxed mb-3">{children}</p>,
               a: ({ href, children }) => (
                 <a href={href} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary transition-colors">
                   {children}
@@ -130,7 +147,7 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
               <div className="space-y-1">
                 {recentlyRead.map((item) => (
                   <a
-                    key={item.slug}
+                    key={item.storageKey}
                     href={item.url}
                     className="group flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-accent/50 transition-colors"
                   >
@@ -151,21 +168,21 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Featured</h2>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            {featuredPatterns.map((p) => (
+            {featuredPatterns.map((pattern) => (
               <a
-                key={p.slug}
-                href={`${basePath}/patterns/${p.category}/${p.slug}`}
+                key={pattern.slug}
+                href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
                 className="group flex flex-col p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-all"
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
-                    {p.title}
+                    {pattern.title}
                   </span>
-                    {readSlugs.includes(p.storageKey) && (
-                      <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                    )}
+                  {readSlugs.includes(pattern.storageKey) && (
+                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground leading-relaxed flex-1">{p.intent}</p>
+                <p className="text-xs text-muted-foreground leading-relaxed flex-1">{pattern.intent}</p>
                 <div className="mt-3 flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
                   Read <ArrowRight className="h-3 w-3" />
                 </div>
@@ -199,7 +216,7 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
             <div className="grid gap-2 sm:grid-cols-2">
               {philosophy.map((item) => (
                 <a
-                  key={item.slug}
+                  key={item.storageKey ?? item.slug}
                   href={item.url}
                   className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
                 >
@@ -208,9 +225,9 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
                       <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
                         {item.title}
                       </span>
-                        {readSlugs.includes(item.storageKey) && (
-                          <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                        )}
+                      {item.storageKey && readSlugs.includes(item.storageKey) && (
+                        <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                      )}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</div>
                   </div>
@@ -221,10 +238,11 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
         )}
 
         {categoryOrder.map((catKey) => {
-          const cat = categoryMap[catKey];
-          const catPatterns = filteredPatterns.filter((p) => p.category === catKey);
-          if (activeTags.length > 0 && catPatterns.length === 0) return null;
+          const category = categoryMap[catKey];
+          const categoryPatterns = filteredPatterns.filter((pattern) => pattern.category === catKey);
+          if (activeTags.length > 0 && categoryPatterns.length === 0) return null;
           const Icon = CATEGORY_ICONS[catKey];
+
           return (
             <div key={catKey} className="mb-8">
               <a
@@ -232,38 +250,38 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
                 className="flex items-center gap-2 mb-3 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Icon className="h-4 w-4" />
-                <h3 className="font-semibold text-sm uppercase tracking-wider">{cat.title}</h3>
+                <h3 className="font-semibold text-sm uppercase tracking-wider">{category.title}</h3>
               </a>
               <div className="grid gap-2 sm:grid-cols-2">
                 {activeTags.length === 0 && (
                   <a
-                     href={`${basePath}/patterns/${catKey}`}
-                     className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
-                   >
+                    href={`${basePath}/patterns/${catKey}`}
+                    className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
+                  >
                     <div className="flex-1 min-w-0">
                       <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
-                        {cat.title}
+                        {category.title}
                       </span>
-                      <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{cat.lede}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{category.lede}</div>
                     </div>
                   </a>
                 )}
-                {catPatterns.map((p) => (
+                {categoryPatterns.map((pattern) => (
                   <a
-                    key={p.slug}
-                    href={`${basePath}/patterns/${p.category}/${p.slug}`}
+                    key={pattern.slug}
+                    href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
                     className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
-                          {p.title}
+                          {pattern.title}
                         </span>
-                        {readSlugs.includes(p.storageKey) && (
+                        {readSlugs.includes(pattern.storageKey) && (
                           <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{p.intent}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{pattern.intent}</div>
                     </div>
                   </a>
                 ))}
