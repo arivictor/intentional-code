@@ -1,0 +1,24 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import SavedPatterns from '@/components/pages/SavedPatterns';
+import { buildAllContent, buildNavOrder } from '@/lib/site-data';
+
+const [patterns, philosophy, categories] = await Promise.all([
+  getCollection('patterns'),
+  getCollection('philosophy'),
+  getCollection('pattern-categories'),
+]);
+
+const allContent = buildAllContent(patterns, philosophy);
+const navOrder = buildNavOrder(patterns, philosophy, categories);
+---
+
+<SiteLayout title="Saved Content" description="Your bookmarked pages and highlights.">
+  <SavedPatterns
+    allContent={allContent}
+    navOrder={navOrder}
+    pathname="/go/saved"
+    client:load
+  />
+</SiteLayout>

@@ -1,3 +1,11 @@
+---
+title: "Proxy"
+category: structural
+intent: "Provide a surrogate or placeholder for another object to control access, add lazy initialization, logging, or caching."
+goIdiomSummary: "Same-interface wrapper for lazy init, access control, logging, caching; contrast with Decorator."
+relatedSlugs: ["adapter", "decorator"]
+---
+
 # Proxy
 
 Proxy wraps an object with the same interface to control access to it. The wrapper can add lazy initialization, access control, logging, caching, or remote communication — all without the client knowing it's not talking to the real object.

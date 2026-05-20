@@ -1,4 +1,7 @@
-# Creational Patterns
+---
+title: Creational Patterns
+lede: Object-creation mechanisms that increase flexibility and reuse of existing code.
+---
 
 The question creational patterns answer: **how should this object come into existence?**
 

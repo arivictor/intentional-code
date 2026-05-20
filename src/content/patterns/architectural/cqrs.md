@@ -1,3 +1,11 @@
+---
+title: "CQRS"
+category: architectural
+intent: "Separate the model used for writing state (Commands) from the model used for reading it (Queries), allowing each side to be optimised independently."
+goIdiomSummary: "Command handler functions that accept a command struct and return an error; query functions that accept filter params and return read-model DTOs."
+relatedSlugs: ["event-driven", "domain-driven-design", "repository"]
+---
+
 # CQRS
 
 CQRS (Command Query Responsibility Segregation) separates every operation into one of two kinds: commands (mutate state, return nothing or an error) and queries (read state, return data, change nothing). The core insight: read and write models are different shapes. Commands need rich domain validation; queries need flat, denormalised views. Forcing one model to serve both purposes means either an anemic domain or bloated query results.

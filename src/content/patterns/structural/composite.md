@@ -1,3 +1,11 @@
+---
+title: "Composite"
+category: structural
+intent: "Compose objects into tree structures so clients can treat individual objects and compositions uniformly through a single interface."
+goIdiomSummary: "One interface implemented by both leaf and composite types; tree of nodes; recursion."
+relatedSlugs: ["decorator", "iterator", "visitor"]
+---
+
 # Composite
 
 Composite's identifying signal is a tree structure where clients should treat leaves and branches the same way — you call `Price()` and it doesn't matter whether you're calling it on a single product or a bundle of thousands. In Go, this is one interface implemented by both leaf and composite types; the composite holds a `[]InterfaceType` and recursion falls out naturally from each node calling the same method on its children.

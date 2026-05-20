@@ -1,25 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Link, useParams } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
-import { CATEGORIES, getPatternsByCategory } from "@/lib/content/patterns";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 import MarkdownCode from "@/components/content/MarkdownCode";
-import PageMeta from "@/components/PageMeta";
 
-export default function CategoryLanding() {
-  const { category } = useParams();
-  const cat = CATEGORIES[category];
-  const [introMd, setIntroMd] = useState("");
-
-  useEffect(() => {
-    import(`../../content/patterns/${category}.md?raw`)
-      .then((m) => setIntroMd(m.default))
-      .catch(() => setIntroMd(""));
-  }, [category]);
-
-  if (!cat) {
+export default function CategoryLanding({ category, introMarkdown, patterns, navOrder, pathname }) {
+  if (!category) {
     return (
       <div className="max-w-3xl mx-auto px-6 py-12">
         <h1 className="text-2xl font-bold">Category not found</h1>
@@ -27,25 +14,21 @@ export default function CategoryLanding() {
     );
   }
 
-  const patterns = getPatternsByCategory(category);
-
   return (
     <div className="max-w-3xl mx-auto px-6 py-12">
-      <Breadcrumbs />
+      <Breadcrumbs pathname={pathname} patternMap={{}} />
 
-      <PageMeta title={cat.title} description={cat.lede} />
-      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">{cat.title}</h1>
-      <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-2xl">{cat.lede}</p>
+      <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">{category.title}</h1>
+      <p className="text-lg text-muted-foreground leading-relaxed mb-8 max-w-2xl">{category.lede}</p>
 
-      {introMd && (
+      {introMarkdown && (
         <div className="prose-pattern mb-8">
           <ReactMarkdown rehypePlugins={[rehypeSlug]} components={{ code: MarkdownCode, h1: () => null }}>
-            {introMd}
+            {introMarkdown}
           </ReactMarkdown>
         </div>
       )}
 
-      {/* Comparison table */}
       <div className="border border-border rounded-lg overflow-hidden mb-8">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -60,12 +43,12 @@ export default function CategoryLanding() {
               {patterns.map((p, i) => (
                 <tr key={p.slug} className={i < patterns.length - 1 ? "border-b border-border" : ""}>
                   <td className="px-4 py-3">
-                    <Link
-                      to={`/go/patterns/${p.category}/${p.slug}`}
+                    <a
+                      href={`/go/patterns/${p.category}/${p.slug}`}
                       className="font-medium text-primary hover:underline whitespace-nowrap"
                     >
                       {p.title}
-                    </Link>
+                    </a>
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{p.intent}</td>
                   <td className="px-4 py-3 text-muted-foreground hidden md:table-cell text-xs font-mono">{p.goIdiomSummary}</td>
@@ -76,23 +59,22 @@ export default function CategoryLanding() {
         </div>
       </div>
 
-      {/* Pattern list */}
       <div className="space-y-3">
         {patterns.map((p) => (
-          <Link
+          <a
             key={p.slug}
-            to={`/go/patterns/${p.category}/${p.slug}`}
+            href={`/go/patterns/${p.category}/${p.slug}`}
             className="group block p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/30 transition-all"
           >
             <div className="font-semibold text-foreground group-hover:text-primary transition-colors mb-1">
               {p.title}
             </div>
             <div className="text-sm text-muted-foreground">{p.intent}</div>
-          </Link>
+          </a>
         ))}
       </div>
 
-      <PrevNextNav />
+      <PrevNextNav navOrder={navOrder} pathname={pathname} />
     </div>
   );
 }

@@ -1,4 +1,7 @@
-# Structural Patterns
+---
+title: Structural Patterns
+lede: How to assemble types into larger structures while keeping them flexible and efficient.
+---
 
 The question structural patterns answer: **how should these types fit together?**
 

@@ -1,3 +1,11 @@
+---
+title: "Builder"
+category: creational
+intent: "Construct complex objects step by step, separating construction from representation so the same process can create different results."
+goIdiomSummary: "Prefer the functional options pattern (func WithTimeout(d) Option); also show classic chained builder."
+relatedSlugs: ["factory-method", "abstract-factory"]
+---
+
 # Builder
 
 Long parameter lists cause two problems: callers must fill every position even for optional fields, and zero values become ambiguous (`maxConns=0` could mean "unlimited" or "no connections"). In Go, the functional options pattern solves both — a variadic list of option functions lets callers specify only what they need, defaults are centralized in the constructor, and adding new options never breaks existing call sites.

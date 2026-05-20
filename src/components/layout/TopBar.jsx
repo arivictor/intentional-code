@@ -1,23 +1,34 @@
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { Sun, Moon, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import CommandPalette from "./CommandPalette";
 
-export default function TopBar({ theme, onToggleTheme, onToggleSidebar }) {
+export default function TopBar({ searchData }) {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [theme, setTheme] = useState('light');
 
-  // Ctrl+K / Cmd+K global shortcut
+  useEffect(() => {
+    const stored = localStorage.getItem('go-patterns-theme');
+    setTheme(stored ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    localStorage.setItem('go-patterns-theme', theme);
+  }, [theme]);
+
   useEffect(() => {
     const handler = (e) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         setPaletteOpen((o) => !o);
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   }, []);
+
+  const toggleSidebar = () => document.dispatchEvent(new CustomEvent('sidebar-toggle'));
 
   return (
     <>
@@ -27,20 +38,19 @@ export default function TopBar({ theme, onToggleTheme, onToggleSidebar }) {
             variant="ghost"
             size="icon"
             className="lg:hidden"
-            onClick={onToggleSidebar}
+            onClick={toggleSidebar}
             aria-label="Toggle navigation"
           >
             <Menu className="h-5 w-5" />
           </Button>
 
-          <Link to="/" className="flex items-center gap-2 font-semibold text-foreground shrink-0">
+          <a href="/go" className="flex items-center gap-2 font-semibold text-foreground shrink-0">
             <span className="text-primary font-mono text-lg font-bold">Go</span>
             <span className="hidden sm:inline text-sm tracking-tight">Intentional Code</span>
-          </Link>
+          </a>
 
           <div className="flex-1" />
 
-          {/* Search trigger */}
           <button
             onClick={() => setPaletteOpen(true)}
             className="hidden sm:flex items-center gap-2 h-8 px-3 rounded-md border border-border bg-muted/50 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
@@ -60,13 +70,19 @@ export default function TopBar({ theme, onToggleTheme, onToggleSidebar }) {
             <Search className="h-4 w-4" />
           </Button>
 
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onToggleTheme} aria-label="Toggle theme">
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
         </div>
       </header>
 
-      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} searchData={searchData} />
     </>
   );
 }

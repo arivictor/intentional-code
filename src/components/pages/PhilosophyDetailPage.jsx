@@ -3,8 +3,8 @@ import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 import PrevNextNav from "@/components/layout/PrevNextNav";
+import TableOfContents from "@/components/layout/TableOfContents";
 import MarkdownCode from "@/components/content/MarkdownCode";
-import PageMeta from "@/components/PageMeta";
 import ReadingProgressBar from "@/components/layout/ReadingProgressBar";
 import { CheckCircle, Circle, Bookmark, Clock } from "lucide-react";
 import { isPatternRead, markPatternRead, markPatternUnread } from "@/lib/readingProgress";
@@ -12,52 +12,39 @@ import { isBookmarked, toggleBookmark } from "@/lib/bookmarks";
 import HighlightableContent from "@/components/content/HighlightableContent";
 import { getHighlights, addHighlight, removeHighlight } from "@/lib/highlights";
 
-const SLUG = "tdd";
-const TITLE = "Test-Driven Development";
-const DESCRIPTION = "TDD in Go: the red/green/refactor loop, table-driven tests, implicit interface fakes, and how design pressure produces patterns.";
-
 function readingTime(md) {
   if (!md) return null;
-  const minutes = Math.max(1, Math.round(md.split(/\s+/).filter(Boolean).length / 200));
-  return `${minutes} min read`;
+  return `${Math.max(1, Math.round(md.split(/\s+/).filter(Boolean).length / 200))} min read`;
 }
 
-export default function Tdd() {
-  const [markdown, setMarkdown] = useState("");
+export default function PhilosophyDetailPage({ slug, title, description, markdown, navOrder, pathname }) {
   const [read, setRead] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [highlights, setHighlights] = useState([]);
 
   useEffect(() => {
-    setRead(isPatternRead(SLUG));
-    setBookmarked(isBookmarked(SLUG));
-    setHighlights(getHighlights(SLUG));
-  }, []);
-
-  useEffect(() => {
-    import("../../content/philosophy/tdd.md?raw")
-      .then((m) => setMarkdown(m.default))
-      .catch(() => setMarkdown(""));
-  }, []);
+    setRead(isPatternRead(slug));
+    setBookmarked(isBookmarked(slug));
+    setHighlights(getHighlights(slug));
+  }, [slug]);
 
   const toggleRead = () => {
-    if (read) { markPatternUnread(SLUG); setRead(false); }
-    else { markPatternRead(SLUG); setRead(true); }
+    if (read) { markPatternUnread(slug); setRead(false); }
+    else { markPatternRead(slug); setRead(true); }
   };
 
-  const handleBookmark = () => setBookmarked(toggleBookmark(SLUG));
-  const handleAddHighlight = (hl) => setHighlights(addHighlight(SLUG, hl));
-  const handleRemoveHighlight = (id) => setHighlights(removeHighlight(SLUG, id));
+  const handleBookmark = () => setBookmarked(toggleBookmark(slug));
+  const handleAddHighlight = (hl) => setHighlights(addHighlight(slug, hl));
+  const handleRemoveHighlight = (id) => setHighlights(removeHighlight(slug, id));
 
   return (
     <>
-      <PageMeta title={TITLE} description={DESCRIPTION} />
       <ReadingProgressBar />
-      <div className="max-w-3xl mx-auto px-6 py-12">
-        <Breadcrumbs />
+      <div className="max-w-5xl mx-auto px-6 py-12">
+        <Breadcrumbs pathname={pathname} patternMap={{}} />
 
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-2">{TITLE}</h1>
-        <p className="text-lg text-muted-foreground leading-relaxed mb-4">{DESCRIPTION}</p>
+        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-2">{title}</h1>
+        <p className="text-lg text-muted-foreground leading-relaxed mb-4">{description}</p>
 
         <div className="flex items-center gap-3 mb-8">
           <button
@@ -89,17 +76,20 @@ export default function Tdd() {
           </button>
         </div>
 
-        <HighlightableContent highlights={highlights} onAdd={handleAddHighlight} onRemove={handleRemoveHighlight}>
-          <div className="prose-pattern">
-            <ReactMarkdown
-              rehypePlugins={[rehypeSlug]}
-              components={{ code: MarkdownCode, h1: () => null }}
-            >
-              {markdown}
-            </ReactMarkdown>
+        <div className="flex gap-8">
+          <div className="flex-1 min-w-0">
+            <HighlightableContent highlights={highlights} onAdd={handleAddHighlight} onRemove={handleRemoveHighlight}>
+              <div className="prose-pattern">
+                <ReactMarkdown rehypePlugins={[rehypeSlug]} components={{ code: MarkdownCode, h1: () => null }}>
+                  {markdown}
+                </ReactMarkdown>
+              </div>
+            </HighlightableContent>
           </div>
-        </HighlightableContent>
-        <PrevNextNav />
+          <TableOfContents />
+        </div>
+
+        <PrevNextNav navOrder={navOrder} pathname={pathname} />
       </div>
     </>
   );

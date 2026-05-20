@@ -1,3 +1,11 @@
+---
+title: "Singleton"
+category: creational
+intent: "Ensure a type has only one instance and provide a global point of access to it."
+goIdiomSummary: "Package-level value + sync.Once; then argue against it (testability) and show dependency injection."
+relatedSlugs: ["factory-method", "builder"]
+---
+
 # Singleton
 
 In most Go codebases, Singleton is an anti-pattern — not because the idea is wrong, but because global mutable state hides dependencies, breaks test isolation, and ties every consumer to a concrete type instead of an injected interface. The idiomatic implementation (`sync.Once` for thread-safe lazy initialization) is correct; correctness doesn't mean you should use it.

@@ -1,3 +1,11 @@
+---
+title: "Facade"
+category: structural
+intent: "Provide a simple, unified interface to a complex subsystem, shielding clients from internal complexity."
+goIdiomSummary: "A struct exposing a small API over several subsystem packages."
+relatedSlugs: ["adapter", "mediator"]
+---
+
 # Facade
 
 Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch processor all repeat the same multi-step sequence — validate, charge, reserve, notify — that sequence belongs in one struct, not scattered across entry points. In Go, a facade struct accepts its subsystems as interfaces (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.

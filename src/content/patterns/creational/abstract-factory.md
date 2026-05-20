@@ -1,3 +1,11 @@
+---
+title: "Abstract Factory"
+category: creational
+intent: "Provide an interface whose methods each return related product interfaces, so families of related objects can be created without specifying their concrete types."
+goIdiomSummary: "An interface whose methods each return related product interfaces; one struct per family."
+relatedSlugs: ["factory-method", "builder"]
+---
+
 # Abstract Factory
 
 Abstract Factory solves a specific problem: your system needs families of related objects that must be used together — a macOS button paired with a macOS dialog, not a macOS button with a Windows dialog — and the entire family should be swappable as a unit.

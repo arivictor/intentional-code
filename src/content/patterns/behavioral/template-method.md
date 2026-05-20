@@ -1,3 +1,11 @@
+---
+title: "Template Method"
+category: behavioral
+intent: "Define the skeleton of an algorithm in a base operation, deferring some steps to subclasses — but in Go, use composition and injected hook functions instead."
+goIdiomSummary: "Fights Go (no inheritance); implement via composition + injected hook funcs or an interface."
+relatedSlugs: ["strategy", "factory-method"]
+---
+
 # Template Method
 
 Template Method defines the skeleton of an algorithm in a base class, letting subclasses override specific steps. In Go, this pattern fights the language — there's no inheritance, no abstract classes, no method overriding. But the problem it solves is real: you need a fixed algorithm structure with pluggable steps.

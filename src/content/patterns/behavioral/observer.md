@@ -1,3 +1,11 @@
+---
+title: "Observer"
+category: behavioral
+intent: "Define a one-to-many dependency between objects so that when one changes state, all dependents are notified automatically."
+goIdiomSummary: "Subscriber interface slice or channels; cover unsubscribe and goroutine/lifecycle concerns."
+relatedSlugs: ["mediator", "command"]
+---
+
 # Observer
 
 In Go, Observer gives you three subscriber mechanisms: interface values (classic, stateful), function values (lighter, more composable), and channels (goroutine-friendly, but requiring careful lifecycle management — a subscriber goroutine that is never unsubscribed leaks). Picking the wrong form for your lifecycle requirements is the most common Observer mistake in Go.

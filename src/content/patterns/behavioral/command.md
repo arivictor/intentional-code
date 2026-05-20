@@ -1,3 +1,11 @@
+---
+title: "Command"
+category: behavioral
+intent: "Encapsulate a request as an object (or function value), letting you parameterize clients, queue requests, and support undo operations."
+goIdiomSummary: "A function value, or a struct with Execute(); queue/undo via a stack of commands."
+relatedSlugs: ["chain-of-responsibility", "memento", "strategy"]
+---
+
 # Command
 
 In Go, the simplest command is a function value: `queue := []func(){}`. You don't need a struct unless you need `Undo()` or command metadata. When you do, Command encapsulates each operation as a struct that captures everything required to reverse it — the target object, the position, the data that was there before.

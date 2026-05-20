@@ -1,3 +1,11 @@
+---
+title: "Strategy"
+category: behavioral
+intent: "Define a family of algorithms, encapsulate each one, and make them interchangeable at runtime."
+goIdiomSummary: "A function type is the idiomatic form; show interface-based too and say when each fits."
+relatedSlugs: ["bridge", "state", "template-method", "command"]
+---
+
 # Strategy
 
 Strategy defines a family of algorithms and makes them interchangeable. In Go, the most idiomatic form is a function type — you pass a function value rather than creating an interface with a single method. Use the interface form when the strategy has multiple methods or carries state.

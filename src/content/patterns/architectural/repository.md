@@ -1,3 +1,11 @@
+---
+title: "Repository"
+category: architectural
+intent: "Isolate domain logic from data persistence by defining an interface for storage operations and providing concrete implementations for each backend."
+goIdiomSummary: "A small interface per aggregate (Save, FindByID, etc.); in-memory implementation for tests, sql.DB implementation for production."
+relatedSlugs: ["hexagonal", "layered", "domain-driven-design", "clean-architecture"]
+---
+
 # Repository
 
 The most immediate sign you need Repository is a service function that takes `*sql.DB` as a parameter. That signature says: you cannot test this business rule without a running database. Repository replaces the concrete dependency with an interface defined in the domain package — Go's implicit interface satisfaction means the domain never imports the infrastructure package, and any struct with the right methods becomes a valid backend, including the in-memory fake that makes unit tests fast.

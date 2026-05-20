@@ -1,3 +1,11 @@
+---
+title: "Layered Architecture"
+category: architectural
+intent: "Organise code into horizontal layers — Handler, Service, Repository, Infrastructure — where each layer depends only on the layer below it."
+goIdiomSummary: "Separate packages per layer; interfaces at each boundary so layers can be tested and swapped independently."
+relatedSlugs: ["repository", "clean-architecture", "hexagonal"]
+---
+
 # Layered Architecture
 
 The warning sign that you need Layered Architecture is an HTTP handler that imports `database/sql`. Go encourages small, composable packages, which means a growing service will naturally tangle HTTP, business rules, and SQL if you don't deliberately separate them. Layered Architecture is the first line of defence: four horizontal tiers — Handler, Service, Repository, Infrastructure — where each layer depends only on the layer below it, and Go's implicit interfaces enforce the boundary at no extra cost.

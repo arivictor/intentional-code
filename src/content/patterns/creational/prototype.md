@@ -1,3 +1,11 @@
+---
+title: "Prototype"
+category: creational
+intent: "Create new objects by cloning an existing instance, avoiding the cost of building from scratch and decoupling code from concrete types."
+goIdiomSummary: "A Clone() method; be explicit about shallow vs deep copy with pointers, slices, maps."
+relatedSlugs: ["factory-method", "memento"]
+---
+
 # Prototype
 
 Go's struct assignment copies by value — clean for `string` and `int` fields, but silently dangerous for `[]string`, `map[string]string`, and pointer fields, which share the same underlying memory with the original. The value of Prototype in Go is not performance (avoiding expensive constructors) but correctness: a `Clone()` method makes deep-copy semantics explicit and localized, so reference types are never accidentally shared between what you thought were independent copies.

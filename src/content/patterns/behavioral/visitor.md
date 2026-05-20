@@ -1,3 +1,11 @@
+---
+title: "Visitor"
+category: behavioral
+intent: "Separate an algorithm from the object structure it operates on by using double dispatch."
+goIdiomSummary: "Double dispatch via Accept(Visitor); be honest about verbosity and present type-switch as the Go alternative."
+relatedSlugs: ["composite", "iterator"]
+---
+
 # Visitor
 
 Visitor separates an algorithm from the object structure it operates on, using double dispatch to invoke the right method for each element type. In Go, this requires an `Accept(Visitor)` method on every element and a `Visit` method per type on the visitor.

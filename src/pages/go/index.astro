@@ -1,0 +1,59 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import Home from '@/components/pages/Home';
+import { buildAllContent, buildNavOrder, CATEGORY_ORDER } from '@/lib/site-data';
+
+const [patterns, philosophy, categories, sitePages] = await Promise.all([
+  getCollection('patterns'),
+  getCollection('philosophy'),
+  getCollection('pattern-categories'),
+  getCollection('pages'),
+]);
+
+const homePage = sitePages.find((p) => p.id === 'home');
+
+const allContent = buildAllContent(patterns, philosophy);
+const navOrder = buildNavOrder(patterns, philosophy, categories);
+
+const categoriesData = CATEGORY_ORDER.map((key) => {
+  const cat = categories.find((c) => c.id.replace(/\/index$/, '') === key);
+  return { slug: key, title: cat?.data.title ?? key, lede: cat?.data.lede ?? '' };
+});
+
+const patternsData = patterns.map((p) => ({
+  slug: p.id.replace(/\.md$/, '').split('/')[1],
+  title: p.data.title,
+  category: p.data.category,
+  intent: p.data.intent,
+}));
+
+const philosophyData = philosophy.map((p) => {
+  const isIndex = p.id === 'index';
+  return {
+    slug: p.id,
+    title: p.data.title,
+    description: isIndex ? p.data.intro : p.data.description,
+    url: isIndex ? '/go/philosophy' : `/go/philosophy/${p.id}`,
+  };
+});
+---
+
+<SiteLayout
+  title="Design Patterns in Go"
+  description="Design patterns and SOLID principles, implemented in idiomatic Go — with examples, tradeoffs, and cross-references."
+>
+  <Home
+    allContent={allContent}
+    navOrder={navOrder}
+    categories={categoriesData}
+    categoryOrder={CATEGORY_ORDER}
+    patterns={patternsData}
+    philosophy={philosophyData}
+    pathname="/go"
+    tagline={homePage?.data.tagline}
+    heroBody={homePage?.body}
+    catalogHeading={homePage?.data.catalogHeading}
+    client:load
+  />
+</SiteLayout>

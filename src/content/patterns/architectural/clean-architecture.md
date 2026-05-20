@@ -1,3 +1,11 @@
+---
+title: "Clean Architecture"
+category: architectural
+intent: "Structure code in concentric rings — Entities, Use Cases, Interface Adapters, Frameworks — enforcing a strict inward dependency rule so the domain never imports infrastructure."
+goIdiomSummary: "Domain types and use-case interfaces in an inner package; HTTP handlers and DB adapters in outer packages that import inward, never the reverse."
+relatedSlugs: ["hexagonal", "layered", "repository", "domain-driven-design"]
+---
+
 # Clean Architecture
 
 Clean Architecture organises code in concentric rings — Entities, Use Cases, Interface Adapters, Frameworks & Drivers — with one strict rule: source-code dependencies may only point inward. The innermost rings know nothing about HTTP, databases, or frameworks. Everything outside serves the domain.

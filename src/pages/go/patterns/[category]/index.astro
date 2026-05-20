@@ -1,0 +1,52 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import CategoryLanding from '@/components/pages/CategoryLanding';
+import { buildNavOrder, CATEGORY_ORDER } from '@/lib/site-data';
+
+export async function getStaticPaths() {
+  const [patterns, philosophy, categories] = await Promise.all([
+    getCollection('patterns'),
+    getCollection('philosophy'),
+    getCollection('pattern-categories'),
+  ]);
+
+  const navOrder = buildNavOrder(patterns, philosophy, categories);
+
+  return categories.map((cat) => {
+    const catKey = cat.id.replace(/\/index$/, '');
+    const catPatterns = patterns
+      .filter((p) => p.data.category === catKey)
+      .map((p) => ({
+        slug: p.id.replace(/\.md$/, '').split('/')[1],
+        title: p.data.title,
+        category: p.data.category,
+        intent: p.data.intent,
+        goIdiomSummary: p.data.goIdiomSummary,
+      }));
+
+    return {
+      params: { category: catKey },
+      props: {
+        category: { slug: catKey, title: cat.data.title, lede: cat.data.lede },
+        introMarkdown: cat.body,
+        patterns: catPatterns,
+        navOrder,
+      },
+    };
+  });
+}
+
+const { category, introMarkdown, patterns, navOrder } = Astro.props;
+---
+
+<SiteLayout title={category.title} description={category.lede}>
+  <CategoryLanding
+    category={category}
+    introMarkdown={introMarkdown}
+    patterns={patterns}
+    navOrder={navOrder}
+    pathname={`/go/patterns/${category.slug}`}
+    client:load
+  />
+</SiteLayout>

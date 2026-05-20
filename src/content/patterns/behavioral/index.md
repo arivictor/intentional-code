@@ -1,4 +1,7 @@
-# Behavioral Patterns
+---
+title: Behavioral Patterns
+lede: Algorithms and the assignment of responsibilities between objects.
+---
 
 The question behavioral patterns answer: **how should these objects communicate and distribute responsibility?**
 

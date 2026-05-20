@@ -1,3 +1,11 @@
+---
+title: "State"
+category: behavioral
+intent: "Let an object alter its behavior when its internal state changes, appearing to change its type."
+goIdiomSummary: "A State interface; context holds current state and delegates, transitions return the next state."
+relatedSlugs: ["strategy", "command"]
+---
+
 # State
 
 State's identifying signal is a type with switch statements in every method, all checking the same state field. Adding a new state means adding a case to every switch across the entire type. State replaces those switches with one interface and one struct per state — each state's behavior is isolated, and transitions are explicit field assignments on the context.

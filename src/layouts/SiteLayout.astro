@@ -1,0 +1,69 @@
+---
+import { getCollection } from 'astro:content';
+import TopBar from '@/components/layout/TopBar';
+import Sidebar from '@/components/layout/Sidebar';
+import { buildNavData, buildNavOrder, buildSearchData } from '@/lib/site-data';
+import '@/index.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  canonical?: string;
+  jsonLd?: object;
+}
+
+const { title, description, canonical, jsonLd } = Astro.props;
+const siteTitle = title ? `${title} | Intentional Code` : 'Intentional Code with Go';
+const canonicalUrl = canonical ?? `https://intentionalcode.com${Astro.url.pathname}`;
+
+const [patterns, philosophy, categories] = await Promise.all([
+  getCollection('patterns'),
+  getCollection('philosophy'),
+  getCollection('pattern-categories'),
+]);
+
+const navData = buildNavData(patterns, categories);
+const navOrder = buildNavOrder(patterns, philosophy, categories);
+const searchData = buildSearchData(patterns, philosophy, categories);
+const pathname = Astro.url.pathname;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{siteTitle}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={canonicalUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={siteTitle} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:image" content="https://intentionalcode.com/og-image.png" />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="https://intentionalcode.com/og-image.png" />
+    {jsonLd && (
+      <script type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    )}
+    <script is:inline>
+      (function () {
+        var t = localStorage.getItem('go-patterns-theme');
+        if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        if (t === 'dark') document.documentElement.classList.add('dark');
+      })();
+    </script>
+  </head>
+  <body class="min-h-screen flex flex-col bg-background text-foreground">
+    <TopBar searchData={searchData} client:load />
+    <div class="flex flex-1">
+      <Sidebar navData={navData} navOrder={navOrder} pathname={pathname} client:load />
+      <main class="flex-1 min-w-0">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>

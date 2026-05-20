@@ -1,3 +1,11 @@
+---
+title: "Iterator"
+category: behavioral
+intent: "Provide a way to access elements of a collection sequentially without exposing its underlying representation."
+goIdiomSummary: "Go 1.23 range-over-func (iter.Seq[T]) as primary form; also channel-based and explicit iterator struct."
+relatedSlugs: ["composite", "visitor"]
+---
+
 # Iterator
 
 Go 1.23 made Iterator a first-class language feature: `iter.Seq[T]` (a function of the form `func(yield func(T) bool)`) integrates directly with for-range, replacing the channel-based and explicit `Next()`/`Value()` struct approaches that preceded it. Write the traversal once; every consumer gets a plain `for v := range collection.InOrder()` loop.

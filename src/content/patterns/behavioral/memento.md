@@ -1,3 +1,11 @@
+---
+title: "Memento"
+category: behavioral
+intent: "Capture and externalize an object's internal state so it can be restored later, without violating encapsulation."
+goIdiomSummary: "Capture/restore via an opaque type with unexported fields; originator owns save/restore."
+relatedSlugs: ["command", "prototype"]
+---
+
 # Memento
 
 Go's package system gives Memento a clean implementation that many languages struggle with: a type's unexported fields are accessible only within its own package. This lets the originator (same package as the memento) save and restore state through a `*Memento` that external code can hold and pass around but cannot read or modify — encapsulation enforced by the compiler, not convention.

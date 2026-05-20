@@ -1,3 +1,11 @@
+---
+title: "Event-Driven Architecture"
+category: architectural
+intent: "Decouple services by having producers emit domain events and consumers react to them asynchronously, without either knowing about the other."
+goIdiomSummary: "In-process: Go channels or a simple event bus struct. Cross-service: publish to Kafka/NATS/SQS; consumers implement an idempotent handler interface."
+relatedSlugs: ["cqrs", "domain-driven-design", "observer"]
+---
+
 # Event-Driven Architecture
 
 Event-Driven Architecture solves the cascading failure problem of synchronous service calls: when service A calls B and C directly, a failure in C also fails A. With events, A publishes a fact and returns — B and C subscribe and react independently. A failed notification service can't block order placement.

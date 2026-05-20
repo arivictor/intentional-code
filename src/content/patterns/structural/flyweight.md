@@ -1,3 +1,11 @@
+---
+title: "Flyweight"
+category: structural
+intent: "Minimize memory usage by sharing as much data as possible between similar objects, separating intrinsic from extrinsic state."
+goIdiomSummary: "Share immutable intrinsic state via interning and lookup map; mention sync.Pool as a related but different reuse tool."
+relatedSlugs: ["composite", "singleton"]
+---
+
 # Flyweight
 
 Flyweight is a memory optimization for systems with large numbers of similar objects: instead of each object owning a copy of shared data, they all hold a pointer to one shared instance. In Go, this is an interning map — on first request for a given key, create and store the shared instance; on all subsequent requests, return the same pointer. The intrinsic state (shared, immutable) lives in the interned type; the extrinsic state (unique per object) stays on each individual instance.

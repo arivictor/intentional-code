@@ -1,3 +1,8 @@
+---
+title: Test-Driven Development
+description: The red/green/refactor loop in Go — and how design pressure naturally produces patterns.
+---
+
 # Test-Driven Development
 
 Write a failing test. Make it pass. Refactor. Go's tooling makes this loop faster and more pleasant than in most languages: `go test ./...` needs no configuration, implicit interfaces eliminate the need for mocking frameworks, and table-driven tests keep test cases as data rather than duplicated functions. More importantly, the design pressure TDD creates naturally produces the small interfaces and clean boundaries that patterns like [Strategy](/go/patterns/behavioral/strategy), [Repository](/go/patterns/architectural/repository), and [Observer](/go/patterns/behavioral/observer) formalize — you often arrive at the pattern without setting out to implement it.

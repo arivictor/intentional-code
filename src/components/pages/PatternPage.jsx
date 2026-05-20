@@ -1,9 +1,6 @@
-import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import React, { useState, useEffect, createContext, useContext } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
-import { getPattern } from "@/lib/content/patterns";
-import PageMeta from "@/components/PageMeta";
 import MarkdownCode from "@/components/content/MarkdownCode";
 import ComparisonTable from "@/components/content/ComparisonTable";
 import PatternLink from "@/components/content/PatternLink";
@@ -16,11 +13,13 @@ import TableOfContents from "@/components/layout/TableOfContents";
 import HighlightableContent from "@/components/content/HighlightableContent";
 import { getHighlights, addHighlight, removeHighlight } from "@/lib/highlights";
 import ReadingProgressBar from "@/components/layout/ReadingProgressBar";
+
+export const PatternsContext = createContext([]);
+
 function readingTimeFromMarkdown(md) {
   if (!md) return null;
   const words = md.split(/\s+/).filter(Boolean).length;
-  const minutes = Math.max(1, Math.round(words / 200));
-  return `${minutes} min read`;
+  return `${Math.max(1, Math.round(words / 200))} min read`;
 }
 
 function parseList(block) {
@@ -49,29 +48,18 @@ function splitMarkdown(md) {
 
   const before = md.slice(0, advIdx);
   const advContent = md.slice(advIdx + advMarker.length, disIdx);
-
   const disEnd = relIdx !== -1 ? relIdx : md.length;
   const disContent = md.slice(disIdx + disMarker.length, disEnd);
+  const relatedPatterns = relIdx !== -1 ? parseRelated(md.slice(relIdx + relMarker.length)) : [];
 
-  const relatedPatterns = relIdx !== -1
-    ? parseRelated(md.slice(relIdx + relMarker.length))
-    : [];
-
-  return {
-    before,
-    advantages: parseList(advContent),
-    disadvantages: parseList(disContent),
-    relatedPatterns,
-  };
+  return { before, advantages: parseList(advContent), disadvantages: parseList(disContent), relatedPatterns };
 }
 
-export default function PatternPage() {
-  const { slug } = useParams();
-  const pattern = getPattern(slug);
-  const [markdown, setMarkdown] = useState("");
+export default function PatternPage({ pattern, markdown, allPatterns, navOrder, pathname }) {
   const [read, setRead] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [highlights, setHighlights] = useState([]);
+  const { slug } = pattern;
 
   useEffect(() => {
     setRead(isPatternRead(slug));
@@ -79,62 +67,25 @@ export default function PatternPage() {
     setHighlights(getHighlights(slug));
   }, [slug]);
 
-  useEffect(() => {
-    if (!pattern) return;
-    import(`../../content/patterns/${pattern.category}/${slug}.md?raw`)
-      .then((m) => setMarkdown(m.default))
-      .catch(() => setMarkdown(""));
-  }, [slug, pattern]);
-
   const handleAddHighlight = (hl) => setHighlights(addHighlight(slug, hl));
   const handleRemoveHighlight = (id) => setHighlights(removeHighlight(slug, id));
-
-  const handleBookmark = () => {
-    const next = toggleBookmark(slug);
-    setBookmarked(next);
-  };
-
+  const handleBookmark = () => setBookmarked(toggleBookmark(slug));
   const toggleRead = () => {
-    if (read) {
-      markPatternUnread(slug);
-      setRead(false);
-    } else {
-      markPatternRead(slug);
-      setRead(true);
-    }
+    if (read) { markPatternUnread(slug); setRead(false); }
+    else { markPatternRead(slug); setRead(true); }
   };
 
-  if (!pattern) {
-    return (
-      <div className="max-w-3xl mx-auto px-6 py-12">
-        <Breadcrumbs />
-        <h1 className="text-2xl font-bold mb-4">Pattern: {slug}</h1>
-        <p className="text-muted-foreground">This pattern page is coming soon.</p>
-        <PrevNextNav />
-      </div>
-    );
-  }
-
-  const jsonLd = {
-    "@context": "https://schema.org",
-    "@type": "TechArticle",
-    "name": `${pattern.title} Pattern in Go`,
-    "description": pattern.intent,
-    "url": `https://intentionalcode.com/go/patterns/${pattern.category}/${pattern.slug}`,
-    "publisher": { "@type": "Organization", "name": "Intentional Code" },
-  };
+  const patternMap = Object.fromEntries((allPatterns ?? []).map((p) => [p.slug, p.title]));
+  const mdProps = { rehypePlugins: [rehypeSlug], components: { code: MarkdownCode, h1: () => null } };
 
   return (
-    <>
-      <PageMeta title={pattern.title} description={pattern.intent} jsonLd={jsonLd} />
+    <PatternsContext.Provider value={allPatterns ?? []}>
       <ReadingProgressBar />
       <div className="flex gap-8 max-w-5xl mx-auto px-6 py-12">
         <div className="flex-1 min-w-0">
-          <Breadcrumbs />
+          <Breadcrumbs pathname={pathname} patternMap={patternMap} />
 
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-2">
-            {pattern.title}
-          </h1>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-2">{pattern.title}</h1>
           <p className="text-lg text-muted-foreground leading-relaxed mb-4">{pattern.intent}</p>
 
           <div className="flex items-center gap-3 mb-8">
@@ -167,14 +118,9 @@ export default function PatternPage() {
             </button>
           </div>
 
-          <HighlightableContent
-            highlights={highlights}
-            onAdd={handleAddHighlight}
-            onRemove={handleRemoveHighlight}
-          >
+          <HighlightableContent highlights={highlights} onAdd={handleAddHighlight} onRemove={handleRemoveHighlight}>
             {(() => {
               const sections = splitMarkdown(markdown);
-              const mdProps = { rehypePlugins: [rehypeSlug], components: { code: MarkdownCode, h1: () => null } };
               if (!sections) {
                 return (
                   <div className="prose-pattern">
@@ -187,10 +133,7 @@ export default function PatternPage() {
                   <div className="prose-pattern">
                     <ReactMarkdown {...mdProps}>{sections.before}</ReactMarkdown>
                   </div>
-                  <ComparisonTable
-                    advantages={sections.advantages}
-                    disadvantages={sections.disadvantages}
-                  />
+                  <ComparisonTable advantages={sections.advantages} disadvantages={sections.disadvantages} />
                   {sections.relatedPatterns.length > 0 && (
                     <section id="related-patterns" className="mt-12">
                       <h2 className="text-2xl font-semibold mb-4 text-foreground">Related Patterns</h2>
@@ -206,11 +149,11 @@ export default function PatternPage() {
             })()}
           </HighlightableContent>
 
-          <PrevNextNav />
+          <PrevNextNav navOrder={navOrder} pathname={pathname} />
         </div>
 
         <TableOfContents />
       </div>
-    </>
+    </PatternsContext.Provider>
   );
 }

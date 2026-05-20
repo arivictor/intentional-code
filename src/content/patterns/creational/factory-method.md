@@ -1,3 +1,11 @@
+---
+title: "Factory Method"
+category: creational
+intent: "Define an interface for creating an object, but let the calling code decide which concrete type to instantiate via constructor functions returning an interface."
+goIdiomSummary: "Constructor functions returning an interface; selection via map of constructors, not a class hierarchy."
+relatedSlugs: ["abstract-factory", "builder", "prototype"]
+---
+
 # Factory Method
 
 In class-based languages, Factory Method is an abstract class with an overridable creation method. In Go, it's a function that returns an interface — the entire pattern reduces to that. The "factory" is the constructor; the "method" is its return type.

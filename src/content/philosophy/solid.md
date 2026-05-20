@@ -1,3 +1,8 @@
+---
+title: SOLID Principles
+description: The five SOLID principles, reinterpreted for Go's implicit-interface, composition-first model.
+---
+
 # SOLID Principles
 
 In Go, three of the five SOLID principles apply almost by default: interfaces are implicit and small by convention (ISP), packages compose rather than inherit (OCP), and focused packages are idiomatic (SRP). The two that need deliberate effort are LSP — which in Go is about behavioral contracts for interface implementors, not subclass hierarchies — and DIP, where Go's "accept interfaces, return structs" idiom replaces abstract classes.

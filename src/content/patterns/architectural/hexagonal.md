@@ -1,3 +1,11 @@
+---
+title: "Hexagonal Architecture"
+category: architectural
+intent: "Place business logic at the centre, define ports (interfaces) for everything the application drives or is driven by, and provide adapters that connect the outside world to those ports."
+goIdiomSummary: "Driving ports as use-case interfaces called by HTTP handlers; driven ports as repository and notifier interfaces implemented by DB and queue adapters."
+relatedSlugs: ["clean-architecture", "layered", "repository"]
+---
+
 # Hexagonal Architecture
 
 Hexagonal Architecture solves a testability and flexibility problem: when HTTP handlers, SQL queries, and SMTP calls are mixed into business logic, testing requires live infrastructure. Hexagonal draws a boundary — everything inside is pure application logic; everything outside (HTTP, databases, queues, email) is an adapter that plugs in through a defined port (interface).

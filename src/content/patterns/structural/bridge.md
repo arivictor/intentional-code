@@ -1,3 +1,11 @@
+---
+title: "Bridge"
+category: structural
+intent: "Split a large type into two separate hierarchies — abstraction and implementation — that can vary independently."
+goIdiomSummary: "Split abstraction and implementation into two interfaces composed by struct fields."
+relatedSlugs: ["adapter", "strategy"]
+---
+
 # Bridge
 
 Bridge's identifying signal is a type hierarchy growing in two independent directions at once. Left unchecked, this produces a cartesian explosion: 3 channels × 3 urgency levels = 9 types; add a channel and you add 3 types; add an urgency level and you add 3 more. Bridge collapses this to 3 + 3 = 6 by splitting the two dimensions into two interfaces that compose via struct field, not inheritance.

@@ -1,3 +1,11 @@
+---
+title: "Domain-Driven Design"
+category: architectural
+intent: "Model software around the business domain using Entities, Value Objects, Aggregates, Repositories, and Domain Events, keeping the ubiquitous language consistent across code and conversation."
+goIdiomSummary: "Structs for entities and value objects; aggregate roots as the only entry point for mutations; domain events as plain structs dispatched after state changes."
+relatedSlugs: ["repository", "event-driven", "clean-architecture", "cqrs"]
+---
+
 # Domain-Driven Design
 
 DDD's identifying problem is the anemic domain model: business logic scattered across service functions, domain types that are just data bags, and invariants — "a subscription can't be activated without a payment method" — enforced in some callers but forgotten in others. DDD moves that logic into the domain type itself, where it's enforced by the compiler and can't be bypassed.

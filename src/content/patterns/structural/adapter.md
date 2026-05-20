@@ -1,3 +1,11 @@
+---
+title: "Adapter"
+category: structural
+intent: "Convert the interface of an existing type into another interface clients expect, letting incompatible types work together."
+goIdiomSummary: "A wrapper struct that satisfies the target interface by delegating to the adaptee."
+relatedSlugs: ["bridge", "decorator", "facade", "proxy"]
+---
+
 # Adapter
 
 Any wrapper struct in Go that makes one package's type compatible with another's interface is an Adapter — one of the most common patterns in the language, frequently written without being recognized as one. The formal structure: a struct holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.

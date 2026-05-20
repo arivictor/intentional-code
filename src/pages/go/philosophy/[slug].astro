@@ -1,0 +1,44 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import PhilosophyDetailPage from '@/components/pages/PhilosophyDetailPage';
+import { buildNavOrder } from '@/lib/site-data';
+
+export async function getStaticPaths() {
+  const [patterns, philosophy, categories] = await Promise.all([
+    getCollection('patterns'),
+    getCollection('philosophy'),
+    getCollection('pattern-categories'),
+  ]);
+
+  const navOrder = buildNavOrder(patterns, philosophy, categories);
+
+  return philosophy.filter((entry) => entry.id !== 'index').map((entry) => {
+    const slug = entry.id.replace(/\.md$/, '');
+    return {
+      params: { slug },
+      props: {
+        slug,
+        title: entry.data.title,
+        description: entry.data.description,
+        markdown: entry.body,
+        navOrder,
+      },
+    };
+  });
+}
+
+const { slug, title, description, markdown, navOrder } = Astro.props;
+---
+
+<SiteLayout title={title} description={description}>
+  <PhilosophyDetailPage
+    slug={slug}
+    title={title}
+    description={description}
+    markdown={markdown}
+    navOrder={navOrder}
+    pathname={`/go/philosophy/${slug}`}
+    client:load
+  />
+</SiteLayout>

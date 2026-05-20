@@ -1,3 +1,11 @@
+---
+title: "Chain of Responsibility"
+category: behavioral
+intent: "Pass a request along a chain of handlers, where each handler decides whether to process it or pass it to the next handler."
+goIdiomSummary: "A slice or linked list of handlers, or composed middleware that may pass to next."
+relatedSlugs: ["decorator", "command"]
+---
+
 # Chain of Responsibility
 
 Chain of Responsibility passes a request along a sequence of handlers. Each handler decides whether to process the request, short-circuit with a response, or pass it on. In Go, this is most commonly seen as HTTP middleware chains, but the pattern applies anywhere you need a composable pipeline of independent checks or transformations.

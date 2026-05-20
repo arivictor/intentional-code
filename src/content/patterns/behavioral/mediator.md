@@ -1,3 +1,11 @@
+---
+title: "Mediator"
+category: behavioral
+intent: "Define an object that encapsulates how a set of objects interact, promoting loose coupling by keeping objects from referring to each other directly."
+goIdiomSummary: "A coordinator struct that colleagues call instead of each other."
+relatedSlugs: ["facade", "observer"]
+---
+
 # Mediator
 
 In a system where every peer knows about every other peer, adding one participant requires updating every other participant's reference list — O(n²) connections growing as the system scales. Mediator collapses this to O(n): each participant holds only a reference to the mediator, which routes messages to whoever needs them.

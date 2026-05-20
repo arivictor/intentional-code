@@ -1,3 +1,11 @@
+---
+title: "Decorator"
+category: structural
+intent: "Attach additional behavior to an object dynamically by wrapping it in another object that implements the same interface."
+goIdiomSummary: "Wrap an interface to add behavior; canonical Go example: http.Handler / RoundTripper middleware."
+relatedSlugs: ["adapter", "composite", "proxy", "chain-of-responsibility"]
+---
+
 # Decorator
 
 Decorator wraps an object to add behavior, keeping the same interface. In Go, this pattern is everywhere — it's how HTTP middleware works. Any function that takes an interface and returns the same interface, adding behavior in between, is a decorator.

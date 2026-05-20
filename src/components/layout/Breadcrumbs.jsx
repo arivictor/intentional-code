@@ -1,10 +1,7 @@
 import React from "react";
-import { Link, useLocation } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
-import { getPattern, CATEGORIES } from "@/lib/content/patterns";
 
-const PAGE_TITLES = {
-  "": "Home",
+const STATIC_TITLES = {
   go: "Go",
   philosophy: "Philosophy",
   solid: "SOLID Principles",
@@ -13,23 +10,22 @@ const PAGE_TITLES = {
   creational: "Creational",
   structural: "Structural",
   behavioral: "Behavioral",
+  architectural: "Architectural",
+  saved: "Saved",
 };
 
-export default function Breadcrumbs() {
-  const location = useLocation();
-  const segments = location.pathname.split("/").filter(Boolean);
-
+export default function Breadcrumbs({ pathname = "", patternMap = {} }) {
+  const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0) return null;
 
   const crumbs = [{ label: "Home", path: "/" }];
   let currentPath = "";
 
-  segments.forEach((seg, i) => {
+  segments.forEach((seg) => {
     currentPath += `/${seg}`;
-    const pattern = getPattern(seg);
-    const label = pattern
-      ? pattern.title
-      : PAGE_TITLES[seg] || seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const label = patternMap[seg]
+      || STATIC_TITLES[seg]
+      || seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
     crumbs.push({ label, path: currentPath });
   });
 
@@ -41,7 +37,7 @@ export default function Breadcrumbs() {
           {i === crumbs.length - 1 ? (
             <span className="text-foreground font-medium" aria-current="page">{crumb.label}</span>
           ) : (
-            <Link to={crumb.path} className="hover:text-foreground transition-colors">{crumb.label}</Link>
+            <a href={crumb.path} className="hover:text-foreground transition-colors">{crumb.label}</a>
           )}
         </React.Fragment>
       ))}

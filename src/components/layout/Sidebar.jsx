@@ -1,14 +1,7 @@
-import React, { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Building2, Bookmark } from "lucide-react";
-import { PATTERNS, CATEGORY_ORDER, CATEGORIES, getPatternsByCategory } from "@/lib/content/patterns";
 
-const CATEGORY_ICONS = {
-  creational: Box,
-  structural: Puzzle,
-  behavioral: Workflow,
-  architectural: Building2,
-};
+const CATEGORY_ICONS = { creational: Box, structural: Puzzle, behavioral: Workflow, architectural: Building2 };
 
 function SidebarSection({ title, icon: Icon, children, defaultOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -28,10 +21,10 @@ function SidebarSection({ title, icon: Icon, children, defaultOpen = false }) {
   );
 }
 
-function SidebarLink({ to, children, active }) {
+function SidebarLink({ href, children, active }) {
   return (
-    <Link
-      to={to}
+    <a
+      href={href}
       className={`block px-3 py-1 text-[13px] rounded-md transition-colors truncate ${
         active
           ? "bg-accent text-accent-foreground font-medium"
@@ -39,43 +32,46 @@ function SidebarLink({ to, children, active }) {
       }`}
     >
       {children}
-    </Link>
+    </a>
   );
 }
 
-export default function Sidebar({ open, onClose }) {
-  const location = useLocation();
-  const currentPath = location.pathname;
+export default function Sidebar({ navData, pathname }) {
+  const [open, setOpen] = useState(false);
 
-  const content = (
+  useEffect(() => {
+    const handler = () => setOpen((o) => !o);
+    document.addEventListener('sidebar-toggle', handler);
+    return () => document.removeEventListener('sidebar-toggle', handler);
+  }, []);
+
+  const nav = (
     <nav className="py-4 px-2 overflow-y-auto h-full scrollbar-thin" aria-label="Site navigation">
       <div className="mb-4">
-        <SidebarLink to="/go" active={currentPath === "/go"}>
+        <SidebarLink href="/go" active={pathname === "/go"}>
           <span className="flex items-center gap-2"><BookOpen className="h-3.5 w-3.5" /> Home</span>
         </SidebarLink>
       </div>
 
-      <SidebarSection title="Philosophy" icon={Lightbulb} defaultOpen={currentPath.startsWith("/go/philosophy")}>
-        <SidebarLink to="/go/philosophy" active={currentPath === "/go/philosophy"}>Overview</SidebarLink>
-        <SidebarLink to="/go/philosophy/solid" active={currentPath === "/go/philosophy/solid"}>SOLID Principles</SidebarLink>
-        <SidebarLink to="/go/philosophy/tdd" active={currentPath === "/go/philosophy/tdd"}>Test-Driven Development</SidebarLink>
+      <SidebarSection title="Philosophy" icon={Lightbulb} defaultOpen={pathname.startsWith("/go/philosophy")}>
+        <SidebarLink href="/go/philosophy" active={pathname === "/go/philosophy"}>Overview</SidebarLink>
+        <SidebarLink href="/go/philosophy/solid" active={pathname === "/go/philosophy/solid"}>SOLID Principles</SidebarLink>
+        <SidebarLink href="/go/philosophy/tdd" active={pathname === "/go/philosophy/tdd"}>Test-Driven Development</SidebarLink>
       </SidebarSection>
 
-      {CATEGORY_ORDER.map((catKey) => {
-        const cat = CATEGORIES[catKey];
-        const patterns = getPatternsByCategory(catKey);
-        const Icon = CATEGORY_ICONS[catKey];
-        const isActive = currentPath.includes(`/go/patterns/${catKey}`);
+      {(navData ?? []).map((cat) => {
+        const Icon = CATEGORY_ICONS[cat.slug] ?? BookOpen;
+        const isActive = pathname.includes(`/go/patterns/${cat.slug}`);
         return (
-          <SidebarSection key={catKey} title={cat.title} icon={Icon} defaultOpen={isActive}>
-            <SidebarLink to={`/go/patterns/${catKey}`} active={currentPath === `/go/patterns/${catKey}`}>
+          <SidebarSection key={cat.slug} title={cat.title} icon={Icon} defaultOpen={isActive}>
+            <SidebarLink href={`/go/patterns/${cat.slug}`} active={pathname === `/go/patterns/${cat.slug}`}>
               Overview
             </SidebarLink>
-            {patterns.map((p) => (
+            {cat.patterns.map((p) => (
               <SidebarLink
                 key={p.slug}
-                to={`/go/patterns/${p.category}/${p.slug}`}
-                active={currentPath === `/go/patterns/${p.category}/${p.slug}`}
+                href={`/go/patterns/${p.category}/${p.slug}`}
+                active={pathname === `/go/patterns/${p.category}/${p.slug}`}
               >
                 {p.title}
               </SidebarLink>
@@ -85,7 +81,7 @@ export default function Sidebar({ open, onClose }) {
       })}
 
       <div className="mt-3 space-y-0.5">
-        <SidebarLink to="/go/saved" active={currentPath === "/go/saved"}>
+        <SidebarLink href="/go/saved" active={pathname === "/go/saved"}>
           <span className="flex items-center gap-2"><Bookmark className="h-3.5 w-3.5" /> Saved Content</span>
         </SidebarLink>
       </div>
@@ -94,21 +90,19 @@ export default function Sidebar({ open, onClose }) {
 
   return (
     <>
-      {/* Desktop sidebar */}
       <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-border bg-sidebar h-[calc(100vh-3.5rem)] sticky top-14 overflow-hidden">
-        {content}
+        {nav}
       </aside>
 
-      {/* Mobile overlay */}
       {open && (
         <>
-          <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={onClose} />
+          <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />
           <aside className="fixed left-0 top-0 z-50 w-72 h-full bg-sidebar border-r border-border lg:hidden shadow-xl">
             <div className="h-14 flex items-center px-4 border-b border-border">
               <span className="text-primary font-mono text-lg font-bold">Go</span>
               <span className="ml-2 text-sm font-semibold">Intentional Code</span>
             </div>
-            {content}
+            {nav}
           </aside>
         </>
       )}
