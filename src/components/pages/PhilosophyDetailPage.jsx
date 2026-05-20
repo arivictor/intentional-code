@@ -17,25 +17,25 @@ function readingTime(md) {
   return `${Math.max(1, Math.round(md.split(/\s+/).filter(Boolean).length / 200))} min read`;
 }
 
-export default function PhilosophyDetailPage({ slug, title, description, markdown, navOrder, pathname }) {
+export default function PhilosophyDetailPage({ slug, title, description, markdown, navOrder, pathname, storageKey }) {
   const [read, setRead] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [highlights, setHighlights] = useState([]);
 
   useEffect(() => {
-    setRead(isPatternRead(slug));
-    setBookmarked(isBookmarked(slug));
-    setHighlights(getHighlights(slug));
-  }, [slug]);
+    setRead(isPatternRead(storageKey));
+    setBookmarked(isBookmarked(storageKey));
+    setHighlights(getHighlights(storageKey));
+  }, [storageKey]);
 
   const toggleRead = () => {
-    if (read) { markPatternUnread(slug); setRead(false); }
-    else { markPatternRead(slug); setRead(true); }
+    if (read) { markPatternUnread(storageKey); setRead(false); }
+    else { markPatternRead(storageKey); setRead(true); }
   };
 
-  const handleBookmark = () => setBookmarked(toggleBookmark(slug));
-  const handleAddHighlight = (hl) => setHighlights(addHighlight(slug, hl));
-  const handleRemoveHighlight = (id) => setHighlights(removeHighlight(slug, id));
+  const handleBookmark = () => setBookmarked(toggleBookmark(storageKey));
+  const handleAddHighlight = (hl) => setHighlights(addHighlight(storageKey, hl));
+  const handleRemoveHighlight = (id) => setHighlights(removeHighlight(storageKey, id));
 
   return (
     <>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext } from "react";
+import React, { useState, useEffect, createContext } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
 import MarkdownCode from "@/components/content/MarkdownCode";
@@ -55,24 +55,24 @@ function splitMarkdown(md) {
   return { before, advantages: parseList(advContent), disadvantages: parseList(disContent), relatedPatterns };
 }
 
-export default function PatternPage({ pattern, markdown, allPatterns, navOrder, pathname }) {
+export default function PatternPage({ pattern, markdown, allPatterns, navOrder, pathname, basePath = "/go" }) {
   const [read, setRead] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
   const [highlights, setHighlights] = useState([]);
-  const { slug } = pattern;
+  const { storageKey } = pattern;
 
   useEffect(() => {
-    setRead(isPatternRead(slug));
-    setBookmarked(isBookmarked(slug));
-    setHighlights(getHighlights(slug));
-  }, [slug]);
+    setRead(isPatternRead(storageKey));
+    setBookmarked(isBookmarked(storageKey));
+    setHighlights(getHighlights(storageKey));
+  }, [storageKey]);
 
-  const handleAddHighlight = (hl) => setHighlights(addHighlight(slug, hl));
-  const handleRemoveHighlight = (id) => setHighlights(removeHighlight(slug, id));
-  const handleBookmark = () => setBookmarked(toggleBookmark(slug));
+  const handleAddHighlight = (hl) => setHighlights(addHighlight(storageKey, hl));
+  const handleRemoveHighlight = (id) => setHighlights(removeHighlight(storageKey, id));
+  const handleBookmark = () => setBookmarked(toggleBookmark(storageKey));
   const toggleRead = () => {
-    if (read) { markPatternUnread(slug); setRead(false); }
-    else { markPatternRead(slug); setRead(true); }
+    if (read) { markPatternUnread(storageKey); setRead(false); }
+    else { markPatternRead(storageKey); setRead(true); }
   };
 
   const patternMap = Object.fromEntries((allPatterns ?? []).map((p) => [p.slug, p.title]));
@@ -97,7 +97,7 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
   };
 
   return (
-    <PatternsContext.Provider value={allPatterns ?? []}>
+    <PatternsContext.Provider value={{ allPatterns: allPatterns ?? [], basePath }}>
       <ReadingProgressBar />
       <div className="flex gap-8 max-w-5xl mx-auto px-6 py-12">
         <div className="flex-1 min-w-0">

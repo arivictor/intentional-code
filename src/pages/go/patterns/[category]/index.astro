@@ -3,6 +3,10 @@ import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import CategoryLanding from '@/components/pages/CategoryLanding';
 import { buildNavOrder, CATEGORY_ORDER } from '@/lib/site-data';
+import { getLanguageConfig } from '@/lib/languages';
+
+const language = 'go';
+const languageConfig = getLanguageConfig(language);
 
 export async function getStaticPaths() {
   const [patterns, philosophy, categories] = await Promise.all([
@@ -11,7 +15,7 @@ export async function getStaticPaths() {
     getCollection('pattern-categories'),
   ]);
 
-  const navOrder = buildNavOrder(patterns, philosophy, categories);
+  const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
 
   return categories.map((cat) => {
     const catKey = cat.id.replace(/\/index$/, '');
@@ -22,7 +26,7 @@ export async function getStaticPaths() {
         title: p.data.title,
         category: p.data.category,
         intent: p.data.intent,
-        goIdiomSummary: p.data.goIdiomSummary,
+        idiomSummary: p.data.idiomSummary,
       }));
 
     return {
@@ -40,13 +44,15 @@ export async function getStaticPaths() {
 const { category, introMarkdown, patterns, navOrder } = Astro.props;
 ---
 
-<SiteLayout title={category.title} description={category.lede}>
+<SiteLayout title={category.title} description={category.lede} language={language}>
   <CategoryLanding
     category={category}
     introMarkdown={introMarkdown}
     patterns={patterns}
     navOrder={navOrder}
-    pathname={`/go/patterns/${category.slug}`}
+    pathname={`${languageConfig.basePath}/patterns/${category.slug}`}
+    basePath={languageConfig.basePath}
+    summaryHeading={languageConfig.summaryHeading}
     client:load
   />
 </SiteLayout>

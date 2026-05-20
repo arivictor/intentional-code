@@ -1,0 +1,146 @@
+---
+title: "Chain of Responsibility"
+category: behavioral
+intent: "Pass a request along a chain of handlers, where each handler decides whether to process it or pass it to the next handler."
+idiomSummary: "Pass a request through composable handlers until one handles it."
+relatedSlugs: ["decorator", "command"]
+tags: [interfaces, closures, composition]
+---
+
+# Chain of Responsibility
+
+Chain of Responsibility passes a request along a sequence of handlers. Each handler decides whether to process the request, short-circuit with a response, or pass it on. In Python, this is most commonly seen as HTTP middleware chains, but the pattern applies anywhere you need a composable pipeline of independent checks or transformations.
+
+The Python style favors a slice of handler functions over linked-list objects — simpler to construct, reorder, and test in isolation.
+
+## Problem
+
+You're building a request processing pipeline. Incoming requests need validation, rate limiting, authentication, and finally handling. The logic for deciding which checks to apply is tangled into a single function with deeply nested conditionals.
+
+```python
+# tangled.py
+def process_request(req):
+    if req.Body == "" :
+        return Response{Status: 400, Body: "empty body"
+    if isRateLimited(req.IP) :
+        return Response{Status: 429, Body: "too many requests"
+    if !isAuthenticated(req.Token) :
+        return Response{Status: 401, Body: "unauthorized"
+    return Response{Status: 200, Body: "processed: " + req.Body
+```
+
+Every new check requires editing this function. The order is implicit. You can't reuse the auth check without the rate limiter. And testing one check requires setting up all the others.
+
+## Solution
+
+Define a `Handler` function type and chain them. Each handler either stops the chain (by returning a response) or calls the next handler.
+
+```
+Request ──► Validate ──► RateLimit ──► Auth ──► Handle
+               │             │           │          │
+             stop?         stop?       stop?     respond
+```
+
+```python
+# pipeline.py
+
+
+class Request:
+    ip: string
+    token: string
+    body: string
+
+class Response:
+    status: int
+    body: string
+
+# Handler processes a request. If it returns True, the chain continues.
+type Handler func(req Request) (Response, bool)
+
+# Chain runs handlers in order until one stops the chain.
+def chain(handlers):
+    return func(req Request) (Response, bool) {
+    for h in handlers:
+        resp, cont := h(req)
+        if !cont :
+            return resp, False
+    return Response{Status: 500, Body: "no handler responded"}, False
+
+def validate(req):
+    if req.Body == "" :
+        return Response{Status: 400, Body: "empty body"}, False
+    return Response{}, True
+
+def rate_limit(req):
+    if req.IP == "blocked" :
+        return Response{Status: 429, Body: "rate limited"}, False
+    return Response{}, True
+
+def require_auth(req):
+    if req.Token == "" :
+        return Response{Status: 401, Body: "unauthorized"}, False
+    return Response{}, True
+
+def handle(req):
+    return Response{Status: 200, Body: fmt.Sprintf("processed: %s", req.Body)}, False
+```
+
+```python
+# main.py
+
+"fmt"
+"pipeline"
+
+def main():
+    handler = pipeline.Chain(
+    pipeline.Validate
+    pipeline.RateLimit
+    pipeline.RequireAuth
+    pipeline.Handle
+
+    requests = []pipeline.Request{
+    :IP: "1.2.3.4", Token: "valid", Body: "hello"
+    :IP: "1.2.3.4", Token: "", Body: "hello"
+    :IP: "blocked", Token: "valid", Body: "hello"
+    :IP: "1.2.3.4", Token: "valid", Body: ""
+
+for req in requests:
+    resp, _ := handler(req)
+    fmt.Printf("[%d] %s\n", resp.Status, resp.Body)
+```
+
+Output:
+
+```
+[200] processed: hello
+[401] unauthorized
+[429] rate limited
+[400] empty body
+```
+
+## When to Use
+
+- You need a pipeline of checks or transformations that should be composable and reorderable.
+- Each handler is independent and should be testable in isolation.
+- You're building HTTP middleware.
+
+## When Not to Use
+
+- The processing order is fixed and unlikely to change. A straightforward function may be clearer.
+- There's only one or two steps — the chain machinery adds overhead without benefit.
+
+## Advantages
+
+- Each handler is single-responsibility and independently testable.
+- The chain is composable — add, remove, or reorder handlers without changing existing code.
+- Naturally maps to Go's HTTP middleware pattern.
+
+## Disadvantages
+
+- Harder to trace which handler responded — debugging can require logging at each step.
+- If handlers need to share context, you need to pass it explicitly (e.g., via `context.Context`).
+
+## Related Patterns
+
+- **Decorator** — HTTP middleware is both Decorator and Chain of Responsibility: each middleware wraps the next (Decorator) and may short-circuit without calling the inner handler (Chain of Responsibility) — if every step always calls the next, it's pure Decorator; if steps may stop the chain, it's Chain of Responsibility.
+- **Command** — Commands can be the handlers in a chain, combining pipeline composability with undo and queuing capabilities.

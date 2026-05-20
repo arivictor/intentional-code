@@ -14,7 +14,7 @@ export default function SavedPatterns({ allContent, navOrder, pathname }) {
     setHighlights(getAllHighlights());
   }, []);
 
-  const contentMap = Object.fromEntries(allContent.map((c) => [c.slug, c]));
+  const contentMap = Object.fromEntries(allContent.map((c) => [c.storageKey, c]));
 
   const handleRemoveBookmark = (slug) => {
     removeBookmark(slug);

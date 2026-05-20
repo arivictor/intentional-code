@@ -3,6 +3,7 @@ import { getCollection } from 'astro:content';
 import TopBar from '@/components/layout/TopBar';
 import Sidebar from '@/components/layout/Sidebar';
 import { buildNavData, buildNavOrder, buildSearchData } from '@/lib/site-data';
+import { getCollectionNames, getLanguageConfig } from '@/lib/languages';
 import '@/index.css';
 
 interface Props {
@@ -10,21 +11,24 @@ interface Props {
   description?: string;
   canonical?: string;
   jsonLd?: object;
+  language?: 'go' | 'python';
 }
 
-const { title, description, canonical, jsonLd } = Astro.props;
-const siteTitle = title ? `${title} | Intentional Code` : 'Intentional Code with Go';
+const { title, description, canonical, jsonLd, language = 'go' } = Astro.props;
+const languageConfig = getLanguageConfig(language);
+const collectionNames = getCollectionNames(language);
+const siteTitle = title ? `${title} | Intentional Code` : languageConfig.siteTitle;
 const canonicalUrl = canonical ?? `https://intentionalcode.com${Astro.url.pathname}`;
 
 const [patterns, philosophy, categories] = await Promise.all([
-  getCollection('patterns'),
-  getCollection('philosophy'),
-  getCollection('pattern-categories'),
+  getCollection(collectionNames.patterns),
+  getCollection(collectionNames.philosophy),
+  getCollection(collectionNames.categories),
 ]);
 
 const navData = buildNavData(patterns, categories);
-const navOrder = buildNavOrder(patterns, philosophy, categories);
-const searchData = buildSearchData(patterns, philosophy, categories);
+const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
+const searchData = buildSearchData(patterns, philosophy, categories, languageConfig.basePath);
 const pathname = Astro.url.pathname;
 ---
 
@@ -51,16 +55,16 @@ const pathname = Astro.url.pathname;
     )}
     <script is:inline>
       (function () {
-        var t = localStorage.getItem('go-patterns-theme');
+        var t = localStorage.getItem('intentional-code-theme');
         if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         if (t === 'dark') document.documentElement.classList.add('dark');
       })();
     </script>
   </head>
   <body class="min-h-screen flex flex-col bg-background text-foreground">
-    <TopBar searchData={searchData} client:load />
+    <TopBar searchData={searchData} pathname={pathname} currentLanguage={language} client:load />
     <div class="flex flex-1">
-      <Sidebar navData={navData} navOrder={navOrder} pathname={pathname} client:load />
+      <Sidebar navData={navData} pathname={pathname} currentLanguage={language} client:load />
       <main class="flex-1 min-w-0">
         <slot />
       </main>

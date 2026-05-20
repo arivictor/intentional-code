@@ -3,6 +3,10 @@ import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import Home from '@/components/pages/Home';
 import { buildAllContent, buildNavOrder, CATEGORY_ORDER } from '@/lib/site-data';
+import { getLanguageConfig } from '@/lib/languages';
+
+const language = 'go';
+const languageConfig = getLanguageConfig(language);
 
 const [patterns, philosophy, categories, sitePages] = await Promise.all([
   getCollection('patterns'),
@@ -13,8 +17,8 @@ const [patterns, philosophy, categories, sitePages] = await Promise.all([
 
 const homePage = sitePages.find((p) => p.id === 'home');
 
-const allContent = buildAllContent(patterns, philosophy);
-const navOrder = buildNavOrder(patterns, philosophy, categories);
+const allContent = buildAllContent(patterns, philosophy, languageConfig.basePath);
+const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
 
 const categoriesData = CATEGORY_ORDER.map((key) => {
   const cat = categories.find((c) => c.id.replace(/\/index$/, '') === key);
@@ -23,9 +27,11 @@ const categoriesData = CATEGORY_ORDER.map((key) => {
 
 const patternsData = patterns.map((p) => ({
   slug: p.id.replace(/\.md$/, '').split('/')[1],
+  storageKey: `${languageConfig.basePath}/patterns/${p.data.category}/${p.id.replace(/\.md$/, '').split('/')[1]}`,
   title: p.data.title,
   category: p.data.category,
   intent: p.data.intent,
+  idiomSummary: p.data.idiomSummary,
   tags: p.data.tags,
   isFeatured: p.data.isFeatured,
 }));
@@ -36,16 +42,18 @@ const philosophyData = philosophy.map((p) => {
   const isIndex = p.id === 'index';
   return {
     slug: p.id,
+    storageKey: isIndex ? `${languageConfig.basePath}/philosophy` : `${languageConfig.basePath}/philosophy/${p.id}`,
     title: p.data.title,
     description: isIndex ? p.data.intro : p.data.description,
-    url: isIndex ? '/go/philosophy' : `/go/philosophy/${p.id}`,
+    url: isIndex ? `${languageConfig.basePath}/philosophy` : `${languageConfig.basePath}/philosophy/${p.id}`,
   };
 });
 ---
 
 <SiteLayout
-  title="Design Patterns in Go"
-  description="Design patterns and SOLID principles, implemented in idiomatic Go — with examples, tradeoffs, and cross-references."
+  title={languageConfig.homeTitle}
+  description={languageConfig.homeDescription}
+  language={language}
 >
   <Home
     allContent={allContent}
@@ -54,7 +62,9 @@ const philosophyData = philosophy.map((p) => {
     categoryOrder={CATEGORY_ORDER}
     patterns={patternsData}
     philosophy={philosophyData}
-    pathname="/go"
+    pathname={languageConfig.basePath}
+    currentLanguage={language}
+    basePath={languageConfig.basePath}
     tagline={homePage?.data.tagline}
     heroBody={homePage?.body}
     catalogHeading={homePage?.data.catalogHeading}

@@ -1,0 +1,59 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import CategoryLanding from '@/components/pages/CategoryLanding';
+import { buildNavOrder } from '@/lib/site-data';
+import { getCollectionNames, getLanguageConfig } from '@/lib/languages';
+
+const language = 'python';
+const languageConfig = getLanguageConfig(language);
+const collectionNames = getCollectionNames(language);
+
+export async function getStaticPaths() {
+  const [patterns, philosophy, categories] = await Promise.all([
+    getCollection(collectionNames.patterns),
+    getCollection(collectionNames.philosophy),
+    getCollection(collectionNames.categories),
+  ]);
+
+  const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
+
+  return categories.map((cat) => {
+    const catKey = cat.id.replace(/\/index$/, '');
+    const catPatterns = patterns
+      .filter((p) => p.data.category === catKey)
+      .map((p) => ({
+        slug: p.id.replace(/\.md$/, '').split('/')[1],
+        title: p.data.title,
+        category: p.data.category,
+        intent: p.data.intent,
+        idiomSummary: p.data.idiomSummary,
+      }));
+
+    return {
+      params: { category: catKey },
+      props: {
+        category: { slug: catKey, title: cat.data.title, lede: cat.data.lede },
+        introMarkdown: cat.body,
+        patterns: catPatterns,
+        navOrder,
+      },
+    };
+  });
+}
+
+const { category, introMarkdown, patterns, navOrder } = Astro.props;
+---
+
+<SiteLayout title={category.title} description={category.lede} language={language}>
+  <CategoryLanding
+    category={category}
+    introMarkdown={introMarkdown}
+    patterns={patterns}
+    navOrder={navOrder}
+    pathname={`${languageConfig.basePath}/patterns/${category.slug}`}
+    basePath={languageConfig.basePath}
+    summaryHeading={languageConfig.summaryHeading}
+    client:load
+  />
+</SiteLayout>

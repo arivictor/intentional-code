@@ -1,0 +1,74 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import PatternPage from '@/components/pages/PatternPage';
+import { buildNavOrder } from '@/lib/site-data';
+import { getCollectionNames, getLanguageConfig } from '@/lib/languages';
+
+const language = 'python';
+const languageConfig = getLanguageConfig(language);
+const collectionNames = getCollectionNames(language);
+
+export async function getStaticPaths() {
+  const [patterns, philosophy, categories] = await Promise.all([
+    getCollection(collectionNames.patterns),
+    getCollection(collectionNames.philosophy),
+    getCollection(collectionNames.categories),
+  ]);
+
+  const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
+
+  const allPatterns = patterns.map((p) => ({
+    slug: p.id.replace(/\.md$/, '').split('/')[1],
+    title: p.data.title,
+    category: p.data.category,
+    intent: p.data.intent,
+    idiomSummary: p.data.idiomSummary,
+    relatedSlugs: p.data.relatedSlugs,
+  }));
+
+  return patterns.map((entry) => {
+    const slug = entry.id.replace(/\.md$/, '').split('/')[1];
+    return {
+      params: { category: entry.data.category, slug },
+      props: {
+        pattern: {
+          slug,
+          storageKey: `${languageConfig.basePath}/patterns/${entry.data.category}/${slug}`,
+          title: entry.data.title,
+          category: entry.data.category,
+          intent: entry.data.intent,
+          idiomSummary: entry.data.idiomSummary,
+          relatedSlugs: entry.data.relatedSlugs,
+        },
+        markdown: entry.body,
+        allPatterns,
+        navOrder,
+      },
+    };
+  });
+}
+
+const { pattern, markdown, allPatterns, navOrder } = Astro.props;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'TechArticle',
+  name: `${pattern.title} Pattern in ${languageConfig.label}`,
+  description: pattern.intent,
+  url: `https://intentionalcode.com${languageConfig.basePath}/patterns/${pattern.category}/${pattern.slug}`,
+  publisher: { '@type': 'Organization', name: 'Intentional Code' },
+};
+---
+
+<SiteLayout title={pattern.title} description={pattern.intent} jsonLd={jsonLd} language={language}>
+  <PatternPage
+    pattern={pattern}
+    markdown={markdown}
+    allPatterns={allPatterns}
+    navOrder={navOrder}
+    pathname={`${languageConfig.basePath}/patterns/${pattern.category}/${pattern.slug}`}
+    basePath={languageConfig.basePath}
+    client:load
+  />
+</SiteLayout>

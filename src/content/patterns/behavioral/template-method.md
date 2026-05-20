@@ -2,7 +2,7 @@
 title: "Template Method"
 category: behavioral
 intent: "Define the skeleton of an algorithm in a base operation, deferring some steps to subclasses — but in Go, use composition and injected hook functions instead."
-goIdiomSummary: "Fights Go (no inheritance); implement via composition + injected hook funcs or an interface."
+idiomSummary: "Fights Go (no inheritance); implement via composition + injected hook funcs or an interface."
 relatedSlugs: ["strategy", "factory-method"]
 tags: [closures, composition, interfaces]
 ---

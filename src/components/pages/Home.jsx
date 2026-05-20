@@ -45,7 +45,7 @@ function TagFilter({ allTags, activeTags, filteredCount, totalCount, onToggle, o
   );
 }
 
-export default function Home({ allContent, navOrder, categories, categoryOrder, patterns, philosophy, pathname, tagline, heroBody, catalogHeading, allTags }) {
+export default function Home({ allContent, navOrder, categories, categoryOrder, patterns, philosophy, pathname, tagline, heroBody, catalogHeading, allTags, currentLanguage = "go", basePath = "/go" }) {
   const [readSlugs, setReadSlugs] = useState([]);
   const [activeTags, setActiveTags] = useState([]);
 
@@ -53,12 +53,12 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
     setReadSlugs(getReadPatterns());
   }, []);
 
-  const readCount = allContent.filter((c) => readSlugs.includes(c.slug)).length;
+  const readCount = allContent.filter((c) => readSlugs.includes(c.storageKey)).length;
   const totalCount = allContent.length;
   const progressPct = totalCount > 0 ? Math.round((readCount / totalCount) * 100) : 0;
 
-  const recentlyRead = allContent.filter((c) => readSlugs.includes(c.slug)).slice(-3).reverse();
-  const nextUnread = allContent.find((c) => !readSlugs.includes(c.slug));
+  const recentlyRead = allContent.filter((c) => readSlugs.includes(c.storageKey)).slice(-3).reverse();
+  const nextUnread = allContent.find((c) => !readSlugs.includes(c.storageKey));
 
   const categoryMap = Object.fromEntries(categories.map((c) => [c.slug, c]));
 
@@ -77,7 +77,7 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
       <div className="mb-12">
         <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-4">
           Intentional Code{" "}
-          <span className="text-primary">with Go</span>
+          <span className="text-primary">with {currentLanguage === "python" ? "Python" : "Go"}</span>
         </h1>
         {tagline && (
           <p className="text-xl text-foreground leading-relaxed mb-4 font-medium">{tagline}</p>
@@ -154,16 +154,16 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
             {featuredPatterns.map((p) => (
               <a
                 key={p.slug}
-                href={`/go/patterns/${p.category}/${p.slug}`}
+                href={`${basePath}/patterns/${p.category}/${p.slug}`}
                 className="group flex flex-col p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-all"
               >
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
                     {p.title}
                   </span>
-                  {readSlugs.includes(p.slug) && (
-                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                  )}
+                    {readSlugs.includes(p.storageKey) && (
+                      <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                    )}
                 </div>
                 <p className="text-xs text-muted-foreground leading-relaxed flex-1">{p.intent}</p>
                 <div className="mt-3 flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
@@ -190,7 +190,7 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
         {activeTags.length === 0 && (
           <div className="mb-8">
             <a
-              href="/go/philosophy"
+              href={`${basePath}/philosophy`}
               className="flex items-center gap-2 mb-3 text-muted-foreground hover:text-foreground transition-colors"
             >
               <Scale className="h-4 w-4" />
@@ -208,9 +208,9 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
                       <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
                         {item.title}
                       </span>
-                      {readSlugs.includes(item.slug) && (
-                        <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                      )}
+                        {readSlugs.includes(item.storageKey) && (
+                          <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
+                        )}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</div>
                   </div>
@@ -228,7 +228,7 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
           return (
             <div key={catKey} className="mb-8">
               <a
-                href={`/go/patterns/${catKey}`}
+                href={`${basePath}/patterns/${catKey}`}
                 className="flex items-center gap-2 mb-3 text-muted-foreground hover:text-foreground transition-colors"
               >
                 <Icon className="h-4 w-4" />
@@ -237,9 +237,9 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
               <div className="grid gap-2 sm:grid-cols-2">
                 {activeTags.length === 0 && (
                   <a
-                    href={`/go/patterns/${catKey}`}
-                    className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
-                  >
+                     href={`${basePath}/patterns/${catKey}`}
+                     className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
+                   >
                     <div className="flex-1 min-w-0">
                       <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
                         {cat.title}
@@ -251,7 +251,7 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
                 {catPatterns.map((p) => (
                   <a
                     key={p.slug}
-                    href={`/go/patterns/${p.category}/${p.slug}`}
+                    href={`${basePath}/patterns/${p.category}/${p.slug}`}
                     className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
                   >
                     <div className="flex-1 min-w-0">
@@ -259,7 +259,7 @@ export default function Home({ allContent, navOrder, categories, categoryOrder, 
                         <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
                           {p.title}
                         </span>
-                        {readSlugs.includes(p.slug) && (
+                        {readSlugs.includes(p.storageKey) && (
                           <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
                         )}
                       </div>

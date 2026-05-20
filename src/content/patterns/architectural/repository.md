@@ -2,7 +2,7 @@
 title: "Repository"
 category: architectural
 intent: "Isolate domain logic from data persistence by defining an interface for storage operations and providing concrete implementations for each backend."
-goIdiomSummary: "A small interface per aggregate (Save, FindByID, etc.); in-memory implementation for tests, sql.DB implementation for production."
+idiomSummary: "A small interface per aggregate (Save, FindByID, etc.); in-memory implementation for tests, sql.DB implementation for production."
 relatedSlugs: ["hexagonal", "layered", "domain-driven-design", "clean-architecture"]
 tags: [interfaces, dependency-inversion, testability]
 ---

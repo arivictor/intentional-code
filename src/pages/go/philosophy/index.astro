@@ -3,6 +3,10 @@ import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import PhilosophyLanding from '@/components/pages/PhilosophyLanding';
 import { buildNavOrder } from '@/lib/site-data';
+import { getLanguageConfig } from '@/lib/languages';
+
+const language = 'go';
+const languageConfig = getLanguageConfig(language);
 
 const [patterns, philosophy, categories] = await Promise.all([
   getCollection('patterns'),
@@ -12,24 +16,25 @@ const [patterns, philosophy, categories] = await Promise.all([
 
 const philosophyIndex = philosophy.find((p) => p.id === 'index');
 
-const navOrder = buildNavOrder(patterns, philosophy, categories);
+const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
 
 const philosophyItems = philosophy
   .filter((p) => p.id !== 'index')
   .map((p) => {
     const slug = p.id.replace(/\.md$/, '');
-    return { slug, title: p.data.title, description: p.data.description, url: `/go/philosophy/${slug}` };
+    return { slug, title: p.data.title, description: p.data.description, url: `${languageConfig.basePath}/philosophy/${slug}` };
   });
 ---
 
 <SiteLayout
   title="Philosophy"
-  description="The principles that make Go design patterns work: SOLID and Test-Driven Development."
+  description={languageConfig.philosophyDescription}
+  language={language}
 >
   <PhilosophyLanding
     philosophyItems={philosophyItems}
     navOrder={navOrder}
-    pathname="/go/philosophy"
+    pathname={`${languageConfig.basePath}/philosophy`}
     intro={philosophyIndex?.data.intro}
     introBody={philosophyIndex?.body}
     client:load

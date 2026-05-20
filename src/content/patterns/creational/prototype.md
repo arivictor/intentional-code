@@ -2,7 +2,7 @@
 title: "Prototype"
 category: creational
 intent: "Create new objects by cloning an existing instance, avoiding the cost of building from scratch and decoupling code from concrete types."
-goIdiomSummary: "A Clone() method; be explicit about shallow vs deep copy with pointers, slices, maps."
+idiomSummary: "A Clone() method; be explicit about shallow vs deep copy with pointers, slices, maps."
 relatedSlugs: ["factory-method", "memento"]
 tags: [state, composition]
 ---

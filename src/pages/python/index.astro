@@ -1,0 +1,78 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import Home from '@/components/pages/Home';
+import { buildAllContent, buildNavOrder, CATEGORY_ORDER } from '@/lib/site-data';
+import { getCollectionNames, getLanguageConfig } from '@/lib/languages';
+
+const language = 'python';
+const languageConfig = getLanguageConfig(language);
+const collectionNames = getCollectionNames(language);
+
+const [patterns, philosophy, categories, sitePages] = await Promise.all([
+  getCollection(collectionNames.patterns),
+  getCollection(collectionNames.philosophy),
+  getCollection(collectionNames.categories),
+  getCollection(collectionNames.pages),
+]);
+
+const homePage = sitePages.find((p) => p.id === 'home');
+
+const allContent = buildAllContent(patterns, philosophy, languageConfig.basePath);
+const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
+
+const categoriesData = CATEGORY_ORDER.map((key) => {
+  const cat = categories.find((c) => c.id.replace(/\/index$/, '') === key);
+  return { slug: key, title: cat?.data.title ?? key, lede: cat?.data.lede ?? '' };
+});
+
+const patternsData = patterns.map((p) => {
+  const slug = p.id.replace(/\.md$/, '').split('/')[1];
+  return {
+    slug,
+    storageKey: `${languageConfig.basePath}/patterns/${p.data.category}/${slug}`,
+    title: p.data.title,
+    category: p.data.category,
+    intent: p.data.intent,
+    idiomSummary: p.data.idiomSummary,
+    tags: p.data.tags,
+    isFeatured: p.data.isFeatured,
+  };
+});
+
+const allTags = [...new Set(patterns.flatMap((p) => p.data.tags))].sort();
+
+const philosophyData = philosophy.map((p) => {
+  const isIndex = p.id === 'index';
+  return {
+    slug: p.id,
+    storageKey: isIndex ? `${languageConfig.basePath}/philosophy` : `${languageConfig.basePath}/philosophy/${p.id}`,
+    title: p.data.title,
+    description: isIndex ? p.data.intro : p.data.description,
+    url: isIndex ? `${languageConfig.basePath}/philosophy` : `${languageConfig.basePath}/philosophy/${p.id}`,
+  };
+});
+---
+
+<SiteLayout
+  title={languageConfig.homeTitle}
+  description={languageConfig.homeDescription}
+  language={language}
+>
+  <Home
+    allContent={allContent}
+    navOrder={navOrder}
+    categories={categoriesData}
+    categoryOrder={CATEGORY_ORDER}
+    patterns={patternsData}
+    philosophy={philosophyData}
+    pathname={languageConfig.basePath}
+    currentLanguage={language}
+    basePath={languageConfig.basePath}
+    tagline={homePage?.data.tagline}
+    heroBody={homePage?.body}
+    catalogHeading={homePage?.data.catalogHeading}
+    allTags={allTags}
+    client:load
+  />
+</SiteLayout>

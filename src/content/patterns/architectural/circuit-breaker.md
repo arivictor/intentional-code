@@ -2,7 +2,7 @@
 title: "Circuit Breaker"
 category: architectural
 intent: "Prevent cascading failures by wrapping remote calls in a state machine that fails fast when a downstream service is unhealthy and probes for recovery."
-goIdiomSummary: "A CircuitBreaker struct with Closed/Open/HalfOpen states; wraps any func() error call; uses sync/atomic or a mutex for thread-safe state transitions."
+idiomSummary: "A CircuitBreaker struct with Closed/Open/HalfOpen states; wraps any func() error call; uses sync/atomic or a mutex for thread-safe state transitions."
 relatedSlugs: ["proxy", "decorator"]
 tags: [state, concurrency, distributed, performance]
 ---

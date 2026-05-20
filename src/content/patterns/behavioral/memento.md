@@ -2,7 +2,7 @@
 title: "Memento"
 category: behavioral
 intent: "Capture and externalize an object's internal state so it can be restored later, without violating encapsulation."
-goIdiomSummary: "Capture/restore via an opaque type with unexported fields; originator owns save/restore."
+idiomSummary: "Capture/restore via an opaque type with unexported fields; originator owns save/restore."
 relatedSlugs: ["command", "prototype"]
 tags: [state]
 ---

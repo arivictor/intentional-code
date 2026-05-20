@@ -1,0 +1,29 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import SavedPatterns from '@/components/pages/SavedPatterns';
+import { buildAllContent, buildNavOrder } from '@/lib/site-data';
+import { getCollectionNames, getLanguageConfig } from '@/lib/languages';
+
+const language = 'python';
+const languageConfig = getLanguageConfig(language);
+const collectionNames = getCollectionNames(language);
+
+const [patterns, philosophy, categories] = await Promise.all([
+  getCollection(collectionNames.patterns),
+  getCollection(collectionNames.philosophy),
+  getCollection(collectionNames.categories),
+]);
+
+const allContent = buildAllContent(patterns, philosophy, languageConfig.basePath);
+const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
+---
+
+<SiteLayout title="Saved Content" description="Your bookmarked pages and highlights." language={language}>
+  <SavedPatterns
+    allContent={allContent}
+    navOrder={navOrder}
+    pathname={`${languageConfig.basePath}/saved`}
+    client:load
+  />
+</SiteLayout>

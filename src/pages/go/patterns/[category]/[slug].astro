@@ -3,6 +3,10 @@ import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import PatternPage from '@/components/pages/PatternPage';
 import { buildNavOrder } from '@/lib/site-data';
+import { getLanguageConfig } from '@/lib/languages';
+
+const language = 'go';
+const languageConfig = getLanguageConfig(language);
 
 export async function getStaticPaths() {
   const [patterns, philosophy, categories] = await Promise.all([
@@ -11,14 +15,14 @@ export async function getStaticPaths() {
     getCollection('pattern-categories'),
   ]);
 
-  const navOrder = buildNavOrder(patterns, philosophy, categories);
+  const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
 
   const allPatterns = patterns.map((p) => ({
     slug: p.id.replace(/\.md$/, '').split('/')[1],
     title: p.data.title,
     category: p.data.category,
     intent: p.data.intent,
-    goIdiomSummary: p.data.goIdiomSummary,
+    idiomSummary: p.data.idiomSummary,
     relatedSlugs: p.data.relatedSlugs,
   }));
 
@@ -29,10 +33,11 @@ export async function getStaticPaths() {
       props: {
         pattern: {
           slug,
+          storageKey: `${languageConfig.basePath}/patterns/${entry.data.category}/${slug}`,
           title: entry.data.title,
           category: entry.data.category,
           intent: entry.data.intent,
-          goIdiomSummary: entry.data.goIdiomSummary,
+          idiomSummary: entry.data.idiomSummary,
           relatedSlugs: entry.data.relatedSlugs,
         },
         markdown: entry.body,
@@ -48,20 +53,21 @@ const { pattern, markdown, allPatterns, navOrder } = Astro.props;
 const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'TechArticle',
-  name: `${pattern.title} Pattern in Go`,
+  name: `${pattern.title} Pattern in ${languageConfig.label}`,
   description: pattern.intent,
-  url: `https://intentionalcode.com/go/patterns/${pattern.category}/${pattern.slug}`,
+  url: `https://intentionalcode.com${languageConfig.basePath}/patterns/${pattern.category}/${pattern.slug}`,
   publisher: { '@type': 'Organization', name: 'Intentional Code' },
 };
 ---
 
-<SiteLayout title={pattern.title} description={pattern.intent} jsonLd={jsonLd}>
+<SiteLayout title={pattern.title} description={pattern.intent} jsonLd={jsonLd} language={language}>
   <PatternPage
     pattern={pattern}
     markdown={markdown}
     allPatterns={allPatterns}
     navOrder={navOrder}
-    pathname={`/go/patterns/${pattern.category}/${pattern.slug}`}
+    pathname={`${languageConfig.basePath}/patterns/${pattern.category}/${pattern.slug}`}
+    basePath={languageConfig.basePath}
     client:load
   />
 </SiteLayout>

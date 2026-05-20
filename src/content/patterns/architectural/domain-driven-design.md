@@ -2,7 +2,7 @@
 title: "Domain-Driven Design"
 category: architectural
 intent: "Model software around the business domain using Entities, Value Objects, Aggregates, Repositories, and Domain Events, keeping the ubiquitous language consistent across code and conversation."
-goIdiomSummary: "Structs for entities and value objects; aggregate roots as the only entry point for mutations; domain events as plain structs dispatched after state changes."
+idiomSummary: "Structs for entities and value objects; aggregate roots as the only entry point for mutations; domain events as plain structs dispatched after state changes."
 relatedSlugs: ["repository", "event-driven", "clean-architecture", "cqrs"]
 tags: [interfaces, state, events, composition, dependency-inversion]
 ---

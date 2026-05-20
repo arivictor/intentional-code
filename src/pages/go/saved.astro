@@ -3,6 +3,10 @@ import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import SavedPatterns from '@/components/pages/SavedPatterns';
 import { buildAllContent, buildNavOrder } from '@/lib/site-data';
+import { getLanguageConfig } from '@/lib/languages';
+
+const language = 'go';
+const languageConfig = getLanguageConfig(language);
 
 const [patterns, philosophy, categories] = await Promise.all([
   getCollection('patterns'),
@@ -10,15 +14,15 @@ const [patterns, philosophy, categories] = await Promise.all([
   getCollection('pattern-categories'),
 ]);
 
-const allContent = buildAllContent(patterns, philosophy);
-const navOrder = buildNavOrder(patterns, philosophy, categories);
+const allContent = buildAllContent(patterns, philosophy, languageConfig.basePath);
+const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
 ---
 
-<SiteLayout title="Saved Content" description="Your bookmarked pages and highlights.">
+<SiteLayout title="Saved Content" description="Your bookmarked pages and highlights." language={language}>
   <SavedPatterns
     allContent={allContent}
     navOrder={navOrder}
-    pathname="/go/saved"
+    pathname={`${languageConfig.basePath}/saved`}
     client:load
   />
 </SiteLayout>

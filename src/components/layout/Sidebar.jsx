@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Building2, Bookmark } from "lucide-react";
+import { getLanguageConfig } from "@/lib/languages";
 
 const CATEGORY_ICONS = { creational: Box, structural: Puzzle, behavioral: Workflow, architectural: Building2 };
 
@@ -36,8 +37,10 @@ function SidebarLink({ href, children, active }) {
   );
 }
 
-export default function Sidebar({ navData, pathname }) {
+export default function Sidebar({ navData, pathname, currentLanguage = "go" }) {
   const [open, setOpen] = useState(false);
+  const languageConfig = getLanguageConfig(currentLanguage);
+  const { basePath, label } = languageConfig;
 
   useEffect(() => {
     const handler = () => setOpen((o) => !o);
@@ -48,30 +51,30 @@ export default function Sidebar({ navData, pathname }) {
   const nav = (
     <nav className="py-4 px-2 overflow-y-auto h-full scrollbar-thin" aria-label="Site navigation">
       <div className="mb-4">
-        <SidebarLink href="/go" active={pathname === "/go"}>
+        <SidebarLink href={basePath} active={pathname === basePath}>
           <span className="flex items-center gap-2"><BookOpen className="h-3.5 w-3.5" /> Home</span>
         </SidebarLink>
       </div>
 
-      <SidebarSection title="Philosophy" icon={Lightbulb} defaultOpen={pathname.startsWith("/go/philosophy")}>
-        <SidebarLink href="/go/philosophy" active={pathname === "/go/philosophy"}>Overview</SidebarLink>
-        <SidebarLink href="/go/philosophy/solid" active={pathname === "/go/philosophy/solid"}>SOLID Principles</SidebarLink>
-        <SidebarLink href="/go/philosophy/tdd" active={pathname === "/go/philosophy/tdd"}>Test-Driven Development</SidebarLink>
+      <SidebarSection title="Philosophy" icon={Lightbulb} defaultOpen={pathname.startsWith(`${basePath}/philosophy`)}>
+        <SidebarLink href={`${basePath}/philosophy`} active={pathname === `${basePath}/philosophy`}>Overview</SidebarLink>
+        <SidebarLink href={`${basePath}/philosophy/solid`} active={pathname === `${basePath}/philosophy/solid`}>SOLID Principles</SidebarLink>
+        <SidebarLink href={`${basePath}/philosophy/tdd`} active={pathname === `${basePath}/philosophy/tdd`}>Test-Driven Development</SidebarLink>
       </SidebarSection>
 
       {(navData ?? []).map((cat) => {
         const Icon = CATEGORY_ICONS[cat.slug] ?? BookOpen;
-        const isActive = pathname.includes(`/go/patterns/${cat.slug}`);
+        const isActive = pathname.includes(`${basePath}/patterns/${cat.slug}`);
         return (
           <SidebarSection key={cat.slug} title={cat.title} icon={Icon} defaultOpen={isActive}>
-            <SidebarLink href={`/go/patterns/${cat.slug}`} active={pathname === `/go/patterns/${cat.slug}`}>
+            <SidebarLink href={`${basePath}/patterns/${cat.slug}`} active={pathname === `${basePath}/patterns/${cat.slug}`}>
               Overview
             </SidebarLink>
             {cat.patterns.map((p) => (
               <SidebarLink
                 key={p.slug}
-                href={`/go/patterns/${p.category}/${p.slug}`}
-                active={pathname === `/go/patterns/${p.category}/${p.slug}`}
+                href={`${basePath}/patterns/${p.category}/${p.slug}`}
+                active={pathname === `${basePath}/patterns/${p.category}/${p.slug}`}
               >
                 {p.title}
               </SidebarLink>
@@ -81,7 +84,7 @@ export default function Sidebar({ navData, pathname }) {
       })}
 
       <div className="mt-3 space-y-0.5">
-        <SidebarLink href="/go/saved" active={pathname === "/go/saved"}>
+        <SidebarLink href={`${basePath}/saved`} active={pathname === `${basePath}/saved`}>
           <span className="flex items-center gap-2"><Bookmark className="h-3.5 w-3.5" /> Saved Content</span>
         </SidebarLink>
       </div>
@@ -99,7 +102,7 @@ export default function Sidebar({ navData, pathname }) {
           <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />
           <aside className="fixed left-0 top-0 z-50 w-72 h-full bg-sidebar border-r border-border lg:hidden shadow-xl">
             <div className="h-14 flex items-center px-4 border-b border-border">
-              <span className="text-primary font-mono text-lg font-bold">Go</span>
+              <span className="text-primary font-mono text-lg font-bold">{label}</span>
               <span className="ml-2 text-sm font-semibold">Intentional Code</span>
             </div>
             {nav}

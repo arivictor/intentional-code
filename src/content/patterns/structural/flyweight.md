@@ -2,7 +2,7 @@
 title: "Flyweight"
 category: structural
 intent: "Minimize memory usage by sharing as much data as possible between similar objects, separating intrinsic from extrinsic state."
-goIdiomSummary: "Share immutable intrinsic state via interning and lookup map; mention sync.Pool as a related but different reuse tool."
+idiomSummary: "Share immutable intrinsic state via interning and lookup map; mention sync.Pool as a related but different reuse tool."
 relatedSlugs: ["composite", "singleton"]
 tags: [state, performance, concurrency]
 ---

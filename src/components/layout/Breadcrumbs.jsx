@@ -3,6 +3,7 @@ import { ChevronRight } from "lucide-react";
 
 const STATIC_TITLES = {
   go: "Go",
+  python: "Python",
   philosophy: "Philosophy",
   solid: "SOLID Principles",
   tdd: "Test-Driven Development",
@@ -18,7 +19,9 @@ export default function Breadcrumbs({ pathname = "", patternMap = {} }) {
   const segments = pathname.split("/").filter(Boolean);
   if (segments.length === 0) return null;
 
-  const crumbs = [{ label: "Home", path: "/" }];
+  const language = segments[0];
+  const homePath = language === "python" ? "/python" : "/go";
+  const crumbs = [{ label: "Home", path: homePath }];
   let currentPath = "";
 
   segments.forEach((seg) => {
