@@ -20,7 +20,8 @@ When reviewing Go code, flag these as opportunities for improvement:
 /**
  * Generate a CLAUDE.md file from a set of patterns.
  *
- * @param {Array} patterns - Array of pattern objects with slug, title, category, intent, goIdiomSummary, relatedSlugs
+ * @param {Array<{slug: string, title: string, category: string, intent: string, goIdiomSummary: string, relatedSlugs?: string[]}>} patterns
+ *   Array of pattern objects used to build the reference content.
  * @param {Object} options
  * @param {boolean} options.includeAll - If true, include all patterns regardless of savedSlugs
  * @param {string[]} options.savedSlugs - Slugs of bookmarked patterns (used when includeAll is false)

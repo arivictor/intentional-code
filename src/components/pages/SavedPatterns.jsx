@@ -6,7 +6,13 @@ import { getAllHighlights, removeHighlight } from "@/lib/highlights";
 import { generateClaudeMd } from "@/lib/generateClaudeMd";
 import Breadcrumbs from "@/components/layout/Breadcrumbs";
 
-export default function SavedPatterns({ allContent, allPatterns = [], navOrder, pathname }) {
+export default function SavedPatterns({
+  allContent,
+  allPatterns = [],
+  navOrder,
+  pathname,
+  generatorLanguageLabel = "Go",
+}) {
   const [slugs, setSlugs] = useState([]);
   const [highlights, setHighlights] = useState([]);
   const [mode, setMode] = useState("all"); // 'saved' | 'all'
@@ -121,7 +127,7 @@ export default function SavedPatterns({ allContent, allPatterns = [], navOrder, 
             Generate CLAUDE.md
           </h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Drop this file in your Go project root. Claude Code will use it as context when helping with architecture decisions.
+            Drop this file in your {generatorLanguageLabel} project root. Claude Code will use it as context when helping with architecture decisions.
           </p>
 
           {/* Mode toggle */}
