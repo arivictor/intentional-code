@@ -33,7 +33,7 @@ export default function TopBar({ theme, onToggleTheme, onToggleSidebar }) {
             <Menu className="h-5 w-5" />
           </Button>
 
-          <Link to="/go" className="flex items-center gap-2 font-semibold text-foreground shrink-0">
+          <Link to="/" className="flex items-center gap-2 font-semibold text-foreground shrink-0">
             <span className="text-primary font-mono text-lg font-bold">Go</span>
             <span className="hidden sm:inline text-sm tracking-tight">Intentional Code</span>
           </Link>

@@ -39,7 +39,7 @@ export default function CategoryLanding() {
 
       {introMd && (
         <div className="prose-pattern mb-8">
-          <ReactMarkdown rehypePlugins={[rehypeSlug]} components={{ code: MarkdownCode }}>
+          <ReactMarkdown rehypePlugins={[rehypeSlug]} components={{ code: MarkdownCode, h1: () => null }}>
             {introMd}
           </ReactMarkdown>
         </div>
