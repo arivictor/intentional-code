@@ -22,9 +22,8 @@ When reviewing Go code, flag these as opportunities for improvement:
  *
  * @param {Array<{slug: string, title: string, category: string, intent: string, goIdiomSummary: string, relatedSlugs?: string[]}>} patterns
  *   Array of pattern objects used to build the reference content.
- * @param {Object} options
- * @param {boolean} options.includeAll - If true, include all patterns regardless of savedSlugs
- * @param {string[]} options.savedSlugs - Slugs of bookmarked patterns (used when includeAll is false)
+ * @param {{includeAll?: boolean, savedSlugs?: string[]}} [options={}]
+ *   Options controlling whether all patterns or only bookmarked patterns are included.
  * @returns {string} The generated CLAUDE.md content
  */
 export function generateClaudeMd(patterns, { includeAll = false, savedSlugs = [] } = {}) {

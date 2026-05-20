@@ -17,6 +17,7 @@ export default function SavedPatterns({
   const [highlights, setHighlights] = useState([]);
   const [mode, setMode] = useState("all"); // 'saved' | 'all'
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
   useEffect(() => {
     const bookmarks = getBookmarks();
@@ -56,9 +57,12 @@ export default function SavedPatterns({
     try {
       await navigator.clipboard.writeText(claudeMd);
       setCopied(true);
+      setCopyFailed(false);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // fallback: select text in the textarea
+      setCopyFailed(true);
+      setCopied(false);
+      setTimeout(() => setCopyFailed(false), 2000);
     }
   };
 
@@ -177,6 +181,11 @@ export default function SavedPatterns({
                 <>
                   <Check className="h-3.5 w-3.5 text-primary" />
                   Copied!
+                </>
+              ) : copyFailed ? (
+                <>
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy failed
                 </>
               ) : (
                 <>
