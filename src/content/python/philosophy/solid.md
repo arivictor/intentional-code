@@ -23,61 +23,109 @@ Python's module system encourages this naturally. Small modules with focused API
 
 ```python
 # user.py — one class doing everything
-class UserService:
-    db: sql.DB
+import json
+import sqlite3
+from http.server import BaseHTTPRequestHandler
 
-def register(self, w, r):
-    var u User
-    json.NewDecoder(r.Body).Decode(&u)
 
-    # Validation logic
-    if u.Email == "" :
-        http.Error(w, "email required", 400)
-        return
+class UserHandler(BaseHTTPRequestHandler):
+    def __init__(self, db: sqlite3.Connection, *args, **kwargs):
+        self._db = db
+        super().__init__(*args, **kwargs)
 
-    # Database logic
-    _, err := s.db.Exec("INSERT INTO users ...", u.Email, u.Name)
-    if err is not None :
-        http.Error(w, "db error", 500)
-        return
+    def do_POST(self) -> None:
+        data = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
 
-    # Response formatting
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]string:"status": "ok")
+        # Validation logic mixed with HTTP handling
+        if not data.get("email"):
+            self.send_error(400, "email required")
+            return
+
+        # Database logic mixed in too
+        try:
+            self._db.execute(
+                "INSERT INTO users (email, name) VALUES (?, ?)",
+                (data["email"], data.get("name", "")),
+            )
+            self._db.commit()
+        except sqlite3.Error:
+            self.send_error(500, "db error")
+            return
+
+        # Response formatting
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"status": "ok"}).encode())
 ```
 
 **After — the principle applied:**
 
 ```python
-# store/user.go — data access only
-type UserStore struct: db *sql.DB
+# store/user.py — data access only
+import sqlite3
+from dataclasses import dataclass
 
-def create(self, u):
-    _, err := s.db.Exec("INSERT INTO users ...", u.Email, u.Name)
-    return err
 
-# validate/user.go — validation only
-def validate_user(u):
-    if u.Email == "" :
-        return Exception("email is required")
-    return None
+@dataclass
+class User:
+    email: str
+    name: str
 
-# handler/user.go — HTTP concerns only
-class UserHandler:
-    store: store.UserStore
-    validate func(User) error
 
-def register(self, w, r):
-    var u User
-    json.NewDecoder(r.Body).Decode(&u)
-    if err := h.validate(u); err is not None :
-        http.Error(w, err.Error(), 400)
-        return
-    if err := h.store.Create(u); err is not None :
-        http.Error(w, "internal error", 500)
-        return
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]string:"status": "ok")
+class UserStore:
+    def __init__(self, db: sqlite3.Connection) -> None:
+        self._db = db
+
+    def create(self, user: User) -> None:
+        self._db.execute(
+            "INSERT INTO users (email, name) VALUES (?, ?)",
+            (user.email, user.name),
+        )
+        self._db.commit()
+
+
+# validate/user.py — validation only
+def validate_user(user: User) -> None:
+    if not user.email:
+        raise ValueError("email is required")
+
+
+# handler/user.py — HTTP concerns only
+import json
+from typing import Callable
+from http.server import BaseHTTPRequestHandler
+
+
+class UserHandler(BaseHTTPRequestHandler):
+    def __init__(
+        self,
+        store: UserStore,
+        validate: Callable[[User], None],
+        *args,
+        **kwargs,
+    ) -> None:
+        self._store = store
+        self._validate = validate
+        super().__init__(*args, **kwargs)
+
+    def do_POST(self) -> None:
+        data = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        user = User(email=data.get("email", ""), name=data.get("name", ""))
+        try:
+            self._validate(user)
+        except ValueError as exc:
+            self.send_error(400, str(exc))
+            return
+        try:
+            self._store.create(user)
+        except Exception:
+            self.send_error(500, "internal error")
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps({"status": "ok"}).encode())
 ```
 
 > **Smell:** You change a type for reasons that have nothing to do with each other — fixing a validation rule also requires re-testing the database layer, or changing an HTTP response format forces you to touch business logic.
@@ -90,23 +138,22 @@ def register(self, w, r):
 
 In inheritance-heavy languages, OCP is often explained through subclassing. In Python, it's more often about protocols, callables, and composition. When you define behavior through a narrow contract, new implementations can be added without modifying existing code.
 
-The key Python insight is similar: small protocols and simple call signatures make OCP almost free. A serializer interface, a notification callable, or a repository protocol can all vary independently without forcing changes through the rest of the system.
+Small protocols and simple call signatures make OCP almost free. A serializer interface, a notification callable, or a repository protocol can all vary independently without forcing changes through the rest of the system.
 
 **Before — the violation:**
 
 ```python
-# notification.go — closed to extension, must modify to add types
-def send_notification(kind, msg, recipient):
-    match kind:
-    case "email":
-        return sendEmail(recipient, msg)
-    case "sms":
-        return sendSMS(recipient, msg)
-        # Every new channel means editing this function
-        # and re-testing everything
-    case _:
-        return fmt.Errorf("unknown notification kind: %s", kind)
-    pass
+# notification.py — closed to extension, must modify to add new channels
+
+
+def send_notification(kind: str, recipient: str, message: str) -> None:
+    if kind == "email":
+        _send_email(recipient, message)
+    elif kind == "sms":
+        _send_sms(recipient, message)
+    else:
+        # Every new channel means editing this function and re-testing everything.
+        raise ValueError(f"unknown notification kind: {kind!r}")
 ```
 
 **After — the principle applied:**
@@ -114,31 +161,35 @@ def send_notification(kind, msg, recipient):
 ```python
 from typing import Protocol
 
-# notifier.go — open for extension via interface
+
+# open for extension via Protocol
 class Notifier(Protocol):
-    def notify(self, recipient, message): ...
+    def notify(self, recipient: str, message: str) -> None: ...
 
-type EmailNotifier struct: smtpAddr string
 
-def notify(self, recipient, message):
-    return None
+class EmailNotifier:
+    def __init__(self, smtp_addr: str) -> None:
+        self._smtp_addr = smtp_addr
 
-type SMSNotifier struct: apiKey string
+    def notify(self, recipient: str, message: str) -> None:
+        print(f"[email] → {recipient}: {message}")
 
-def notify(self, recipient, message):
-    return None
 
-# Adding Slack, push notifications, etc. requires zero changes
-# to the Notifier interface or any existing implementation.
-def send_all(notifiers, recipient, msg):
-    for n in notifiers:
-        if err := n.Notify(recipient, msg); err is not None :
-            return err
-        pass
-    return None
+class SMSNotifier:
+    def __init__(self, api_key: str) -> None:
+        self._api_key = api_key
+
+    def notify(self, recipient: str, message: str) -> None:
+        print(f"[sms] → {recipient}: {message}")
+
+
+# Adding Slack, push notifications, etc. requires zero changes here.
+def send_all(notifiers: list[Notifier], recipient: str, message: str) -> None:
+    for notifier in notifiers:
+        notifier.notify(recipient, message)
 ```
 
-> **Smell:** You keep adding cases to a switch or if/else chain. Every new variant requires modifying existing, tested code.
+> **Smell:** You keep adding branches to an `if`/`elif` chain. Every new variant requires modifying existing, tested code.
 
 ---
 
@@ -146,56 +197,65 @@ def send_all(notifiers, recipient, msg):
 
 *"Subtypes must be substitutable for their base types without altering correctness."*
 
-Go has no subclassing, so LSP isn't about inheritance hierarchies. Instead, it's about interface contracts. Any type that satisfies an interface must honor the behavioral expectations of that interface — not just the method signatures.
+Python has no mandatory subclassing, so LSP isn't only about inheritance hierarchies. It's about behavioral contracts. Any type that satisfies a protocol or inherits from a base class must honor the expectations that contract implies — not just the method signatures.
 
-If your `io.Reader`'s `Read` method sometimes returns data without advancing, or your `http.Handler` panics instead of writing a response, you've violated LSP. The compiler won't catch this; tests and documentation must.
+If your file-like `read()` sometimes returns data without advancing the position, or your `close()` raises instead of being a no-op on an already-closed resource, you've violated LSP. Static analysis and type checkers won't always catch this; tests and clear documentation must.
 
 **Before — the violation:**
 
 ```python
-# Violating LSP — a "Reader" that doesn't behave like one
-class AlwaysEmptyReader:
-    pass
+import io
 
-def read(self, p):
-    # Returns 0, None — violates the io.Reader contract
-    # which states: "When Read returns 0, err should be non-None"
-    # Callers spinning in a loop will hang forever.
-    return 0, None
 
-def process(r):
-    buf = make([]byte, 1024)
-    for :
-    n, err := r.Read(buf)
-    if n > 0 :
-        handle(buf[:n])
-    if err == io.EOF :
-        return None
-    if err is not None :
-        return err
-    # With AlwaysEmptyReader: infinite loop, no progress
+class AlwaysEmptyReader(io.RawIOBase):
+    """Violates the io.RawIOBase contract."""
+
+    def readinto(self, b: bytearray) -> int:
+        # Returns 0 without setting the buffer — callers expecting EOF
+        # to be signalled by returning b'' or raising will loop forever.
+        return 0
+
+
+def process(reader: io.RawIOBase) -> bytes:
+    chunks: list[bytes] = []
+    while True:
+        chunk = reader.read(1024)
+        if chunk == b"":  # EOF per the io contract
+            break
+        if chunk is None:
+            continue
+        chunks.append(chunk)
+    return b"".join(chunks)
+
+# process(AlwaysEmptyReader()) — infinite loop, no progress
 ```
 
 **After — the principle applied:**
 
 ```python
-# Honoring the io.Reader contract
-class LimitedReader:
-    data: []byte
-    pos: int
+import io
 
-def read(self, p):
-    if r.pos >= len(r.data) :
-        return 0, io.EOF // Contract: 0 bytes = non-None error
-    n = copy(p, r.data[r.pos:])
-    r.pos += n
-    return n, None
 
-# Any function accepting io.Reader works correctly with this type.
+class LimitedReader(io.RawIOBase):
+    """Honors the io.RawIOBase contract."""
+
+    def __init__(self, data: bytes) -> None:
+        self._data = data
+        self._pos = 0
+
+    def readinto(self, b: bytearray) -> int:
+        remaining = self._data[self._pos:]
+        n = min(len(b), len(remaining))
+        b[:n] = remaining[:n]
+        self._pos += n
+        return n  # returning 0 means EOF — contract honored
+
+
+# Any function that accepts io.RawIOBase works correctly with this type.
 # That's LSP: substitutability through behavioral correctness.
 ```
 
-> **Smell:** A function accepting an interface has to check the concrete type to decide how to behave, or documentation says "this implementation doesn't support X" where X is part of the interface contract.
+> **Smell:** A function accepting a base type or protocol has to inspect `type(obj)` or check the concrete class to decide how to behave, or documentation says "this subclass doesn't support X" where X is part of the base contract.
 
 ---
 
@@ -203,39 +263,44 @@ def read(self, p):
 
 *"No client should be forced to depend on methods it does not use."*
 
-This is where Python shines when you lean into protocols and duck typing. Interfaces are often informal, and the most maintainable ones are usually tiny — a reader with `read()`, a writer with `write()`, a notifier with `notify()`.
+This is where Python shines when you lean into `typing.Protocol` and duck typing. Protocols are often informal, and the most maintainable ones are usually tiny — a reader with `read()`, a writer with `write()`, a notifier with `notify()`.
 
-The Python version of the same idea is: accept the narrowest protocol that works, and return concrete objects. When a function only needs `read()`, accept something file-like instead of a specific file implementation. When it only needs `close()`, depend on that single capability.
+Accept the narrowest protocol that works, and return concrete objects. When a function only needs `read()`, type-hint it against a `Reader` protocol instead of a specific file class. When it only needs `close()`, depend on that single capability.
 
-ISP becomes natural in Python once you stop designing around heavyweight base classes. If you find yourself defining a protocol with five or more methods, stop and ask whether every consumer actually needs all of them.
+ISP becomes natural in Python once you stop designing around heavyweight abstract base classes. If you find yourself defining a protocol with five or more methods, ask whether every consumer actually needs all of them.
 
 **Before — the violation:**
 
 ```python
 from typing import Protocol
 
-# A fat interface that forces implementors to provide everything
+
+# A fat protocol that forces implementors to provide everything
 class DataStore(Protocol):
-    Get(id string) (Record, error)
-    List() (list[Record, error)
-    def create(self, record): ...
-    def update(self, record): ...
-    def delete(self, id): ...
-    Search(query string) (list[Record, error)
-    Export(format string) (list[byte, error)
-    def import_batch(self, []_record): ...
+    def get(self, id: str) -> "Record": ...
+    def list(self) -> list["Record"]: ...
+    def create(self, record: "Record") -> None: ...
+    def update(self, record: "Record") -> None: ...
+    def delete(self, id: str) -> None: ...
+    def search(self, query: str) -> list["Record"]: ...
+    def export(self, fmt: str) -> bytes: ...
+    def import_batch(self, records: list["Record"]) -> None: ...
 
-# A read-only report generator forced to implement writes
+
+# A read-only report service forced to stub out write methods
 class ReportService:
-    pass
+    def get(self, id: str) -> "Record": ...
+    def list(self) -> list["Record"]: ...
 
-def create(self, r):
-    panic("not supported")
-def update(self, r):
-    panic("not supported")
-def delete(self, id):
-    panic("not supported")
-# ... forced to implement everything just to satisfy the interface
+    def create(self, record: "Record") -> None:
+        raise NotImplementedError("not supported")
+
+    def update(self, record: "Record") -> None:
+        raise NotImplementedError("not supported")
+
+    def delete(self, id: str) -> None:
+        raise NotImplementedError("not supported")
+    # ... forced to implement everything just to satisfy the protocol
 ```
 
 **After — the principle applied:**
@@ -243,30 +308,33 @@ def delete(self, id):
 ```python
 from typing import Protocol
 
-# Small, focused interfaces — Go's natural strength
-class Reader(Protocol):
-    Get(id string) (Record, error)
 
-class Lister(Protocol):
-    List() (list[Record, error)
+# Small, focused protocols — Python's natural strength
+class RecordReader(Protocol):
+    def get(self, id: str) -> "Record": ...
 
-class Writer(Protocol):
-    def create(self, record): ...
-    def update(self, record): ...
-    def delete(self, id): ...
 
-# Compose when you need multiple capabilities
-class ReadWriter(Protocol):
-    Reader
-    Writer
+class RecordLister(Protocol):
+    def list(self) -> list["Record"]: ...
+
+
+class RecordWriter(Protocol):
+    def create(self, record: "Record") -> None: ...
+    def update(self, record: "Record") -> None: ...
+    def delete(self, id: str) -> None: ...
+
+
+# Combine when you need multiple capabilities
+class ReadWriteStore(RecordReader, RecordWriter, Protocol): ...
+
 
 # Functions accept only what they need
-def generate_report(src):
-    records, err := src.List()
-    return buildReport(records), err
+def generate_report(src: RecordLister) -> "Report":
+    records = src.list()
+    return build_report(records)
 ```
 
-> **Smell:** You're writing `panic("not implemented")` or returning errors for methods that don't apply. Your types implement interfaces they don't fully support.
+> **Smell:** You're writing `raise NotImplementedError()` for methods that don't apply to your type. Your classes implement protocols they don't fully support.
 
 ---
 
@@ -276,24 +344,34 @@ def generate_report(src):
 
 In Python, DIP is expressed by depending on small protocols, callables, or abstract collaborators instead of concrete database clients, HTTP libraries, or third-party SDKs. High-level business logic should speak in domain terms and let infrastructure plug in at the edges.
 
-This is the foundation of testable Python code. When your service accepts a `Sender` protocol rather than a concrete SMTP client, you can test it with a simple fake or stub object. No heavyweight mocking setup is required — just something that satisfies the same behavior.
+This is the foundation of testable Python code. When your service accepts a `Sender` protocol rather than a concrete SMTP client, you can test it with a simple fake object. No `unittest.mock.patch` required — just something that satisfies the same behavior.
 
 The consumer should define the contract, not the provider. Your application layer decides what methods it needs, and the infrastructure layer implements that contract. That keeps the dependency direction pointing inward, where the business rules live.
 
 **Before — the violation:**
 
 ```python
-# Tightly coupled — depends on concrete types
-class OrderService:
-    db: sql.DB
-    mailer: smtp.Client
+import smtplib
+import sqlite3
 
-def place(self, o):
-    _, err := s.db.Exec("INSERT INTO orders ...", o.ID, o.Total)
-    if err is not None :
-        return err
-    return s.mailer.SendMail("from@shop.com", []string{o.Email},
-    None, list[byte("Order confirmed"))
+
+# Tightly coupled — depends on concrete infrastructure types
+class OrderService:
+    def __init__(self, db: sqlite3.Connection, mailer: smtplib.SMTP) -> None:
+        self._db = db
+        self._mailer = mailer
+
+    def place(self, order: "Order") -> None:
+        self._db.execute(
+            "INSERT INTO orders (id, total) VALUES (?, ?)",
+            (order.id, order.total),
+        )
+        self._db.commit()
+        self._mailer.sendmail(
+            "from@shop.com",
+            [order.email],
+            f"Subject: Order confirmed\n\nOrder {order.id} confirmed.",
+        )
 
 # Testing requires a real database and SMTP server.
 # Changing the email provider means changing OrderService.
@@ -303,38 +381,61 @@ def place(self, o):
 
 ```python
 from typing import Protocol
+from dataclasses import dataclass
 
-# Depends on abstractions defined by the consumer
+
+# Abstractions defined by the consumer, not the infrastructure
 class OrderStore(Protocol):
-    def save(self, order): ...
+    def save(self, order: "Order") -> None: ...
+
 
 class OrderNotifier(Protocol):
-    def notify_confirmation(self, email, order_id): ...
+    def notify_confirmation(self, email: str, order_id: str) -> None: ...
+
+
+@dataclass
+class Order:
+    id: str
+    email: str
+    total: int
+
 
 class OrderService:
-    store: OrderStore
-    notifier: OrderNotifier
+    def __init__(self, store: OrderStore, notifier: OrderNotifier) -> None:
+        self._store = store
+        self._notifier = notifier
 
-def new_order_service(s, n):
-    return &OrderService{store: s, notifier: n
+    def place(self, order: Order) -> None:
+        self._store.save(order)
+        self._notifier.notify_confirmation(order.email, order.id)
 
-def place(self, o):
-    if err := svc.store.Save(o); err is not None :
-        return fmt.Errorf("saving order: %w", err)
-    return svc.notifier.NotifyConfirmation(o.Email, o.ID)
 
-# Testing with fakes — no mocking library needed
-type fakeStore struct: saved list[Order
+# Testing with simple fakes — no patching or mock library needed
+class _FakeStore:
+    def __init__(self) -> None:
+        self.saved: list[Order] = []
 
-def save(self, o):
-    f.saved = append(f.saved, o)
-    return None
+    def save(self, order: Order) -> None:
+        self.saved.append(order)
 
-type fakeNotifier struct: sent list[string
 
-def notify_confirmation(self, email, id):
-    f.sent = append(f.sent, email)
-    return None
+class _FakeNotifier:
+    def __init__(self) -> None:
+        self.sent: list[str] = []
+
+    def notify_confirmation(self, email: str, order_id: str) -> None:
+        self.sent.append(email)
+
+
+def test_place_order() -> None:
+    store = _FakeStore()
+    notifier = _FakeNotifier()
+    svc = OrderService(store, notifier)
+
+    svc.place(Order(id="o1", email="alice@example.com", total=4999))
+
+    assert len(store.saved) == 1
+    assert notifier.sent == ["alice@example.com"]
 ```
 
 > **Smell:** You can't test a function without spinning up infrastructure. Changing a database or email provider requires modifying business logic. If you find yourself writing fakes for complex interfaces, consider the [Repository](/python/patterns/architectural/repository) pattern to define exactly the persistence contract your domain needs.

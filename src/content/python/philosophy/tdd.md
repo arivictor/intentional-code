@@ -66,32 +66,30 @@ from typing import Protocol
 # alert_test.py
 
 class Sender(Protocol):
-    def send(self, to, body): ...
+    def send(self, to: str, body: str) -> None: ...
 
 class AlertService:
-    def __init__(self, sender: Sender):
-        self.sender = sender
+    def __init__(self, sender: Sender) -> None:
+        self._sender = sender
 
-    def alert(self, user, msg):
-        self.sender.send(user.email, msg)
+    def alert(self, email: str, msg: str) -> None:
+        self._sender.send(email, msg)
 
 class FakeSender:
-    def __init__(self):
-        self.calls = []
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, str]] = []
 
-    def send(self, to, body):
+    def send(self, to: str, body: str) -> None:
         self.calls.append((to, body))
 
-def test_alert_service():
+def test_alert_service() -> None:
     sender = FakeSender()
     service = AlertService(sender)
-
-    service.alert(type("User", (), {"email": "a@b.com"})(), "server down")
-
+    service.alert("a@b.com", "server down")
     assert sender.calls == [("a@b.com", "server down")]
 ```
 
-### Property-style testing and fuzzing
+### Property-based testing
 
 Python has strong options here too: `hypothesis` can generate structured inputs for property-based testing, and randomized tests are especially valuable for parsers, serializers, and boundary-heavy business rules.
 
@@ -104,122 +102,118 @@ Let's build a small discount calculator, driven from a failing test, and watch h
 We want to calculate order discounts. Start with the simplest case: no discount.
 
 ```python
-# discount_test.py
+# test_discount.py
 
-
-def test_no_discount(t):
-    calc = NewCalculator(None) // no discount strategy
-    got = calc.FinalPrice(10000) // price in cents
-    if got != 10000 :
-        t.Errorf("FinalPrice(10000) = %d, want 10000", got)
+def test_no_discount():
+    calc = Calculator(discount=None)  # no discount strategy
+    assert calc.final_price(10_000) == 10_000  # price in cents
 ```
 
-This doesn't compile — `NewCalculator` doesn't exist. Good. Red.
+Running `pytest` now fails with `NameError: name 'Calculator' is not defined`. Good. Red.
 
 ### Step 2 — Green: make it pass with minimum code
 
 ```python
 # discount.py
+from typing import Callable, Optional
 
-# DiscountFunc calculates a discount on a price in cents.
-type DiscountFunc func(price int64) int64
+# A DiscountFn takes a price in cents and returns the discount amount.
+DiscountFn = Callable[[int], int]
+
 
 class Calculator:
-    discount: DiscountFunc
+    def __init__(self, discount: Optional[DiscountFn] = None) -> None:
+        self._discount = discount
 
-def new_calculator(df):
-    return &Calculator{discount: df
-
-def final_price(self, price):
-    if c.discount is None :
-        return price
-    return price - c.discount(price)
+    def final_price(self, price: int) -> int:
+        if self._discount is None:
+            return price
+        return price - self._discount(price)
 ```
 
-Run `go test`. Green. Now we can extend.
+Run `pytest`. Green. Now we can extend.
 
 ### Step 3 — Red: add a percentage discount test
 
 ```python
-# discount_test.py
-def test_percentage_discount(t):
-    ten_percent = func(price int64) int64 {
-    return price / 10
-calc = NewCalculator(tenPercent)
-got = calc.FinalPrice(10000)
-if got != 9000 :
-    t.Errorf("FinalPrice(10000) = %d, want 9000", got)
+# test_discount.py
+
+def test_percentage_discount():
+    ten_percent: DiscountFn = lambda price: price // 10
+    calc = Calculator(discount=ten_percent)
+    assert calc.final_price(10_000) == 9_000
 ```
 
-Run `go test`. This already passes — our design is general enough. Green without new code.
+This already passes — our design is general enough. Green without new code.
 
 ### Step 4 — Red: composing multiple discounts
 
 ```python
-# discount_test.py
-def test_stacked_discounts(t):
-    ten_percent = func(price int64) int64 { return price / 10 }
-    flat500 = func(price int64) int64 { return 500 }
+# test_discount.py
 
-    calc = NewCalculator(Stack(tenPercent, flat500))
-    # 10000 - 1000 (10%) - 500 (flat) = 8500
-    got = calc.FinalPrice(10000)
-    if got != 8500 :
-        t.Errorf("FinalPrice(10000) = %d, want 8500", got)
+def test_stacked_discounts():
+    ten_percent: DiscountFn = lambda price: price // 10
+    flat_500: DiscountFn = lambda price: 500
+
+    calc = Calculator(discount=stack(ten_percent, flat_500))
+    # 10_000 - 1_000 (10 %) - 500 (flat) = 8_500
+    assert calc.final_price(10_000) == 8_500
 ```
 
-Red — `Stack` doesn't exist.
+Red — `stack` doesn't exist yet.
 
-### Step 5 — Green: implement Stack
+### Step 5 — Green: implement stack
 
 ```python
-# discount.py
-def stack(fns):
-    return func(price int64) int64 {
-    total = int64(0)
-    remaining = price
-    for fn in fns:
-        d = fn(remaining)
-        total += d
-        remaining -= d
-    return total
+# discount.py  (addition)
+
+def stack(*fns: DiscountFn) -> DiscountFn:
+    """Combine multiple discount functions, applying each to the remaining price."""
+    def combined(price: int) -> int:
+        total_discount = 0
+        remaining = price
+        for fn in fns:
+            d = fn(remaining)
+            total_discount += d
+            remaining -= d
+        return total_discount
+    return combined
 ```
 
 Green. Now refactor.
 
-### Step 6 — Refactor: table-driven tests
+### Step 6 — Refactor: parameterized tests
 
 ```python
-# discount_test.py
-def test_calculator(t):
-    ten_percent = func(price int64) int64 { return price / 10 }
-    flat500 = func(price int64) int64 { return 500 }
+# test_discount.py
+import pytest
+from discount import Calculator, DiscountFn, stack
 
-    tests = []struct {
-    name     string
-    discount DiscountFunc
-    price    int64
-    want     int64
-    :
-    :"no discount",     None,                       10000, 10000
-    :"10 percent",      tenPercent,                10000, 9000
-    :"flat 500",        flat500,                   10000, 9500
-    :"stacked",         Stack(tenPercent, flat500), 10000, 8500
-    :"zero price",      tenPercent,                0,     0
-for tt in tests:
-    t.Run(tt.name, func(t *testing.T) :
-    calc = NewCalculator(tt.discount)
-    got = calc.FinalPrice(tt.price)
-    if got != tt.want :
-        t.Errorf("FinalPrice(%d) = %d, want %d", tt.price, got, tt.want)
-    )
+_ten_percent: DiscountFn = lambda price: price // 10
+_flat_500: DiscountFn = lambda price: 500
+
+
+@pytest.mark.parametrize(
+    ("discount", "price", "expected"),
+    [
+        (None,                               10_000, 10_000),
+        (_ten_percent,                       10_000,  9_000),
+        (_flat_500,                          10_000,  9_500),
+        (stack(_ten_percent, _flat_500),     10_000,  8_500),
+        (_ten_percent,                            0,      0),
+    ],
+    ids=["no discount", "10 percent", "flat 500", "stacked", "zero price"],
+)
+def test_calculator(discount: DiscountFn | None, price: int, expected: int) -> None:
+    calc = Calculator(discount=discount)
+    assert calc.final_price(price) == expected
 ```
 
-> **Notice what happened.** TDD pressure naturally produced a [Strategy](/python/patterns/behavioral/strategy) pattern — `DiscountFunc` is a function type that encapsulates an algorithm. We didn't set out to implement Strategy; the tests drove us toward it. This is how principles and patterns connect: good tests push you toward good design.
+> **Notice what happened.** TDD pressure naturally produced a [Strategy](/python/patterns/behavioral/strategy) pattern — `DiscountFn` is a callable type alias that encapsulates an algorithm. We didn't set out to implement Strategy; the tests drove us toward it. This is how principles and patterns connect: good tests push you toward good design.
 
 ## TDD anti-patterns to avoid
 
-- **Testing implementation, not behavior.** Don't assert that a private function was called. Assert the output given an input.
-- **Heavy mocking.** If you need a mocking framework, your interfaces are probably too large. Shrink the interface; write a simple fake.
+- **Testing implementation, not behavior.** Don't assert that a private method was called. Assert the output given an input.
+- **Heavy mocking.** If you need `unittest.mock` to patch deep internals, your abstractions are probably too large. Shrink the protocol; write a simple fake.
 - **Test-after.** Writing tests after the code is done gives you tests, but not the design pressure. You lose the most valuable part of TDD.
 - **Skipping refactor.** Green is not done. If you skip refactoring, you accumulate the exact technical debt TDD is meant to prevent.

@@ -10,25 +10,29 @@ isFeatured: true
 
 # Facade
 
-Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch processor all repeat the same multi-step sequence — validate, charge, reserve, notify — that sequence belongs in one struct, not scattered across entry points. In Python, a facade struct accepts its subsystems as interfaces (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.
+Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch processor all repeat the same multi-step sequence — validate, charge, reserve, notify — that sequence belongs in one class, not scattered across entry points. In Python, a facade class accepts its subsystems as protocol-typed dependencies (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.
 
 ## Problem
 
-You're building an e-commerce checkout. The process involves validating the cart, checking inventory, processing payment, sending a confirmation email, and updating analytics. Each subsystem has its own package with its own API. Orchestrating all of them in every handler that needs "checkout" logic is verbose and error-prone.
+You're building an e-commerce checkout. The process involves validating the cart, checking inventory, processing payment, sending a confirmation email, and updating analytics. Each subsystem has its own module with its own API. Orchestrating all of them in every handler that needs "checkout" logic is verbose and error-prone.
 
 ```python
 # checkout_scattered.py
 
-def handle_checkout(w, r):
-    cart = cartpkg.Load(r)
-    if err := cartpkg.Validate(cart); err != None : /* ... */
-    for item in cart._items:
-        if !inventory.Check(item.SKU, item.Qty); err != None : /* ... */
-    txn, err := payment.Charge(cart.CustomerID, cart.Total())
-    if err != None : /* ... */
-    inventory.Reserve(cart.Items)
-    email.SendConfirmation(cart.CustomerEmail, txn.ID)
-    analytics.Track("checkout", map[string]string:"txn": txn.ID)
+
+def handle_checkout(request: dict) -> str:
+    cart = load_cart(request)
+    validate_cart(cart)  # raises on failure
+
+    for item in cart["items"]:
+        if not inventory.check(item["sku"], item["qty"]):
+            raise ValueError(f"item {item['sku']} not available")
+
+    txn_id = payment.charge(cart["customer_id"], cart["total"])
+    inventory.reserve(cart["items"])
+    email.send_confirmation(cart["customer_email"], txn_id)
+    analytics.track("checkout", {"txn": txn_id})
+    return txn_id
     # Every handler that needs checkout must repeat this dance
 ```
 
@@ -36,13 +40,13 @@ This orchestration logic is duplicated wherever checkout happens — the HTTP ha
 
 ## Solution
 
-Create a `Checkout` facade struct that encapsulates the multi-step process. Callers get one method; the facade coordinates the subsystems.
+Create a `CheckoutFacade` class that encapsulates the multi-step process. Callers get one method; the facade coordinates the subsystems.
 
 ```
                   ┌────────────────────┐
-    Handler ─────►│   CheckoutFacade   │
+    Handler ─────►│  CheckoutFacade    │
     CLI    ─────►│                    │
-    Batch  ─────►│ PlaceOrder(cart)   │
+    Batch  ─────►│  place_order(cart) │
                   └───────┬────────────┘
                           │ coordinates
             ┌─────────────┼─────────────────┐
@@ -53,82 +57,94 @@ Create a `Checkout` facade struct that encapsulates the multi-step process. Call
 ```
 
 ```python
+# checkout.py
+from __future__ import annotations
+
+from dataclasses import dataclass, field
 from typing import Protocol
 
-# checkout.py
 
-
-# Dependencies as interfaces — testable, swappable.
+# Dependencies as narrow protocols — testable and swappable.
 class InventoryChecker(Protocol):
-    def available(self, sku, qty): ...
-    def reserve(self, sku, qty): ...
+    def available(self, sku: str, qty: int) -> bool: ...
+    def reserve(self, sku: str, qty: int) -> None: ...
+
 
 class PaymentProcessor(Protocol):
-    Charge(customerID string, amount int64) (string, error)
+    def charge(self, customer_id: str, amount_cents: int) -> str: ...  # returns txn_id
+
 
 class Mailer(Protocol):
-    def send_confirmation(self, email, txn_id): ...
+    def send_confirmation(self, email: str, txn_id: str) -> None: ...
 
+
+@dataclass
 class CartItem:
-    sku: string
+    sku: str
     qty: int
 
+
+@dataclass
 class Cart:
-    customer_id: string
-    customer_email: string
-    items: []CartItem
-    total: int64
+    customer_id: str
+    customer_email: str
+    items: list[CartItem] = field(default_factory=list)
+    total_cents: int = 0
 
-# Facade coordinates the checkout process.
-class Facade:
-    inventory: InventoryChecker
-    payment: PaymentProcessor
-    mailer: Mailer
 
-def new_facade(inv, pay, mail):
-    return &Facade{inventory: inv, payment: pay, mailer: mail
+class CheckoutFacade:
+    """Coordinates the full checkout process for any entry point."""
 
-def place_order(self, cart):
-    for item in cart._items:
-        if !f.inventory.Available(item.SKU, item.Qty) :
-            return "", fmt.Errorf("item %s not available", item.SKU)
-        pass
+    def __init__(
+        self,
+        inventory: InventoryChecker,
+        payment: PaymentProcessor,
+        mailer: Mailer,
+    ) -> None:
+        self._inventory = inventory
+        self._payment = payment
+        self._mailer = mailer
 
-    txnID, err := f.payment.Charge(cart.CustomerID, cart.Total)
-    if err is not None :
-        return "", fmt.Errorf("payment failed: %w", err)
+    def place_order(self, cart: Cart) -> str:
+        """Validate, charge, reserve, and notify. Returns the transaction ID."""
+        for item in cart.items:
+            if not self._inventory.available(item.sku, item.qty):
+                raise ValueError(f"item {item.sku!r} not available")
 
-    for item in cart._items:
-        if err := f.inventory.Reserve(item.SKU, item.Qty); err is not None :
-            return "", fmt.Errorf("reservation failed: %w", err)
-        pass
+        txn_id = self._payment.charge(cart.customer_id, cart.total_cents)
 
-    f.mailer.SendConfirmation(cart.CustomerEmail, txnID)
+        for item in cart.items:
+            self._inventory.reserve(item.sku, item.qty)
 
-    return txnID, None
+        self._mailer.send_confirmation(cart.customer_email, txn_id)
+
+        return txn_id
 ```
 
 ```python
 # main.py
+from checkout import Cart, CartItem, CheckoutFacade
+from warehouse import WarehouseInventory
+from stripe_client import StripePayment
+from sendgrid_client import SendGridMailer
 
 
-def main():
-    facade = checkout.NewFacade(
-    &warehouse.InventoryService:
-    &stripe.PaymentService:APIKey: "sk_live_..."
-    &sendgrid.Mailer:APIKey: "SG...."
+def main() -> None:
+    facade = CheckoutFacade(
+        inventory=WarehouseInventory(),
+        payment=StripePayment(api_key="sk_live_..."),
+        mailer=SendGridMailer(api_key="SG...."),
+    )
 
-    cart = checkout.Cart{
-    CustomerID:    "cust_42"
-    CustomerEmail: "alice@example.com"
-    Items:         list[checkout.CartItem::SKU: "WIDGET-7", Qty: 2
-    Total:         4999
+    cart = Cart(
+        customer_id="cust_42",
+        customer_email="alice@example.com",
+        items=[CartItem(sku="WIDGET-7", qty=2)],
+        total_cents=4999,
+    )
 
-txnID, err := facade.PlaceOrder(cart)
-if err is not None :
-    print("checkout failed:", err)
-    return
-print("Order placed:", txnID)
+    txn_id = facade.place_order(cart)
+    print(f"Order placed: {txn_id}")
 ```
 
 Output:

@@ -19,18 +19,17 @@ You have a database query service that's expensive to initialize and you don't a
 
 ```python
 # eager.py
+import sqlite3
+
 
 class QueryService:
-    conn *Connection // expensive to create
+    def __init__(self, dsn: str) -> None:
+        # Connects to the database immediately — slow, may fail,
+        # and wastes a connection if no queries are ever made.
+        self._conn = sqlite3.connect(dsn)
 
-def new_query_service():
-    # This connects to the database immediately
-    # even if no queries are ever made.
-    conn = Connect("prod-db:5432") // slow, may fail
-    return &QueryService{conn: conn
-
-def execute(self, query):
-    return s.conn.Query(query)
+    def execute(self, query: str) -> list[tuple]:
+        return self._conn.execute(query).fetchall()
 ```
 
 The service eagerly connects to the database. If the handler path doesn't always need queries, this wastes a connection. And there's no access control — any caller can execute any query.
@@ -41,10 +40,10 @@ Create a proxy that implements the same interface. It lazily initializes the rea
 
 ```
 ┌────────────────────────┐
-│    <<interface>>       │
+│    <<Protocol>>        │
 │    QueryRunner         │
 │────────────────────────│
-│ Execute(q) ([]Row, e)  │
+│ execute(q) -> [tuple]  │
 └────────────┬───────────┘
              │ implements
      ┌───────┼───────┐
@@ -53,90 +52,99 @@ Create a proxy that implements the same interface. It lazily initializes the rea
 │QueryService │ │  QueryProxy   │
 │ (real)      │ │ (proxy)       │
 │             │ │ - lazy init   │
-│ Execute()   │ │ - access ctrl │
-└─────────────┘ │ Execute()     │
+│ execute()   │ │ - access ctrl │
+└─────────────┘ │ execute()     │
                 └───────────────┘
 ```
 
 ```python
+# proxy.py
+from __future__ import annotations
+
+import threading
 from typing import Protocol
 
-# proxy.py
 
-"fmt"
-"sync"
-
-# QueryRunner is the interface both real service and proxy implement.
 class QueryRunner(Protocol):
-    Execute(query string) (list[string, error)
+    """Interface implemented by both the real service and the proxy."""
+    def execute(self, query: str) -> list[tuple]: ...
 
-# RealQueryService is the expensive real implementation.
+
 class RealQueryService:
-    pass
+    """The expensive real implementation."""
 
-def execute(self, query):
-    print("[db] Executing:", query)
-    return []string{"row1", "row2"}, None
+    def __init__(self, dsn: str) -> None:
+        import sqlite3
+        print("[db] Connecting to database...")
+        self._conn = sqlite3.connect(dsn)
 
-# QueryProxy adds lazy initialization and access control.
+    def execute(self, query: str) -> list[tuple]:
+        print(f"[db] Executing: {query}")
+        return self._conn.execute(query).fetchall()
+
+
 class QueryProxy:
-    real: RealQueryService
-    once: sync.Once
-    role: string
+    """Adds lazy initialization and role-based access control."""
 
-def new_query_proxy(role):
-    return &QueryProxy{role: role
+    def __init__(self, dsn: str, role: str) -> None:
+        self._dsn = dsn
+        self._role = role
+        self._real: RealQueryService | None = None
+        self._lock = threading.Lock()
 
-def init(self):
-    print("[proxy] Initializing database connection...")
-    p.real = &RealQueryService:
+    def _get_real(self) -> RealQueryService:
+        if self._real is None:
+            with self._lock:
+                if self._real is None:  # double-checked locking
+                    print("[proxy] Initializing database connection...")
+                    self._real = RealQueryService(self._dsn)
+        return self._real
 
-def execute(self, query):
-    if p.role != "admin" :
-        return None, fmt.Errorf("access denied: role %q cannot execute queries", p.role)
-
-    p.once.Do(p.init)
-
-    fmt.Printf("[proxy] role=%s query=%s\n", p.role, query)
-
-    return p.real.Execute(query)
+    def execute(self, query: str) -> list[tuple]:
+        if self._role != "admin":
+            raise PermissionError(
+                f"access denied: role {self._role!r} cannot execute queries"
+            )
+        print(f"[proxy] role={self._role} query={query}")
+        return self._get_real().execute(query)
 ```
 
 ```python
 # main.py
+from proxy import QueryProxy
 
-"db"
-"fmt"
 
-def run_query(runner, query):
-    rows, err := runner.Execute(query)
-    if err is not None :
-        fmt.Printf("Error: %v\n", err)
-        return
-    fmt.Printf("Results: %v\n\n", rows)
+def run_query(runner: "QueryRunner", query: str) -> None:
+    try:
+        rows = runner.execute(query)
+        print(f"Results: {rows}\n")
+    except PermissionError as exc:
+        print(f"Error: {exc}\n")
 
-def main():
-    admin = db.NewQueryProxy("admin")
-    viewer = db.NewQueryProxy("viewer")
 
-    runQuery(admin, "SELECT * FROM orders")
-    runQuery(admin, "SELECT * FROM users")
-    runQuery(viewer, "SELECT * FROM secrets")
+def main() -> None:
+    admin = QueryProxy(dsn=":memory:", role="admin")
+    viewer = QueryProxy(dsn=":memory:", role="viewer")
+
+    run_query(admin, "SELECT 1")
+    run_query(admin, "SELECT 2")
+    run_query(viewer, "SELECT * FROM secrets")
 ```
 
 Output:
 
 ```
-[proxy] role=admin query=SELECT * FROM orders
+[proxy] role=admin query=SELECT 1
 [proxy] Initializing database connection...
-[db] Executing: SELECT * FROM orders
-Results: [row1 row2]
+[db] Connecting to database...
+[db] Executing: SELECT 1
+Results: [(1,)]
 
-[proxy] role=admin query=SELECT * FROM users
-[db] Executing: SELECT * FROM users
-Results: [row1 row2]
+[proxy] role=admin query=SELECT 2
+[db] Executing: SELECT 2
+Results: [(2,)]
 
-Error: access denied: role "viewer" cannot execute queries
+Error: access denied: role 'viewer' cannot execute queries
 ```
 
 ## When to Use
@@ -149,14 +157,14 @@ Error: access denied: role "viewer" cannot execute queries
 ## When Not to Use
 
 - The real object is cheap to create. Lazy initialization adds complexity without benefit.
-- Access control belongs at a higher level (HTTP middleware, gateway) rather than at the object level.
+- Access control belongs at a higher level (middleware, gateway) rather than at the object level.
 - You're adding behavior without restricting access — that's [Decorator](/python/patterns/structural/decorator), not Proxy.
 
 ## Advantages
 
 - Controls access without changing the real object or its clients.
 - Lazy initialization defers costly work until it's actually needed.
-- `sync.Once` makes the initialization goroutine-safe with no contention after first call.
+- `threading.Lock` with double-checked locking keeps initialization thread-safe with minimal contention after the first call.
 
 ## Disadvantages
 
@@ -167,4 +175,4 @@ Error: access denied: role "viewer" cannot execute queries
 ## Related Patterns
 
 - **Adapter** — Adapter provides a different interface to bridge a mismatch; Proxy preserves the same interface — if your wrapper changes the API, it's an Adapter; if it intercepts calls through the same API, it's a Proxy.
-- **Decorator** — Proxy and Decorator are structurally identical in Go; the distinction is purpose — Proxy controls or intercepts access (lazy init, auth, caching), Decorator adds new capabilities while allowing unrestricted access to the original object.
+- **Decorator** — Proxy and Decorator are structurally identical in Python; the distinction is purpose — Proxy controls or intercepts access (lazy init, auth, caching), Decorator adds new capabilities while allowing unrestricted access to the original object.
