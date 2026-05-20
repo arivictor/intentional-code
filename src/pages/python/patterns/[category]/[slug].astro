@@ -10,13 +10,15 @@ const languageConfig = getLanguageConfig(language);
 const collectionNames = getCollectionNames(language);
 
 export async function getStaticPaths() {
+  const collectionNames = getCollectionNames('python');
+  const basePath = '/python';
   const [patterns, philosophy, categories] = await Promise.all([
     getCollection(collectionNames.patterns),
     getCollection(collectionNames.philosophy),
     getCollection(collectionNames.categories),
   ]);
 
-  const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
+  const navOrder = buildNavOrder(patterns, philosophy, categories, basePath);
 
   const allPatterns = patterns.map((p) => ({
     slug: p.id.replace(/\.md$/, '').split('/')[1],
@@ -34,7 +36,7 @@ export async function getStaticPaths() {
       props: {
         pattern: {
           slug,
-          storageKey: `${languageConfig.basePath}/patterns/${entry.data.category}/${slug}`,
+          storageKey: `${basePath}/patterns/${entry.data.category}/${slug}`,
           title: entry.data.title,
           category: entry.data.category,
           intent: entry.data.intent,

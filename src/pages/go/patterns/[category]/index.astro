@@ -9,13 +9,14 @@ const language = 'go';
 const languageConfig = getLanguageConfig(language);
 
 export async function getStaticPaths() {
+  const basePath = '/go';
   const [patterns, philosophy, categories] = await Promise.all([
     getCollection('patterns'),
     getCollection('philosophy'),
     getCollection('pattern-categories'),
   ]);
 
-  const navOrder = buildNavOrder(patterns, philosophy, categories, languageConfig.basePath);
+  const navOrder = buildNavOrder(patterns, philosophy, categories, basePath);
 
   return categories.map((cat) => {
     const catKey = cat.id.replace(/\/index$/, '');
