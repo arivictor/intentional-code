@@ -1,11 +1,11 @@
 ---
 title: SOLID Principles
-description: The five SOLID principles, reinterpreted for Go's implicit-interface, composition-first model.
+description: The five SOLID principles, reinterpreted for Python's protocol-friendly, composition-first model.
 ---
 
 # SOLID Principles
 
-In Python, three of the five SOLID principles apply almost by default: interfaces are implicit and small by convention (ISP), packages compose rather than inherit (OCP), and focused packages are idiomatic (SRP). The two that need deliberate effort are LSP — which in Go is about behavioral contracts for interface implementors, not subclass hierarchies — and DIP, where Go's "accept interfaces, return structs" idiom replaces abstract classes.
+In Python, SOLID works best when you combine classes, protocols, callables, and modules deliberately rather than treating inheritance as the default answer. SRP and ISP push you toward focused objects with narrow responsibilities, OCP and DIP push behavior behind protocols or injected collaborators, and LSP reminds you that duck typing only helps when implementations honor the same behavioral contract.
 
 Understanding the principles tells you *why* a design choice is good or bad. Patterns tell you *how* to implement a solution. If you internalize the principles, you'll often arrive at the right pattern naturally — or realize you don't need one. The [Repository](/python/patterns/architectural/repository) pattern is DIP applied to persistence; [Observer](/python/patterns/behavioral/observer) is OCP applied to event notification; [Strategy](/python/patterns/behavioral/strategy) is OCP applied to interchangeable algorithms.
 
@@ -15,9 +15,9 @@ Understanding the principles tells you *why* a design choice is good or bad. Pat
 
 *"A module should have one, and only one, reason to change."*
 
-In Python, "module" maps most naturally to a package — and within a package, to a single type or function. A struct that handles HTTP routing, business logic, and database queries has three reasons to change. Split it.
+In Python, "module" maps naturally to a file, class, or function with a tight purpose. A class that handles HTTP routing, business logic, and database queries has three reasons to change. Split it.
 
-Go's package system encourages this naturally. Small packages with focused APIs are idiomatic. The standard library models this well: `net/http` handles HTTP, `encoding/json` handles JSON — they never mix concerns.
+Python's module system encourages this naturally. Small modules with focused APIs are idiomatic. The standard library models this well: `http` handles transport concerns, `json` handles serialization, and `sqlite3` handles persistence — they do not need to live in the same object.
 
 **Before — the violation:**
 
@@ -88,9 +88,9 @@ def register(self, w, r):
 
 *"Software entities should be open for extension, closed for modification."*
 
-In inheritance-heavy languages, OCP is about subclassing. In Python, it's about interfaces and composition. When you define behavior through an interface, new implementations can be added without modifying existing code.
+In inheritance-heavy languages, OCP is often explained through subclassing. In Python, it's more often about protocols, callables, and composition. When you define behavior through a narrow contract, new implementations can be added without modifying existing code.
 
-The key Go insight: small interfaces (one or two methods) make OCP almost free. `io.Reader`, `io.Writer`, `http.Handler` — these tiny interfaces let the entire ecosystem extend behavior without touching the core.
+The key Python insight is similar: small protocols and simple call signatures make OCP almost free. A serializer interface, a notification callable, or a repository protocol can all vary independently without forcing changes through the rest of the system.
 
 **Before — the violation:**
 
@@ -203,11 +203,11 @@ def read(self, p):
 
 *"No client should be forced to depend on methods it does not use."*
 
-This is where Go shines. Interfaces in Go are implicitly satisfied and idiomatically small — often just one method. `io.Reader`, `io.Writer`, `fmt.Stringer`, `sort.Interface` — the standard library is built on tiny, focused interfaces.
+This is where Python shines when you lean into protocols and duck typing. Interfaces are often informal, and the most maintainable ones are usually tiny — a reader with `read()`, a writer with `write()`, a notifier with `notify()`.
 
-The "accept interfaces, return structs" proverb is ISP distilled. When your function only needs to read, accept an `io.Reader`, not an `*os.File`. When you only need to close, accept an `io.Closer`.
+The Python version of the same idea is: accept the narrowest protocol that works, and return concrete objects. When a function only needs `read()`, accept something file-like instead of a specific file implementation. When it only needs `close()`, depend on that single capability.
 
-ISP is so natural in Go that violating it takes deliberate effort. If you find yourself defining an interface with five or more methods, stop and ask whether every consumer actually needs all of them.
+ISP becomes natural in Python once you stop designing around heavyweight base classes. If you find yourself defining a protocol with five or more methods, stop and ask whether every consumer actually needs all of them.
 
 **Before — the violation:**
 
@@ -274,11 +274,11 @@ def generate_report(src):
 
 *"Depend on abstractions, not concretions."*
 
-In Python, DIP is expressed through the "accept interfaces, return structs" pattern. High-level business logic should depend on small interfaces (abstractions), not on concrete database clients, HTTP packages, or third-party SDKs.
+In Python, DIP is expressed by depending on small protocols, callables, or abstract collaborators instead of concrete database clients, HTTP libraries, or third-party SDKs. High-level business logic should speak in domain terms and let infrastructure plug in at the edges.
 
-This is the foundation of testable Python code. When your service accepts a `Sender` interface rather than a concrete `*smtp.Client`, you can test it with a simple in-memory fake. No mocking framework needed — just a struct with the right methods.
+This is the foundation of testable Python code. When your service accepts a `Sender` protocol rather than a concrete SMTP client, you can test it with a simple fake or stub object. No heavyweight mocking setup is required — just something that satisfies the same behavior.
 
-The consumer should define the interface, not the provider. This is the opposite of Java convention but idiomatic in Go. Your handler package defines what it needs; the infrastructure package implements it.
+The consumer should define the contract, not the provider. Your application layer decides what methods it needs, and the infrastructure layer implements that contract. That keeps the dependency direction pointing inward, where the business rules live.
 
 **Before — the violation:**
 
