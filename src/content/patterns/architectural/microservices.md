@@ -147,6 +147,54 @@ customer-service → customers_db (customers, addresses tables)
 // Cross-service reads go through the owning service's API.
 ```
 
+## Service Discovery and API Versioning
+
+**Service Discovery**
+
+Services need to locate each other at runtime. Two approaches:
+
+- **Client-side discovery**: the client resolves a DNS name or queries a registry (Consul, etcd) to get healthy addresses and picks one. The client is responsible for load balancing.
+- **Server-side discovery**: an API gateway or service mesh (Istio, Linkerd) intercepts calls and routes to healthy instances transparently. The application code uses a stable DNS name; the infrastructure handles routing and load balancing.
+
+With a service mesh, the `InventoryClient` uses a DNS name the mesh resolves to a healthy pod:
+
+```go
+// No client-side load balancing needed — the mesh handles it.
+func NewInventoryClient() *InventoryClient {
+    return &InventoryClient{
+        base:   os.Getenv("INVENTORY_SERVICE_URL"), // e.g., "http://inventory-service:8080"
+        client: &http.Client{Timeout: 5 * time.Second},
+    }
+}
+```
+
+**API Versioning**
+
+Services evolve independently; their APIs must change without breaking existing consumers. Two common strategies:
+
+- **URL versioning** (`/v1/inventory/reserve`): visible, explicit, easy to route and test. Recommended for public or external APIs.
+- **Header versioning** (`Accept: application/vnd.myapp.v2+json`): cleaner URLs but harder to test and cache. Better for internal APIs where all clients are controlled.
+
+```go
+// URL versioning — version is part of the route path
+http.HandleFunc("/v1/inventory/reserve", v1ReserveHandler)
+http.HandleFunc("/v2/inventory/reserve", v2ReserveHandler)
+```
+
+For event schemas, the `Version` field enables consumers to handle old and new shapes simultaneously. Schema evolution rules: add fields additively (never remove or rename existing fields), use pointer types for optional new fields (`*string`) so producers that omit the field don't break consumers that expect it, and bump `Version` when a structural change is unavoidable:
+
+```go
+type OrderPlacedEvent struct {
+    Version     int       `json:"version"`    // bump for breaking changes
+    OrderID     string    `json:"order_id"`
+    CustomerID  string    `json:"customer_id"`
+    Items       []Item    `json:"items"`
+    Total       float64   `json:"total"`
+    PlacedAt    time.Time `json:"placed_at"`
+    PromotionID *string   `json:"promotion_id,omitempty"` // added in v2; old producers omit it
+}
+```
+
 ## When to Use
 
 - Teams need to deploy independently, and a shared release pipeline creates real organizational bottlenecks.

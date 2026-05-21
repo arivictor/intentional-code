@@ -13,6 +13,149 @@ The problem DDD solves is logic that leaks. Business rules like "a post can't be
 
 The tactical building blocks are **Entities** (identity-based, stateful), **Value Objects** (equality-based, immutable), **Aggregates** (consistency boundaries mutated only through the root), **Repositories** (persistence interfaces defined by the domain), **Domain Events** (facts that have occurred), and **Domain Services** (operations spanning multiple aggregates). The unifying constraint is simple: the code should speak the language of the business.
 
+## Strategic vs Tactical
+
+DDD operates at two levels. **Tactical DDD** is the building-block vocabulary: Entities, Value Objects, Aggregates, Repositories, Domain Events, and Domain Services. These clarify a single bounded context.
+
+**Strategic DDD** is the higher-level discipline: how you carve a large domain into coherent sub-domains, draw explicit boundaries between them, and manage the relationships across those boundaries. Most DDD failures stem from applying tactical patterns without the strategic foundation — you end up with rich aggregates that still create a tightly coupled system because context boundaries were never drawn.
+
+## Bounded Contexts
+
+A bounded context is an explicit boundary within which a particular domain model applies. Inside the boundary, terms, models, and rules are consistent. Outside it, the same words may mean something entirely different.
+
+The word "Customer" appears across the entire e-commerce domain, but means something different to each team:
+
+```
+┌────────────────────────┐    ┌────────────────────────┐
+│    Billing Context     │    │   Shipping Context     │
+│                        │    │                        │
+│  Customer {            │    │  Customer {            │
+│    ID                  │    │    ID                  │
+│    PaymentMethod       │    │    ShippingAddress     │
+│    BillingAddress      │    │    DeliveryPrefs       │
+│    CreditLimit         │    │    ContactPhone        │
+│  }                     │    │  }                     │
+└────────────────────────┘    └────────────────────────┘
+```
+
+In Go, each bounded context is its own package (or set of packages). The types are independent:
+
+```go
+// billing/customer.go — the billing model of a customer
+package billing
+
+type Customer struct {
+    ID            string
+    PaymentMethod PaymentMethod
+    BillingAddr   Address
+    CreditLimit   Money
+}
+```
+
+```go
+// shipping/customer.go — the shipping model of a customer
+package shipping
+
+type Customer struct {
+    ID            string
+    ShippingAddr  Address
+    DeliveryPrefs DeliveryPreferences
+    ContactPhone  string
+}
+```
+
+Forcing a single `Customer` struct to serve both contexts produces a type with 15 fields where every consumer uses a different 5. Bounded contexts are the fix: each context owns its model and its data. Cross-context reads happen through explicit integration points, not shared tables.
+
+## Context Maps
+
+A context map documents the relationships between bounded contexts. The four most common relationships in practice:
+
+**Shared Kernel** — Two contexts share a small subset of the model (a `Money` type, an `OrderID`). Changes to the kernel require coordination between both teams.
+
+**Customer/Supplier** — One context is upstream (the supplier), one is downstream (the customer). The supplier defines the API; the customer adapts to it.
+
+**Anti-Corruption Layer (ACL)** — The downstream context translates the upstream model into its own terms, protecting its domain from the upstream's design decisions. This is the most important relationship for legacy integration.
+
+**Open Host Service** — The upstream publishes a stable, versioned API for any consumer, rather than negotiating separately with each one.
+
+```
+┌─────────────────────┐      ACL      ┌─────────────────────┐
+│  Legacy ERP System  │ ──────────── │   Order Context     │
+│  (Upstream)         │              │   (Downstream)      │
+│  LegacyOrder{...}   │              │   Order{...}        │
+└─────────────────────┘              └─────────────────────┘
+```
+
+In Go, an Anti-Corruption Layer is a translator struct that converts the upstream's types into your domain's types:
+
+```go
+// acl/erp_translator.go
+package acl
+
+import "myapp/order"
+
+// LegacyOrder is the upstream ERP's order format.
+type LegacyOrder struct {
+    OrderNo    string
+    CustRef    string
+    LineItems  []LegacyLineItem
+    OrderFlags int // bitmask: 0x01=rush, 0x02=gift, 0x04=international
+}
+
+type LegacyLineItem struct {
+    SKU            string
+    Qty            int
+    UnitPriceCents int
+}
+
+type ERPTranslator struct{}
+
+func (t *ERPTranslator) ToDomainOrder(src LegacyOrder) order.Order {
+    items := make([]order.LineItem, len(src.LineItems))
+    for i, li := range src.LineItems {
+        items[i] = order.LineItem{
+            ProductID: order.ProductID(li.SKU),
+            Quantity:  li.Qty,
+            UnitPrice: order.Money{Cents: li.UnitPriceCents},
+        }
+    }
+    return order.Order{
+        ID:         order.OrderID(src.OrderNo),
+        CustomerID: order.CustomerID(src.CustRef),
+        Items:      items,
+        IsRush:     src.OrderFlags&0x01 != 0,
+    }
+}
+```
+
+The order domain never sees `LegacyOrder` or its bitmask flags. The ACL absorbs the translation complexity and keeps the domain model clean.
+
+## Ubiquitous Language
+
+A ubiquitous language is a shared vocabulary built with domain experts that appears consistently in conversation, documentation, and code. It eliminates the translation tax that developers pay every time they convert business concepts into technical terms.
+
+Building the language is a collaborative process: sit with domain experts, model out loud, and let their corrections shape the vocabulary. When a domain expert says "we don't 'process' orders, we 'fulfil' them," update the code immediately.
+
+```go
+// Before: technical vocabulary that doesn't match how the business talks.
+type UserRecord struct {
+    ID        string
+    CreatedAt time.Time
+}
+
+func processUserRecord(db *sql.DB, r *UserRecord) error { ... }
+
+// After: ubiquitous language — code reads like the domain expert's sentences.
+type Customer struct {
+    ID           CustomerID
+    RegisteredAt time.Time
+}
+
+func (c *Customer) PlaceOrder(items []OrderItem) (*Order, error) { ... }
+```
+
+The language flows through package names (`package billing`, not `package billingservice`), type names (`Customer`, `Order`, `Shipment`), and method names (`PlaceOrder`, `FulfillShipment`, `IssueRefund`). When code reads like the domain expert's sentences, you've arrived.
+
 ## Problem
 
 A content platform has an `Article` struct carrying 20 fields. It's updated from 8 different places. Some mutations are only valid in certain states. Bugs appear because invariants like "a draft can't be published without a title" are enforced in some callers but forgotten in others. The model is an anemic data bag, not a reflection of the business.
@@ -262,6 +405,8 @@ func (s *PublishService) Publish(ctx context.Context, id ArticleID) error {
 ## Tradeoffs
 
 The payoff is concentrated: aggregates enforce invariants in one place so callers can't accidentally bypass them, and the ubiquitous language keeps code and business conversation aligned. The cost is upfront and ongoing. Getting aggregate boundaries wrong is expensive to fix — split them too fine and you get coordination overhead across transactions; merge them too broadly and you get a 40-field struct that every feature touches. Persistence mapping between rich domain types and flat database rows is mechanical work that compounds with every aggregate. And applying DDD to a simple reporting or admin tool is over-engineering — not every problem benefits from a rich domain model.
+
+Aggregate boundary heuristics: an aggregate root should enforce consistency within a single database transaction — if doing so requires loading many other entities, the aggregate is too large. Reference other aggregates by ID rather than by pointer; this forces cross-aggregate coordination through an explicit service or domain event, making the boundary visible in the code. Use domain events for cross-aggregate operations: when an `Order` is placed, publish an `OrderPlaced` event that the `Inventory` aggregate handles independently, rather than having `Order.Place()` reach into `Inventory` directly. A good rule of thumb: if you always load two aggregates together, they may belong in one; if enforcing an invariant on one requires reading another, the boundary is likely wrong.
 
 ## Related Patterns
 

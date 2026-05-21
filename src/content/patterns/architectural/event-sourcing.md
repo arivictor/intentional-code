@@ -230,6 +230,67 @@ func (h *AccountCommandHandler) HandleDepositWithSnapshot(ctx context.Context, c
 }
 ```
 
+## Concurrency and Optimistic Locking
+
+When two commands modify the same aggregate concurrently, the second write must detect that the first has already changed the stream. Without a check, both commands load the same events, both produce new events at the same version, and both append — the second write silently overwrites the first.
+
+The fix is optimistic locking: `Append` accepts an `expectedVersion` (the length of events loaded), and the store rejects writes where the stream has advanced beyond that version:
+
+```go
+// store/event_store.go
+var ErrVersionConflict = errors.New("optimistic lock conflict: stream was modified")
+
+type EventStore interface {
+    // expectedVersion is the number of events loaded before the command ran.
+    // Append fails with ErrVersionConflict if the stream has more events than that.
+    Append(ctx context.Context, aggregateID string, expectedVersion int, events []domain.Event) error
+    Load(ctx context.Context, aggregateID string) ([]domain.Event, error)
+}
+```
+
+The command handler passes `len(events)` as the expected version:
+
+```go
+func (h *AccountCommandHandler) HandleDeposit(ctx context.Context, cmd DepositCommand) error {
+    events, err := h.store.Load(ctx, cmd.AccountID)
+    if err != nil {
+        return err
+    }
+    account := store.ReplayAccount(events)
+    account.Deposit(cmd.Amount)
+
+    err = h.store.Append(ctx, cmd.AccountID, len(events), account.Changes())
+    if errors.Is(err, store.ErrVersionConflict) {
+        // Another command won the race. Retry from the top.
+        return h.HandleDeposit(ctx, cmd)
+    }
+    return err
+}
+```
+
+The store checks the current stream length before appending:
+
+```go
+// postgres implementation — append atomically if version matches
+func (s *PostgresEventStore) Append(ctx context.Context, aggregateID string, expectedVersion int, events []domain.Event) error {
+    var currentVersion int
+    err := s.db.QueryRowContext(ctx,
+        "SELECT COUNT(*) FROM events WHERE aggregate_id = $1",
+        aggregateID,
+    ).Scan(&currentVersion)
+    if err != nil {
+        return err
+    }
+    if currentVersion != expectedVersion {
+        return store.ErrVersionConflict
+    }
+    // insert new events...
+    return nil
+}
+```
+
+Optimistic locking works well when conflicts are rare — a deposit and a withdrawal hitting the same account within milliseconds is uncommon. For high-contention aggregates, a retry loop is acceptable; for truly write-heavy paths, consider sharding or a different aggregate boundary.
+
 ## When to Use
 
 - You need a full audit trail as a first-class requirement — financial systems, healthcare records, legal contracts.

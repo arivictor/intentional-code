@@ -142,6 +142,74 @@ Bob sends: Hey Alice!
   Charlie received from Bob: Hey Alice!
 ```
 
+## Command Bus: The Go Backend Form
+
+In Go backends, Mediator most often appears as a **command/query bus**: callers dispatch commands through a shared bus without importing the handler package. The bus is the only shared dependency, which eliminates import cycles between adapters and domain handlers.
+
+```go
+// bus/bus.go
+package bus
+
+import (
+    "context"
+    "fmt"
+    "reflect"
+)
+
+type Bus struct {
+    handlers map[reflect.Type]func(context.Context, any) error
+}
+
+func New() *Bus {
+    return &Bus{handlers: make(map[reflect.Type]func(context.Context, any) error)}
+}
+
+// Register wires a handler function to a command type.
+func Register[C any](b *Bus, handler func(context.Context, C) error) {
+    key := reflect.TypeOf((*C)(nil)).Elem()
+    b.handlers[key] = func(ctx context.Context, raw any) error {
+        return handler(ctx, raw.(C))
+    }
+}
+
+// Send dispatches a command to its registered handler.
+func Send[C any](b *Bus, ctx context.Context, cmd C) error {
+    key := reflect.TypeOf(cmd)
+    h, ok := b.handlers[key]
+    if !ok {
+        return fmt.Errorf("no handler registered for %T", cmd)
+    }
+    return h(ctx, cmd)
+}
+```
+
+Register handlers at startup and dispatch through the bus from HTTP adapters:
+
+```go
+// main.go
+type CreateOrderCmd struct{ ItemID, CustomerID string; Amount int }
+type CancelOrderCmd struct{ OrderID, Reason string }
+
+b := bus.New()
+bus.Register(b, func(ctx context.Context, cmd CreateOrderCmd) error {
+    return orderRepo.Create(ctx, cmd.ItemID, cmd.CustomerID, cmd.Amount)
+})
+bus.Register(b, func(ctx context.Context, cmd CancelOrderCmd) error {
+    return orderRepo.Cancel(ctx, cmd.OrderID, cmd.Reason)
+})
+
+// HTTP adapter dispatches without knowing handler internals
+http.HandleFunc("/orders", func(w http.ResponseWriter, r *http.Request) {
+    var cmd CreateOrderCmd
+    json.NewDecoder(r.Body).Decode(&cmd)
+    if err := bus.Send(b, r.Context(), cmd); err != nil {
+        http.Error(w, err.Error(), 422)
+    }
+})
+```
+
+The HTTP adapter imports `bus` and the command struct, but not the handler package. Handler packages can live in separate packages with no import cycles. This is the same O(n) decoupling the chat room example demonstrates — applied to request dispatching instead of peer messaging.
+
 ## When to Use
 
 - Many objects communicate in complex ways, creating a web of dependencies.

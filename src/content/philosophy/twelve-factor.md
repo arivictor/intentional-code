@@ -174,6 +174,39 @@ Scale horizontally by running more processes, not by making individual processes
 
 Go's goroutines handle concurrency within a process. Kubernetes or a process manager handles scaling across processes.
 
+Design around distinct process types — web, worker, scheduler — that can be scaled independently. In Go, each type runs as a goroutine in development but as a separate deployment in production:
+
+```go
+// main.go — web server and background worker as separate process types
+func main() {
+    cfg := mustLoadConfig()
+    ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
+    defer cancel()
+
+    var wg sync.WaitGroup
+
+    // Web process: handles inbound HTTP requests
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        srv := &http.Server{Addr: ":" + cfg.Port, Handler: buildRouter(cfg)}
+        go func() { <-ctx.Done(); srv.Shutdown(context.Background()) }()
+        srv.ListenAndServe()
+    }()
+
+    // Worker process: drains the job queue
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        NewJobWorker(cfg.QueueURL).Run(ctx)
+    }()
+
+    wg.Wait()
+}
+```
+
+In Kubernetes, `web` and `worker` would be separate Deployments: `kubectl scale deploy/web --replicas=10` scales HTTP capacity without touching the worker pool. Running both in one binary is simpler for early-stage services; split them when their resource profiles diverge enough to warrant independent scaling.
+
 ---
 
 ## IX. Disposability
@@ -208,6 +241,43 @@ srv.Shutdown(ctx)
 *Keep development, staging, and production as similar as possible.*
 
 Gaps between environments cause bugs that only appear in production. Use the same backing services locally (run Postgres in Docker, not SQLite), the same config loading mechanism, and deploy frequently to close the time gap between writing code and running it in production.
+
+SQLite and Postgres are not interchangeable — behavioral differences cause silent production bugs:
+
+```go
+// RETURNING is not supported in SQLite before version 3.35 (2021).
+// In Postgres it is standard and widely used.
+row := tx.QueryRowContext(ctx,
+    "INSERT INTO orders (id, total) VALUES ($1, $2) RETURNING created_at",
+    id, total,
+) // works in Postgres, fails in older SQLite
+
+// LIKE is case-insensitive for ASCII in SQLite but case-sensitive in Postgres.
+// WHERE name LIKE '%alice%' finds "Alice" in SQLite but not in Postgres.
+rows, _ := db.QueryContext(ctx, "SELECT id FROM users WHERE name LIKE $1", "%alice%")
+```
+
+Use the real Postgres image in local development:
+
+```yaml
+# docker-compose.yml
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: myapp_dev
+      POSTGRES_USER: myapp
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgres://myapp:secret@db:5432/myapp_dev
+    depends_on: [db]
+```
+
+Run `docker compose up` before running migrations. Tear it down and recreate when you need a clean slate. Using the same Postgres version locally as in production eliminates an entire class of environment-specific bugs that are expensive to diagnose.
 
 ---
 

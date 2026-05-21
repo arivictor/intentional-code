@@ -58,7 +58,10 @@ Extract the shared intrinsic state (glyph style) into a separate type. Use a fac
 // editor.go
 package editor
 
-import "fmt"
+import (
+    "fmt"
+    "sync"
+)
 
 // GlyphStyle holds shared intrinsic state — one per unique font+style combination.
 type GlyphStyle struct {
@@ -80,17 +83,32 @@ func (c *Character) Render() string {
         c.Char, c.X, c.Y, c.Style.FontName, c.Style.FontSize, c.Style.Bold)
 }
 
-// styleCache interns GlyphStyle instances.
-var styleCache = map[string]*GlyphStyle{}
+// styleRegistry is the interning cache for GlyphStyle instances.
+// It is safe for concurrent use.
+type styleRegistry struct {
+    mu    sync.RWMutex
+    cache map[string]*GlyphStyle
+}
+
+var styles = &styleRegistry{cache: make(map[string]*GlyphStyle)}
 
 // GetStyle returns a shared GlyphStyle, creating it only if it doesn't exist yet.
 func GetStyle(font string, size int, bold, italic bool) *GlyphStyle {
     key := fmt.Sprintf("%s-%d-%v-%v", font, size, bold, italic)
-    if s, ok := styleCache[key]; ok {
+    styles.mu.RLock()
+    if s, ok := styles.cache[key]; ok {
+        styles.mu.RUnlock()
+        return s
+    }
+    styles.mu.RUnlock()
+    styles.mu.Lock()
+    defer styles.mu.Unlock()
+    // Check again after acquiring write lock.
+    if s, ok := styles.cache[key]; ok {
         return s
     }
     s := &GlyphStyle{FontName: font, FontSize: size, Bold: bold, Italic: italic}
-    styleCache[key] = s
+    styles.cache[key] = s
     return s
 }
 ```

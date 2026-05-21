@@ -295,6 +295,44 @@ func (h *NoteHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+## Handling Eventual Consistency
+
+When the read store is a separate projection updated asynchronously, a user who just submitted a command may query immediately and receive the old state. This surprises users who expect to see their own write reflected at once. Three strategies address this:
+
+**Optimistic UI** — Display the expected outcome in the UI immediately based on the command, without re-querying the server. Sync from the server on the next natural refresh. No server-side changes needed; works well when the UI can confidently predict the new state.
+
+**Read-from-write store** — For the actor's own recent changes, bypass the read store and query the write store directly for a short window after the command. Other users still get the eventually consistent projection. Simple to implement; adds load to the write store.
+
+**Version-aware query** — The command returns a version number; the query handler waits until the projection has caught up to that version before returning:
+
+```go
+// command result includes the write version
+type CreateNoteResult struct {
+    NoteID  string
+    Version int
+}
+
+// query handler accepts a minimum version and retries until caught up
+func (h *GetNoteHandler) HandleAtVersion(ctx context.Context, id string, minVersion int) (*NoteView, error) {
+    deadline := time.Now().Add(2 * time.Second)
+    for {
+        view, err := h.store.FindByID(ctx, id)
+        if err != nil {
+            return nil, err
+        }
+        if view.Version >= minVersion {
+            return view, nil
+        }
+        if time.Now().After(deadline) {
+            return view, nil // return what we have; don't block indefinitely
+        }
+        time.Sleep(20 * time.Millisecond)
+    }
+}
+```
+
+The version-aware approach requires the projection to store and expose a version number. It is the most consistent of the three strategies but adds complexity and a short blocking window. For most applications, optimistic UI is the right starting point — users already understand that submitted changes take a moment to appear.
+
 ## When to Use
 
 - Read and write workloads have different performance profiles, and queries need denormalized views or aggregations that don't fit the write model.

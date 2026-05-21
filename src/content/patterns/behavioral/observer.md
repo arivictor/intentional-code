@@ -149,6 +149,57 @@ Config reloaded: level=warn timeout=30
   [logger] log level set to warn
 ```
 
+## Async Notification
+
+The synchronous `notify()` blocks the subject until every observer completes. When observers do I/O — sending emails, writing metrics — the subject pays for every observer's latency. The async alternative dispatches each observer in its own goroutine:
+
+```go
+// async notify — subject returns immediately; observers run in the background.
+func (c *Config) notifyAsync() {
+    for _, obs := range c.observers {
+        go obs.OnConfigChange(*c)
+    }
+}
+```
+
+Tradeoff: observers may process out of order, and panics in observer goroutines are unrecovered unless you add `recover()`. Errors are silently lost unless the observer has its own error channel.
+
+For tighter goroutine lifecycle control, use channel-based observers instead of an interface. The subject sends on a buffered channel; the observer owns a reader goroutine that exits when the channel is closed:
+
+```go
+// Channel-based observer — goroutine lifecycle is explicit.
+type ConfigWatcher struct {
+    ch chan Config
+}
+
+func NewConfigWatcher(c *Config, bufSize int) *ConfigWatcher {
+    w := &ConfigWatcher{ch: make(chan Config, bufSize)}
+    c.Subscribe(w)
+    return w
+}
+
+func (w *ConfigWatcher) OnConfigChange(cfg Config) {
+    select {
+    case w.ch <- cfg:
+    default:
+        // drop if the reader hasn't kept up
+    }
+}
+
+func (w *ConfigWatcher) Run(ctx context.Context, handler func(Config)) {
+    for {
+        select {
+        case cfg := <-w.ch:
+            handler(cfg)
+        case <-ctx.Done():
+            return
+        }
+    }
+}
+```
+
+The reader goroutine exits when `ctx` is cancelled, preventing leaks. The buffered channel absorbs bursts; the `default` case in `OnConfigChange` prevents a slow reader from blocking the subject.
+
 ## When to Use
 
 - Multiple independent components need to react to changes in another component.
@@ -163,7 +214,7 @@ Config reloaded: level=warn timeout=30
 
 ## Tradeoffs
 
-The decoupling is genuine: the config package never imports the logger or server packages, which keeps the dependency graph clean. What you lose is traceability — "who's listening to this config?" is invisible from the source code, and a missing `Unsubscribe` call on a long-lived observer is a memory leak. In concurrent programs, the observer list needs a `sync.RWMutex`: reads during `notify` race with writes during `Subscribe`/`Unsubscribe`, and this is exactly the kind of bug that only surfaces under load. The channel-based form avoids the mutex but introduces goroutine lifecycle responsibility — a subscriber goroutine that never exits leaks permanently if the subject is long-lived.
+The decoupling is genuine: the config package never imports the logger or server packages, which keeps the dependency graph clean. What you lose is traceability — "who's listening to this config?" is invisible from the source code, and a missing `Unsubscribe` call on a long-lived observer is a memory leak. In concurrent programs, the observer list needs a `sync.RWMutex`: reads during `notify` race with writes during `Subscribe`/`Unsubscribe`, and this is exactly the kind of bug that only surfaces under load. The channel-based form avoids the mutex but introduces goroutine lifecycle responsibility — a subscriber goroutine that never exits leaks permanently if the subject is long-lived. The async goroutine form (one `go` per notification) decouples observer latency from the subject — a slow email send no longer delays a metrics update — but removes ordering guarantees: if two notifications fire in quick succession, faster observers may process the second before the first. Channel-based observers restore ordering within each observer (events arrive in send order) while still keeping the subject non-blocking; the trade-off is that a slow reader can fall behind, requiring a decision between buffering (absorb bursts) and dropping (protect the subject) when the buffer fills.
 
 ## Related Patterns
 

@@ -280,6 +280,92 @@ func (s *IndexerService) HandleFileUploaded(ctx context.Context, evt events.File
 }
 ```
 
+## Reliable Event Publishing: The Outbox Pattern
+
+Publishing an event after writing to the database creates a dual-write problem: if the process crashes after the database commit but before the broker publish, the event is lost. If you publish to the broker first, a subsequent database failure leaves an event in the broker for a write that never persisted.
+
+The Outbox Pattern solves this by writing the event to a database table in the same transaction as the main write. A separate relay process reads unpublished events and publishes them to the broker.
+
+```sql
+CREATE TABLE outbox_events (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    topic        TEXT NOT NULL,
+    payload      JSONB NOT NULL,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    published_at TIMESTAMPTZ -- NULL means unpublished
+);
+```
+
+Write to the outbox in the same transaction as the main change:
+
+```go
+// service/upload.go
+func (s *UploadService) ProcessUpload(ctx context.Context, ownerID, fileID string, data []byte) error {
+    tx, err := s.db.BeginTx(ctx, nil)
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback()
+
+    if _, err := tx.ExecContext(ctx, "INSERT INTO files (id, owner_id) VALUES ($1, $2)", fileID, ownerID); err != nil {
+        return err
+    }
+
+    payload, _ := json.Marshal(FileUploadedEvent{
+        FileID: fileID, OwnerID: ownerID, SizeBytes: int64(len(data)),
+    })
+    if _, err := tx.ExecContext(ctx,
+        "INSERT INTO outbox_events (topic, payload) VALUES ($1, $2)",
+        FileUploaded, payload,
+    ); err != nil {
+        return err
+    }
+
+    return tx.Commit()
+}
+```
+
+A relay goroutine polls for unpublished events and publishes them to the broker:
+
+```go
+// relay/outbox_relay.go
+func (r *OutboxRelay) Run(ctx context.Context) {
+    ticker := time.NewTicker(500 * time.Millisecond)
+    defer ticker.Stop()
+    for {
+        select {
+        case <-ticker.C:
+            r.publishPending(ctx)
+        case <-ctx.Done():
+            return
+        }
+    }
+}
+
+func (r *OutboxRelay) publishPending(ctx context.Context) {
+    rows, err := r.db.QueryContext(ctx,
+        "SELECT id, topic, payload FROM outbox_events WHERE published_at IS NULL ORDER BY created_at LIMIT 100",
+    )
+    if err != nil {
+        return
+    }
+    defer rows.Close()
+    for rows.Next() {
+        var id, topic string
+        var payload []byte
+        rows.Scan(&id, &topic, &payload)
+        if err := r.broker.Publish(ctx, topic, payload); err != nil {
+            continue // retry next tick
+        }
+        r.db.ExecContext(ctx,
+            "UPDATE outbox_events SET published_at = NOW() WHERE id = $1", id,
+        )
+    }
+}
+```
+
+At-least-once delivery is preserved: if the relay crashes after publishing but before updating `published_at`, the event is re-published on restart — consumers must be idempotent. For production use, consider a CDC (change data capture) tool like Debezium that reads the Postgres write-ahead log directly, avoiding the polling overhead.
+
 ## When to Use
 
 - Services or components need to react to the same event independently without a central orchestrator knowing about all of them.
@@ -296,7 +382,7 @@ func (s *IndexerService) HandleFileUploaded(ctx context.Context, evt events.File
 
 ## Tradeoffs
 
-The main benefit is isolation: producers stay stable as new consumers are added, and a failing consumer can't roll back the producer's work. The main cost is eventual consistency — consumers may lag behind the producer, so the indexer may not see a newly uploaded file immediately, and this surprises users who expect their own write to be immediately reflected. At-least-once delivery means every consumer must be idempotent, which isn't hard to implement but is easy to forget when adding a new handler. Schema coupling is the subtler ongoing cost: event schemas need to stay backward compatible or consumers break silently, requiring deliberate versioning discipline that pure function call contracts don't.
+The main benefit is isolation: producers stay stable as new consumers are added, and a failing consumer can't roll back the producer's work. The main cost is eventual consistency — consumers may lag behind the producer, so the indexer may not see a newly uploaded file immediately, and this surprises users who expect their own write to be immediately reflected. At-least-once delivery means every consumer must be idempotent, which isn't hard to implement but is easy to forget when adding a new handler. Schema coupling is the subtler ongoing cost: event schemas need to stay backward compatible or consumers break silently, requiring deliberate versioning discipline that pure function call contracts don't. The rules: add new fields additively and never remove or rename existing ones; use pointer types (`*string`, `*int`) for optional new fields so producers that omit the field produce valid JSON that older consumers can still decode; use a `Version` field to dispatch consumers to different deserialization paths when a structural change is unavoidable. Go's `json.Unmarshal` ignores unknown fields by default, which means producers can add fields without coordinating consumer deploys — as long as you never remove fields that consumers already depend on.
 
 ## Related Patterns
 

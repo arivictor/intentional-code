@@ -93,17 +93,19 @@ The recommended alternative: dependency injection. Pass the logger as a paramete
 // handler.go
 package web
 
-import (
-    "fmt"
-    "log"
-)
+import "fmt"
+
+// Logger is a minimal interface — any *log.Logger satisfies it.
+type Logger interface {
+    Printf(format string, v ...any)
+}
 
 // Handler depends on an injected logger, not a global.
 type Handler struct {
-    log *log.Logger
+    log Logger
 }
 
-func NewHandler(log *log.Logger) *Handler {
+func NewHandler(log Logger) *Handler {
     return &Handler{log: log}
 }
 

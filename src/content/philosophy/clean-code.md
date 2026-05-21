@@ -169,4 +169,88 @@ In Go, `gofmt` handles formatting. Everything else — error handling patterns, 
 
 > **Smell:** You have to read a function three times to understand what it does. A variable named `data`, `result`, `temp`, or `x` at package scope. A function whose name is a verb and a noun joined by "and." A comment that starts with "this function..."
 
+---
+
+## Error handling idioms
+
+Go's error handling is explicit by design. Three idioms keep it safe and debuggable:
+
+**Wrap errors with context** using `fmt.Errorf` and the `%w` verb. The resulting error is inspectable by callers through the full wrapping chain:
+
+```go
+// Wrapping preserves the original error and adds context at each layer.
+if err := store.Save(order); err != nil {
+    return fmt.Errorf("placing order %s: %w", order.ID, err)
+}
+```
+
+**Inspect errors structurally** with `errors.Is` and `errors.As` — never by comparing `.Error()` strings:
+
+```go
+var ErrNotFound = errors.New("not found")
+
+// BAD — string comparison breaks if the message ever changes.
+if err.Error() == "not found" { ... }
+
+// GOOD — works correctly through any wrapping chain.
+if errors.Is(err, ErrNotFound) { ... }
+
+// GOOD — unwraps to a specific error type to access its fields.
+var valErr *ValidationError
+if errors.As(err, &valErr) {
+    fmt.Println(valErr.Field, valErr.Message)
+}
+```
+
+**Define sentinel errors** as package-level variables for errors callers need to distinguish:
+
+```go
+var (
+    ErrNotFound   = errors.New("not found")
+    ErrConflict   = errors.New("conflict")
+    ErrPermission = errors.New("permission denied")
+)
+```
+
+---
+
+## Guard clauses
+
+A guard clause is an early return that handles a precondition at the top of a function, keeping the happy path at the left margin. Functions with nested `if` blocks force the reader to track multiple levels of indentation simultaneously.
+
+```go
+// BAD — three levels of nesting; the happy path is buried at the bottom.
+func processPayment(card Card, amount Money) error {
+    if card.IsValid() {
+        if amount > 0 {
+            if !card.IsExpired() {
+                return charge(card, amount)
+            } else {
+                return errors.New("card is expired")
+            }
+        } else {
+            return errors.New("amount must be positive")
+        }
+    } else {
+        return errors.New("invalid card")
+    }
+}
+
+// GOOD — guard clauses eliminate nesting; happy path is obvious.
+func processPayment(card Card, amount Money) error {
+    if !card.IsValid() {
+        return errors.New("invalid card")
+    }
+    if amount <= 0 {
+        return errors.New("amount must be positive")
+    }
+    if card.IsExpired() {
+        return errors.New("card is expired")
+    }
+    return charge(card, amount)
+}
+```
+
+Guard clauses also make adding a new precondition a one-line insert at the top of the validation block, rather than a restructuring of nested conditions.
+
 See also: [SOLID](/go/philosophy/solid), [Separation of Concerns](/go/philosophy/separation-of-concerns), [TDD](/go/philosophy/tdd).
