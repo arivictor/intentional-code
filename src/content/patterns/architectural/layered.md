@@ -65,164 +65,176 @@ Separate the code into four layers. Each layer has one responsibility and commun
 └──────────────────────────────────┘
 ```
 
-The handler translates HTTP to domain types:
+The following is a single runnable file demonstrating all four layers — Handler, Service, Repository (in-memory), and Infrastructure (stub mailer):
 
 ```go
-// handler/post.go
-package handler
-
-import (
-    "encoding/json"
-    "net/http"
-    "posts/service"
-)
-
-type PostHandler struct {
-    svc *service.PostService
-}
-
-func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
-    var req struct {
-        AuthorEmail string `json:"author_email"`
-        Title       string `json:"title"`
-        Body        string `json:"body"`
-    }
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, "bad request", 400)
-        return
-    }
-    id, err := h.svc.CreatePost(r.Context(), req.AuthorEmail, req.Title, req.Body)
-    if err != nil {
-        http.Error(w, err.Error(), 422)
-        return
-    }
-    w.Header().Set("Content-Type", "application/json")
-    json.NewEncoder(w).Encode(map[string]string{"id": id})
-}
-```
-
-The service layer holds the business rules. It depends on interfaces, not concrete types:
-
-```go
-// service/post.go
-package service
-
-import (
-    "context"
-    "fmt"
-    "posts/domain"
-)
-
-type PostRepo interface {
-    Save(ctx context.Context, p *domain.Post) error
-}
-
-type Mailer interface {
-    SendPublished(ctx context.Context, email, postID string) error
-}
-
-type PostService struct {
-    repo   PostRepo
-    mailer Mailer
-}
-
-func NewPostService(repo PostRepo, mailer Mailer) *PostService {
-    return &PostService{repo: repo, mailer: mailer}
-}
-
-func (s *PostService) CreatePost(ctx context.Context, authorEmail, title, body string) (string, error) {
-    if title == "" {
-        return "", fmt.Errorf("title is required")
-    }
-    p := domain.NewPost(authorEmail, title, body)
-    if err := s.repo.Save(ctx, p); err != nil {
-        return "", fmt.Errorf("saving post: %w", err)
-    }
-    s.mailer.SendPublished(ctx, p.AuthorEmail, p.ID)
-    return p.ID, nil
-}
-```
-
-```go
-// domain/post.go
-package domain
-
-import (
-    "fmt"
-    "time"
-)
-
-type Post struct {
-    ID          string
-    AuthorEmail string
-    Title       string
-    Body        string
-    CreatedAt   time.Time
-}
-
-func NewPost(authorEmail, title, body string) *Post {
-    return &Post{
-        ID:          fmt.Sprintf("post-%d", time.Now().UnixNano()),
-        AuthorEmail: authorEmail,
-        Title:       title,
-        Body:        body,
-        CreatedAt:   time.Now(),
-    }
-}
-```
-
-The repository layer implements data access:
-
-```go
-// repository/post_postgres.go
-package repository
-
-import (
-    "context"
-    "database/sql"
-    "posts/domain"
-)
-
-type PostgresPostRepo struct{ db *sql.DB }
-
-func NewPostgresPostRepo(db *sql.DB) *PostgresPostRepo {
-    return &PostgresPostRepo{db: db}
-}
-
-func (r *PostgresPostRepo) Save(ctx context.Context, p *domain.Post) error {
-    _, err := r.db.ExecContext(ctx,
-        "INSERT INTO posts (id, author_email, title, body, created_at) VALUES ($1, $2, $3, $4, $5)",
-        p.ID, p.AuthorEmail, p.Title, p.Body, p.CreatedAt,
-    )
-    return err
-}
-```
-
-Wire it together in `main.go`, the only place that needs to know about all layers:
-
-```go
-// main.go
 package main
 
 import (
-    "database/sql"
-    "net/http"
-    "posts/handler"
-    "posts/repository"
-    "posts/service"
-    "posts/infra/smtp"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"time"
 )
 
-func main() {
-    db, _ := sql.Open("postgres", "host=localhost ...")
-    repo := repository.NewPostgresPostRepo(db)
-    mailer := smtp.NewMailer("smtp.example.com:587")
-    svc := service.NewPostService(repo, mailer)
-    h := &handler.PostHandler{Svc: svc}
+// --- Domain layer ---
 
-    http.HandleFunc("POST /posts", h.Create)
-    http.ListenAndServe(":8080", nil)
+type Post struct {
+	ID          string
+	AuthorEmail string
+	Title       string
+	Body        string
+	CreatedAt   time.Time
 }
+
+func NewPost(authorEmail, title, body string) *Post {
+	return &Post{
+		ID:          fmt.Sprintf("post-%d", time.Now().UnixNano()),
+		AuthorEmail: authorEmail,
+		Title:       title,
+		Body:        body,
+		CreatedAt:   time.Now(),
+	}
+}
+
+// --- Service layer (business rules, depends on interfaces) ---
+
+type PostRepo interface {
+	Save(ctx context.Context, p *Post) error
+}
+
+type Mailer interface {
+	SendPublished(ctx context.Context, email, postID string) error
+}
+
+type PostService struct {
+	repo   PostRepo
+	mailer Mailer
+}
+
+func NewPostService(repo PostRepo, mailer Mailer) *PostService {
+	return &PostService{repo: repo, mailer: mailer}
+}
+
+func (s *PostService) CreatePost(ctx context.Context, authorEmail, title, body string) (string, error) {
+	if title == "" {
+		return "", fmt.Errorf("title is required")
+	}
+	p := NewPost(authorEmail, title, body)
+	if err := s.repo.Save(ctx, p); err != nil {
+		return "", fmt.Errorf("saving post: %w", err)
+	}
+	s.mailer.SendPublished(ctx, p.AuthorEmail, p.ID)
+	return p.ID, nil
+}
+
+// --- Repository layer (in-memory implementation) ---
+
+type MemPostRepo struct {
+	mu    sync.Mutex
+	posts []*Post
+}
+
+func (r *MemPostRepo) Save(_ context.Context, p *Post) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.posts = append(r.posts, p)
+	return nil
+}
+
+// --- Infrastructure layer (stub mailer) ---
+
+type LogMailer struct{ sent []string }
+
+func (m *LogMailer) SendPublished(_ context.Context, email, postID string) error {
+	m.sent = append(m.sent, fmt.Sprintf("email to %s: post %s published", email, postID))
+	return nil
+}
+
+// --- Handler layer (HTTP, translates requests into service calls) ---
+
+type PostHandler struct {
+	svc *PostService
+}
+
+func (h *PostHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		AuthorEmail string `json:"author_email"`
+		Title       string `json:"title"`
+		Body        string `json:"body"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "bad request", 400)
+		return
+	}
+	id, err := h.svc.CreatePost(r.Context(), req.AuthorEmail, req.Title, req.Body)
+	if err != nil {
+		http.Error(w, err.Error(), 422)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"id": id})
+}
+
+func main() {
+	repo := &MemPostRepo{}
+	mailer := &LogMailer{}
+	svc := NewPostService(repo, mailer)
+	h := &PostHandler{svc: svc}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /posts", h.Create)
+
+	// Valid post
+	body := `{"author_email":"alice@example.com","title":"Hello","body":"World"}`
+	req := httptest.NewRequest(http.MethodPost, "/posts", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	fmt.Printf("POST /posts → %d %s", w.Code, w.Body.String())
+
+	// Missing title — business rule enforced by service layer
+	body = `{"author_email":"bob@example.com","title":"","body":"Oops"}`
+	req = httptest.NewRequest(http.MethodPost, "/posts", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+	fmt.Printf("POST /posts → %d %s", w.Code, w.Body.String())
+
+	fmt.Println("emails sent:")
+	for _, s := range mailer.sent {
+		fmt.Println(" ", s)
+	}
+}
+```
+
+```
+// Output:
+// POST /posts → 200 {"id":"post-..."}
+// POST /posts → 422 title is required
+// emails sent:
+//   email to alice@example.com: post post-... published
+```
+
+The PostgreSQL repository implementation would live in a separate package (requires a real DB):
+
+```go
+// Illustrative only — requires a real PostgreSQL connection to run.
+// repository/post_postgres.go
+//
+// type PostgresPostRepo struct{ db *sql.DB }
+//
+// func (r *PostgresPostRepo) Save(ctx context.Context, p *Post) error {
+//     _, err := r.db.ExecContext(ctx,
+//         "INSERT INTO posts (id, author_email, title, body, created_at) VALUES ($1, $2, $3, $4, $5)",
+//         p.ID, p.AuthorEmail, p.Title, p.Body, p.CreatedAt,
+//     )
+//     return err
+// }
 ```
 
 ## When to Use

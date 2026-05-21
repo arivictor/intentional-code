@@ -56,172 +56,147 @@ Domain package
   memory.PostRepo     ← holds a map, used in tests
 ```
 
-Define the domain types and the interface together:
+The following is a single runnable file that combines the domain types, in-memory repository, and a main function that exercises the logic:
 
 ```go
-// domain/posts/post.go
-package posts
+package main
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
+
+// --- Domain types and interface ---
 
 type Status string
 
 const (
-    StatusDraft     Status = "draft"
-    StatusPublished Status = "published"
+	StatusDraft     Status = "draft"
+	StatusPublished Status = "published"
 )
 
 type Post struct {
-    ID     string
-    Title  string
-    Status Status
+	ID     string
+	Title  string
+	Status Status
 }
 
 func (p *Post) Publish() error {
-    if p.Status != StatusDraft {
-        return fmt.Errorf("post %s cannot be published: status is %s", p.ID, p.Status)
-    }
-    p.Status = StatusPublished
-    return nil
+	if p.Status != StatusDraft {
+		return fmt.Errorf("post %s cannot be published: status is %s", p.ID, p.Status)
+	}
+	p.Status = StatusPublished
+	return nil
 }
 
 // Repository is the persistence contract the domain requires.
 type Repository interface {
-    FindByID(id string) (*Post, error)
-    Save(p *Post) error
+	FindByID(id string) (*Post, error)
+	Save(p *Post) error
 }
-```
 
-The service depends only on the interface:
-
-```go
-// domain/posts/service.go
-package posts
+// --- Service ---
 
 type Service struct {
-    repo Repository
+	repo Repository
 }
 
 func NewService(repo Repository) *Service {
-    return &Service{repo: repo}
+	return &Service{repo: repo}
 }
 
 func (s *Service) PublishPost(postID string) error {
-    post, err := s.repo.FindByID(postID)
-    if err != nil {
-        return err
-    }
-    if err := post.Publish(); err != nil {
-        return err
-    }
-    return s.repo.Save(post)
+	post, err := s.repo.FindByID(postID)
+	if err != nil {
+		return err
+	}
+	if err := post.Publish(); err != nil {
+		return err
+	}
+	return s.repo.Save(post)
+}
+
+// --- In-memory repository (infrastructure) ---
+
+type MemPostRepo struct {
+	mu    sync.RWMutex
+	posts map[string]*Post
+}
+
+func NewMemPostRepo(seed ...*Post) *MemPostRepo {
+	m := make(map[string]*Post)
+	for _, p := range seed {
+		m[p.ID] = p
+	}
+	return &MemPostRepo{posts: m}
+}
+
+func (r *MemPostRepo) FindByID(id string) (*Post, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	p, ok := r.posts[id]
+	if !ok {
+		return nil, fmt.Errorf("post %s not found", id)
+	}
+	return p, nil
+}
+
+func (r *MemPostRepo) Save(p *Post) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.posts[p.ID] = p
+	return nil
+}
+
+func main() {
+	repo := NewMemPostRepo(&Post{ID: "p1", Title: "Hello", Status: StatusDraft})
+	svc := NewService(repo)
+
+	if err := svc.PublishPost("p1"); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	got, _ := repo.FindByID("p1")
+	fmt.Printf("post %s status: %s\n", got.ID, got.Status)
+
+	// Trying to publish again returns an error — invariant enforced by Post.Publish()
+	if err := svc.PublishPost("p1"); err != nil {
+		fmt.Println("second publish:", err)
+	}
 }
 ```
 
-The PostgreSQL implementation lives in the infrastructure layer:
+```
+// Output:
+// post p1 status: published
+// second publish: post p1 cannot be published: status is published
+```
+
+The PostgreSQL implementation would live in a separate package (needs a real DB connection):
 
 ```go
+// Illustrative only — requires a real PostgreSQL connection to run.
 // infra/postgres/post_repo.go
-package postgres
-
-import (
-    "database/sql"
-    "fmt"
-    "posts"
-)
-
-type PostRepo struct {
-    db *sql.DB
-}
-
-func NewPostRepo(db *sql.DB) *PostRepo {
-    return &PostRepo{db: db}
-}
-
-func (r *PostRepo) FindByID(id string) (*posts.Post, error) {
-    var p posts.Post
-    err := r.db.QueryRow(
-        "SELECT id, title, status FROM posts WHERE id = $1", id,
-    ).Scan(&p.ID, &p.Title, &p.Status)
-    if err != nil {
-        return nil, fmt.Errorf("finding post %s: %w", id, err)
-    }
-    return &p, nil
-}
-
-func (r *PostRepo) Save(p *posts.Post) error {
-    _, err := r.db.Exec(
-        "UPDATE posts SET status = $1 WHERE id = $2", p.Status, p.ID,
-    )
-    return err
-}
-```
-
-An in-memory implementation makes unit tests fast and infrastructure-free:
-
-```go
-// infra/memory/post_repo.go
-package memory
-
-import (
-    "fmt"
-    "posts"
-    "sync"
-)
-
-type PostRepo struct {
-    mu    sync.RWMutex
-    posts map[string]*posts.Post
-}
-
-func NewPostRepo(seed ...*posts.Post) *PostRepo {
-    m := make(map[string]*posts.Post)
-    for _, p := range seed {
-        m[p.ID] = p
-    }
-    return &PostRepo{posts: m}
-}
-
-func (r *PostRepo) FindByID(id string) (*posts.Post, error) {
-    r.mu.RLock()
-    defer r.mu.RUnlock()
-    p, ok := r.posts[id]
-    if !ok {
-        return nil, fmt.Errorf("post %s not found", id)
-    }
-    return p, nil
-}
-
-func (r *PostRepo) Save(p *posts.Post) error {
-    r.mu.Lock()
-    defer r.mu.Unlock()
-    r.posts[p.ID] = p
-    return nil
-}
-```
-
-```go
-// domain/posts/service_test.go
-package posts_test
-
-import (
-    "posts"
-    "posts/infra/memory"
-    "testing"
-)
-
-func TestPublishPost(t *testing.T) {
-    repo := memory.NewPostRepo(&posts.Post{ID: "p1", Title: "Hello", Status: posts.StatusDraft})
-    svc := posts.NewService(repo)
-
-    if err := svc.PublishPost("p1"); err != nil {
-        t.Fatal(err)
-    }
-    got, _ := repo.FindByID("p1")
-    if got.Status != posts.StatusPublished {
-        t.Errorf("status = %s, want published", got.Status)
-    }
-}
+//
+// type PostRepo struct{ db *sql.DB }
+//
+// func (r *PostRepo) FindByID(id string) (*Post, error) {
+//     var p Post
+//     err := r.db.QueryRow(
+//         "SELECT id, title, status FROM posts WHERE id = $1", id,
+//     ).Scan(&p.ID, &p.Title, &p.Status)
+//     if err != nil {
+//         return nil, fmt.Errorf("finding post %s: %w", id, err)
+//     }
+//     return &p, nil
+// }
+//
+// func (r *PostRepo) Save(p *Post) error {
+//     _, err := r.db.Exec(
+//         "UPDATE posts SET status = $1 WHERE id = $2", p.Status, p.ID,
+//     )
+//     return err
+// }
 ```
 
 ## When to Use
