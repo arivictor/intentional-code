@@ -11,7 +11,8 @@
         "creational",
         "structural",
         "behavioral",
-        "architectural"
+        "architectural",
+        "concurrency"
       ]
     },
     "intent": {

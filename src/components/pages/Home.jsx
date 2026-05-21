@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch } from "lucide-react";
+import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch, Shuffle } from "lucide-react";
 import { getReadPatterns } from "@/lib/readingProgress";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 
@@ -9,6 +9,7 @@ const CATEGORY_ICONS = {
   structural: Puzzle,
   behavioral: Workflow,
   architectural: Building2,
+  concurrency: Shuffle,
   modules: Box,
   state: Database,
   delivery: GitBranch,

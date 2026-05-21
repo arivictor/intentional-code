@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Bookmark, Database, GitBranch, Building2 } from "lucide-react";
+import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Bookmark, Database, GitBranch, Building2, Shuffle } from "lucide-react";
 
 const CATEGORY_ICONS = {
   creational: Box,
   structural: Puzzle,
   behavioral: Workflow,
   architectural: Building2,
+  concurrency: Shuffle,
   modules: Box,
   state: Database,
   delivery: GitBranch,

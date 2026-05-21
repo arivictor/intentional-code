@@ -8,7 +8,7 @@ export const GO_SECTION = {
   homeTitle: 'Design Patterns in Go',
   homeDescription: 'Design patterns and SOLID principles, implemented in idiomatic Go — with examples, tradeoffs, and cross-references.',
   philosophyDescription: 'The principles that make Go design patterns work: SOLID and Test-Driven Development.',
-  categoryOrder: ['creational', 'structural', 'behavioral', 'architectural'],
+  categoryOrder: ['creational', 'structural', 'behavioral', 'architectural', 'concurrency'],
   philosophyOrder: ['solid', 'tdd'],
   collections: {
     patterns: 'patterns',

@@ -240,6 +240,18 @@ Architectural patterns operate at a different scale than the creational, structu
 
 **[Circuit Breaker](/go/patterns/architectural/circuit-breaker)** is the resilience pattern for external dependencies. When a downstream service slows or fails, the breaker opens and fails fast instead of letting goroutines pile up behind timeouts that are obviously going nowhere.
 
+**[MVC / MVP / MVVM](/go/patterns/architectural/mvc)** are three variations on the same idea: business logic should not live inside rendering code. In a Go HTTP service this becomes: handlers coordinate (Controller), domain packages decide (Model), templates or JSON serializers render (View). Each variant differs in how tightly the view and the mediating layer are coupled.
+
+**[Event Sourcing](/go/patterns/architectural/event-sourcing)** stores state as an append-only log of domain events instead of a current-state row. Current state is derived by replaying the log. The audit trail is a structural consequence, not an add-on. Pairs with [CQRS](/go/patterns/architectural/cqrs): the command side appends events; the query side subscribes and builds projections.
+
+**[Saga](/go/patterns/architectural/saga)** coordinates multi-step operations across service boundaries without a distributed transaction. Each step succeeds locally and publishes an event or message; failures trigger compensating transactions that undo completed steps. Two coordination styles: choreography (services react to each other's events) and orchestration (a coordinator drives the workflow explicitly).
+
+**[Strangler Fig](/go/patterns/architectural/strangler-fig)** incrementally replaces a legacy system by routing some traffic to a new implementation while unimplemented paths fall through to the old one. Coverage expands until the legacy system handles nothing and can be deleted. The practical alternative to a big-bang rewrite.
+
+**[Microservices](/go/patterns/architectural/microservices)** structures an application as independently deployable services, each owning its own domain and data store. Teams can release and scale their service without coordinating with others. Start with a well-structured monolith; extract services when independent deployment or scaling becomes a genuine constraint, not a hypothetical one.
+
+**[Pipe and Filter](/go/patterns/architectural/pipe-and-filter)** processes data through a sequence of independent transformation steps. Each filter reads input, applies one transformation, and writes output. Filters share no state and have no knowledge of each other. In Go: a chain of functions, a goroutine pipeline over channels, or a stack of `io.Reader` wrappers. Each filter is independently testable and reorderable.
+
 ---
 
 The [SOLID Principles](/go/philosophy/solid), especially the Dependency Inversion Principle, underpin all of these patterns. The Dependency Rule in Clean Architecture *is* DIP applied architecturally.

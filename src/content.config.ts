@@ -49,7 +49,7 @@ function createPagesCollection(base: string) {
   });
 }
 
-const patterns = createPatternCollection('./src/content/patterns', ['creational', 'structural', 'behavioral', 'architectural']);
+const patterns = createPatternCollection('./src/content/patterns', ['creational', 'structural', 'behavioral', 'architectural', 'concurrency']);
 const pythonPatterns = createPatternCollection('./src/content/python/patterns', ['creational', 'structural', 'behavioral', 'architectural']);
 const terraformPatterns = createPatternCollection('./src/content/terraform/patterns', ['modules', 'state', 'delivery', 'architecture']);
 

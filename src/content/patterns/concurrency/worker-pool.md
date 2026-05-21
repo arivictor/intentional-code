@@ -1,0 +1,188 @@
+---
+title: "Worker Pool"
+category: concurrency
+intent: "Process jobs concurrently using a fixed number of goroutines, bounding memory use and preventing goroutine explosion."
+idiomSummary: "A buffered jobs channel distributes work; N worker goroutines each range over it; a WaitGroup signals completion; close the jobs channel to shut down cleanly."
+relatedSlugs: ["fan-out-fan-in", "pipeline", "done-channel", "semaphore"]
+tags: [concurrency, channels, performance, distributed]
+isFeatured: true
+---
+
+# Worker Pool
+
+A worker pool processes a queue of jobs using a fixed number of goroutines. Rather than spawning one goroutine per job — which can exhaust memory under load — a pool creates N workers at startup and keeps them running, each drawing jobs from a shared channel. Work is bounded: at most N jobs run simultaneously regardless of how many are enqueued.
+
+This is the most common concurrency pattern in production Go code.
+
+## Problem
+
+You need to process 10,000 incoming HTTP webhooks concurrently. The naive approach spawns one goroutine per webhook — which means up to 10,000 goroutines simultaneously, each consuming stack memory and holding a database connection. Under burst traffic, this exhausts resources.
+
+```go
+// BAD — unbounded goroutine spawn.
+// 10,000 simultaneous requests → 10,000 goroutines → OOM or DB connection exhaustion.
+for _, event := range events {
+    go processEvent(event)
+}
+```
+
+## Solution
+
+Create a buffered jobs channel and start N worker goroutines. Each worker loops over the jobs channel. The sender closes the channel when done, which causes all workers to exit their range loops cleanly.
+
+```go
+type Job struct {
+    ID      string
+    Payload []byte
+}
+
+type Result struct {
+    JobID string
+    Err   error
+}
+
+func NewPool(workers int, jobs <-chan Job) <-chan Result {
+    results := make(chan Result, workers)
+    var wg sync.WaitGroup
+
+    wg.Add(workers)
+    for range workers {
+        go func() {
+            defer wg.Done()
+            for job := range jobs {
+                err := processJob(job)
+                results <- Result{JobID: job.ID, Err: err}
+            }
+        }()
+    }
+
+    // Close results when all workers are done.
+    go func() {
+        wg.Wait()
+        close(results)
+    }()
+
+    return results
+}
+
+func main() {
+    jobs := make(chan Job, 100) // buffer absorbs bursts
+    results := NewPool(10, jobs)
+
+    // Send jobs in a separate goroutine so the sender doesn't block.
+    go func() {
+        defer close(jobs) // signals workers to exit when all jobs are sent
+        for _, event := range events {
+            jobs <- Job{ID: event.ID, Payload: event.Data}
+        }
+    }()
+
+    // Consume results — range exits when results is closed.
+    for r := range results {
+        if r.Err != nil {
+            log.Printf("job %s failed: %v", r.JobID, r.Err)
+        }
+    }
+}
+```
+
+## With context cancellation
+
+Production pools need to shut down early on context cancellation. Workers should select on both `jobs` and `ctx.Done()`, stopping when the context is done even if there are still jobs in the channel.
+
+```go
+func NewPool(ctx context.Context, workers int, jobs <-chan Job) <-chan Result {
+    results := make(chan Result, workers)
+    var wg sync.WaitGroup
+
+    wg.Add(workers)
+    for range workers {
+        go func() {
+            defer wg.Done()
+            for {
+                select {
+                case job, ok := <-jobs:
+                    if !ok {
+                        return // jobs channel closed
+                    }
+                    err := processJob(job)
+                    select {
+                    case results <- Result{JobID: job.ID, Err: err}:
+                    case <-ctx.Done():
+                        return
+                    }
+                case <-ctx.Done():
+                    return
+                }
+            }
+        }()
+    }
+
+    go func() {
+        wg.Wait()
+        close(results)
+    }()
+
+    return results
+}
+```
+
+## Dynamic sizing with semaphore
+
+When you can't predetermine the right worker count, a [Semaphore](/go/patterns/concurrency/semaphore) gives you the same bound with a simpler structure: spawn one goroutine per job but limit how many run concurrently.
+
+```go
+// Semaphore alternative — simpler when job count is known at call time.
+sem := make(chan struct{}, maxConcurrent)
+var wg sync.WaitGroup
+
+for _, job := range jobs {
+    wg.Add(1)
+    sem <- struct{}{} // acquire
+    go func(j Job) {
+        defer wg.Done()
+        defer func() { <-sem }() // release
+        processJob(j)
+    }(job)
+}
+wg.Wait()
+```
+
+## Choosing pool size
+
+```go
+// CPU-bound work (encoding, hashing, image processing):
+workers := runtime.NumCPU()
+
+// I/O-bound work (HTTP calls, DB queries, file I/O):
+// workers can exceed CPUs; tune to the downstream limit.
+// DB connection pool of 20 → no point in more than 20 workers.
+workers := db.Stats().MaxOpenConnections
+```
+
+Profile under realistic load. Too few workers: throughput is bounded by worker count. Too many: memory pressure and contention on shared resources.
+
+## When to Use
+
+- Processing a bounded or streaming queue of independent jobs concurrently.
+- You need to cap goroutine count regardless of input volume.
+- Downstream resources (DB connections, API rate limits) impose a natural concurrency ceiling.
+- Jobs are long-lived or I/O-heavy — the pool amortises goroutine startup cost.
+
+## When Not to Use
+
+- Jobs are extremely fast (microseconds). Channel overhead and goroutine scheduling may exceed the work itself; a simple loop is faster.
+- You need strict ordering of results. Pool workers return results out of order; tag jobs with sequence numbers if order matters.
+- You need one goroutine per connection or client (e.g., a network server). Use `go handleConn(conn)` directly; each connection is long-lived and its goroutine exits naturally.
+
+## Tradeoffs
+
+The jobs channel buffer size is a design decision. An unbuffered channel means the sender blocks until a worker is free — providing natural backpressure. A large buffer absorbs bursts but can accumulate jobs faster than workers process them, growing memory unboundedly if the sender is much faster than the workers. A buffer of one to two times the worker count is a reasonable starting point. The pool's error model is also a choice: the simple version above collects errors into the results channel and lets the consumer decide what to do. The [Errgroup](/go/patterns/concurrency/errgroup) pattern cancels the whole pool on the first error, which is appropriate when any failure makes the rest of the work pointless.
+
+## Related Patterns
+
+- **Fan-out / Fan-in** — a more dynamic alternative: spawn one goroutine per item, limited by a semaphore, rather than a fixed pool. Better when job count is known upfront and the pool size would be awkward to predetermine.
+- **Semaphore** — a lighter-weight alternative that bounds concurrency without a persistent pool of goroutines.
+- **Pipeline** — a pool is often one stage in a larger pipeline; the jobs channel is the pipeline's upstream and the results channel is its downstream.
+- **Done Channel** — the cancellation discipline; essential for pools that need to shut down before the jobs channel is exhausted.
+- **Errgroup** — cancel all workers on the first error rather than collecting all errors into a results channel.
