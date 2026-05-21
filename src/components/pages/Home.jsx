@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch, Shuffle } from "lucide-react";
+import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch, Shuffle, Compass } from "lucide-react";
 import { getReadPatterns } from "@/lib/readingProgress";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 
@@ -116,6 +116,16 @@ export default function Home({
             {heroBody}
           </ReactMarkdown>
         )}
+      </div>
+
+      <div className="mb-10 flex items-center gap-3 p-4 rounded-lg border border-border bg-muted/30">
+        <Compass className="h-4 w-4 text-primary shrink-0" />
+        <p className="text-sm text-muted-foreground">
+          Not sure which pattern you need?{" "}
+          <a href={`${basePath}/finder`} className="text-primary font-medium hover:underline underline-offset-2">
+            Answer a few questions →
+          </a>
+        </p>
       </div>
 
       {readCount > 0 && (
