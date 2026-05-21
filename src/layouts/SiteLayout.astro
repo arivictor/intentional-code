@@ -12,6 +12,7 @@ interface Props {
   canonical?: string;
   jsonLd?: object;
   basePath?: string;
+  homePath?: string;
   sectionLabel?: string;
   themeStorageKey?: string;
   categoryOrder?: string[];
@@ -30,6 +31,7 @@ const {
   canonical,
   jsonLd,
   basePath = GO_SECTION.basePath,
+  homePath = GO_SECTION.homePath ?? GO_SECTION.basePath,
   sectionLabel = GO_SECTION.label,
   themeStorageKey = GO_SECTION.themeStorageKey,
   categoryOrder = GO_SECTION.categoryOrder,
@@ -47,7 +49,7 @@ const [patterns, philosophy, categories] = await Promise.all([
 ]);
 
 const navData = buildNavData(patterns, categories, { categoryOrder });
-const navOrder = buildNavOrder(patterns, philosophy, categories, { basePath, categoryOrder, philosophyOrder });
+const navOrder = buildNavOrder(patterns, philosophy, categories, { basePath, homePath, categoryOrder, philosophyOrder });
 const searchData = buildSearchData(patterns, philosophy, categories, { basePath });
 const philosophyItems = philosophy
   .filter((entry) => entry.id !== 'index')
@@ -89,6 +91,7 @@ const sectionKey = basePath.replace(/^\//, '') || 'go';
       searchData={searchData}
       pathname={pathname}
       basePath={basePath}
+      homePath={homePath}
       sectionLabel={sectionLabel}
       themeStorageKey={themeStorageKey}
       client:load
@@ -99,6 +102,7 @@ const sectionKey = basePath.replace(/^\//, '') || 'go';
         navOrder={navOrder}
         pathname={pathname}
         basePath={basePath}
+        homePath={homePath}
         sectionLabel={sectionLabel}
         philosophyItems={philosophyItems}
         client:load

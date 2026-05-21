@@ -49,6 +49,7 @@ export default function Sidebar({
   navData,
   pathname,
   basePath = "/go",
+  homePath = basePath,
   sectionLabel = "Go",
   philosophyItems = [],
 }) {
@@ -63,7 +64,7 @@ export default function Sidebar({
   const nav = (
     <nav className="py-4 px-2 overflow-y-auto h-full scrollbar-thin" aria-label="Site navigation">
       <div className="mb-4">
-        <SidebarLink href={basePath} active={pathname === basePath}>
+        <SidebarLink href={homePath} active={pathname === homePath}>
           <span className="flex items-center gap-2"><BookOpen className="h-3.5 w-3.5" /> Home</span>
         </SidebarLink>
       </div>

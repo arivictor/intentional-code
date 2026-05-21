@@ -40,56 +40,55 @@ export default function PhilosophyDetailPage({ slug, title, description, markdow
   return (
     <>
       <ReadingProgressBar />
-      <div className="max-w-5xl mx-auto px-6 py-12">
-        <Breadcrumbs pathname={pathname} patternMap={{}} />
+      <div className="flex gap-8 max-w-5xl mx-auto px-6 py-12">
+        <div className="flex-1 min-w-0">
+          <Breadcrumbs pathname={pathname} patternMap={{}} />
 
-        <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-2">{title}</h1>
-        <p className="text-lg text-muted-foreground leading-relaxed mb-4">{description}</p>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-2">{title}</h1>
+          <p className="text-lg text-muted-foreground leading-relaxed mb-4">{description}</p>
 
-        <div className="flex items-center gap-3 mb-8">
-          <button
-            onClick={toggleRead}
-            className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-all ${
-              read
-                ? "bg-primary/10 border-primary/30 text-primary font-medium"
-                : "border-border text-muted-foreground hover:border-primary/30 hover:text-primary"
-            }`}
-          >
-            {read ? <CheckCircle className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
-            {read ? "Read" : "Mark as read"}
-          </button>
-          {markdown && (
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" />
-              {readingTime(markdown)}
-            </span>
-          )}
-          <button
-            onClick={handleBookmark}
-            title={bookmarked ? "Remove bookmark" : "Bookmark this page"}
-            className={`flex items-center gap-1.5 text-sm transition-colors ${
-              bookmarked ? "text-primary" : "text-muted-foreground hover:text-primary"
-            }`}
-          >
-            <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-current" : ""}`} />
-            <span>{bookmarked ? "Saved" : "Save for later"}</span>
-          </button>
-        </div>
-
-        <div className="flex gap-8">
-          <div className="flex-1 min-w-0">
-            <HighlightableContent highlights={highlights} onAdd={handleAddHighlight} onRemove={handleRemoveHighlight}>
-              <div className="prose-pattern">
-                <ReactMarkdown rehypePlugins={[rehypeSlug]} components={{ code: MarkdownCode, h1: () => null }}>
-                  {markdown}
-                </ReactMarkdown>
-              </div>
-            </HighlightableContent>
+          <div className="flex items-center gap-3 mb-8">
+            <button
+              onClick={toggleRead}
+              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-all ${
+                read
+                  ? "bg-primary/10 border-primary/30 text-primary font-medium"
+                  : "border-border text-muted-foreground hover:border-primary/30 hover:text-primary"
+              }`}
+            >
+              {read ? <CheckCircle className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
+              {read ? "Read" : "Mark as read"}
+            </button>
+            {markdown && (
+              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                {readingTime(markdown)}
+              </span>
+            )}
+            <button
+              onClick={handleBookmark}
+              title={bookmarked ? "Remove bookmark" : "Bookmark this page"}
+              className={`flex items-center gap-1.5 text-sm transition-colors ${
+                bookmarked ? "text-primary" : "text-muted-foreground hover:text-primary"
+              }`}
+            >
+              <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-current" : ""}`} />
+              <span>{bookmarked ? "Saved" : "Save for later"}</span>
+            </button>
           </div>
-          <TableOfContents />
+
+          <HighlightableContent highlights={highlights} onAdd={handleAddHighlight} onRemove={handleRemoveHighlight}>
+            <div className="prose-pattern">
+              <ReactMarkdown rehypePlugins={[rehypeSlug]} components={{ code: MarkdownCode, h1: () => null }}>
+                {markdown}
+              </ReactMarkdown>
+            </div>
+          </HighlightableContent>
+
+          <PrevNextNav navOrder={navOrder} pathname={pathname} />
         </div>
 
-        <PrevNextNav navOrder={navOrder} pathname={pathname} />
+        <TableOfContents />
       </div>
     </>
   );

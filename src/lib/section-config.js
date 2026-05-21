@@ -1,6 +1,7 @@
 export const GO_SECTION = {
   key: 'go',
   basePath: '/go',
+  homePath: '/',
   label: 'Go',
   themeStorageKey: 'go-patterns-theme',
   summaryLabel: 'Go Idiom',

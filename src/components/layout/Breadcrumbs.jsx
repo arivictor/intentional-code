@@ -27,7 +27,8 @@ export default function Breadcrumbs({ pathname = "", patternMap = {} }) {
   if (segments.length === 0) return null;
 
   const section = segments[0];
-  const homePath = ["go", "python", "terraform"].includes(section) ? `/${section}` : "/go";
+  const SECTION_HOME_PATHS = { go: "/", python: "/python", terraform: "/terraform" };
+  const homePath = SECTION_HOME_PATHS[section] ?? `/${section}`;
   const crumbs = [{ label: "Home", path: homePath }];
   let currentPath = "";
 

@@ -38,12 +38,13 @@ export function buildNavData(patterns, categories, options = {}) {
 export function buildNavOrder(patterns, philosophy, categories, options = {}) {
   const {
     basePath = '/go',
+    homePath = basePath,
     categoryOrder = [],
     philosophyOrder = [],
   } = options;
 
   const order = [
-    { path: basePath, title: 'Home' },
+    { path: homePath, title: 'Home' },
     { path: `${basePath}/philosophy`, title: 'Philosophy' },
   ];
 

@@ -6,6 +6,7 @@ export default function TopBar({
   searchData,
   pathname = "/go",
   basePath = "/go",
+  homePath = basePath,
   sectionLabel = "Go",
   themeStorageKey = "go-patterns-theme",
 }) {
@@ -49,7 +50,7 @@ export default function TopBar({
             <Menu className="h-5 w-5" />
           </Button>
 
-          <a href={basePath} className="flex items-center gap-2 font-semibold text-foreground shrink-0">
+          <a href={homePath} className="flex items-center gap-2 font-semibold text-foreground shrink-0">
             <span className="text-primary font-mono text-lg font-bold">{sectionLabel}</span>
             <span className="hidden sm:inline text-sm tracking-tight">Intentional Code</span>
           </a>
