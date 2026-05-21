@@ -73,6 +73,7 @@
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^6.26.0",
     "recharts": "^2.15.4",
+    "rehype-autolink-headings": "^7.1.0",
     "rehype-highlight": "^7.0.2",
     "rehype-slug": "^6.0.0",
     "sonner": "^2.0.1",

@@ -123,6 +123,20 @@
   .prose-pattern h3 {
     @apply text-xl font-semibold mt-8 mb-3 text-foreground;
   }
+  .prose-pattern h2,
+  .prose-pattern h3 {
+    @apply relative;
+  }
+  .prose-pattern .heading-anchor {
+    @apply absolute opacity-0 text-muted-foreground no-underline font-normal transition-opacity inline-flex items-center;
+    left: -1.25rem;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .prose-pattern h2:hover .heading-anchor,
+  .prose-pattern h3:hover .heading-anchor {
+    @apply opacity-100;
+  }
   .prose-pattern p {
     @apply mb-4 text-foreground/85 leading-7;
   }
