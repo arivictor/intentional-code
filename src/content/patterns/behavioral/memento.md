@@ -52,74 +52,61 @@ Create a memento type with unexported fields in the same package as the originat
 ```
 
 ```go
-// editor.go
-package editor
+package main
 
 import "fmt"
 
-// Memento — unexported fields protect the snapshot.
 type Memento struct {
-    content string
-    cursor  int
+	content string
+	cursor  int
 }
 
-// Editor is the originator.
 type Editor struct {
-    content string
-    cursor  int
+	content string
+	cursor  int
 }
 
 func NewEditor(content string) *Editor {
-    return &Editor{content: content}
+	return &Editor{content: content}
 }
 
 func (e *Editor) Type(text string) {
-    e.content = e.content[:e.cursor] + text + e.content[e.cursor:]
-    e.cursor += len(text)
+	e.content = e.content[:e.cursor] + text + e.content[e.cursor:]
+	e.cursor += len(text)
 }
 
 func (e *Editor) Save() *Memento {
-    return &Memento{content: e.content, cursor: e.cursor}
+	return &Memento{content: e.content, cursor: e.cursor}
 }
 
 func (e *Editor) Restore(m *Memento) {
-    e.content = m.content
-    e.cursor = m.cursor
+	e.content = m.content
+	e.cursor = m.cursor
 }
 
 func (e *Editor) String() string {
-    return fmt.Sprintf("%q (cursor=%d)", e.content, e.cursor)
+	return fmt.Sprintf("%q (cursor=%d)", e.content, e.cursor)
 }
-```
-
-```go
-// main.go
-package main
-
-import (
-    "editor"
-    "fmt"
-)
 
 func main() {
-    e := editor.NewEditor("Hello")
-    fmt.Println("Start:  ", e)
+	e := NewEditor("Hello")
+	fmt.Println("Start:     ", e)
 
-    snap1 := e.Save()
+	snap1 := e.Save()
 
-    e.Type(" World")
-    fmt.Println("After type:", e)
+	e.Type(" World")
+	fmt.Println("After type:", e)
 
-    snap2 := e.Save()
+	snap2 := e.Save()
 
-    e.Type("!!!")
-    fmt.Println("After more:", e)
+	e.Type("!!!")
+	fmt.Println("After more:", e)
 
-    e.Restore(snap2)
-    fmt.Println("Undo:      ", e)
+	e.Restore(snap2)
+	fmt.Println("Undo:      ", e)
 
-    e.Restore(snap1)
-    fmt.Println("Undo again:", e)
+	e.Restore(snap1)
+	fmt.Println("Undo again:", e)
 }
 ```
 

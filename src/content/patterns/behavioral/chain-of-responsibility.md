@@ -46,92 +46,74 @@ Request ──► Validate ──► RateLimit ──► Auth ──► Handle
 ```
 
 ```go
-// pipeline.go
-package pipeline
+package main
 
 import "fmt"
 
 type Request struct {
-    IP    string
-    Token string
-    Body  string
+	IP    string
+	Token string
+	Body  string
 }
 
 type Response struct {
-    Status int
-    Body   string
+	Status int
+	Body   string
 }
 
-// Handler processes a request. Returning false stops the chain.
 type Handler func(req Request) (Response, bool)
 
-// Chain runs handlers in order until one stops the chain.
 func Chain(handlers ...Handler) Handler {
-    return func(req Request) (Response, bool) {
-        for _, h := range handlers {
-            resp, cont := h(req)
-            if !cont {
-                return resp, false
-            }
-        }
-        return Response{Status: 500, Body: "no handler responded"}, false
-    }
+	return func(req Request) (Response, bool) {
+		for _, h := range handlers {
+			resp, cont := h(req)
+			if !cont {
+				return resp, false
+			}
+		}
+		return Response{Status: 500, Body: "no handler responded"}, false
+	}
 }
 
 func Validate(req Request) (Response, bool) {
-    if req.Body == "" {
-        return Response{Status: 400, Body: "empty body"}, false
-    }
-    return Response{}, true
+	if req.Body == "" {
+		return Response{Status: 400, Body: "empty body"}, false
+	}
+	return Response{}, true
 }
 
 func RateLimit(req Request) (Response, bool) {
-    if req.IP == "blocked" {
-        return Response{Status: 429, Body: "rate limited"}, false
-    }
-    return Response{}, true
+	if req.IP == "blocked" {
+		return Response{Status: 429, Body: "rate limited"}, false
+	}
+	return Response{}, true
 }
 
 func RequireAuth(req Request) (Response, bool) {
-    if req.Token == "" {
-        return Response{Status: 401, Body: "unauthorized"}, false
-    }
-    return Response{}, true
+	if req.Token == "" {
+		return Response{Status: 401, Body: "unauthorized"}, false
+	}
+	return Response{}, true
 }
 
 func Handle(req Request) (Response, bool) {
-    return Response{Status: 200, Body: fmt.Sprintf("ok: %s", req.Body)}, false
+	return Response{Status: 200, Body: fmt.Sprintf("ok: %s", req.Body)}, false
 }
-```
-
-```go
-// main.go
-package main
-
-import (
-    "fmt"
-    "pipeline"
-)
 
 func main() {
-    handler := pipeline.Chain(
-        pipeline.Validate,
-        pipeline.RateLimit,
-        pipeline.RequireAuth,
-        pipeline.Handle,
-    )
+	handler := Chain(Validate, RateLimit, RequireAuth, Handle)
 
-    requests := []pipeline.Request{
-        {IP: "1.2.3.4", Token: "valid", Body: "hello"},
-        {IP: "1.2.3.4", Token: "", Body: "hello"},
-        {IP: "blocked", Token: "valid", Body: "hello"},
-        {IP: "1.2.3.4", Token: "valid", Body: ""},
-    }
+	requests := []Request{
+		{IP: "1.2.3.4", Token: "valid", Body: "hello"},
+		{IP: "1.2.3.4", Token: "", Body: "hello"},
+		{IP: "blocked", Token: "valid", Body: "hello"},
+		{IP: "1.2.3.4", Token: "valid", Body: ""},
+	}
 
-    for _, req := range requests {
-        resp, _ := handler(req)
-        fmt.Printf("[%d] %s\n", resp.Status, resp.Body)
-    }
+	for _, req := range requests {
+		resp, _ := handler(req)
+		fmt.Printf("[%d] %s\n", resp.Status, resp.Body)
+	}
 }
 ```
 

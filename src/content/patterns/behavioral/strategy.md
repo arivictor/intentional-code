@@ -49,81 +49,75 @@ Notify(msg, Console) ──► func(string) error
 The function-type approach — idiomatic Go:
 
 ```go
-// notify.go
-package notify
+package main
 
 import "fmt"
 
-// NotifyFunc is a strategy for delivering a message.
 type NotifyFunc func(msg string) error
 
 func Email(msg string) error {
-    fmt.Println("email:", msg)
-    return nil
+	fmt.Println("email:", msg)
+	return nil
 }
 
 func SMS(msg string) error {
-    fmt.Println("sms:", msg)
-    return nil
+	fmt.Println("sms:", msg)
+	return nil
 }
 
 func Console(msg string) error {
-    fmt.Println(msg)
-    return nil
+	fmt.Println(msg)
+	return nil
 }
 
-// Notify runs the strategy. The caller decides how delivery works.
 func Notify(msg string, send NotifyFunc) error {
-    return send(msg)
+	return send(msg)
 }
-```
 
-```go
-// main.go
-notify.Notify("server started", notify.Console)
-notify.Notify("order placed",   notify.Email)
-notify.Notify("login alert",    notify.SMS)
+func main() {
+	Notify("server started", Console)
+	Notify("order placed", Email)
+	Notify("login alert", SMS)
+}
 ```
 
 When a strategy needs configuration or multiple methods, use an interface instead:
 
 ```go
-// notifier.go
-package notify
+package main
 
 import "fmt"
 
-// Notifier — interface form for strategies that carry state.
 type Notifier interface {
-    Send(msg string) error
+	Send(msg string) error
 }
 
 type EmailNotifier struct {
-    From string
-    To   string
+	From string
+	To   string
 }
 
 func (n *EmailNotifier) Send(msg string) error {
-    fmt.Printf("[email] %s → %s: %s\n", n.From, n.To, msg)
-    return nil
+	fmt.Printf("[email] %s → %s: %s\n", n.From, n.To, msg)
+	return nil
 }
 
 type SlackNotifier struct {
-    Channel string
+	Channel string
 }
 
 func (n *SlackNotifier) Send(msg string) error {
-    fmt.Printf("[slack] #%s: %s\n", n.Channel, msg)
-    return nil
+	fmt.Printf("[slack] #%s: %s\n", n.Channel, msg)
+	return nil
 }
-```
 
-```go
-email := &notify.EmailNotifier{From: "ops@example.com", To: "team@example.com"}
-slack := &notify.SlackNotifier{Channel: "alerts"}
+func main() {
+	email := &EmailNotifier{From: "ops@example.com", To: "team@example.com"}
+	slack := &SlackNotifier{Channel: "alerts"}
 
-email.Send("deploy complete")
-slack.Send("deploy complete")
+	email.Send("deploy complete")
+	slack.Send("deploy complete")
+}
 ```
 
 > In Go, a function type IS a strategy. `sort.Slice(data, func(i, j int) bool { ... })` is Strategy. You don't need an interface for single-method strategies — a `func` type is simpler and more idiomatic.

@@ -44,159 +44,158 @@ Wrap the call in a circuit breaker. The breaker tracks failures and opens after 
             └──────────────────────────────────────────────────────────┘
 ```
 
-A minimal circuit breaker implementation:
+A minimal circuit breaker and weather service, merged into a single runnable file:
 
 ```go
-// circuitbreaker/breaker.go
-package circuitbreaker
+package main
 
 import (
-    "errors"
-    "sync"
-    "time"
+	"context"
+	"errors"
+	"fmt"
+	"sync"
+	"time"
 )
+
+// --- Circuit Breaker ---
 
 var ErrCircuitOpen = errors.New("circuit breaker is open")
 
 type State int
 
 const (
-    StateClosed   State = iota // normal operation
-    StateOpen                  // fast-failing
-    StateHalfOpen              // one probe allowed
+	StateClosed   State = iota // normal operation
+	StateOpen                  // fast-failing
+	StateHalfOpen              // one probe allowed
 )
 
 type Breaker struct {
-    mu          sync.Mutex
-    state       State
-    failures    int
-    threshold   int
-    cooldown    time.Duration
-    lastFailure time.Time
+	mu          sync.Mutex
+	state       State
+	failures    int
+	threshold   int
+	cooldown    time.Duration
+	lastFailure time.Time
 }
 
-func New(threshold int, cooldown time.Duration) *Breaker {
-    return &Breaker{
-        threshold: threshold,
-        cooldown:  cooldown,
-        state:     StateClosed,
-    }
+func NewBreaker(threshold int, cooldown time.Duration) *Breaker {
+	return &Breaker{
+		threshold: threshold,
+		cooldown:  cooldown,
+		state:     StateClosed,
+	}
 }
 
 func (b *Breaker) Do(fn func() error) error {
-    b.mu.Lock()
-    switch b.state {
-    case StateOpen:
-        if time.Since(b.lastFailure) < b.cooldown {
-            b.mu.Unlock()
-            return ErrCircuitOpen
-        }
-        // Cooldown expired, allow one probe
-        b.state = StateHalfOpen
-    }
-    b.mu.Unlock()
+	b.mu.Lock()
+	switch b.state {
+	case StateOpen:
+		if time.Since(b.lastFailure) < b.cooldown {
+			b.mu.Unlock()
+			return ErrCircuitOpen
+		}
+		// Cooldown expired, allow one probe
+		b.state = StateHalfOpen
+	}
+	b.mu.Unlock()
 
-    err := fn()
+	err := fn()
 
-    b.mu.Lock()
-    defer b.mu.Unlock()
+	b.mu.Lock()
+	defer b.mu.Unlock()
 
-    if err != nil {
-        b.failures++
-        b.lastFailure = time.Now()
-        if b.state == StateHalfOpen || b.failures >= b.threshold {
-            b.state = StateOpen
-        }
-        return err
-    }
+	if err != nil {
+		b.failures++
+		b.lastFailure = time.Now()
+		if b.state == StateHalfOpen || b.failures >= b.threshold {
+			b.state = StateOpen
+		}
+		return err
+	}
 
-    // Success
-    b.failures = 0
-    b.state = StateClosed
-    return nil
+	// Success
+	b.failures = 0
+	b.state = StateClosed
+	return nil
 }
 
-func (b *Breaker) State() State {
-    b.mu.Lock()
-    defer b.mu.Unlock()
-    return b.state
+func (b *Breaker) BreakerState() State {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.state
 }
-```
 
-Wrap any external call through the breaker:
-
-```go
-// service/weather.go
-package service
-
-import (
-    "context"
-    "fmt"
-    "myapp/circuitbreaker"
-    "time"
-)
+// --- Weather Service ---
 
 type TempAPI interface {
-    FetchTemp(ctx context.Context, city string) (float64, error)
+	FetchTemp(ctx context.Context, city string) (float64, error)
 }
 
 type WeatherService struct {
-    api     TempAPI
-    breaker *circuitbreaker.Breaker
+	api     TempAPI
+	breaker *Breaker
 }
 
 func NewWeatherService(api TempAPI) *WeatherService {
-    return &WeatherService{
-        api:     api,
-        breaker: circuitbreaker.New(5, 10*time.Second),
-    }
+	return &WeatherService{
+		api:     api,
+		breaker: NewBreaker(3, 5*time.Second),
+	}
 }
 
 func (s *WeatherService) CurrentTemp(ctx context.Context, city string) (float64, error) {
-    var temp float64
-    err := s.breaker.Do(func() error {
-        var e error
-        temp, e = s.api.FetchTemp(ctx, city)
-        return e
-    })
-    if err != nil {
-        if err == circuitbreaker.ErrCircuitOpen {
-            return 0, fmt.Errorf("weather API unavailable, please retry later")
-        }
-        return 0, fmt.Errorf("fetching temperature: %w", err)
-    }
-    return temp, nil
+	var temp float64
+	err := s.breaker.Do(func() error {
+		var e error
+		temp, e = s.api.FetchTemp(ctx, city)
+		return e
+	})
+	if err != nil {
+		if errors.Is(err, ErrCircuitOpen) {
+			return 0, fmt.Errorf("weather API unavailable, please retry later")
+		}
+		return 0, fmt.Errorf("fetching temperature: %w", err)
+	}
+	return temp, nil
+}
+
+// --- Stub API (simulates a failing upstream) ---
+
+type stubAPI struct{ calls int }
+
+func (a *stubAPI) FetchTemp(_ context.Context, city string) (float64, error) {
+	a.calls++
+	if a.calls <= 4 {
+		return 0, fmt.Errorf("upstream timeout")
+	}
+	return 22.5, nil
+}
+
+func main() {
+	api := &stubAPI{}
+	svc := NewWeatherService(api)
+	ctx := context.Background()
+
+	for i := 0; i < 7; i++ {
+		temp, err := svc.CurrentTemp(ctx, "London")
+		if err != nil {
+			fmt.Printf("call %d: error: %v\n", i+1, err)
+		} else {
+			fmt.Printf("call %d: %.1f°C\n", i+1, temp)
+		}
+	}
 }
 ```
 
-Expose breaker state for health checks and metrics:
-
-```go
-// adapter/http/health_handler.go
-package httpadapter
-
-import (
-    "encoding/json"
-    "myapp/circuitbreaker"
-    "net/http"
-)
-
-type HealthHandler struct {
-    weatherBreaker *circuitbreaker.Breaker
-}
-
-func (h *HealthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-    state := "closed"
-    if h.weatherBreaker.State() == circuitbreaker.StateOpen {
-        state = "open"
-        w.WriteHeader(503)
-    } else if h.weatherBreaker.State() == circuitbreaker.StateHalfOpen {
-        state = "half-open"
-    }
-    json.NewEncoder(w).Encode(map[string]string{
-        "weather_circuit": state,
-    })
-}
+```
+// Output:
+// call 1: error: fetching temperature: upstream timeout
+// call 2: error: fetching temperature: upstream timeout
+// call 3: error: fetching temperature: upstream timeout
+// call 4: error: weather API unavailable, please retry later
+// call 5: error: weather API unavailable, please retry later
+// call 6: error: weather API unavailable, please retry later
+// call 7: error: weather API unavailable, please retry later
 ```
 
 For production use, prefer a well-tested library like `sony/gobreaker`:

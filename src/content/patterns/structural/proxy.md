@@ -63,78 +63,62 @@ Create a proxy that implements the same interface. It lazily loads the image on 
 ```
 
 ```go
-// proxy.go
-package images
-
-import (
-    "fmt"
-    "sync"
-)
-
-// Image is the interface both loader and proxy implement.
-type Image interface {
-    Display() string
-}
-
-// RealImage loads and displays an image from disk.
-type RealImage struct {
-    path string
-    data []byte
-}
-
-func (img *RealImage) load() {
-    fmt.Printf("[disk] loading %s\n", img.path)
-    img.data = []byte("...binary data...")
-}
-
-func (img *RealImage) Display() string {
-    return fmt.Sprintf("[image: %s (%d bytes)]", img.path, len(img.data))
-}
-
-// ImageProxy adds lazy loading and access control.
-type ImageProxy struct {
-    path string
-    real *RealImage
-    once sync.Once
-    role string
-}
-
-func NewImageProxy(path, role string) *ImageProxy {
-    return &ImageProxy{path: path, role: role}
-}
-
-func (p *ImageProxy) Display() string {
-    if p.role != "viewer" && p.role != "admin" {
-        return fmt.Sprintf("[access denied: role %q cannot view images]", p.role)
-    }
-    p.once.Do(func() {
-        p.real = &RealImage{path: p.path}
-        p.real.load()
-    })
-    return p.real.Display()
-}
-```
-
-```go
-// main.go
 package main
 
 import (
-    "images"
-    "fmt"
+	"fmt"
+	"sync"
 )
 
-func show(img images.Image) {
-    fmt.Println(img.Display())
+type Image interface {
+	Display() string
 }
 
-func main() {
-    viewer := images.NewImageProxy("photo.jpg", "viewer")
-    guest := images.NewImageProxy("photo.jpg", "guest")
+type RealImage struct {
+	path string
+	data []byte
+}
 
-    show(viewer) // triggers lazy load on first call
-    show(viewer) // uses cached real image
-    show(guest)  // denied
+func (img *RealImage) load() {
+	fmt.Printf("[disk] loading %s\n", img.path)
+	img.data = []byte("...binary data...")
+}
+
+func (img *RealImage) Display() string {
+	return fmt.Sprintf("[image: %s (%d bytes)]", img.path, len(img.data))
+}
+
+type ImageProxy struct {
+	path string
+	real *RealImage
+	once sync.Once
+	role string
+}
+
+func NewImageProxy(path, role string) *ImageProxy {
+	return &ImageProxy{path: path, role: role}
+}
+
+func (p *ImageProxy) Display() string {
+	if p.role != "viewer" && p.role != "admin" {
+		return fmt.Sprintf("[access denied: role %q cannot view images]", p.role)
+	}
+	p.once.Do(func() {
+		p.real = &RealImage{path: p.path}
+		p.real.load()
+	})
+	return p.real.Display()
+}
+
+func show(img Image) { fmt.Println(img.Display()) }
+
+func main() {
+	viewer := NewImageProxy("photo.jpg", "viewer")
+	guest := NewImageProxy("photo.jpg", "guest")
+
+	show(viewer) // triggers lazy load on first call
+	show(viewer) // uses cached real image
+	show(guest)  // denied
 }
 ```
 

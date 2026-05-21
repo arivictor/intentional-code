@@ -63,102 +63,80 @@ Define a `State` interface. Each state is a struct implementing the interface. T
 ```
 
 ```go
-// conn.go
-package conn
+package main
 
 import "fmt"
 
 type State interface {
-    Connect(c *Connection)
-    Send(c *Connection, data string)
-    Disconnect(c *Connection)
-    String() string
+	Connect(c *Connection)
+	Send(c *Connection, data string)
+	Disconnect(c *Connection)
+	String() string
 }
 
 type Connection struct {
-    state State
+	state State
 }
 
 func NewConnection() *Connection {
-    return &Connection{state: &DisconnectedState{}}
+	return &Connection{state: &DisconnectedState{}}
 }
 
 func (c *Connection) SetState(s State) {
-    fmt.Printf("  → %s\n", s)
-    c.state = s
+	fmt.Printf("  → %s\n", s)
+	c.state = s
 }
 
-func (c *Connection) Connect()            { c.state.Connect(c) }
-func (c *Connection) Send(data string)    { c.state.Send(c, data) }
-func (c *Connection) Disconnect()         { c.state.Disconnect(c) }
+func (c *Connection) Connect()         { c.state.Connect(c) }
+func (c *Connection) Send(data string) { c.state.Send(c, data) }
+func (c *Connection) Disconnect()      { c.state.Disconnect(c) }
 
-// DisconnectedState — idle, no connection.
 type DisconnectedState struct{}
 
 func (s *DisconnectedState) Connect(c *Connection) {
-    fmt.Println("Dialing...")
-    c.SetState(&ConnectingState{})
+	fmt.Println("Dialing...")
+	c.SetState(&ConnectingState{})
 }
-func (s *DisconnectedState) Send(c *Connection, data string) {
-    fmt.Println("Cannot send: not connected.")
-}
-func (s *DisconnectedState) Disconnect(c *Connection) {
-    fmt.Println("Already disconnected.")
-}
-func (s *DisconnectedState) String() string { return "disconnected" }
+func (s *DisconnectedState) Send(c *Connection, data string) { fmt.Println("Cannot send: not connected.") }
+func (s *DisconnectedState) Disconnect(c *Connection)        { fmt.Println("Already disconnected.") }
+func (s *DisconnectedState) String() string                  { return "disconnected" }
 
-// ConnectingState — dial in progress.
 type ConnectingState struct{}
 
-func (s *ConnectingState) Connect(c *Connection) {
-    fmt.Println("Already connecting.")
-}
-func (s *ConnectingState) Send(c *Connection, data string) {
-    fmt.Println("Cannot send: still connecting.")
-}
+func (s *ConnectingState) Connect(c *Connection)          { fmt.Println("Already connecting.") }
+func (s *ConnectingState) Send(c *Connection, data string) { fmt.Println("Cannot send: still connecting.") }
 func (s *ConnectingState) Disconnect(c *Connection) {
-    fmt.Println("Aborting connection.")
-    c.SetState(&DisconnectedState{})
+	fmt.Println("Aborting connection.")
+	c.SetState(&DisconnectedState{})
 }
 func (s *ConnectingState) String() string { return "connecting" }
 
-// ConnectedState — live connection.
 type ConnectedState struct{}
 
-func (s *ConnectedState) Connect(c *Connection) {
-    fmt.Println("Already connected.")
-}
+func (s *ConnectedState) Connect(c *Connection) { fmt.Println("Already connected.") }
 func (s *ConnectedState) Send(c *Connection, data string) {
-    fmt.Printf("Sending: %q\n", data)
+	fmt.Printf("Sending: %q\n", data)
 }
 func (s *ConnectedState) Disconnect(c *Connection) {
-    fmt.Println("Closing connection.")
-    c.SetState(&DisconnectedState{})
+	fmt.Println("Closing connection.")
+	c.SetState(&DisconnectedState{})
 }
 func (s *ConnectedState) String() string { return "connected" }
-```
-
-```go
-// main.go
-package main
-
-import "conn"
 
 func main() {
-    c := conn.NewConnection()
+	c := NewConnection()
 
-    c.Send("hello")       // blocked — not connected
-    c.Connect()           // transition: disconnected → connecting
-    c.Connect()           // no-op
-    c.Send("hello")       // blocked — still connecting
+	c.Send("hello")
+	c.Connect()
+	c.Connect()
+	c.Send("hello")
 
-    // simulate dial completing
-    c.SetState(&conn.ConnectedState{})
+	c.SetState(&ConnectedState{})
 
-    c.Send("hello")       // delivered
-    c.Send("world")       // delivered
-    c.Disconnect()        // transition: connected → disconnected
-    c.Send("hello")       // blocked again
+	c.Send("hello")
+	c.Send("world")
+	c.Disconnect()
+	c.Send("hello")
 }
 ```
 

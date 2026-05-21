@@ -64,76 +64,125 @@ HTTP Request
 └──────────────┘
 ```
 
+The following is a single runnable file that combines the Model, View, and Controller layers and exercises them with `httptest`:
+
 ```go
-// domain/order.go — Model: pure business logic, no HTTP
-package domain
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+)
+
+// --- Model: pure domain types and business rules, no HTTP ---
 
 type Order struct {
-    ID         string
-    CustomerID string
-    Total      float64
+	ID         string
+	CustomerID string
+	Total      float64
+}
+
+// OrderRepository is a stub interface for this example.
+type OrderRepository interface {
+	Find(ctx context.Context, id string) (Order, error)
 }
 
 type OrderService interface {
-    GetOrder(ctx context.Context, id string) (Order, error)
+	GetOrder(ctx context.Context, id string) (Order, error)
 }
 
 type orderService struct{ repo OrderRepository }
 
 func (s *orderService) GetOrder(ctx context.Context, id string) (Order, error) {
-    order, err := s.repo.Find(ctx, id)
-    if err != nil {
-        return Order{}, err
-    }
-    if order.Total > 1000 {
-        order.Total = order.Total * 0.9
-    }
-    return order, nil
+	order, err := s.repo.Find(ctx, id)
+	if err != nil {
+		return Order{}, err
+	}
+	// Business rule: 10% discount on orders over $1000
+	if order.Total > 1000 {
+		order.Total = order.Total * 0.9
+	}
+	return order, nil
 }
-```
 
-```go
-// api/order_view.go — View: a ViewModel shaped for the response
-package api
+// --- View: a ViewModel shaped for the response ---
 
 type OrderResponse struct {
-    ID    string `json:"id"`
-    Total string `json:"total"`
+	ID    string `json:"id"`
+	Total string `json:"total"`
 }
 
-func orderToResponse(o domain.Order) OrderResponse {
-    return OrderResponse{
-        ID:    o.ID,
-        Total: fmt.Sprintf("$%.2f", o.Total),
-    }
+func orderToResponse(o Order) OrderResponse {
+	return OrderResponse{
+		ID:    o.ID,
+		Total: fmt.Sprintf("$%.2f", o.Total),
+	}
 }
-```
 
-```go
-// api/order_handler.go — Controller: coordinates, does not decide
-package api
+// --- Controller: coordinates, does not decide ---
 
 type OrderHandler struct {
-    orders domain.OrderService
+	orders OrderService
 }
 
 func (h *OrderHandler) GetOrder(w http.ResponseWriter, r *http.Request) {
-    order, err := h.orders.GetOrder(r.Context(), r.PathValue("id"))
-    if err != nil {
-        http.Error(w, "not found", http.StatusNotFound)
-        return
-    }
-    json.NewEncoder(w).Encode(orderToResponse(order))
+	id := r.URL.Query().Get("id")
+	order, err := h.orders.GetOrder(r.Context(), id)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	json.NewEncoder(w).Encode(orderToResponse(order))
+}
+
+// --- Stub repository ---
+
+type stubOrderRepo struct{}
+
+func (r *stubOrderRepo) Find(_ context.Context, id string) (Order, error) {
+	orders := map[string]Order{
+		"ord-1": {ID: "ord-1", CustomerID: "cust-1", Total: 1200},
+		"ord-2": {ID: "ord-2", CustomerID: "cust-2", Total: 80},
+	}
+	o, ok := orders[id]
+	if !ok {
+		return Order{}, fmt.Errorf("order %s not found", id)
+	}
+	return o, nil
+}
+
+func main() {
+	svc := &orderService{repo: &stubOrderRepo{}}
+	h := &OrderHandler{orders: svc}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/orders", h.GetOrder)
+
+	// Exercise the handler with httptest — no real server needed.
+	for _, id := range []string{"ord-1", "ord-2", "ord-99"} {
+		req := httptest.NewRequest(http.MethodGet, "/orders?id="+id, nil)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		fmt.Printf("GET /orders?id=%s → %d %s", id, w.Code, w.Body.String())
+	}
 }
 ```
 
-**MVP for a CLI or terminal UI:**
+```
+// Output:
+// GET /orders?id=ord-1 → 200 {"id":"ord-1","total":"$1080.00"}
+// GET /orders?id=ord-2 → 200 {"id":"ord-2","total":"$80.00"}
+// GET /orders?id=ord-99 → 404 not found
+```
+
+**MVP for a CLI or terminal UI** (illustrative — shows the Presenter pattern with a View interface):
 
 ```go
-// presenter/order.go — Presenter with a View interface
-package presenter
-
-import "myapp/domain"
+// Presenter with a View interface — the View is injected, making the Presenter
+// testable without any real I/O. In a real project these would be separate files.
 
 type OrderView interface {
     ShowOrder(id, total string)
@@ -141,7 +190,7 @@ type OrderView interface {
 }
 
 type OrderPresenter struct {
-    orders domain.OrderService
+    orders OrderService
     view   OrderView
 }
 
@@ -153,25 +202,12 @@ func (p *OrderPresenter) Load(ctx context.Context, id string) {
     }
     p.view.ShowOrder(order.ID, fmt.Sprintf("$%.2f", order.Total))
 }
-```
 
-The `OrderView` interface makes the Presenter testable without any I/O:
-
-```go
-// presenter/order_test.go
+// In a test, inject a captureView to assert output without printing.
 type captureView struct{ id, total, errMsg string }
 
 func (v *captureView) ShowOrder(id, total string) { v.id = id; v.total = total }
 func (v *captureView) ShowError(msg string)       { v.errMsg = msg }
-
-func TestPresenterAppliesDiscount(t *testing.T) {
-    view := &captureView{}
-    p := &OrderPresenter{orders: fakeService{total: 1200}, view: view}
-    p.Load(context.Background(), "ord-1")
-    if view.total != "$1080.00" {
-        t.Fatalf("got %s", view.total)
-    }
-}
 ```
 
 ## When to Use

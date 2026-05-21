@@ -20,12 +20,11 @@ A goroutine ranges over a channel, doing work and sending results. If the caller
 
 ```go
 // Leaks a goroutine if the caller stops reading from results.
-func startWorker(jobs <-chan Job) <-chan Result {
-    results := make(chan Result)
+func startWorker(jobs <-chan string) <-chan string {
+    results := make(chan string)
     go func() {
         for job := range jobs {
-            // If nobody reads results, this send blocks forever.
-            results <- process(job)
+            results <- "done:" + job // blocks forever if nobody reads
         }
     }()
     return results
@@ -37,36 +36,49 @@ func startWorker(jobs <-chan Job) <-chan Result {
 Before `context.Context` was standard, the idiom was a plain `done` channel. Closing `done` broadcasts to all goroutines selecting on it.
 
 ```go
-func startWorker(done <-chan struct{}, jobs <-chan Job) <-chan Result {
-    results := make(chan Result)
-    go func() {
-        defer close(results)
-        for {
-            select {
-            case job, ok := <-jobs:
-                if !ok {
-                    return
-                }
-                r := process(job)
-                select {
-                case results <- r:
-                case <-done:
-                    return
-                }
-            case <-done:
-                return
-            }
-        }
-    }()
-    return results
+package main
+
+import "fmt"
+
+func startWorker(done <-chan struct{}, jobs <-chan string) <-chan string {
+	results := make(chan string)
+	go func() {
+		defer close(results)
+		for {
+			select {
+			case job, ok := <-jobs:
+				if !ok {
+					return
+				}
+				select {
+				case results <- "done:" + job:
+				case <-done:
+					return
+				}
+			case <-done:
+				return
+			}
+		}
+	}()
+	return results
 }
 
-// Caller
-done := make(chan struct{})
-results := startWorker(done, jobs)
+func main() {
+	jobs := make(chan string, 3)
+	jobs <- "job-1"
+	jobs <- "job-2"
+	jobs <- "job-3"
+	close(jobs)
 
-// To stop all workers:
-close(done) // broadcasts to every goroutine selecting on done
+	done := make(chan struct{})
+	results := startWorker(done, jobs)
+
+	for r := range results {
+		fmt.Println(r)
+	}
+
+	close(done)
+}
 ```
 
 Closing a channel is the right primitive here because a send would wake only one reader, but a close wakes all of them simultaneously.
@@ -76,41 +88,49 @@ Closing a channel is the right primitive here because a send would wake only one
 `context.Context` supersedes the raw done channel. It carries a deadline, a cancellation signal, and arbitrary values. Pass it as the first argument to any function that starts goroutines.
 
 ```go
-func startWorker(ctx context.Context, jobs <-chan Job) <-chan Result {
-    results := make(chan Result)
-    go func() {
-        defer close(results)
-        for {
-            select {
-            case job, ok := <-jobs:
-                if !ok {
-                    return
-                }
-                r := process(job)
-                select {
-                case results <- r:
-                case <-ctx.Done():
-                    return
-                }
-            case <-ctx.Done():
-                return
-            }
-        }
-    }()
-    return results
+package main
+
+import (
+	"context"
+	"fmt"
+)
+
+func startWorker(ctx context.Context, jobs <-chan string) <-chan string {
+	results := make(chan string)
+	go func() {
+		defer close(results)
+		for {
+			select {
+			case job, ok := <-jobs:
+				if !ok {
+					return
+				}
+				select {
+				case results <- "done:" + job:
+				case <-ctx.Done():
+					return
+				}
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return results
 }
 
-// Caller — cancel all workers when done or on error
-ctx, cancel := context.WithCancel(context.Background())
-defer cancel() // always call cancel to release resources
+func main() {
+	jobs := make(chan string, 3)
+	jobs <- "job-1"
+	jobs <- "job-2"
+	jobs <- "job-3"
+	close(jobs)
 
-results := startWorker(ctx, jobs)
-for r := range results {
-    if r.Err != nil {
-        cancel() // stop all workers
-        break
-    }
-    handle(r)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	for r := range startWorker(ctx, jobs) {
+		fmt.Println(r)
+	}
 }
 ```
 

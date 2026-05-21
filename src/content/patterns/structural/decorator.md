@@ -64,91 +64,77 @@ Request ──► Logging ──► Auth ──► CORS ──► Handler
 Each layer: func(http.Handler) http.Handler
 ```
 
-Each middleware is a function that wraps a handler:
-
 ```go
-// middleware.go
-package middleware
-
-import (
-    "log"
-    "net/http"
-    "time"
-)
-
-// Logging logs the method, path, and duration of each request.
-func Logging(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        start := time.Now()
-        next.ServeHTTP(w, r)
-        log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(start))
-    })
-}
-
-// Auth rejects requests without an Authorization header.
-func Auth(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        if r.Header.Get("Authorization") == "" {
-            http.Error(w, "unauthorized", http.StatusUnauthorized)
-            return
-        }
-        next.ServeHTTP(w, r)
-    })
-}
-
-// CORS adds permissive CORS headers.
-func CORS(next http.Handler) http.Handler {
-    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        w.Header().Set("Access-Control-Allow-Origin", "*")
-        w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE")
-        next.ServeHTTP(w, r)
-    })
-}
-```
-
-Compose them in any combination:
-
-```go
-// main.go
 package main
 
 import (
-    "middleware"
-    "net/http"
+	"fmt"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"time"
 )
 
+func Logging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		log.Printf("%s %s %v", r.Method, r.URL.Path, time.Since(start))
+	})
+}
+
+func Auth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") == "" {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func CORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		next.ServeHTTP(w, r)
+	})
+}
+
 func itemsHandler(w http.ResponseWriter, r *http.Request) {
-    w.Write([]byte("items: []"))
+	w.Write([]byte("items: []"))
 }
 
 func healthHandler(w http.ResponseWriter, r *http.Request) {
-    w.Write([]byte("ok"))
+	w.Write([]byte("ok"))
+}
+
+func send(handler http.Handler, path, token string) {
+	req := httptest.NewRequest("GET", path, nil)
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	fmt.Printf("%s %d %s\n", path, rec.Code, rec.Body.String())
 }
 
 func main() {
-    // Items: logging + auth + CORS
-    items := middleware.Logging(
-        middleware.Auth(
-            middleware.CORS(
-                http.HandlerFunc(itemsHandler),
-            ),
-        ),
-    )
+	items := Logging(Auth(CORS(http.HandlerFunc(itemsHandler))))
+	health := Logging(http.HandlerFunc(healthHandler))
 
-    // Health: logging only — no auth, no CORS
-    health := middleware.Logging(http.HandlerFunc(healthHandler))
-
-    http.Handle("/items", items)
-    http.Handle("/health", health)
-    http.ListenAndServe(":8080", nil)
+	send(items, "/items", "token")   // 200
+	send(items, "/items", "")        // 401 — no auth
+	send(health, "/health", "")      // 200 — no auth required
 }
 ```
 
 Output:
 
 ```
-GET /health 52µs
-GET /items 128µs
+/items 200 items: []
+/items 401 unauthorized
+
+/health 200 ok
 ```
 
 ## When to Use

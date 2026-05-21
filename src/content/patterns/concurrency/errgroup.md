@@ -44,31 +44,53 @@ for err := range errs {
 
 `errgroup` with a derived context handles both concerns: collecting errors and cancelling on failure.
 
+> **Setup**: `go mod init example && go get golang.org/x/sync/errgroup && go run main.go`
+
 ```go
-import "golang.org/x/sync/errgroup"
+package main
+
+import (
+	"context"
+	"fmt"
+
+	"golang.org/x/sync/errgroup"
+)
+
+func fetchUsers(ctx context.Context) error {
+	fmt.Println("fetched users")
+	return nil
+}
+
+func fetchOrders(ctx context.Context) error {
+	fmt.Println("fetched orders")
+	return nil
+}
+
+func fetchProducts(ctx context.Context) error {
+	fmt.Println("fetched products")
+	return nil
+}
 
 func fetchAll(ctx context.Context) error {
-    g, ctx := errgroup.WithContext(ctx)
+	g, ctx := errgroup.WithContext(ctx)
 
-    g.Go(func() error {
-        return fetchUsers(ctx)
-    })
-    g.Go(func() error {
-        return fetchOrders(ctx)
-    })
-    g.Go(func() error {
-        return fetchProducts(ctx)
-    })
+	g.Go(func() error { return fetchUsers(ctx) })
+	g.Go(func() error { return fetchOrders(ctx) })
+	g.Go(func() error { return fetchProducts(ctx) })
 
-    // Blocks until all goroutines complete or the first error occurs.
-    // The derived ctx is cancelled as soon as any g.Go func returns non-nil.
-    return g.Wait()
+	return g.Wait()
+}
+
+func main() {
+	if err := fetchAll(context.Background()); err != nil {
+		fmt.Println("error:", err)
+	}
 }
 ```
 
-When `fetchOrders` returns an error:
+When any `g.Go` func returns an error:
 1. `errgroup` cancels the derived `ctx`
-2. `fetchUsers` and `fetchProducts` receive `ctx.Done()` on their next blocking operation and return early
+2. The other goroutines receive `ctx.Done()` on their next blocking operation and return early
 3. `g.Wait()` returns as soon as all goroutines have exited
 4. The first non-nil error is returned to the caller
 
@@ -77,26 +99,52 @@ When `fetchOrders` returns an error:
 `errgroup` doesn't have a built-in results mechanism, but since `g.Go` closures can capture variables, you can collect results by writing to a pre-allocated slice (safe when each goroutine writes to its own index) or by using a mutex.
 
 ```go
+package main
+
+import (
+	"context"
+	"fmt"
+
+	"golang.org/x/sync/errgroup"
+)
+
+type User struct{ ID, Name string }
+
+func fetchUser(ctx context.Context, id string) (User, error) {
+	return User{ID: id, Name: "User-" + id}, nil
+}
+
 func fetchAll(ctx context.Context, ids []string) ([]User, error) {
-    users := make([]User, len(ids))
-    g, ctx := errgroup.WithContext(ctx)
+	users := make([]User, len(ids))
+	g, ctx := errgroup.WithContext(ctx)
 
-    for i, id := range ids {
-        i, id := i, id // capture loop variables
-        g.Go(func() error {
-            u, err := fetchUser(ctx, id)
-            if err != nil {
-                return fmt.Errorf("fetching user %s: %w", id, err)
-            }
-            users[i] = u // safe: each goroutine writes to a unique index
-            return nil
-        })
-    }
+	for i, id := range ids {
+		i, id := i, id
+		g.Go(func() error {
+			u, err := fetchUser(ctx, id)
+			if err != nil {
+				return fmt.Errorf("fetching user %s: %w", id, err)
+			}
+			users[i] = u
+			return nil
+		})
+	}
 
-    if err := g.Wait(); err != nil {
-        return nil, err
-    }
-    return users, nil
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	return users, nil
+}
+
+func main() {
+	users, err := fetchAll(context.Background(), []string{"u1", "u2", "u3"})
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	for _, u := range users {
+		fmt.Printf("%+v\n", u)
+	}
 }
 ```
 

@@ -67,18 +67,43 @@ func fetchWithTimeout(url string) ([]byte, error) {
 When waiting for a result from a goroutine, select on both the result channel and the deadline.
 
 ```go
-func processWithTimeout(job Job) (Result, error) {
-    results := make(chan Result, 1)
-    go func() {
-        results <- compute(job) // put result in buffered channel
-    }()
+package main
 
-    select {
-    case r := <-results:
-        return r, nil
-    case <-time.After(10 * time.Second):
-        return Result{}, errors.New("computation timed out")
-    }
+import (
+	"errors"
+	"fmt"
+	"time"
+)
+
+type Job struct{ ID string }
+type Result struct{ Value string }
+
+func compute(job Job) Result {
+	time.Sleep(50 * time.Millisecond) // simulate work
+	return Result{Value: "result-" + job.ID}
+}
+
+func processWithTimeout(job Job) (Result, error) {
+	results := make(chan Result, 1)
+	go func() {
+		results <- compute(job)
+	}()
+
+	select {
+	case r := <-results:
+		return r, nil
+	case <-time.After(1 * time.Second):
+		return Result{}, errors.New("computation timed out")
+	}
+}
+
+func main() {
+	r, err := processWithTimeout(Job{ID: "42"})
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println(r.Value)
 }
 ```
 

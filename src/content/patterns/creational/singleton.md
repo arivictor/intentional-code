@@ -62,26 +62,31 @@ The Go-idiomatic singleton uses `sync.Once` for thread-safe lazy initialization.
 The `sync.Once` singleton — correct but not recommended:
 
 ```go
-// singleton.go
-package applog
+package main
 
 import (
-    "io"
-    "log"
-    "sync"
+	"io"
+	"log"
+	"os"
+	"sync"
 )
 
 var (
-    logger *log.Logger
-    once   sync.Once
+	logger *log.Logger
+	once   sync.Once
 )
 
-// GetLogger returns the application-wide logger, initializing it on first call.
 func GetLogger(out io.Writer) *log.Logger {
-    once.Do(func() {
-        logger = log.New(out, "[app] ", log.LstdFlags)
-    })
-    return logger
+	once.Do(func() {
+		logger = log.New(out, "[app] ", log.LstdFlags)
+	})
+	return logger
+}
+
+func main() {
+	l := GetLogger(os.Stdout)
+	l.Println("server started")
+	l.Println("request received")
 }
 ```
 
@@ -90,48 +95,36 @@ This works correctly — thread-safe, lazy, and the output writer is configurabl
 The recommended alternative: dependency injection. Pass the logger as a parameter.
 
 ```go
-// handler.go
-package web
-
-import "fmt"
-
-// Logger is a minimal interface — any *log.Logger satisfies it.
-type Logger interface {
-    Printf(format string, v ...any)
-}
-
-// Handler depends on an injected logger, not a global.
-type Handler struct {
-    log Logger
-}
-
-func NewHandler(log Logger) *Handler {
-    return &Handler{log: log}
-}
-
-func (h *Handler) ServeHTTP(path string) {
-    h.log.Printf("request: %s", path)
-    fmt.Println("ok")
-}
-```
-
-Wire it up in main — the only place that knows about the real logger:
-
-```go
-// main.go
 package main
 
 import (
-    "log"
-    "os"
-    "web"
+	"fmt"
+	"log"
+	"os"
 )
 
-func main() {
-    logger := log.New(os.Stdout, "[app] ", log.LstdFlags)
+type Logger interface {
+	Printf(format string, v ...any)
+}
 
-    h := web.NewHandler(logger)
-    h.ServeHTTP("/api/users")
+type Handler struct {
+	log Logger
+}
+
+func NewHandler(log Logger) *Handler {
+	return &Handler{log: log}
+}
+
+func (h *Handler) ServeHTTP(path string) {
+	h.log.Printf("request: %s", path)
+	fmt.Println("ok")
+}
+
+func main() {
+	logger := log.New(os.Stdout, "[app] ", log.LstdFlags)
+
+	h := NewHandler(logger)
+	h.ServeHTTP("/api/users")
 }
 ```
 

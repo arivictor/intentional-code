@@ -57,56 +57,47 @@ Create a wrapper struct that holds the library client and implements your interf
 ```
 
 ```go
-// adapter.go
-package log
+package main
 
-// StructuredAdapter adapts StructuredLogger to the Logger interface.
+import "fmt"
+
+type Logger interface {
+	Log(msg string)
+}
+
+// Third-party library — you can't change this.
+type StructuredLogger struct{}
+
+func (l *StructuredLogger) LogFields(fields map[string]string) {
+	fmt.Println("[structured]", fields)
+}
+
+// Adapter makes StructuredLogger satisfy Logger.
 type StructuredAdapter struct {
-    logger *StructuredLogger
+	logger *StructuredLogger
 }
 
 func NewStructuredAdapter() *StructuredAdapter {
-    return &StructuredAdapter{logger: &StructuredLogger{}}
+	return &StructuredAdapter{logger: &StructuredLogger{}}
 }
 
 func (a *StructuredAdapter) Log(msg string) {
-    a.logger.LogFields(map[string]string{"msg": msg})
+	a.logger.LogFields(map[string]string{"msg": msg})
 }
-```
-
-Application code uses the interface — no knowledge of the library:
-
-```go
-// main.go
-package main
-
-import "log"
-
-func run(logger log.Logger) {
-    logger.Log("server started")
-    logger.Log("request received")
-}
-
-func main() {
-    adapter := log.NewStructuredAdapter()
-    run(adapter)
-
-    // Swap in a plain implementation for tests — same interface, different adaptee.
-    run(&log.ConsoleLogger{})
-}
-```
-
-```go
-// console.go
-package log
-
-import "fmt"
 
 // ConsoleLogger is a simple Logger for tests or development.
 type ConsoleLogger struct{}
 
-func (c *ConsoleLogger) Log(msg string) {
-    fmt.Println(msg)
+func (c *ConsoleLogger) Log(msg string) { fmt.Println(msg) }
+
+func run(logger Logger) {
+	logger.Log("server started")
+	logger.Log("request received")
+}
+
+func main() {
+	run(NewStructuredAdapter())
+	run(&ConsoleLogger{})
 }
 ```
 

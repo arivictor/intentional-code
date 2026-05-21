@@ -48,59 +48,80 @@ func processSequential(paths []string) error {
 Build a pipeline with three stages. Each stage runs in a goroutine and communicates via channels. The stages overlap automatically: while the reader is fetching file N+1, the parser is processing file N, and the writer is inserting file N-1.
 
 ```go
-// Stage 1 — emit file paths onto a channel.
-func generate(paths []string) <-chan string {
-    out := make(chan string)
-    go func() {
-        defer close(out)
-        for _, p := range paths {
-            out <- p
-        }
-    }()
-    return out
+package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+type Record struct {
+	Name  string
+	Score int
 }
 
-// Stage 2 — read each path and emit its contents.
-func readFiles(paths <-chan string) <-chan []byte {
-    out := make(chan []byte)
-    go func() {
-        defer close(out)
-        for path := range paths {
-            data, err := os.ReadFile(path)
-            if err != nil {
-                continue // simplified; see error handling below
-            }
-            out <- data
-        }
-    }()
-    return out
+func parse(data []byte) (Record, error) {
+	// stub: "Alice:95" → Record{Name:"Alice", Score:95}
+	parts := strings.SplitN(string(data), ":", 2)
+	if len(parts) != 2 {
+		return Record{}, fmt.Errorf("bad format: %s", data)
+	}
+	var score int
+	fmt.Sscan(parts[1], &score)
+	return Record{Name: parts[0], Score: score}, nil
 }
 
-// Stage 3 — parse each file's bytes into a Record.
+func dbInsert(r Record) error {
+	fmt.Printf("  inserted: %+v\n", r)
+	return nil
+}
+
+func generate(inputs []string) <-chan string {
+	out := make(chan string)
+	go func() {
+		defer close(out)
+		for _, s := range inputs {
+			out <- s
+		}
+	}()
+	return out
+}
+
+func readRecords(lines <-chan string) <-chan []byte {
+	out := make(chan []byte)
+	go func() {
+		defer close(out)
+		for line := range lines {
+			out <- []byte(line)
+		}
+	}()
+	return out
+}
+
 func parseRecords(files <-chan []byte) <-chan Record {
-    out := make(chan Record)
-    go func() {
-        defer close(out)
-        for data := range files {
-            r, err := parse(data)
-            if err != nil {
-                continue
-            }
-            out <- r
-        }
-    }()
-    return out
+	out := make(chan Record)
+	go func() {
+		defer close(out)
+		for data := range files {
+			r, err := parse(data)
+			if err != nil {
+				continue
+			}
+			out <- r
+		}
+	}()
+	return out
 }
 
-// Wire the pipeline together.
-func processFiles(paths []string) error {
-    records := parseRecords(readFiles(generate(paths)))
-    for r := range records {
-        if err := db.Insert(r); err != nil {
-            return err
-        }
-    }
-    return nil
+func main() {
+	inputs := []string{"Alice:95", "Bob:87", "Charlie:91"}
+
+	records := parseRecords(readRecords(generate(inputs)))
+	for r := range records {
+		if err := dbInsert(r); err != nil {
+			fmt.Println("insert error:", err)
+		}
+	}
 }
 ```
 

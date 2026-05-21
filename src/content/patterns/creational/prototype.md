@@ -58,66 +58,53 @@ Implement a `Clone()` method that explicitly deep-copies every reference type. M
 ```
 
 ```go
-// request.go
-package httptpl
-
-type Request struct {
-    Method  string
-    URL     string
-    Headers map[string]string
-    Tags    []string
-}
-
-func (r *Request) Clone() *Request {
-    clone := &Request{
-        Method: r.Method,
-        URL:    r.URL,
-    }
-
-    if r.Headers != nil {
-        clone.Headers = make(map[string]string, len(r.Headers))
-        for k, v := range r.Headers {
-            clone.Headers[k] = v
-        }
-    }
-
-    if r.Tags != nil {
-        clone.Tags = make([]string, len(r.Tags))
-        copy(clone.Tags, r.Tags)
-    }
-
-    return clone
-}
-```
-
-```go
-// main.go
 package main
 
 import "fmt"
 
+type Request struct {
+	Method  string
+	URL     string
+	Headers map[string]string
+	Tags    []string
+}
+
+func (r *Request) Clone() *Request {
+	clone := &Request{Method: r.Method, URL: r.URL}
+	if r.Headers != nil {
+		clone.Headers = make(map[string]string, len(r.Headers))
+		for k, v := range r.Headers {
+			clone.Headers[k] = v
+		}
+	}
+	if r.Tags != nil {
+		clone.Tags = make([]string, len(r.Tags))
+		copy(clone.Tags, r.Tags)
+	}
+	return clone
+}
+
 func main() {
-    base := &Request{
-        Method:  "GET",
-        Headers: map[string]string{"Accept": "application/json"},
-        Tags:    []string{"v1"},
-    }
+	base := &Request{
+		Method:  "GET",
+		Headers: map[string]string{"Accept": "application/json"},
+		Tags:    []string{"v1"},
+	}
 
-    // Each request starts as an independent copy of the template.
-    users := base.Clone()
-    users.URL = "/users"
-    users.Headers["Authorization"] = "Bearer token-a"
-    users.Tags = append(users.Tags, "users")
+	users := base.Clone()
+	users.URL = "/users"
+	users.Headers["Authorization"] = "Bearer token-a"
+	users.Tags = append(users.Tags, "users")
 
-    metrics := base.Clone()
-    metrics.URL = "/metrics"
-    metrics.Headers["Authorization"] = "Bearer token-b"
+	metrics := base.Clone()
+	metrics.URL = "/metrics"
+	metrics.Headers["Authorization"] = "Bearer token-b"
 
-    fmt.Printf("base headers:    %v\n", base.Headers)
-    fmt.Printf("users headers:   %v\n", users.Headers)
-    fmt.Printf("metrics headers: %v\n", metrics.Headers)
-    fmt.Printf("base tags:       %v\n", base.Tags)
-    fmt.Printf("users tags:      %v\n", users.Tags)
+	fmt.Printf("base headers:    %v\n", base.Headers)
+	fmt.Printf("users headers:   %v\n", users.Headers)
+	fmt.Printf("metrics headers: %v\n", metrics.Headers)
+	fmt.Printf("base tags:       %v\n", base.Tags)
+	fmt.Printf("users tags:      %v\n", users.Tags)
 }
 ```
 

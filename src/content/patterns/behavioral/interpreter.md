@@ -51,113 +51,86 @@ Map each grammar rule to a struct implementing `Expression`. The tree structure 
 ```
 
 ```go
-// expr/expression.go
-package expr
+package main
+
+import "fmt"
 
 type Context map[string]any
 
 type Expression interface {
-    Interpret(ctx Context) bool
+	Interpret(ctx Context) bool
 }
-```
-
-Terminal expressions handle the leaf cases:
-
-```go
-// expr/compare.go
-package expr
-
-import "fmt"
 
 type CompareExpr struct {
-    Field string
-    Op    string
-    Value any
+	Field string
+	Op    string
+	Value any
 }
 
 func (c *CompareExpr) Interpret(ctx Context) bool {
-    actual, ok := ctx[c.Field]
-    if !ok {
-        return false
-    }
-    switch c.Op {
-    case "==":
-        return fmt.Sprintf("%v", actual) == fmt.Sprintf("%v", c.Value)
-    case ">":
-        a, aOK := toFloat(actual)
-        b, bOK := toFloat(c.Value)
-        return aOK && bOK && a > b
-    case "<":
-        a, aOK := toFloat(actual)
-        b, bOK := toFloat(c.Value)
-        return aOK && bOK && a < b
-    }
-    return false
+	actual, ok := ctx[c.Field]
+	if !ok {
+		return false
+	}
+	switch c.Op {
+	case "==":
+		return fmt.Sprintf("%v", actual) == fmt.Sprintf("%v", c.Value)
+	case ">":
+		a, aOK := toFloat(actual)
+		b, bOK := toFloat(c.Value)
+		return aOK && bOK && a > b
+	case "<":
+		a, aOK := toFloat(actual)
+		b, bOK := toFloat(c.Value)
+		return aOK && bOK && a < b
+	}
+	return false
 }
 
 func toFloat(v any) (float64, bool) {
-    switch n := v.(type) {
-    case int:
-        return float64(n), true
-    case float64:
-        return n, true
-    }
-    return 0, false
+	switch n := v.(type) {
+	case int:
+		return float64(n), true
+	case float64:
+		return n, true
+	}
+	return 0, false
 }
-```
-
-Composite expressions combine children recursively:
-
-```go
-// expr/logical.go
-package expr
 
 type AndExpr struct{ Left, Right Expression }
 
 func (a *AndExpr) Interpret(ctx Context) bool {
-    return a.Left.Interpret(ctx) && a.Right.Interpret(ctx)
+	return a.Left.Interpret(ctx) && a.Right.Interpret(ctx)
 }
 
 type OrExpr struct{ Left, Right Expression }
 
 func (o *OrExpr) Interpret(ctx Context) bool {
-    return o.Left.Interpret(ctx) || o.Right.Interpret(ctx)
+	return o.Left.Interpret(ctx) || o.Right.Interpret(ctx)
 }
 
 type NotExpr struct{ Child Expression }
 
 func (n *NotExpr) Interpret(ctx Context) bool {
-    return !n.Child.Interpret(ctx)
+	return !n.Child.Interpret(ctx)
 }
-```
-
-Building and using the expression tree:
-
-```go
-// main.go
-package main
-
-import (
-    "fmt"
-    "myapp/expr"
-)
 
 func main() {
-    // Represents: age > 30 AND status == "active"
-    rule := &expr.AndExpr{
-        Left:  &expr.CompareExpr{Field: "age", Op: ">", Value: 30},
-        Right: &expr.CompareExpr{Field: "status", Op: "==", Value: "active"},
-    }
+	// age > 30 AND status == "active"
+	rule := &AndExpr{
+		Left:  &CompareExpr{Field: "age", Op: ">", Value: 30},
+		Right: &CompareExpr{Field: "status", Op: "==", Value: "active"},
+	}
 
-    records := []expr.Context{
-        {"age": 35, "status": "active"},
-        {"age": 25, "status": "active"},
-        {"age": 40, "status": "inactive"},
-    }
+	records := []Context{
+		{"age": 35, "status": "active"},
+		{"age": 25, "status": "active"},
+		{"age": 40, "status": "inactive"},
+	}
 
-    for _, rec := range records {
-        fmt.Printf("%v → %v\n", rec, rule.Interpret(rec))
-    }
+	for _, rec := range records {
+		fmt.Printf("%v → %v\n", rec, rule.Interpret(rec))
+	}
 }
 ```
 

@@ -59,114 +59,75 @@ Visitor interface               Node interface
                                 Add.Accept(v)    → v.VisitAdd(n)
 ```
 
-Define the visitor and element interfaces:
-
 ```go
-// expr.go
-package expr
+package main
 
 import "fmt"
 
 type Visitor interface {
-    VisitNumber(n *Number) interface{}
-    VisitAdd(n *Add) interface{}
-    VisitMul(n *Mul) interface{}
+	VisitNumber(n *Number) any
+	VisitAdd(n *Add) any
+	VisitMul(n *Mul) any
 }
 
 type Node interface {
-    Accept(v Visitor) interface{}
+	Accept(v Visitor) any
 }
 
 type Number struct{ Value float64 }
 type Add struct{ Left, Right Node }
 type Mul struct{ Left, Right Node }
 
-func (n *Number) Accept(v Visitor) interface{} { return v.VisitNumber(n) }
-func (n *Add) Accept(v Visitor) interface{}    { return v.VisitAdd(n) }
-func (n *Mul) Accept(v Visitor) interface{}    { return v.VisitMul(n) }
-```
+func (n *Number) Accept(v Visitor) any { return v.VisitNumber(n) }
+func (n *Add) Accept(v Visitor) any    { return v.VisitAdd(n) }
+func (n *Mul) Accept(v Visitor) any    { return v.VisitMul(n) }
 
-Each operation is a Visitor — no node modifications needed:
-
-```go
-// visitors.go
-package expr
-
-import "fmt"
-
-// Evaluator computes the numeric result.
 type Evaluator struct{}
 
-func (e *Evaluator) VisitNumber(n *Number) interface{} { return n.Value }
-func (e *Evaluator) VisitAdd(n *Add) interface{} {
-    return n.Left.Accept(e).(float64) + n.Right.Accept(e).(float64)
+func (e *Evaluator) VisitNumber(n *Number) any { return n.Value }
+func (e *Evaluator) VisitAdd(n *Add) any {
+	return n.Left.Accept(e).(float64) + n.Right.Accept(e).(float64)
 }
-func (e *Evaluator) VisitMul(n *Mul) interface{} {
-    return n.Left.Accept(e).(float64) * n.Right.Accept(e).(float64)
+func (e *Evaluator) VisitMul(n *Mul) any {
+	return n.Left.Accept(e).(float64) * n.Right.Accept(e).(float64)
 }
 
-// Printer produces a string representation.
 type Printer struct{}
 
-func (p *Printer) VisitNumber(n *Number) interface{} {
-    return fmt.Sprintf("%.0f", n.Value)
+func (p *Printer) VisitNumber(n *Number) any { return fmt.Sprintf("%.0f", n.Value) }
+func (p *Printer) VisitAdd(n *Add) any {
+	return fmt.Sprintf("(%s + %s)", n.Left.Accept(p).(string), n.Right.Accept(p).(string))
 }
-func (p *Printer) VisitAdd(n *Add) interface{} {
-    return fmt.Sprintf("(%s + %s)", n.Left.Accept(p).(string), n.Right.Accept(p).(string))
+func (p *Printer) VisitMul(n *Mul) any {
+	return fmt.Sprintf("(%s * %s)", n.Left.Accept(p).(string), n.Right.Accept(p).(string))
 }
-func (p *Printer) VisitMul(n *Mul) interface{} {
-    return fmt.Sprintf("(%s * %s)", n.Left.Accept(p).(string), n.Right.Accept(p).(string))
+
+func main() {
+	// (3 + 4) * 2
+	tree := &Mul{
+		Left:  &Add{Left: &Number{Value: 3}, Right: &Number{Value: 4}},
+		Right: &Number{Value: 2},
+	}
+
+	fmt.Println("Expression:", tree.Accept(&Printer{}))
+	fmt.Println("Result:    ", tree.Accept(&Evaluator{}))
 }
 ```
 
 And here's the simpler type-switch alternative for comparison:
 
 ```go
-// typeswitch_alt.go
-package expr
-
-import "fmt"
-
-// TypeSwitch alternative — simpler, but adding a new node type
-// requires modifying every switch.
 func Eval(n Node) float64 {
-    switch v := n.(type) {
-    case *Number:
-        return v.Value
-    case *Add:
-        return Eval(v.Left) + Eval(v.Right)
-    case *Mul:
-        return Eval(v.Left) * Eval(v.Right)
-    default:
-        panic(fmt.Sprintf("unknown node: %T", n))
-    }
-}
-```
-
-```go
-// main.go
-package main
-
-import (
-    "expr"
-    "fmt"
-)
-
-func main() {
-    // (3 + 4) * 2
-    tree := &expr.Mul{
-        Left: &expr.Add{
-            Left:  &expr.Number{Value: 3},
-            Right: &expr.Number{Value: 4},
-        },
-        Right: &expr.Number{Value: 2},
-    }
-
-    eval := &expr.Evaluator{}
-    printer := &expr.Printer{}
-
-    fmt.Println("Expression:", tree.Accept(printer))
-    fmt.Println("Result:    ", tree.Accept(eval))
+	switch v := n.(type) {
+	case *Number:
+		return v.Value
+	case *Add:
+		return Eval(v.Left) + Eval(v.Right)
+	case *Mul:
+		return Eval(v.Left) * Eval(v.Right)
+	default:
+		panic(fmt.Sprintf("unknown node: %T", n))
+	}
 }
 ```
 
