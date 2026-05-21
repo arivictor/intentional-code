@@ -36,21 +36,41 @@ wg.Wait()
 A buffered channel as a semaphore:
 
 ```go
-const maxConcurrent = 20
+package main
 
-sem := make(chan struct{}, maxConcurrent)
-var wg sync.WaitGroup
+import (
+	"fmt"
+	"sync"
+)
 
-for _, url := range urls {
-    wg.Add(1)
-    sem <- struct{}{} // acquire: blocks when 20 goroutines are already running
-    go func(u string) {
-        defer wg.Done()
-        defer func() { <-sem }() // release: always runs, even on panic
-        fetch(u)
-    }(url)
+func fetch(url string) {
+	fmt.Println("fetching:", url)
 }
-wg.Wait()
+
+func main() {
+	urls := []string{
+		"https://api.example.com/1",
+		"https://api.example.com/2",
+		"https://api.example.com/3",
+		"https://api.example.com/4",
+		"https://api.example.com/5",
+	}
+
+	const maxConcurrent = 3
+	sem := make(chan struct{}, maxConcurrent)
+	var wg sync.WaitGroup
+
+	for _, url := range urls {
+		wg.Add(1)
+		sem <- struct{}{} // acquire
+		go func(u string) {
+			defer wg.Done()
+			defer func() { <-sem }() // release
+			fetch(u)
+		}(url)
+	}
+	wg.Wait()
+}
 ```
 
 The acquire (`sem <- struct{}{}`) happens before the goroutine is spawned, in the loop goroutine. This ensures at most `maxConcurrent` goroutines are active at any time. The release (`<-sem`) is deferred so it runs even if `fetch` panics.

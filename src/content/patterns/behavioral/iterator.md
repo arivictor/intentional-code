@@ -69,89 +69,77 @@ With Go 1.23's range-over-func, define an iterator that yields values. Consumers
 ```
 
 ```go
-// tree.go
-package tree
-
-import "iter"
-
-type Node struct {
-    Value int
-    Left  *Node
-    Right *Node
-}
-
-// InOrder returns an iterator over the tree's values in sorted order.
-// iter.Seq[int] is func(yield func(int) bool).
-func (n *Node) InOrder() iter.Seq[int] {
-    return func(yield func(int) bool) {
-        if n == nil {
-            return
-        }
-        for v := range n.Left.InOrder() {
-            if !yield(v) {
-                return
-            }
-        }
-        if !yield(n.Value) {
-            return
-        }
-        for v := range n.Right.InOrder() {
-            if !yield(v) {
-                return
-            }
-        }
-    }
-}
-```
-
-Consumers use a plain for-range — no iterator boilerplate:
-
-```go
-// main.go
 package main
 
 import (
-    "fmt"
-    "tree"
+	"fmt"
+	"iter"
 )
 
+type Node struct {
+	Value int
+	Left  *Node
+	Right *Node
+}
+
+func (n *Node) InOrder() iter.Seq[int] {
+	return func(yield func(int) bool) {
+		if n == nil {
+			return
+		}
+		for v := range n.Left.InOrder() {
+			if !yield(v) {
+				return
+			}
+		}
+		if !yield(n.Value) {
+			return
+		}
+		for v := range n.Right.InOrder() {
+			if !yield(v) {
+				return
+			}
+		}
+	}
+}
+
 func main() {
-    root := &tree.Node{
-        Value: 4,
-        Left: &tree.Node{
-            Value: 2,
-            Left:  &tree.Node{Value: 1},
-            Right: &tree.Node{Value: 3},
-        },
-        Right: &tree.Node{
-            Value: 6,
-            Left:  &tree.Node{Value: 5},
-            Right: &tree.Node{Value: 7},
-        },
-    }
+	root := &Node{
+		Value: 4,
+		Left: &Node{
+			Value: 2,
+			Left:  &Node{Value: 1},
+			Right: &Node{Value: 3},
+		},
+		Right: &Node{
+			Value: 6,
+			Left:  &Node{Value: 5},
+			Right: &Node{Value: 7},
+		},
+	}
 
-    fmt.Print("In-order: ")
-    for v := range root.InOrder() {
-        fmt.Printf("%d ", v)
-    }
-    fmt.Println()
+	fmt.Print("In-order: ")
+	for v := range root.InOrder() {
+		fmt.Printf("%d ", v)
+	}
+	fmt.Println()
 
-    sum := 0
-    for v := range root.InOrder() {
-        sum += v
-    }
-    fmt.Println("Sum:", sum)
+	sum := 0
+	for v := range root.InOrder() {
+		sum += v
+	}
+	fmt.Println("Sum:", sum)
 
-    fmt.Print("First 3: ")
-    count := 0
-    for v := range root.InOrder() {
-        fmt.Printf("%d ", v)
-        count++
-        if count == 3 {
-            break
-        }
-    }
-    fmt.Println()
+	fmt.Print("First 3: ")
+	count := 0
+	for v := range root.InOrder() {
+		fmt.Printf("%d ", v)
+		count++
+		if count == 3 {
+			break
+		}
+	}
+	fmt.Println()
 }
 ```
 

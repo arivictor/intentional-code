@@ -62,96 +62,62 @@ Define a `Formatter` interface with a single method. Each format implements it i
 NewFormatter(name) ──► Formatter
 ```
 
-First, define the interface:
-
 ```go
-// formatter.go
-package log
-
-// Formatter converts a log level and message into an output string.
-type Formatter interface {
-    Format(level, msg string) string
-}
-```
-
-Each format is its own struct. They can live in separate files or even separate packages.
-
-```go
-// formatters.go
-package log
+package main
 
 import "fmt"
+
+type Formatter interface {
+	Format(level, msg string) string
+}
 
 type textFormatter struct{}
 
 func (f *textFormatter) Format(level, msg string) string {
-    return fmt.Sprintf("%s: %s", level, msg)
+	return fmt.Sprintf("%s: %s", level, msg)
 }
 
 type jsonFormatter struct{}
 
 func (f *jsonFormatter) Format(level, msg string) string {
-    return fmt.Sprintf(`{"level":%q,"msg":%q}`, level, msg)
+	return fmt.Sprintf(`{"level":%q,"msg":%q}`, level, msg)
 }
 
 type logfmtFormatter struct{}
 
 func (f *logfmtFormatter) Format(level, msg string) string {
-    return fmt.Sprintf("level=%s msg=%q", level, msg)
+	return fmt.Sprintf("level=%s msg=%q", level, msg)
 }
-```
 
-Now the factory: a constructor function that returns the interface. Using a map of constructors is cleaner than a switch — and it's extensible at runtime.
-
-```go
-// factory.go
-package log
-
-import "fmt"
-
-// constructor is a function that creates a Formatter.
 type constructor func() Formatter
 
-// registry maps format names to their constructors.
 var registry = map[string]constructor{
-    "text":   func() Formatter { return &textFormatter{} },
-    "json":   func() Formatter { return &jsonFormatter{} },
-    "logfmt": func() Formatter { return &logfmtFormatter{} },
+	"text":   func() Formatter { return &textFormatter{} },
+	"json":   func() Formatter { return &jsonFormatter{} },
+	"logfmt": func() Formatter { return &logfmtFormatter{} },
 }
 
-// Register adds a new format at runtime.
 func Register(name string, c constructor) {
-    registry[name] = c
+	registry[name] = c
 }
 
-// NewFormatter returns a Formatter for the given format name.
 func NewFormatter(name string) (Formatter, error) {
-    ctor, ok := registry[name]
-    if !ok {
-        return nil, fmt.Errorf("unknown format: %s", name)
-    }
-    return ctor(), nil
+	ctor, ok := registry[name]
+	if !ok {
+		return nil, fmt.Errorf("unknown format: %s", name)
+	}
+	return ctor(), nil
 }
-```
-
-```go
-// main.go
-package main
-
-import (
-    "fmt"
-    "log"
-)
 
 func main() {
-    for _, name := range []string{"text", "json", "logfmt"} {
-        f, err := log.NewFormatter(name)
-        if err != nil {
-            fmt.Println(err)
-            continue
-        }
-        fmt.Println(f.Format("info", "server started"))
-    }
+	for _, name := range []string{"text", "json", "logfmt"} {
+		f, err := NewFormatter(name)
+		if err != nil {
+			fmt.Println(err)
+			continue
+		}
+		fmt.Println(f.Format("info", "server started"))
+	}
 }
 ```
 

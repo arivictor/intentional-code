@@ -31,58 +31,76 @@ for _, event := range events {
 Create a buffered jobs channel and start N worker goroutines. Each worker loops over the jobs channel. The sender closes the channel when done, which causes all workers to exit their range loops cleanly.
 
 ```go
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
 type Job struct {
-    ID      string
-    Payload []byte
+	ID      string
+	Payload []byte
 }
 
 type Result struct {
-    JobID string
-    Err   error
+	JobID string
+	Err   error
+}
+
+func processJob(job Job) error {
+	fmt.Printf("  processed job %s (%d bytes)\n", job.ID, len(job.Payload))
+	return nil
 }
 
 func NewPool(workers int, jobs <-chan Job) <-chan Result {
-    results := make(chan Result, workers)
-    var wg sync.WaitGroup
+	results := make(chan Result, workers)
+	var wg sync.WaitGroup
 
-    wg.Add(workers)
-    for range workers {
-        go func() {
-            defer wg.Done()
-            for job := range jobs {
-                err := processJob(job)
-                results <- Result{JobID: job.ID, Err: err}
-            }
-        }()
-    }
+	wg.Add(workers)
+	for range workers {
+		go func() {
+			defer wg.Done()
+			for job := range jobs {
+				err := processJob(job)
+				results <- Result{JobID: job.ID, Err: err}
+			}
+		}()
+	}
 
-    // Close results when all workers are done.
-    go func() {
-        wg.Wait()
-        close(results)
-    }()
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
 
-    return results
+	return results
 }
 
 func main() {
-    jobs := make(chan Job, 100) // buffer absorbs bursts
-    results := NewPool(10, jobs)
+	events := []struct {
+		ID   string
+		Data []byte
+	}{
+		{"evt-1", []byte(`{"type":"click"}`)},
+		{"evt-2", []byte(`{"type":"view"}`)},
+		{"evt-3", []byte(`{"type":"buy"}`)},
+	}
 
-    // Send jobs in a separate goroutine so the sender doesn't block.
-    go func() {
-        defer close(jobs) // signals workers to exit when all jobs are sent
-        for _, event := range events {
-            jobs <- Job{ID: event.ID, Payload: event.Data}
-        }
-    }()
+	jobs := make(chan Job, 100)
+	results := NewPool(3, jobs)
 
-    // Consume results — range exits when results is closed.
-    for r := range results {
-        if r.Err != nil {
-            log.Printf("job %s failed: %v", r.JobID, r.Err)
-        }
-    }
+	go func() {
+		defer close(jobs)
+		for _, event := range events {
+			jobs <- Job{ID: event.ID, Payload: event.Data}
+		}
+	}()
+
+	for r := range results {
+		if r.Err != nil {
+			fmt.Printf("job %s failed: %v\n", r.JobID, r.Err)
+		}
+	}
 }
 ```
 

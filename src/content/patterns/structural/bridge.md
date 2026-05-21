@@ -61,91 +61,67 @@ Separate the two dimensions into two interfaces. The abstraction (formatter) hol
  Text         Fmt            Writer          Writer
 ```
 
-Define the implementation interface — where output goes:
-
 ```go
-// writers.go
-package report
+package main
 
 import (
-    "fmt"
-    "os"
+	"fmt"
+	"os"
 )
 
-// Writer is the implementation dimension — where output is sent.
 type Writer interface {
-    Write(s string)
+	Write(s string)
 }
 
 type ConsoleWriter struct{}
 
-func (w *ConsoleWriter) Write(s string) {
-    fmt.Println(s)
-}
+func (w *ConsoleWriter) Write(s string) { fmt.Println(s) }
 
 type FileWriter struct {
-    Path string
+	Path string
 }
 
 func (w *FileWriter) Write(s string) {
-    f, err := os.OpenFile(w.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-    if err != nil {
-        return
-    }
-    defer f.Close()
-    fmt.Fprintln(f, s)
+	f, err := os.OpenFile(w.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintln(f, s)
 }
-```
 
-Define the abstraction — formatters that hold a writer:
-
-```go
-// formatters.go
-package report
-
-import "fmt"
-
-// Formatter is the abstraction dimension — how data is shaped.
 type Formatter struct {
-    writer Writer
+	writer Writer
 }
 
 type PlainTextFormatter struct{ Formatter }
 
 func NewPlainText(w Writer) *PlainTextFormatter {
-    return &PlainTextFormatter{Formatter{writer: w}}
+	return &PlainTextFormatter{Formatter{writer: w}}
 }
 
 func (f *PlainTextFormatter) Generate(data string) {
-    f.writer.Write("Report: " + data)
+	f.writer.Write("Report: " + data)
 }
 
 type JSONFormatter struct{ Formatter }
 
 func NewJSON(w Writer) *JSONFormatter {
-    return &JSONFormatter{Formatter{writer: w}}
+	return &JSONFormatter{Formatter{writer: w}}
 }
 
 func (f *JSONFormatter) Generate(data string) {
-    f.writer.Write(fmt.Sprintf(`{"report": %q}`, data))
+	f.writer.Write(fmt.Sprintf(`{"report": %q}`, data))
 }
-```
-
-```go
-// main.go
-package main
-
-import "report"
 
 func main() {
-    console := &report.ConsoleWriter{}
-    file := &report.FileWriter{Path: "/tmp/report.log"}
+	console := &ConsoleWriter{}
+	file := &FileWriter{Path: "/tmp/report.log"}
 
-    // Mix and match freely — no combinatorial explosion.
-    report.NewPlainText(console).Generate("sales up 12%")
-    report.NewJSON(console).Generate("sales up 12%")
-    report.NewPlainText(file).Generate("sales up 12%")
-    report.NewJSON(file).Generate("sales up 12%")
+	NewPlainText(console).Generate("sales up 12%")
+	NewJSON(console).Generate("sales up 12%")
+	NewPlainText(file).Generate("sales up 12%")
+	NewJSON(file).Generate("sales up 12%")
 }
 ```
 

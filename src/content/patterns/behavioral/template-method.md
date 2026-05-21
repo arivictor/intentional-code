@@ -61,66 +61,53 @@ formatter = TextFormatter │ CSVFormatter │ JSONFormatter
 Define a `Formatter` struct carrying the three hook functions:
 
 ```go
-// report.go
-package report
-
-import "strings"
-
-// Formatter holds the variable steps of the rendering algorithm.
-type Formatter struct {
-    Header    func() string
-    FormatRow func(row string) string
-    Footer    func() string
-}
-
-// Render is the algorithm skeleton — written once.
-func Render(rows []string, f Formatter) string {
-    var b strings.Builder
-    b.WriteString(f.Header())
-    for _, row := range rows {
-        b.WriteString(f.FormatRow(row))
-    }
-    b.WriteString(f.Footer())
-    return b.String()
-}
-
-// TextFormatter — plain text with borders.
-var TextFormatter = Formatter{
-    Header:    func() string { return "=== Report ===\n" },
-    FormatRow: func(row string) string { return "  " + row + "\n" },
-    Footer:    func() string { return "==============\n" },
-}
-
-// CSVFormatter — comma-separated values.
-var CSVFormatter = Formatter{
-    Header:    func() string { return "row\n" },
-    FormatRow: func(row string) string { return row + "\n" },
-    Footer:    func() string { return "" },
-}
-
-// MarkdownFormatter — Markdown table rows.
-var MarkdownFormatter = Formatter{
-    Header:    func() string { return "| row |\n|-----|\n" },
-    FormatRow: func(row string) string { return "| " + row + " |\n" },
-    Footer:    func() string { return "" },
-}
-```
-
-```go
-// main.go
 package main
 
 import (
-    "fmt"
-    "report"
+	"fmt"
+	"strings"
 )
 
-func main() {
-    rows := []string{"Alice", "Bob", "Charlie"}
+type Formatter struct {
+	Header    func() string
+	FormatRow func(row string) string
+	Footer    func() string
+}
 
-    fmt.Print(report.Render(rows, report.TextFormatter))
-    fmt.Print(report.Render(rows, report.CSVFormatter))
-    fmt.Print(report.Render(rows, report.MarkdownFormatter))
+func Render(rows []string, f Formatter) string {
+	var b strings.Builder
+	b.WriteString(f.Header())
+	for _, row := range rows {
+		b.WriteString(f.FormatRow(row))
+	}
+	b.WriteString(f.Footer())
+	return b.String()
+}
+
+var TextFormatter = Formatter{
+	Header:    func() string { return "=== Report ===\n" },
+	FormatRow: func(row string) string { return "  " + row + "\n" },
+	Footer:    func() string { return "==============\n" },
+}
+
+var CSVFormatter = Formatter{
+	Header:    func() string { return "row\n" },
+	FormatRow: func(row string) string { return row + "\n" },
+	Footer:    func() string { return "" },
+}
+
+var MarkdownFormatter = Formatter{
+	Header:    func() string { return "| row |\n|-----|\n" },
+	FormatRow: func(row string) string { return "| " + row + " |\n" },
+	Footer:    func() string { return "" },
+}
+
+func main() {
+	rows := []string{"Alice", "Bob", "Charlie"}
+
+	fmt.Print(Render(rows, TextFormatter))
+	fmt.Print(Render(rows, CSVFormatter))
+	fmt.Print(Render(rows, MarkdownFormatter))
 }
 ```
 

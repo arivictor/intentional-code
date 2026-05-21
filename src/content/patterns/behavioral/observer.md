@@ -53,86 +53,72 @@ Logger  Server  Metrics
 ```
 
 ```go
-// config.go
-package config
+package main
 
 import "fmt"
 
 type Config struct {
-    LogLevel string
-    Timeout  int
-    observers []Observer
+	LogLevel  string
+	Timeout   int
+	observers []Observer
 }
 
-// Observer receives config change notifications.
 type Observer interface {
-    OnConfigChange(cfg Config)
+	OnConfigChange(cfg Config)
 }
 
 func (c *Config) Subscribe(obs Observer) {
-    c.observers = append(c.observers, obs)
+	c.observers = append(c.observers, obs)
 }
 
 func (c *Config) Unsubscribe(obs Observer) {
-    for i, o := range c.observers {
-        if o == obs {
-            c.observers = append(c.observers[:i], c.observers[i+1:]...)
-            return
-        }
-    }
+	for i, o := range c.observers {
+		if o == obs {
+			c.observers = append(c.observers[:i], c.observers[i+1:]...)
+			return
+		}
+	}
 }
 
 func (c *Config) notify() {
-    for _, obs := range c.observers {
-        obs.OnConfigChange(*c)
-    }
+	for _, obs := range c.observers {
+		obs.OnConfigChange(*c)
+	}
 }
 
 func (c *Config) Reload(logLevel string, timeout int) {
-    c.LogLevel = logLevel
-    c.Timeout = timeout
-    fmt.Printf("Config reloaded: level=%s timeout=%d\n", c.LogLevel, c.Timeout)
-    c.notify()
+	c.LogLevel = logLevel
+	c.Timeout = timeout
+	fmt.Printf("Config reloaded: level=%s timeout=%d\n", c.LogLevel, c.Timeout)
+	c.notify()
 }
-```
-
-Observers implement the interface independently:
-
-```go
-// main.go
-package main
-
-import (
-    "config"
-    "fmt"
-)
 
 type LoggerObserver struct{ name string }
 
-func (l *LoggerObserver) OnConfigChange(cfg config.Config) {
-    fmt.Printf("  [logger] log level set to %s\n", cfg.LogLevel)
+func (l *LoggerObserver) OnConfigChange(cfg Config) {
+	fmt.Printf("  [logger] log level set to %s\n", cfg.LogLevel)
 }
 
 type ServerObserver struct{ name string }
 
-func (s *ServerObserver) OnConfigChange(cfg config.Config) {
-    fmt.Printf("  [server] timeout set to %ds\n", cfg.Timeout)
+func (s *ServerObserver) OnConfigChange(cfg Config) {
+	fmt.Printf("  [server] timeout set to %ds\n", cfg.Timeout)
 }
 
 func main() {
-    cfg := &config.Config{}
+	cfg := &Config{}
 
-    log := &LoggerObserver{name: "logger"}
-    srv := &ServerObserver{name: "server"}
+	log := &LoggerObserver{name: "logger"}
+	srv := &ServerObserver{name: "server"}
 
-    cfg.Subscribe(log)
-    cfg.Subscribe(srv)
+	cfg.Subscribe(log)
+	cfg.Subscribe(srv)
 
-    cfg.Reload("info", 30)
-    cfg.Reload("debug", 10)
+	cfg.Reload("info", 30)
+	cfg.Reload("debug", 10)
 
-    cfg.Unsubscribe(srv)
-    cfg.Reload("warn", 30)
+	cfg.Unsubscribe(srv)
+	cfg.Reload("warn", 30)
 }
 ```
 

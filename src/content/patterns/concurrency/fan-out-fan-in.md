@@ -38,61 +38,83 @@ func resize(in <-chan Image) <-chan Image {
 Fan out the resize stage across N goroutines, fan in their results to a single output channel.
 
 ```go
-// Fan-out: spawn N workers, each reading from the same input channel.
-// Go's channel receive is safe for concurrent use — each item is
-// received by exactly one goroutine.
-func fanOut(in <-chan Image, workers int) []<-chan Image {
-    channels := make([]<-chan Image, workers)
-    for i := range workers {
-        channels[i] = resize(in)
-    }
-    return channels
+package main
+
+import (
+	"fmt"
+	"runtime"
+	"sync"
+)
+
+type Image struct {
+	Name   string
+	Width  int
+	Height int
 }
 
-// resize is unchanged — still one goroutine reading from in.
+func resizeImage(img Image) Image {
+	return Image{Name: img.Name, Width: img.Width / 2, Height: img.Height / 2}
+}
+
 func resize(in <-chan Image) <-chan Image {
-    out := make(chan Image)
-    go func() {
-        defer close(out)
-        for img := range in {
-            out <- resizeImage(img)
-        }
-    }()
-    return out
+	out := make(chan Image)
+	go func() {
+		defer close(out)
+		for img := range in {
+			out <- resizeImage(img)
+		}
+	}()
+	return out
 }
 
-// Fan-in: merge N channels into one.
-// Starts one goroutine per channel, plus a closer goroutine.
+func fanOut(in <-chan Image, workers int) []<-chan Image {
+	channels := make([]<-chan Image, workers)
+	for i := range workers {
+		channels[i] = resize(in)
+	}
+	return channels
+}
+
 func fanIn(channels ...<-chan Image) <-chan Image {
-    var wg sync.WaitGroup
-    merged := make(chan Image)
+	var wg sync.WaitGroup
+	merged := make(chan Image)
 
-    // Forward every value from c into merged.
-    forward := func(c <-chan Image) {
-        defer wg.Done()
-        for img := range c {
-            merged <- img
-        }
-    }
+	forward := func(c <-chan Image) {
+		defer wg.Done()
+		for img := range c {
+			merged <- img
+		}
+	}
 
-    wg.Add(len(channels))
-    for _, c := range channels {
-        go forward(c)
-    }
+	wg.Add(len(channels))
+	for _, c := range channels {
+		go forward(c)
+	}
 
-    // Close merged once all forwarders are done.
-    go func() {
-        wg.Wait()
-        close(merged)
-    }()
+	go func() {
+		wg.Wait()
+		close(merged)
+	}()
 
-    return merged
+	return merged
 }
 
-// Wire it together — 8 parallel resizers feeding one output channel.
 func processImages(images <-chan Image) <-chan Image {
-    workers := fanOut(images, runtime.NumCPU())
-    return fanIn(workers...)
+	workers := fanOut(images, runtime.NumCPU())
+	return fanIn(workers...)
+}
+
+func main() {
+	in := make(chan Image, 4)
+	in <- Image{"photo1.jpg", 1920, 1080}
+	in <- Image{"photo2.jpg", 3840, 2160}
+	in <- Image{"photo3.jpg", 1280, 720}
+	in <- Image{"photo4.jpg", 2560, 1440}
+	close(in)
+
+	for img := range processImages(in) {
+		fmt.Printf("resized %s → %dx%d\n", img.Name, img.Width, img.Height)
+	}
 }
 ```
 

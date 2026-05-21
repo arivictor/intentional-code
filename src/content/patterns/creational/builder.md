@@ -63,115 +63,64 @@ WithRetries(n)   ──► func(c *config) { c.retries = n }
 WithUserAgent(s) ──► func(c *config) { c.userAgent = s }
 ```
 
-Define the internal config and the `Option` type:
-
 ```go
-// options.go
-package client
-
-import "time"
-
-type config struct {
-    timeout     time.Duration
-    retries     int
-    userAgent   string
-    apiKey      string
-    maxIdleConn int
-}
-
-// Option configures a Client.
-type Option func(*config)
-```
-
-Each option is a simple function returning an `Option`:
-
-```go
-// options.go (continued)
-package client
-
-import "time"
-
-func WithTimeout(d time.Duration) Option {
-    return func(c *config) { c.timeout = d }
-}
-
-func WithRetries(n int) Option {
-    return func(c *config) { c.retries = n }
-}
-
-func WithUserAgent(ua string) Option {
-    return func(c *config) { c.userAgent = ua }
-}
-
-func WithAPIKey(key string) Option {
-    return func(c *config) { c.apiKey = key }
-}
-
-func WithMaxIdleConns(n int) Option {
-    return func(c *config) { c.maxIdleConn = n }
-}
-```
-
-The constructor sets sensible defaults, then applies options:
-
-```go
-// client.go
-package client
-
-import (
-    "fmt"
-    "time"
-)
-
-type Client struct {
-    BaseURL string
-    cfg     config
-}
-
-func NewClient(baseURL string, opts ...Option) *Client {
-    cfg := config{
-        timeout:     5 * time.Second,
-        retries:     3,
-        userAgent:   "go-client/1.0",
-        maxIdleConn: 10,
-    }
-    for _, opt := range opts {
-        opt(&cfg)
-    }
-    return &Client{BaseURL: baseURL, cfg: cfg}
-}
-
-func (c *Client) String() string {
-    return fmt.Sprintf("Client{url=%s, timeout=%v, retries=%d, ua=%s}",
-        c.BaseURL, c.cfg.timeout, c.cfg.retries, c.cfg.userAgent)
-}
-```
-
-Clean, readable call sites:
-
-```go
-// main.go
 package main
 
 import (
-    "fmt"
-    "client"
-    "time"
+	"fmt"
+	"time"
 )
 
-func main() {
-    // Minimal — all defaults
-    c1 := client.NewClient("https://api.example.com")
-    fmt.Println(c1)
+type config struct {
+	timeout     time.Duration
+	retries     int
+	userAgent   string
+	apiKey      string
+	maxIdleConn int
+}
 
-    // Custom — only the options you care about
-    c2 := client.NewClient("https://api.example.com",
-        client.WithTimeout(30*time.Second),
-        client.WithRetries(5),
-        client.WithAPIKey("secret-key"),
-        client.WithUserAgent("myapp/2.0"),
-    )
-    fmt.Println(c2)
+type Option func(*config)
+
+func WithTimeout(d time.Duration) Option  { return func(c *config) { c.timeout = d } }
+func WithRetries(n int) Option            { return func(c *config) { c.retries = n } }
+func WithUserAgent(ua string) Option      { return func(c *config) { c.userAgent = ua } }
+func WithAPIKey(key string) Option        { return func(c *config) { c.apiKey = key } }
+func WithMaxIdleConns(n int) Option       { return func(c *config) { c.maxIdleConn = n } }
+
+type Client struct {
+	BaseURL string
+	cfg     config
+}
+
+func NewClient(baseURL string, opts ...Option) *Client {
+	cfg := config{
+		timeout:     5 * time.Second,
+		retries:     3,
+		userAgent:   "go-client/1.0",
+		maxIdleConn: 10,
+	}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+	return &Client{BaseURL: baseURL, cfg: cfg}
+}
+
+func (c *Client) String() string {
+	return fmt.Sprintf("Client{url=%s, timeout=%v, retries=%d, ua=%s}",
+		c.BaseURL, c.cfg.timeout, c.cfg.retries, c.cfg.userAgent)
+}
+
+func main() {
+	c1 := NewClient("https://api.example.com")
+	fmt.Println(c1)
+
+	c2 := NewClient("https://api.example.com",
+		WithTimeout(30*time.Second),
+		WithRetries(5),
+		WithAPIKey("secret-key"),
+		WithUserAgent("myapp/2.0"),
+	)
+	fmt.Println(c2)
 }
 ```
 

@@ -61,73 +61,62 @@ Introduce a `Room` mediator. Users register with the room and send messages thro
 ```
 
 ```go
-// chat.go
-package chat
+package main
 
 import "fmt"
 
 type Mediator interface {
-    Broadcast(sender *User, msg string)
-    Register(user *User)
+	Broadcast(sender *User, msg string)
+	Register(user *User)
 }
 
 type User struct {
-    Name string
-    room Mediator
+	Name string
+	room Mediator
 }
 
 func NewUser(name string, room Mediator) *User {
-    u := &User{Name: name, room: room}
-    room.Register(u)
-    return u
+	u := &User{Name: name, room: room}
+	room.Register(u)
+	return u
 }
 
 func (u *User) Send(msg string) {
-    fmt.Printf("%s sends: %s\n", u.Name, msg)
-    u.room.Broadcast(u, msg)
+	fmt.Printf("%s sends: %s\n", u.Name, msg)
+	u.room.Broadcast(u, msg)
 }
 
 func (u *User) Receive(from, msg string) {
-    fmt.Printf("  %s received from %s: %s\n", u.Name, from, msg)
+	fmt.Printf("  %s received from %s: %s\n", u.Name, from, msg)
 }
 
-// Room is the concrete mediator.
 type Room struct {
-    users []*User
+	users []*User
 }
 
-func NewRoom() *Room {
-    return &Room{}
-}
+func NewRoom() *Room { return &Room{} }
 
 func (r *Room) Register(user *User) {
-    r.users = append(r.users, user)
+	r.users = append(r.users, user)
 }
 
 func (r *Room) Broadcast(sender *User, msg string) {
-    for _, u := range r.users {
-        if u != sender {
-            u.Receive(sender.Name, msg)
-        }
-    }
+	for _, u := range r.users {
+		if u != sender {
+			u.Receive(sender.Name, msg)
+		}
+	}
 }
-```
-
-```go
-// main.go
-package main
-
-import "chat"
 
 func main() {
-    room := chat.NewRoom()
+	room := NewRoom()
 
-    alice := chat.NewUser("Alice", room)
-    bob := chat.NewUser("Bob", room)
-    _ = chat.NewUser("Charlie", room)
+	alice := NewUser("Alice", room)
+	bob := NewUser("Bob", room)
+	_ = NewUser("Charlie", room)
 
-    alice.Send("Hello everyone!")
-    bob.Send("Hey Alice!")
+	alice.Send("Hello everyone!")
+	bob.Send("Hey Alice!")
 }
 ```
 
@@ -147,65 +136,64 @@ Bob sends: Hey Alice!
 In Go backends, Mediator most often appears as a **command/query bus**: callers dispatch commands through a shared bus without importing the handler package. The bus is the only shared dependency, which eliminates import cycles between adapters and domain handlers.
 
 ```go
-// bus/bus.go
-package bus
+package main
 
 import (
-    "context"
-    "fmt"
-    "reflect"
+	"context"
+	"fmt"
+	"reflect"
 )
 
 type Bus struct {
-    handlers map[reflect.Type]func(context.Context, any) error
+	handlers map[reflect.Type]func(context.Context, any) error
 }
 
-func New() *Bus {
-    return &Bus{handlers: make(map[reflect.Type]func(context.Context, any) error)}
+func NewBus() *Bus {
+	return &Bus{handlers: make(map[reflect.Type]func(context.Context, any) error)}
 }
 
-// Register wires a handler function to a command type.
 func Register[C any](b *Bus, handler func(context.Context, C) error) {
-    key := reflect.TypeOf((*C)(nil)).Elem()
-    b.handlers[key] = func(ctx context.Context, raw any) error {
-        return handler(ctx, raw.(C))
-    }
+	key := reflect.TypeOf((*C)(nil)).Elem()
+	b.handlers[key] = func(ctx context.Context, raw any) error {
+		return handler(ctx, raw.(C))
+	}
 }
 
-// Send dispatches a command to its registered handler.
 func Send[C any](b *Bus, ctx context.Context, cmd C) error {
-    key := reflect.TypeOf(cmd)
-    h, ok := b.handlers[key]
-    if !ok {
-        return fmt.Errorf("no handler registered for %T", cmd)
-    }
-    return h(ctx, cmd)
+	key := reflect.TypeOf(cmd)
+	h, ok := b.handlers[key]
+	if !ok {
+		return fmt.Errorf("no handler registered for %T", cmd)
+	}
+	return h(ctx, cmd)
 }
-```
 
-Register handlers at startup and dispatch through the bus from HTTP adapters:
+type CreateOrderCmd struct {
+	ItemID, CustomerID string
+	Amount             int
+}
 
-```go
-// main.go
-type CreateOrderCmd struct{ ItemID, CustomerID string; Amount int }
-type CancelOrderCmd struct{ OrderID, Reason string }
+type CancelOrderCmd struct {
+	OrderID, Reason string
+}
 
-b := bus.New()
-bus.Register(b, func(ctx context.Context, cmd CreateOrderCmd) error {
-    return orderRepo.Create(ctx, cmd.ItemID, cmd.CustomerID, cmd.Amount)
-})
-bus.Register(b, func(ctx context.Context, cmd CancelOrderCmd) error {
-    return orderRepo.Cancel(ctx, cmd.OrderID, cmd.Reason)
-})
+func main() {
+	b := NewBus()
 
-// HTTP adapter dispatches without knowing handler internals
-http.HandleFunc("/orders", func(w http.ResponseWriter, r *http.Request) {
-    var cmd CreateOrderCmd
-    json.NewDecoder(r.Body).Decode(&cmd)
-    if err := bus.Send(b, r.Context(), cmd); err != nil {
-        http.Error(w, err.Error(), 422)
-    }
-})
+	Register(b, func(ctx context.Context, cmd CreateOrderCmd) error {
+		fmt.Printf("created order: item=%s customer=%s amount=%d\n",
+			cmd.ItemID, cmd.CustomerID, cmd.Amount)
+		return nil
+	})
+	Register(b, func(ctx context.Context, cmd CancelOrderCmd) error {
+		fmt.Printf("cancelled order: id=%s reason=%s\n", cmd.OrderID, cmd.Reason)
+		return nil
+	})
+
+	ctx := context.Background()
+	Send(b, ctx, CreateOrderCmd{ItemID: "item-1", CustomerID: "cust-42", Amount: 99})
+	Send(b, ctx, CancelOrderCmd{OrderID: "ord-7", Reason: "duplicate"})
+}
 ```
 
 The HTTP adapter imports `bus` and the command struct, but not the handler package. Handler packages can live in separate packages with no import cycles. This is the same O(n) decoupling the chat room example demonstrates — applied to request dispatching instead of peer messaging.

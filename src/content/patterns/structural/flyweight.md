@@ -55,89 +55,72 @@ Extract the shared intrinsic state (glyph style) into a separate type. Use a fac
 ```
 
 ```go
-// editor.go
-package editor
+package main
 
 import (
-    "fmt"
-    "sync"
+	"fmt"
+	"sync"
 )
 
-// GlyphStyle holds shared intrinsic state — one per unique font+style combination.
 type GlyphStyle struct {
-    FontName string
-    FontSize int
-    Bold     bool
-    Italic   bool
+	FontName string
+	FontSize int
+	Bold     bool
+	Italic   bool
 }
 
-// Character holds unique extrinsic state + a reference to shared style data.
 type Character struct {
-    Char  rune
-    X, Y  int
-    Style *GlyphStyle
+	Char  rune
+	X, Y  int
+	Style *GlyphStyle
 }
 
 func (c *Character) Render() string {
-    return fmt.Sprintf("'%c' at (%d,%d) font=%s/%d bold=%v",
-        c.Char, c.X, c.Y, c.Style.FontName, c.Style.FontSize, c.Style.Bold)
+	return fmt.Sprintf("'%c' at (%d,%d) font=%s/%d bold=%v",
+		c.Char, c.X, c.Y, c.Style.FontName, c.Style.FontSize, c.Style.Bold)
 }
 
-// styleRegistry is the interning cache for GlyphStyle instances.
-// It is safe for concurrent use.
 type styleRegistry struct {
-    mu    sync.RWMutex
-    cache map[string]*GlyphStyle
+	mu    sync.RWMutex
+	cache map[string]*GlyphStyle
 }
 
 var styles = &styleRegistry{cache: make(map[string]*GlyphStyle)}
 
-// GetStyle returns a shared GlyphStyle, creating it only if it doesn't exist yet.
 func GetStyle(font string, size int, bold, italic bool) *GlyphStyle {
-    key := fmt.Sprintf("%s-%d-%v-%v", font, size, bold, italic)
-    styles.mu.RLock()
-    if s, ok := styles.cache[key]; ok {
-        styles.mu.RUnlock()
-        return s
-    }
-    styles.mu.RUnlock()
-    styles.mu.Lock()
-    defer styles.mu.Unlock()
-    // Check again after acquiring write lock.
-    if s, ok := styles.cache[key]; ok {
-        return s
-    }
-    s := &GlyphStyle{FontName: font, FontSize: size, Bold: bold, Italic: italic}
-    styles.cache[key] = s
-    return s
+	key := fmt.Sprintf("%s-%d-%v-%v", font, size, bold, italic)
+	styles.mu.RLock()
+	if s, ok := styles.cache[key]; ok {
+		styles.mu.RUnlock()
+		return s
+	}
+	styles.mu.RUnlock()
+	styles.mu.Lock()
+	defer styles.mu.Unlock()
+	if s, ok := styles.cache[key]; ok {
+		return s
+	}
+	s := &GlyphStyle{FontName: font, FontSize: size, Bold: bold, Italic: italic}
+	styles.cache[key] = s
+	return s
 }
-```
-
-```go
-// main.go
-package main
-
-import (
-    "editor"
-    "fmt"
-)
 
 func main() {
-    body := editor.GetStyle("Helvetica", 14, false, false)
-    heading := editor.GetStyle("Helvetica", 20, true, false)
+	body := GetStyle("Helvetica", 14, false, false)
+	heading := GetStyle("Helvetica", 20, true, false)
 
-    chars := []*editor.Character{
-        {Char: 'H', X: 0, Y: 0, Style: heading},
-        {Char: 'e', X: 12, Y: 0, Style: body},
-        {Char: 'l', X: 20, Y: 0, Style: body},
-        {Char: 'l', X: 28, Y: 0, Style: body},
-        {Char: 'o', X: 36, Y: 0, Style: body},
-    }
+	chars := []*Character{
+		{Char: 'H', X: 0, Y: 0, Style: heading},
+		{Char: 'e', X: 12, Y: 0, Style: body},
+		{Char: 'l', X: 20, Y: 0, Style: body},
+		{Char: 'l', X: 28, Y: 0, Style: body},
+		{Char: 'o', X: 36, Y: 0, Style: body},
+	}
 
-    for _, c := range chars {
-        fmt.Println(c.Render())
-    }
-    fmt.Printf("\nUnique styles: 2 (shared across %d characters)\n", len(chars))
+	for _, c := range chars {
+		fmt.Println(c.Render())
+	}
+	fmt.Printf("\nUnique styles: 2 (shared across %d characters)\n", len(chars))
 }
 ```
 

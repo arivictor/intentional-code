@@ -75,74 +75,54 @@ Define a single interface — `Entry` — that both leaf files and composite dir
 ```
 
 ```go
-// fs.go
-package fs
+package main
 
-// Entry is anything that has a name and a size.
+import "fmt"
+
 type Entry interface {
-    Size() int64
-    Name() string
+	Size() int64
+	Name() string
 }
 
-// File is a leaf node.
 type File struct {
-    name string
-    size int64
+	name string
+	size int64
 }
 
-func NewFile(name string, size int64) *File {
-    return &File{name: name, size: size}
-}
+func NewFile(name string, size int64) *File { return &File{name: name, size: size} }
+func (f *File) Size() int64                 { return f.size }
+func (f *File) Name() string                { return f.name }
 
-func (f *File) Size() int64 { return f.size }
-func (f *File) Name() string { return f.name }
-
-// Directory is a composite node.
 type Directory struct {
-    name     string
-    children []Entry
+	name     string
+	children []Entry
 }
 
 func NewDirectory(name string, children ...Entry) *Directory {
-    return &Directory{name: name, children: children}
+	return &Directory{name: name, children: children}
 }
 
 func (d *Directory) Size() int64 {
-    total := int64(0)
-    for _, c := range d.children {
-        total += c.Size()
-    }
-    return total
+	total := int64(0)
+	for _, c := range d.children {
+		total += c.Size()
+	}
+	return total
 }
 
 func (d *Directory) Name() string { return d.name }
 
-func (d *Directory) Add(e Entry) {
-    d.children = append(d.children, e)
-}
-```
-
-```go
-// main.go
-package main
-
-import (
-    "fmt"
-    "fs"
-)
-
 func main() {
-    readme := fs.NewFile("README.md", 4096)
-    main := fs.NewFile("main.go", 8192)
-    config := fs.NewFile("config.yaml", 512)
+	readme := NewFile("README.md", 4096)
+	mainGo := NewFile("main.go", 8192)
+	config := NewFile("config.yaml", 512)
 
-    src := fs.NewDirectory("src", main)
-    root := fs.NewDirectory("project", readme, config, src)
+	src := NewDirectory("src", mainGo)
+	root := NewDirectory("project", readme, config, src)
 
-    entries := []fs.Entry{readme, src, root}
-    for _, e := range entries {
-        fmt.Printf("%-20s %6d bytes\n", e.Name(), e.Size())
-    }
+	for _, e := range []Entry{readme, src, root} {
+		fmt.Printf("%-20s %6d bytes\n", e.Name(), e.Size())
+	}
 }
 ```
 

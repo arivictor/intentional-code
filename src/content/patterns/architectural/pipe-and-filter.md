@@ -46,62 +46,79 @@ Define a `Filter` type and connect filters through a simple pipe. Each filter ha
 **Function-based pipeline (simplest form):**
 
 ```go
-// pipeline/filter.go
-package pipeline
+package main
+
+import "fmt"
+
+type LogRecord struct {
+	UserAgent string
+	IP        string
+	UserID    string
+	GeoData   string
+}
+
+func isBot(ua string) bool        { return ua == "bot" }
+func geoLookup(ip string) string  { return "US" }
+func exceedsRateLimit(id string) bool { return id == "spammer" }
 
 type Filter[T any] func([]T) []T
 
 func Chain[T any](filters ...Filter[T]) Filter[T] {
-    return func(input []T) []T {
-        result := input
-        for _, f := range filters {
-            result = f(result)
-        }
-        return result
-    }
+	return func(input []T) []T {
+		result := input
+		for _, f := range filters {
+			result = f(result)
+		}
+		return result
+	}
 }
-```
-
-```go
-// pipeline/log_filters.go
-package pipeline
 
 func RemoveBots(records []LogRecord) []LogRecord {
-    out := records[:0]
-    for _, r := range records {
-        if !isBot(r.UserAgent) {
-            out = append(out, r)
-        }
-    }
-    return out
+	out := records[:0]
+	for _, r := range records {
+		if !isBot(r.UserAgent) {
+			out = append(out, r)
+		}
+	}
+	return out
 }
 
 func EnrichWithGeo(records []LogRecord) []LogRecord {
-    for i := range records {
-        records[i].GeoData = geoLookup(records[i].IP)
-    }
-    return records
+	for i := range records {
+		records[i].GeoData = geoLookup(records[i].IP)
+	}
+	return records
 }
 
 func ApplyRateLimit(records []LogRecord) []LogRecord {
-    out := records[:0]
-    for _, r := range records {
-        if !exceedsRateLimit(r.UserID) {
-            out = append(out, r)
-        }
-    }
-    return out
+	out := records[:0]
+	for _, r := range records {
+		if !exceedsRateLimit(r.UserID) {
+			out = append(out, r)
+		}
+	}
+	return out
 }
-```
 
-```go
-// main.go
-process := pipeline.Chain(
-    pipeline.RemoveBots,
-    pipeline.EnrichWithGeo,
-    pipeline.ApplyRateLimit,
-)
-results := process(rawRecords)
+func main() {
+	rawRecords := []LogRecord{
+		{UserAgent: "Mozilla/5.0", IP: "1.2.3.4", UserID: "alice"},
+		{UserAgent: "bot", IP: "5.6.7.8", UserID: "bot-user"},
+		{UserAgent: "Chrome/120", IP: "9.10.11.12", UserID: "spammer"},
+		{UserAgent: "Firefox/121", IP: "13.14.15.16", UserID: "bob"},
+	}
+
+	process := Chain(
+		Filter[LogRecord](RemoveBots),
+		Filter[LogRecord](EnrichWithGeo),
+		Filter[LogRecord](ApplyRateLimit),
+	)
+	results := process(rawRecords)
+
+	for _, r := range results {
+		fmt.Printf("user=%s geo=%s\n", r.UserID, r.GeoData)
+	}
+}
 ```
 
 **Channel-based concurrent pipeline:**
@@ -109,55 +126,74 @@ results := process(rawRecords)
 Use channels when filters can run concurrently — each filter runs in its own goroutine, and output channels feed the next stage.
 
 ```go
-// pipeline/concurrent.go
-package pipeline
+package main
+
+import "fmt"
+
+type LogRecord struct {
+	UserAgent string
+	IP        string
+	UserID    string
+	GeoData   string
+}
+
+func isBot(ua string) bool            { return ua == "bot" }
+func geoLookup(ip string) string      { return "US" }
+func exceedsRateLimit(id string) bool { return id == "spammer" }
 
 func RemoveBotsStage(in <-chan LogRecord) <-chan LogRecord {
-    out := make(chan LogRecord)
-    go func() {
-        defer close(out)
-        for r := range in {
-            if !isBot(r.UserAgent) {
-                out <- r
-            }
-        }
-    }()
-    return out
+	out := make(chan LogRecord)
+	go func() {
+		defer close(out)
+		for r := range in {
+			if !isBot(r.UserAgent) {
+				out <- r
+			}
+		}
+	}()
+	return out
 }
 
 func EnrichWithGeoStage(in <-chan LogRecord) <-chan LogRecord {
-    out := make(chan LogRecord)
-    go func() {
-        defer close(out)
-        for r := range in {
-            r.GeoData = geoLookup(r.IP)
-            out <- r
-        }
-    }()
-    return out
+	out := make(chan LogRecord)
+	go func() {
+		defer close(out)
+		for r := range in {
+			r.GeoData = geoLookup(r.IP)
+			out <- r
+		}
+	}()
+	return out
 }
 
 func ApplyRateLimitStage(in <-chan LogRecord) <-chan LogRecord {
-    out := make(chan LogRecord)
-    go func() {
-        defer close(out)
-        for r := range in {
-            if !exceedsRateLimit(r.UserID) {
-                out <- r
-            }
-        }
-    }()
-    return out
+	out := make(chan LogRecord)
+	go func() {
+		defer close(out)
+		for r := range in {
+			if !exceedsRateLimit(r.UserID) {
+				out <- r
+			}
+		}
+	}()
+	return out
 }
-```
 
-```go
-// Wire the concurrent pipeline
 func BuildPipeline(source <-chan LogRecord) <-chan LogRecord {
-    filtered := RemoveBotsStage(source)
-    enriched := EnrichWithGeoStage(filtered)
-    limited  := ApplyRateLimitStage(enriched)
-    return limited
+	return ApplyRateLimitStage(EnrichWithGeoStage(RemoveBotsStage(source)))
+}
+
+func main() {
+	source := make(chan LogRecord, 4)
+	source <- LogRecord{UserAgent: "Mozilla/5.0", IP: "1.2.3.4", UserID: "alice"}
+	source <- LogRecord{UserAgent: "bot", IP: "5.6.7.8", UserID: "bot-user"}
+	source <- LogRecord{UserAgent: "Chrome/120", IP: "9.10.11.12", UserID: "spammer"}
+	source <- LogRecord{UserAgent: "Firefox/121", IP: "13.14.15.16", UserID: "bob"}
+	close(source)
+
+	for r := range BuildPipeline(source) {
+		fmt.Printf("user=%s geo=%s\n", r.UserID, r.GeoData)
+	}
 }
 ```
 

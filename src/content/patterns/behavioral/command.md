@@ -53,98 +53,85 @@ History: [cmd1, cmd2, cmd3] ← Undo pops and calls Undo()
 ```
 
 ```go
-// editor.go
-package editor
+package main
 
-// Command is an undoable operation.
+import "fmt"
+
 type Command interface {
-    Execute()
-    Undo()
+	Execute()
+	Undo()
 }
 
 type Editor struct {
-    Content string
+	Content string
 }
 
-// InsertCommand inserts text at a position.
 type InsertCommand struct {
-    Editor *Editor
-    Pos    int
-    Text   string
+	Editor *Editor
+	Pos    int
+	Text   string
 }
 
 func (c *InsertCommand) Execute() {
-    c.Editor.Content = c.Editor.Content[:c.Pos] + c.Text + c.Editor.Content[c.Pos:]
+	c.Editor.Content = c.Editor.Content[:c.Pos] + c.Text + c.Editor.Content[c.Pos:]
 }
 
 func (c *InsertCommand) Undo() {
-    c.Editor.Content = c.Editor.Content[:c.Pos] + c.Editor.Content[c.Pos+len(c.Text):]
+	c.Editor.Content = c.Editor.Content[:c.Pos] + c.Editor.Content[c.Pos+len(c.Text):]
 }
 
-// DeleteCommand deletes text at a position.
 type DeleteCommand struct {
-    Editor  *Editor
-    Pos     int
-    Length  int
-    deleted string // saved during Execute for Undo
+	Editor  *Editor
+	Pos     int
+	Length  int
+	deleted string
 }
 
 func (c *DeleteCommand) Execute() {
-    c.deleted = c.Editor.Content[c.Pos : c.Pos+c.Length]
-    c.Editor.Content = c.Editor.Content[:c.Pos] + c.Editor.Content[c.Pos+c.Length:]
+	c.deleted = c.Editor.Content[c.Pos : c.Pos+c.Length]
+	c.Editor.Content = c.Editor.Content[:c.Pos] + c.Editor.Content[c.Pos+c.Length:]
 }
 
 func (c *DeleteCommand) Undo() {
-    c.Editor.Content = c.Editor.Content[:c.Pos] + c.deleted + c.Editor.Content[c.Pos:]
+	c.Editor.Content = c.Editor.Content[:c.Pos] + c.deleted + c.Editor.Content[c.Pos:]
 }
 
-// History manages the undo stack.
 type History struct {
-    commands []Command
+	commands []Command
 }
 
 func (h *History) Run(cmd Command) {
-    cmd.Execute()
-    h.commands = append(h.commands, cmd)
+	cmd.Execute()
+	h.commands = append(h.commands, cmd)
 }
 
 func (h *History) Undo() bool {
-    if len(h.commands) == 0 {
-        return false
-    }
-    last := h.commands[len(h.commands)-1]
-    last.Undo()
-    h.commands = h.commands[:len(h.commands)-1]
-    return true
+	if len(h.commands) == 0 {
+		return false
+	}
+	last := h.commands[len(h.commands)-1]
+	last.Undo()
+	h.commands = h.commands[:len(h.commands)-1]
+	return true
 }
-```
-
-```go
-// main.go
-package main
-
-import (
-    "editor"
-    "fmt"
-)
 
 func main() {
-    e := &editor.Editor{Content: "Hello World"}
-    h := &editor.History{}
+	e := &Editor{Content: "Hello World"}
+	h := &History{}
 
-    fmt.Println("Start:       ", e.Content)
+	fmt.Println("Start:       ", e.Content)
 
-    h.Run(&editor.InsertCommand{Editor: e, Pos: 5, Text: " Beautiful"})
-    fmt.Println("After insert:", e.Content)
+	h.Run(&InsertCommand{Editor: e, Pos: 5, Text: " Beautiful"})
+	fmt.Println("After insert:", e.Content)
 
-    h.Run(&editor.DeleteCommand{Editor: e, Pos: 0, Length: 6})
-    fmt.Println("After delete:", e.Content)
+	h.Run(&DeleteCommand{Editor: e, Pos: 0, Length: 6})
+	fmt.Println("After delete:", e.Content)
 
-    h.Undo()
-    fmt.Println("After undo:  ", e.Content)
+	h.Undo()
+	fmt.Println("After undo:  ", e.Content)
 
-    h.Undo()
-    fmt.Println("After undo:  ", e.Content)
+	h.Undo()
+	fmt.Println("After undo:  ", e.Content)
 }
 ```
 

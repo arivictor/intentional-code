@@ -54,87 +54,102 @@ Create a `Converter` facade struct that encapsulates the multi-step process. Cal
 ```
 
 ```go
-// converter.go
-package convert
-
-import "fmt"
-
-// Dependencies as interfaces — testable, swappable.
-type Validator interface {
-    Validate(path string) error
-}
-
-type Transformer interface {
-    Transform(data []byte) ([]byte, error)
-}
-
-type Writer interface {
-    Write(path string, data []byte) error
-}
-
-type Logger interface {
-    Log(msg string)
-}
-
-// Facade coordinates the conversion process.
-type Facade struct {
-    validator   Validator
-    transformer Transformer
-    writer      Writer
-    logger      Logger
-}
-
-func NewFacade(v Validator, t Transformer, w Writer, l Logger) *Facade {
-    return &Facade{validator: v, transformer: t, writer: w, logger: l}
-}
-
-func (f *Facade) Convert(src, dst string, data []byte) error {
-    if err := f.validator.Validate(src); err != nil {
-        return fmt.Errorf("validation failed: %w", err)
-    }
-
-    result, err := f.transformer.Transform(data)
-    if err != nil {
-        return fmt.Errorf("transform failed: %w", err)
-    }
-
-    if err := f.writer.Write(dst, result); err != nil {
-        return fmt.Errorf("write failed: %w", err)
-    }
-
-    f.logger.Log(fmt.Sprintf("converted %s → %s", src, dst))
-    return nil
-}
-```
-
-```go
-// main.go
 package main
 
 import (
-    "convert"
-    "fmt"
+	"fmt"
+	"strings"
 )
 
-func main() {
-    facade := convert.NewFacade(
-        &convert.FileValidator{},
-        &convert.JSONTransformer{},
-        &convert.DiskWriter{},
-        &convert.StdoutLogger{},
-    )
+type Validator interface {
+	Validate(path string) error
+}
 
-    data := []byte(`name: Alice\nage: 30`)
-    if err := facade.Convert("person.yaml", "person.json", data); err != nil {
-        fmt.Println("conversion failed:", err)
-        return
-    }
+type Transformer interface {
+	Transform(data []byte) ([]byte, error)
+}
+
+type Writer interface {
+	Write(path string, data []byte) error
+}
+
+type Logger interface {
+	Log(msg string)
+}
+
+type Facade struct {
+	validator   Validator
+	transformer Transformer
+	writer      Writer
+	logger      Logger
+}
+
+func NewFacade(v Validator, t Transformer, w Writer, l Logger) *Facade {
+	return &Facade{validator: v, transformer: t, writer: w, logger: l}
+}
+
+func (f *Facade) Convert(src, dst string, data []byte) error {
+	if err := f.validator.Validate(src); err != nil {
+		return fmt.Errorf("validation failed: %w", err)
+	}
+	result, err := f.transformer.Transform(data)
+	if err != nil {
+		return fmt.Errorf("transform failed: %w", err)
+	}
+	if err := f.writer.Write(dst, result); err != nil {
+		return fmt.Errorf("write failed: %w", err)
+	}
+	f.logger.Log(fmt.Sprintf("converted %s → %s", src, dst))
+	return nil
+}
+
+// Concrete implementations wired together in main.
+
+type FileValidator struct{}
+
+func (v *FileValidator) Validate(path string) error {
+	if !strings.HasSuffix(path, ".yaml") && !strings.HasSuffix(path, ".yml") {
+		return fmt.Errorf("unsupported format: %s", path)
+	}
+	return nil
+}
+
+type JSONTransformer struct{}
+
+func (t *JSONTransformer) Transform(data []byte) ([]byte, error) {
+	return []byte(`{"data":"` + strings.ReplaceAll(string(data), `"`, `\"`) + `"}`), nil
+}
+
+type DiskWriter struct{}
+
+func (w *DiskWriter) Write(path string, data []byte) error {
+	fmt.Printf("[write] %s: %s\n", path, data)
+	return nil
+}
+
+type StdoutLogger struct{}
+
+func (l *StdoutLogger) Log(msg string) { fmt.Println(msg) }
+
+func main() {
+	facade := NewFacade(
+		&FileValidator{},
+		&JSONTransformer{},
+		&DiskWriter{},
+		&StdoutLogger{},
+	)
+
+	data := []byte(`name: Alice, age: 30`)
+	if err := facade.Convert("person.yaml", "person.json", data); err != nil {
+		fmt.Println("conversion failed:", err)
+	}
 }
 ```
 
 Output:
 
 ```
+[write] person.json: {"data":"name: Alice, age: 30"}
 converted person.yaml → person.json
 ```
 

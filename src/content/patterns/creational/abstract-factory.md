@@ -68,43 +68,23 @@ Define product interfaces (`Reader`, `Writer`) and a factory interface whose met
 └────────┘ └────────┘
 ```
 
-Define the product interfaces:
-
 ```go
-// products.go
-package pipeline
-
-// Reader reads records from an input source.
-type Reader interface {
-    Read() (string, error)
-}
-
-// Writer writes records to an output sink.
-type Writer interface {
-    Write(record string) error
-}
-```
-
-Define the abstract factory interface:
-
-```go
-// factory.go
-package pipeline
-
-// FormatFactory creates a matched reader/writer pair for one format.
-type FormatFactory interface {
-    NewReader() Reader
-    NewWriter() Writer
-}
-```
-
-Implement a JSON family:
-
-```go
-// json.go
-package pipeline
+package main
 
 import "fmt"
+
+type Reader interface {
+	Read() (string, error)
+}
+
+type Writer interface {
+	Write(record string) error
+}
+
+type FormatFactory interface {
+	NewReader() Reader
+	NewWriter() Writer
+}
 
 type jsonReader struct{}
 
@@ -113,23 +93,14 @@ func (r *jsonReader) Read() (string, error) { return `{"status":"ok"}`, nil }
 type jsonWriter struct{}
 
 func (w *jsonWriter) Write(record string) error {
-    fmt.Println("[json]", record)
-    return nil
+	fmt.Println("[json]", record)
+	return nil
 }
 
 type JSONFactory struct{}
 
 func (f *JSONFactory) NewReader() Reader { return &jsonReader{} }
 func (f *JSONFactory) NewWriter() Writer { return &jsonWriter{} }
-```
-
-And a CSV family:
-
-```go
-// csv.go
-package pipeline
-
-import "fmt"
 
 type csvReader struct{}
 
@@ -138,45 +109,32 @@ func (r *csvReader) Read() (string, error) { return "status,ok", nil }
 type csvWriter struct{}
 
 func (w *csvWriter) Write(record string) error {
-    fmt.Println("[csv]", record)
-    return nil
+	fmt.Println("[csv]", record)
+	return nil
 }
 
 type CSVFactory struct{}
 
 func (f *CSVFactory) NewReader() Reader { return &csvReader{} }
 func (f *CSVFactory) NewWriter() Writer { return &csvWriter{} }
-```
 
-Application code works with the factory interface and never touches concrete types:
-
-```go
-// main.go
-package main
-
-import (
-    "fmt"
-    "pipeline"
-)
-
-func run(factory pipeline.FormatFactory) {
-    r := factory.NewReader()
-    w := factory.NewWriter()
-
-    record, err := r.Read()
-    if err != nil {
-        fmt.Println("read error:", err)
-        return
-    }
-    w.Write(record)
+func run(factory FormatFactory) {
+	r := factory.NewReader()
+	w := factory.NewWriter()
+	record, err := r.Read()
+	if err != nil {
+		fmt.Println("read error:", err)
+		return
+	}
+	w.Write(record)
 }
 
 func main() {
-    fmt.Println("--- JSON ---")
-    run(&pipeline.JSONFactory{})
+	fmt.Println("--- JSON ---")
+	run(&JSONFactory{})
 
-    fmt.Println("--- CSV ---")
-    run(&pipeline.CSVFactory{})
+	fmt.Println("--- CSV ---")
+	run(&CSVFactory{})
 }
 ```
 
