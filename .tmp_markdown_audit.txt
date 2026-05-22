@@ -1,0 +1,403 @@
+FILE: README.md
+PREVIEW:
+  # Intentional Code
+  **About**
+  This project contains everything you needed to run the app locally.
+---
+FILE: src/content/pages/home.md
+PREVIEW:
+  *Most developers stumble into architecture.* One day you're writing a script, the next you're responsible for a system with users and consequences. Then the decisions start to pile up: where should this logic live, how should these parts talk to each other, and why did a small change suddenly become a whole afternoon?
+  This is a focused reference to the patterns and principles that help you answer those questions in idiomatic Go. If you're not sure where to start, read the [Design Philosophy](/go/philosophy) section first. It gives the rest of the catalog some shape. If you already know the pain but not the pattern name, the tags will get you there faster.
+---
+FILE: src/content/patterns/architectural/circuit-breaker.md
+PREVIEW:
+  # Circuit Breaker
+  The Circuit Breaker protects a service from cascading failures when a dependency is slow or unavailable. It wraps calls to the dependency in a state machine: **Closed** (calls pass through normally), **Open** (calls fail immediately without hitting the dependency), and **Half-Open** (a probe request tests whether the dependency has recovered). When failures exceed a threshold, the breaker opens and fast-fails all calls until a cooldown period expires.
+  ## Problem
+---
+FILE: src/content/patterns/architectural/clean-architecture.md
+PREVIEW:
+  # Clean Architecture
+  Clean Architecture organizes code in concentric rings — Entities, Use Cases, Interface Adapters, Frameworks and Drivers — with one strict rule: source-code dependencies may only point inward. The innermost rings know nothing about HTTP, databases, or frameworks. Everything outside exists to serve the domain.
+  ## Problem
+---
+FILE: src/content/patterns/architectural/cqrs.md
+PREVIEW:
+  # CQRS
+  CQRS (Command Query Responsibility Segregation) separates every operation into one of two kinds: commands (mutate state, return nothing or an error) and queries (read state, return data, change nothing). The core insight is that read and write models want different shapes. Commands need rich domain validation, while queries usually want flat, denormalized views. Force one model to serve both jobs and you'll usually end up with either an anemic domain or bloated query results.
+  Each command and query gets its own handler type, its own input struct, and sometimes its own data store when the workloads diverge far enough.
+---
+FILE: src/content/patterns/architectural/domain-driven-design.md
+PREVIEW:
+  # Domain-Driven Design
+  The problem DDD solves is logic that leaks. Business rules like "a post can't be published without a title" get written into one service function, forgotten in another, and enforced inconsistently across the codebase. Your domain types become plain data structs, and the rules that govern them float free. DDD puts that logic back inside the type, where the compiler helps you keep callers honest.
+  The tactical building blocks are **Entities** (identity-based, stateful), **Value Objects** (equality-based, immutable), **Aggregates** (consistency boundaries mutated only through the root), **Repositories** (persistence interfaces defined by the domain), **Domain Events** (facts that have occurred), and **Domain Services** (operations spanning multiple aggregates). The unifying constraint is simple: the code should speak the language of the business.
+---
+FILE: src/content/patterns/architectural/event-driven.md
+PREVIEW:
+  # Event-Driven Architecture
+  Event-Driven Architecture solves the cascading failure problem of synchronous service calls: when service A calls B and C directly, a failure in C also fails A. With events, A publishes a fact and returns, then B and C subscribe and react independently. A failed notification service can't block a file upload completing successfully.
+  The pattern spans both in-process (Go channels, event bus struct) and cross-service (Kafka, NATS, SQS) contexts. Hiding the difference behind a `Publisher` interface lets you start with an in-process bus and graduate to a broker when the system demands it.
+---
+FILE: src/content/patterns/architectural/event-sourcing.md
+PREVIEW:
+  # Event Sourcing
+  Most systems store the current state of an entity. Event Sourcing stores the history of what happened to it instead, and derives current state by replaying that history. Instead of a row that says `balance = 420`, the account aggregate has an event log: `AccountOpened`, `MoneyDeposited(500)`, `MoneyWithdrawn(80)` — and the balance is the sum of those events.
+  The audit log is free. Time-travel debugging is built in. You can replay events through a new projection to answer questions you didn't think to ask when the system was built. These benefits come with real costs: queries are harder (read models need projections), replaying long histories is slow without snapshots, and schema evolution for events requires careful versioning.
+MATCHES:
+  310: The audit log is a consequence of the storage strategy, not an add-on — you can't accidentally skip it. Time-travel and projection rebuilding are genuinely powerful for debugging and analytics. The costs are real: loading an aggregate requires a database query and a replay loop instead of a single row fetch (mitigated by snapshots), read models are eventually consistent (a projection may lag the event log by milliseconds to seconds), and event schemas must be backward-compatible forever because you can't change historical events. Schema evolution strategies — upcasting old events at read time, versioned event types — add operational discipline that current-state storage doesn't require.
+---
+FILE: src/content/patterns/architectural/hexagonal.md
+PREVIEW:
+  # Hexagonal Architecture
+  Hexagonal Architecture solves a testability and flexibility problem: when HTTP handlers, SQL queries, and SMTP calls are mixed into business logic, testing requires live infrastructure. Hexagonal draws a boundary. Everything inside is pure application logic, and everything outside — HTTP, databases, queues, email — is an adapter that plugs in through a defined port (interface).
+  The core vocabulary matters here: **driving adapters** (HTTP handlers, CLI, tests) call **driving ports** (the application's API), while the application calls **driven ports** (repository, notifier interfaces) implemented by **driven adapters** (Postgres, SMTP, in-memory fakes). The application never imports the adapters directly.
+---
+FILE: src/content/patterns/architectural/index.md
+PREVIEW:
+  The question architectural patterns answer: **how should the whole system be organised?**
+  Software architecture is a series of choices you keep paying for. It isn't about having the "right" framework or the cleanest diagram. It's about deciding what needs to stay easy to change, then protecting that code from the churn around it. Split business rules from database details, for example, and future you has a much better chance.
+  ## What Is Software Architecture?
+---
+FILE: src/content/patterns/architectural/layered.md
+PREVIEW:
+  # Layered Architecture
+  The warning sign that you need Layered Architecture is an HTTP handler that imports `database/sql`. Go encourages small, composable packages, which means a growing service will naturally tangle HTTP, business rules, and SQL if you don't deliberately separate them. Layered Architecture is usually the first fix: four horizontal tiers — Handler, Service, Repository, Infrastructure — where each layer depends only on the layer below it. Go's implicit interfaces do most of the boundary enforcement for free.
+  ## Problem
+---
+FILE: src/content/patterns/architectural/microservices.md
+PREVIEW:
+  # Microservices
+  Microservices is an architectural style in which an application is built as a collection of small, independently deployable services. Each service owns a single bounded domain, runs as a separate process, manages its own data store, and communicates with other services over a network API. Services are deployed, scaled, and failed independently.
+  The promise of microservices is organizational as much as technical: teams can own, release, and scale their service without coordinating with other teams. The cost is the distributed systems tax — network calls fail, services become unavailable, data is eventually consistent across service boundaries, and debugging a request that spans five services requires distributed tracing infrastructure.
+---
+FILE: src/content/patterns/architectural/mvc.md
+PREVIEW:
+  # MVC / MVP / MVVM
+  MVC, MVP, and MVVM are three variations on the same core idea: business logic should not live inside the code that renders the UI. They differ in how tightly the view and the mediator are coupled and who initiates the update cycle. In a Go HTTP service, the distinction between the three collapses somewhat — HTTP handlers are stateless, there's no persistent view object, and no data-binding framework. What remains is the essential principle: handlers coordinate, domain packages decide, templates or serializers render.
+  ## The Three Variants
+---
+FILE: src/content/patterns/architectural/pipe-and-filter.md
+PREVIEW:
+  # Pipe and Filter
+  Pipe and Filter structures a processing workflow as a sequence of steps (filters) connected by data conduits (pipes). Each filter reads input, applies a single transformation, and writes output. Filters have no shared state and no knowledge of each other — they're connected by the pipe, not by direct calls.
+  This is the shell pipeline model (`cat file | grep pattern | sort | uniq`) applied to application architecture. In Go, the pipe is often a channel (for concurrent filters), an `io.Reader` chain (for stream processing), or simply a sequence of function calls that transform a value through stages.
+---
+FILE: src/content/patterns/architectural/repository.md
+PREVIEW:
+  # Repository
+  The most immediate sign you need Repository is a service function that takes `*sql.DB` as a parameter. That signature tells you something uncomfortable: you can't test this business rule without a running database. Repository replaces the concrete dependency with an interface defined in the domain package. Go's implicit interface satisfaction means the domain never imports the infrastructure package, and any struct with the right methods becomes a valid backend, including the in-memory fake that keeps unit tests fast.
+  This is the [Dependency Inversion Principle](/go/philosophy/solid) applied to persistence: the domain defines what it needs, and infrastructure satisfies it, not the other way around.
+---
+FILE: src/content/patterns/architectural/saga.md
+PREVIEW:
+  # Saga
+  A distributed system can't use a database transaction to span multiple services. The Saga pattern solves this by breaking a cross-service operation into a sequence of local transactions. Each step in the sequence succeeds independently; if any step fails, previously completed steps are reversed by compensating transactions.
+  There are two coordination styles:
+MATCHES:
+  25: // Without Saga — this is NOT how you should do it
+---
+FILE: src/content/patterns/architectural/strangler-fig.md
+PREVIEW:
+  # Strangler Fig
+  The Strangler Fig pattern is named after the tropical vine that grows around a host tree, eventually replacing it entirely. You build a new system around the edges of the old one — routing some calls to the new implementation — until the old system handles nothing and can be removed.
+  The key property: the old and new systems run simultaneously for an extended period. Traffic is divided at a routing layer that neither system knows about. The new implementation grows to cover more paths; the legacy shrinks. At completion, the routing layer becomes a direct pass-through to the new system, and the old one is deleted.
+---
+FILE: src/content/patterns/behavioral/chain-of-responsibility.md
+PREVIEW:
+  # Chain of Responsibility
+  Chain of Responsibility passes a request along a sequence of handlers. Each handler decides whether to process the request, short-circuit with a response, or pass it on. In Go, this is most commonly seen as HTTP middleware chains, but the pattern applies anywhere you need a composable pipeline of independent checks or transformations.
+  The Go idiom favors a slice of handler functions over linked-list objects — simpler to construct, reorder, and test in isolation.
+---
+FILE: src/content/patterns/behavioral/command.md
+PREVIEW:
+  # Command
+  In Go, the simplest command is a function value: `queue := []func(){}`. You don't need a struct unless you need `Undo()` or command metadata. When you do, Command encapsulates each operation as a struct that captures everything required to reverse it — the target object, the position, the data that was there before.
+  The pattern earns its full weight for text editors, transaction systems, and task queues where operations must be reversible, loggable, or replayable.
+---
+FILE: src/content/patterns/behavioral/index.md
+PREVIEW:
+  The question behavioral patterns answer: **how should these objects communicate and distribute responsibility?**
+  Where structural patterns are about composition — fitting types together — behavioral patterns are about runtime flow: who calls whom, how algorithms are selected, how state changes are tracked.
+  **Start with [Strategy](/go/patterns/behavioral/strategy)** if you have a switch statement that selects an algorithm. Strategy is the simplest behavioral pattern in Go — often just a function type or a single-method interface — and it's the pattern [TDD](/go/philosophy/tdd) most reliably drives you toward.
+---
+FILE: src/content/patterns/behavioral/interpreter.md
+PREVIEW:
+  # Interpreter
+  Interpreter defines a grammar as a set of types — one type per grammar rule — and evaluates a sentence by walking the resulting tree. Every node implements a shared interface with a single method (`Interpret`, `Eval`, or `Execute`). Composite nodes (binary operations, sequences) hold child nodes and delegate to them recursively; terminal nodes (literals, variables) return a value directly.
+  The pattern is a natural fit for small, domain-specific languages: filter expressions, arithmetic evaluators, rule engines, and template renderers. For large or performance-critical grammars, a dedicated parser generator or bytecode VM will outperform a hand-rolled tree, but for a DSL that fits in a hundred rules, Interpreter keeps the grammar visible and testable.
+---
+FILE: src/content/patterns/behavioral/iterator.md
+PREVIEW:
+  # Iterator
+  Go 1.23 made Iterator a first-class language feature: `iter.Seq[T]` (a function of the form `func(yield func(T) bool)`) integrates directly with for-range, replacing the channel-based and explicit `Next()`/`Value()` struct approaches that preceded it. Write the traversal once; every consumer gets a plain `for v := range collection.InOrder()` loop.
+  This is one of the patterns most transformed by Go's evolution — if you're on 1.23+, external iterator structs are rarely worth reaching for.
+---
+FILE: src/content/patterns/behavioral/mediator.md
+PREVIEW:
+  # Mediator
+  In a system where every peer knows about every other peer, adding one participant requires updating every other participant's reference list — O(n²) connections growing as the system scales. Mediator collapses this to O(n): each participant holds only a reference to the mediator, which routes messages to whoever needs them.
+  In Go, the mediator is a struct that holds references to the participants. The participants' own types stay small and contain no cross-references to each other.
+---
+FILE: src/content/patterns/behavioral/memento.md
+PREVIEW:
+  # Memento
+  Go's package system gives Memento a clean implementation that many languages struggle with: a type's unexported fields are accessible only within its own package. This lets the originator (same package as the memento) save and restore state through a `*Memento` that external code can hold and pass around but cannot read or modify — encapsulation enforced by the compiler, not convention.
+  The pattern is the encapsulated complement to [Prototype](/go/patterns/creational/prototype): Prototype clones state for independent use; Memento snapshots state for guarded restoration.
+---
+FILE: src/content/patterns/behavioral/observer.md
+PREVIEW:
+  # Observer
+  In Go, Observer gives you three subscriber mechanisms: interface values (classic, stateful), function values (lighter, more composable), and channels (goroutine-friendly, but requiring careful lifecycle management — a subscriber goroutine that is never unsubscribed leaks). Picking the wrong form for your lifecycle requirements is the most common Observer mistake in Go.
+  The pattern's core guarantee: when the subject's state changes, it doesn't know or care who reacts. Registered observers are notified; the subject imports nothing from observer packages. This is the [Open/Closed Principle](/go/philosophy/solid) applied to event notification — you add new reactions without touching the thing that changed.
+---
+FILE: src/content/patterns/behavioral/state.md
+PREVIEW:
+  # State
+  State's identifying signal is a type with switch statements in every method, all checking the same state field. Adding a new state means adding a case to every switch across the entire type. State replaces those switches with one interface and one struct per state — each state's behavior is isolated, and transitions are explicit field assignments on the context.
+  In Go, the context struct holds a `State` interface value and delegates method calls to it. Transition logic lives inside the state that initiates the change, not scattered across the context's methods.
+MATCHES:
+  161: - An object's behavior differs significantly based on its current state.
+---
+FILE: src/content/patterns/behavioral/strategy.md
+PREVIEW:
+  # Strategy
+  Strategy defines a family of algorithms and makes them interchangeable. In Go, the most idiomatic form is a function type — you pass a function value rather than creating an interface with a single method. Use the interface form when the strategy has multiple methods or carries state.
+  This is the [Open/Closed Principle](/go/philosophy/solid) applied to algorithms — the context is open to new behaviours without modifying existing code. It's also one of the patterns that becomes nearly invisible in Go. When someone passes a `func` to a constructor or a `sort.Slice` call, they're using Strategy without naming it.
+---
+FILE: src/content/patterns/behavioral/template-method.md
+PREVIEW:
+  # Template Method
+  Template Method defines the skeleton of an algorithm in a base class, letting subclasses override specific steps. In Go, this pattern fights the language — there's no inheritance, no abstract classes, no method overriding. But the problem it solves is real: you need a fixed algorithm structure with pluggable steps.
+  The Go solution: pass the variable steps as function values or interfaces via composition. This achieves the same result without fighting the language.
+---
+FILE: src/content/patterns/behavioral/visitor.md
+PREVIEW:
+  # Visitor
+  Visitor separates an operation from the types it operates on. Instead of adding a new method to every type each time you need a new operation, the operations live in a visitor struct — each type accepts a visitor and calls the right method on it. In Go, this means every element type implements `Accept(Visitor)`, and the visitor implements one method per element type.
+  Here's the honest truth: Visitor is verbose in Go and often not the best choice. The Go alternative — a type switch — is simpler and covers most use cases. Use Visitor when you need the open/closed principle for operations (adding new operations without modifying element types). Use type-switch when you need simplicity and your element types are stable.
+MATCHES:
+  161: - **Composite** — Visitor is most powerful when applied to Composite structures: the Composite defines the tree, Visitor adds operations that traverse it without modifying the node types.
+---
+FILE: src/content/patterns/concurrency/done-channel.md
+PREVIEW:
+  # Done Channel
+  A goroutine that nobody can stop is a goroutine leak. It keeps stack memory alive, may hold file descriptors or database connections, and can block other goroutines waiting on its output. The done channel pattern gives every goroutine a way to stop, either by closing a dedicated `done` channel or, more commonly now, by cancelling a `context.Context`.
+  Apply this to any goroutine that isn't guaranteed to terminate on its own.
+---
+FILE: src/content/patterns/concurrency/errgroup.md
+PREVIEW:
+  # Errgroup
+  `errgroup` coordinates a group of goroutines that can fail. It collects errors from all goroutines and returns the first non-nil error. When used with `errgroup.WithContext`, it also cancels a shared context the moment any goroutine fails — stopping the rest of the group automatically.
+  This is the right tool for the pattern that looks like: "start N concurrent operations, wait for all to complete or any to fail, stop everything on the first failure."
+---
+FILE: src/content/patterns/concurrency/fan-out-fan-in.md
+PREVIEW:
+  # Fan-out / Fan-in
+  Fan-out distributes work from a single source channel to multiple goroutines processing in parallel. Fan-in merges the results from multiple goroutines back into a single channel for the downstream consumer. Together they turn a single-threaded pipeline stage into a parallel one, without changing the interface: the caller still reads from one channel.
+  The pattern addresses a specific bottleneck: a pipeline stage that is slower than its upstream and downstream. Rather than adding a single fast stage, you run N copies of the slow stage simultaneously.
+---
+FILE: src/content/patterns/concurrency/index.md
+PREVIEW:
+  Go's concurrency model is built on two primitives: goroutines and channels. Goroutines are cheap, independently-scheduled functions. Channels are typed conduits that let goroutines communicate and synchronise without shared memory. The language slogan captures the philosophy: *"Do not communicate by sharing memory; instead, share memory by communicating."*
+  These primitives are powerful and composable, but raw goroutines have failure modes that aren't obvious at first. Goroutines can leak — run forever because nothing signals them to stop. Channels can block forever when their sender or receiver exits early. Panics in goroutines kill the whole process if unrecovered. The patterns in this section are the established idioms for avoiding those failure modes and building concurrent systems that are correct, bounded, and cancellable.
+  ## The building blocks
+MATCHES:
+  8: These primitives are powerful and composable, but raw goroutines have failure modes that aren't obvious at first. Goroutines can leak — run forever because nothing signals them to stop. Channels can block forever when their sender or receiver exits early. Panics in goroutines kill the whole process if unrecovered. The patterns in this section are the established idioms for avoiding those failure modes and building concurrent systems that are correct, bounded, and cancellable.
+---
+FILE: src/content/patterns/concurrency/pipeline.md
+PREVIEW:
+  # Pipeline
+  A pipeline is a series of stages connected by channels. Each stage consumes values from an upstream channel, applies a transformation, and sends results to a downstream channel. Each stage runs in its own goroutine, so all stages run concurrently — while one stage processes item N, the next stage processes item N-1, and the previous stage is already fetching item N+1.
+  The pattern composes well: stages are functions with a consistent signature, and you chain them by passing the output of one as the input to the next.
+---
+FILE: src/content/patterns/concurrency/semaphore.md
+PREVIEW:
+  # Semaphore
+  A semaphore limits concurrent access to a resource. In Go, a buffered channel of empty structs is the idiomatic semaphore: the channel's capacity is the limit, sending to it acquires a slot, and receiving from it releases one. When the channel is full, any goroutine that tries to send blocks until another goroutine releases a slot.
+  The semaphore sits between two extremes: a mutex (only one goroutine at a time) and no limit (unlimited concurrency). Use it when you know how many concurrent operations a downstream system can handle and want to enforce that ceiling without managing a persistent goroutine pool.
+---
+FILE: src/content/patterns/concurrency/timeout-select.md
+PREVIEW:
+  # Timeout and Select
+  `select` is Go's multiplexer for channel operations. It waits until one of several channel cases can proceed, then executes it. Combined with `time.After`, `time.NewTimer`, or `context.WithTimeout`, it gives you precise control over how long a goroutine is willing to wait — for a value, for a result, for a downstream service to respond.
+  Every goroutine that blocks on a channel without a timeout is a goroutine that can block forever. Adding a select with a timeout or done channel is the discipline that prevents that.
+---
+FILE: src/content/patterns/concurrency/worker-pool.md
+PREVIEW:
+  # Worker Pool
+  A worker pool processes a queue of jobs using a fixed number of goroutines. Rather than spawning one goroutine per job — which can exhaust memory under load — a pool creates N workers at startup and keeps them running, each drawing jobs from a shared channel. Work is bounded: at most N jobs run simultaneously regardless of how many are enqueued.
+  This is the most common concurrency pattern in production Go code.
+---
+FILE: src/content/patterns/creational/abstract-factory.md
+PREVIEW:
+  # Abstract Factory
+  Abstract Factory solves a specific problem: your system needs families of related objects that must be used together — a JSON encoder paired with a JSON decoder, not a JSON encoder with a CSV decoder — and the entire family should be swappable as a unit.
+  In Go, the pattern is an interface whose methods each return a product interface. One struct per family satisfies the factory interface, and the compiler enforces that code written against that interface can never accidentally mix families. This is the critical advantage over individual [Factory Methods](/go/patterns/creational/factory-method): a factory method prevents you from picking the wrong *type*, but it can't prevent you from picking types from different families.
+---
+FILE: src/content/patterns/creational/builder.md
+PREVIEW:
+  # Builder
+  Long parameter lists cause two problems: callers must fill every position even for optional fields, and zero values become ambiguous (`timeout=0` could mean "no timeout" or "instant timeout"). In Go, the functional options pattern solves both — a variadic list of option functions lets callers specify only what they need, defaults are centralized in the constructor, and adding new options never breaks existing call sites.
+  The classic chained builder also works in Go and is preferable when construction has a meaningful order or when you want to reuse a partially configured builder across multiple similar objects.
+MATCHES:
+  47: The functional options pattern solves this elegantly. Define an `Option` type as a function that modifies a config. The constructor accepts a variadic list of options. Defaults are set inside the constructor, and only the options you care about are passed.
+---
+FILE: src/content/patterns/creational/factory-method.md
+PREVIEW:
+  # Factory Method
+  In class-based languages, Factory Method is an abstract class with an overridable creation method. In Go, it's a function that returns an interface — the entire pattern reduces to that. The "factory" is the constructor; the "method" is its return type.
+  The pattern earns its keep when you find yourself extending a switch statement every time you add a new type. That switch is a signal: move the selection logic into one place, hide it behind a constructor, and let new implementations register without touching existing code. This is the [Open/Closed Principle](/go/philosophy/solid) in practice — open for extension, closed for modification.
+---
+FILE: src/content/patterns/creational/index.md
+PREVIEW:
+  The question creational patterns answer: **how should this object come into existence?**
+  In Go, that question has a surprising amount of depth. The language has no `new` keyword with arguments, no constructor overloading, and no default parameter values. Every constructor is a function — which is both a constraint and a freedom. The patterns in this category fill in the gaps that this simplicity creates.
+  **Start with [Factory Method](/go/patterns/creational/factory-method)** if you find yourself extending a switch statement every time you add a new type. It's the simplest creational pattern — often just a function returning an interface — and it solves the most common construction problem in Go.
+---
+FILE: src/content/patterns/creational/prototype.md
+PREVIEW:
+  # Prototype
+  Go's struct assignment copies by value — clean for `string` and `int` fields, but silently dangerous for `[]string`, `map[string]string`, and pointer fields, which share the same underlying memory with the original. The value of Prototype in Go is not performance (avoiding expensive constructors) but correctness: a `Clone()` method makes deep-copy semantics explicit and localized, so reference types are never accidentally shared between what you thought were independent copies.
+  ## Problem
+---
+FILE: src/content/patterns/creational/singleton.md
+PREVIEW:
+  # Singleton
+  In most Go codebases, Singleton is an anti-pattern — not because the idea is wrong, but because global mutable state hides dependencies, makes tests unreliable, and forces every part of your application to use one specific concrete type that you can't swap out. The standard implementation using `sync.Once` initializes the value exactly once, safely across goroutines — and it's correct. Correct isn't the same as advisable.
+  The pattern has legitimate uses: hardware drivers, license managers, or immutable package-level values compiled at startup (a compiled regex, a frozen lookup table). For shared resources like loggers and HTTP clients, pass the instance through constructors and let `main()` enforce uniqueness.
+---
+FILE: src/content/patterns/structural/adapter.md
+PREVIEW:
+  # Adapter
+  Any wrapper struct in Go that makes one package's type compatible with another's interface is an Adapter — one of the most common patterns in the language, frequently written without being recognized as one. The formal structure: a struct holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
+  The pattern is especially common when integrating third-party packages: you can't modify the package, and you don't want to modify your domain interface, so you build a thin wrapper that translates between them once, in one place.
+---
+FILE: src/content/patterns/structural/bridge.md
+PREVIEW:
+  # Bridge
+  Bridge's identifying signal is a type hierarchy growing in two independent directions at once. Left unchecked, this produces a cartesian explosion: 3 formats × 3 outputs = 9 types; add a format and you add 3 types; add an output and you add 3 more. Bridge collapses this to 3 + 3 = 6 by splitting the two dimensions into two interfaces that compose via struct field, not inheritance.
+  The key question before reaching for Bridge: are these two dimensions truly independent? If they always change together, Bridge adds interfaces for no gain. If adding to one dimension never requires touching the other, Bridge is the right structure.
+---
+FILE: src/content/patterns/structural/composite.md
+PREVIEW:
+  # Composite
+  Composite's identifying signal is a tree structure where clients should treat leaves and branches the same way — you call `Size()` and it doesn't matter whether you're calling it on a single file or a directory containing thousands. In Go, this is one interface implemented by both leaf and composite types; the composite holds a `[]InterfaceType` and recursion falls out naturally from each node calling the same method on its children.
+  The canonical example is a file system: both files and directories satisfy the same interface, and a directory simply delegates its operations to its entries.
+---
+FILE: src/content/patterns/structural/decorator.md
+PREVIEW:
+  # Decorator
+  Decorator wraps an object to add behavior, keeping the same interface. In Go, this pattern is everywhere — it's how HTTP middleware works. Any function that takes an interface and returns the same interface, adding behavior in between, is a decorator.
+  The canonical Go example is `http.Handler` middleware: a function that takes a handler, returns a new handler that logs, authenticates, compresses, or rate-limits, and then calls the original. It's the [Open/Closed Principle](/go/philosophy/solid) made concrete — each concern is added without touching the code it wraps.
+---
+FILE: src/content/patterns/structural/facade.md
+PREVIEW:
+  # Facade
+  Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch job all repeat the same multi-step sequence — validate, process, notify, log — that sequence belongs in one struct, not scattered across entry points. In Go, a facade struct accepts its subsystems as interfaces (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.
+  ## Problem
+---
+FILE: src/content/patterns/structural/flyweight.md
+PREVIEW:
+  # Flyweight
+  Flyweight is a memory optimization: when you have thousands of similar objects, most of their data is identical. Instead of each object storing its own copy of that shared data, they all point to one shared instance. In Go this is usually a cache keyed on the shared value — the first time you need a particular entry you create it and store it; every subsequent request returns the same pointer. The data that never changes (a font, a colour, a locale) lives in the shared instance; the data that varies per object (a position, a timestamp, a count) stays on each individual instance.
+  `sync.Pool` is a related but different tool — it recycles mutable temporary objects to reduce GC pressure, whereas Flyweight shares immutable permanent state.
+MATCHES:
+  159: - **Singleton** — Singleton means one instance of one type; Flyweight means one instance per distinct key — the interning map is effectively a keyed singleton registry; use Singleton when there's genuinely only one, Flyweight when there are several distinct shared values.
+---
+FILE: src/content/patterns/structural/index.md
+PREVIEW:
+  The question structural patterns answer: **how should these types fit together?**
+  Structural patterns are about composition — wrapping, extending, or combining existing types without modifying them. In Go, where embedding and implicit interfaces make composition the primary tool, these patterns appear in idiomatic code constantly, often without the names.
+  **Start with [Adapter](/go/patterns/structural/adapter)** when you have a type that doesn't quite satisfy an interface you need. Any wrapper struct that makes one package's type compatible with another's interface is an Adapter — it's one of the most common patterns in Go codebases.
+---
+FILE: src/content/patterns/structural/proxy.md
+PREVIEW:
+  # Proxy
+  Proxy wraps an object with the same interface to control access to it. The wrapper can add lazy initialization, access control, caching, or logging — all without the client knowing it's not talking to the real object.
+  In Go, Proxy and Decorator look structurally identical (both wrap an interface). The distinction is intent: Decorator adds new behavior; Proxy controls access to existing behavior.
+---
+FILE: src/content/philosophy/clean-code.md
+PREVIEW:
+  # Clean Code
+  Code is read by humans. Compilers don't care about names, structure, or clarity — developers do, and they'll spend far more time reading your code than you spent writing it. Clean code is code that communicates its intent so clearly that the next reader can work with it safely, without needing to reverse-engineer what it does.
+  Go's culture pushes hard in this direction: short functions, clear names, explicit error handling, standard formatting via `gofmt`. The language doesn't prevent bad code, but it removes many of the excuses for it.
+---
+FILE: src/content/philosophy/composition-over-inheritance.md
+PREVIEW:
+  # Composition over Inheritance
+  *"Favour object composition over class inheritance."* — Gang of Four, 1994
+  Go made this decision for you: the language has no inheritance. There are no subclasses, no `extends`, no override. What Go has instead is embedding and interfaces — two mechanisms that let you compose behaviour from small, focused pieces without coupling types together through ancestry.
+MATCHES:
+  165: > **Smell:** A type embeds another type but overrides most of its methods, effectively replacing rather than extending it. A hierarchy is more than two levels deep. You're embedding a large type to get access to one method.
+---
+FILE: src/content/philosophy/dry.md
+PREVIEW:
+  # Don't Repeat Yourself
+  *"Every piece of knowledge must have a single, unambiguous, authoritative representation within a system."*
+  DRY is not about avoiding duplicated lines of code. It's about avoiding duplicated *knowledge* — business rules, validation logic, configuration values, data shapes. Two functions that happen to look similar are not necessarily a DRY violation. Two places that independently encode the same business rule absolutely are.
+---
+FILE: src/content/philosophy/functional-programming.md
+PREVIEW:
+  # Functional Programming Principles
+  Go is not a functional language. It has mutable state, imperative loops, and no algebraic types. But many ideas from functional programming translate directly and improve Go code: pure functions are easier to test, immutable data prevents whole categories of bugs, and higher-order functions enable flexible composition without inheritance.
+  You don't adopt FP as a religion. You adopt the ideas that pay off.
+---
+FILE: src/content/philosophy/galls-law.md
+PREVIEW:
+  # Gall's Law
+  *"A complex system that works is invariably found to have evolved from a simple system that worked. A complex system designed from scratch never works and cannot be made to work. You have to start over with a working simple system."* — John Gall, *Systemantics*, 1975
+  Gall's Law is an observation, not a prescription: complex systems that actually work didn't start complex. They started simple, proved themselves, and accumulated complexity only where the real world demanded it. Attempts to design a complex system from scratch — to anticipate every requirement, every failure mode, every integration — consistently fail.
+MATCHES:
+  108: ## What this is not
+---
+FILE: src/content/philosophy/index.md
+PREVIEW:
+  Patterns are implementations. Principles are the reason implementations work.
+  The gap between messy code and well-designed systems often comes down to not knowing the questions to ask. The principles here aren't doctrine. They're lenses that change what you see when you look at a design problem — and they interact with each other. SOLID tells you how to structure types. Separation of Concerns tells you how to structure systems. KISS and YAGNI tell you when to stop. Gall's Law tells you why complex systems designed from scratch consistently fail.
+  These ideas aren't new. They come from decades of people wrestling with the same problems: Robert C. Martin, Eric Evans, Martin Fowler, Ron Jeffries, John Gall, and many others. Ground yourself in this thinking before the pattern catalog, and the patterns become easier to understand — and harder to misapply.
+---
+FILE: src/content/philosophy/kiss.md
+PREVIEW:
+  # Keep It Simple
+  *"Simplicity is the ultimate sophistication."*
+  KISS — Keep It Simple, Stupid — is not an insult. It's a warning about a bias every engineer carries: the pull toward clever, flexible, extensible solutions when a direct one would do. The most dangerous code is code that solves problems that don't exist yet.
+---
+FILE: src/content/philosophy/law-of-demeter.md
+PREVIEW:
+  # Law of Demeter
+  *"Each unit should have only limited knowledge about other units: only units 'closely' related to the current unit."*
+  The Law of Demeter — also called the Principle of Least Knowledge — says a method should only call methods on:
+---
+FILE: src/content/philosophy/separation-of-concerns.md
+PREVIEW:
+  # Separation of Concerns
+  *"Separation of concerns, even if not perfectly possible, is yet the only available technique for effective ordering of one's thoughts."* — Edsger Dijkstra, 1974
+  A concern is a distinct responsibility — something a piece of software must do, know, or decide. Separation of Concerns (SoC) says those responsibilities should live in distinct places, with clear boundaries between them. When concerns are mixed, a change in one area ripples unpredictably into others.
+---
+FILE: src/content/philosophy/solid.md
+PREVIEW:
+  # SOLID Principles
+  In Go, three of the five SOLID principles apply almost by default: interfaces are implicit and small by convention (ISP), packages compose rather than inherit (OCP), and focused packages are idiomatic (SRP). The two that need deliberate effort are LSP — which in Go is about behavioral contracts for interface implementors, not subclass hierarchies — and DIP, where Go's "accept interfaces, return structs" idiom replaces abstract classes.
+  Understanding the principles tells you *why* a design choice is good or bad. Patterns tell you *how* to implement a solution. If you internalize the principles, you'll often arrive at the right pattern naturally — or realize you don't need one. The [Repository](/go/patterns/architectural/repository) pattern is DIP applied to persistence; [Observer](/go/patterns/behavioral/observer) is OCP applied to event notification; [Strategy](/go/patterns/behavioral/strategy) is OCP applied to interchangeable algorithms.
+---
+FILE: src/content/philosophy/tdd.md
+PREVIEW:
+  # Test-Driven Development
+  Write a failing test. Make it pass. Refactor. Go's tooling makes this loop faster and more pleasant than in most languages: `go test ./...` needs no configuration, implicit interfaces eliminate the need for mocking frameworks, and table-driven tests keep test cases as data rather than duplicated functions. More importantly, the design pressure TDD creates naturally produces the small interfaces and clean boundaries that patterns like [Strategy](/go/patterns/behavioral/strategy), [Repository](/go/patterns/architectural/repository), and [Observer](/go/patterns/behavioral/observer) formalize — you often arrive at the pattern without setting out to implement it.
+  ## The red / green / refactor loop
+---
+FILE: src/content/philosophy/twelve-factor.md
+PREVIEW:
+  # The Twelve-Factor App
+  The Twelve-Factor App methodology, published by Heroku engineers in 2011, describes twelve practices for building modern web applications and services. The goal is portability (runs the same anywhere), operability (easy to deploy and scale), and developer experience (minimal ceremony between writing code and running it).
+  These aren't abstract ideals. Each factor solves a specific operational problem that teams hit repeatedly as applications grow.
+MATCHES:
+  214: *Maximise robustness with fast startup and graceful shutdown.*
+---
+FILE: src/content/philosophy/yagni.md
+PREVIEW:
+  # You Aren't Gonna Need It
+  *"Always implement things when you actually need them, never when you just foresee that you need them."* — Ron Jeffries
+  YAGNI is a practice from Extreme Programming with a specific, narrow claim: don't implement a feature until it is required. Not "keep it in mind." Not "leave a hook for it." Don't build it.
+---
