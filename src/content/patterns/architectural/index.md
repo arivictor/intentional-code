@@ -37,7 +37,7 @@ You need architecture when:
 - **Requirements change frequently:** Today's feature becomes tomorrow's legacy
 - **Technical details are volatile:** Databases get migrated, APIs get deprecated, frameworks evolve
 - **Correctness matters:** Financial systems, healthcare, critical infrastructure
-- **The domain is complex:** Business rules are intricate and interrelated
+- **The domain is complex:** Business rules are dense and interrelated
 
 
 Skip architecture when:
@@ -228,7 +228,7 @@ Architectural patterns operate at a different scale than the creational, structu
 
 **Add [Repository](/go/patterns/architectural/repository)** when database calls start leaking into business code. Define the interface in the domain package, implement it in infrastructure, and your service logic becomes testable without a running database.
 
-**Graduate to [Hexagonal Architecture](/go/patterns/architectural/hexagonal)** when you need multiple delivery mechanisms, HTTP and gRPC and maybe a CLI too, against the same business logic, or when you want to test the application core end-to-end without infrastructure. Hexagonal formalizes what Layered hints at: ports are the interfaces, adapters are the implementations, and the application imports none of them directly.
+**Graduate to [Hexagonal Architecture](/go/patterns/architectural/hexagonal)** when you need multiple delivery mechanisms, HTTP and gRPC and maybe a CLI too, against the same business logic, or when you want to test the application core through the whole stack without infrastructure. Hexagonal formalizes what Layered hints at: ports are the interfaces, adapters are the implementations, and the application imports none of them directly.
 
 **[Clean Architecture](/go/patterns/architectural/clean-architecture)** covers much of the same ground as Hexagonal, just with "concentric rings" language. Use whichever model helps your team enforce the inward dependency rule. In practice, plenty of teams mix the terms.
 

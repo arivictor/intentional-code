@@ -9,13 +9,13 @@ tags: [interfaces, state, performance, testability, concurrency]
 
 # Proxy
 
-Proxy wraps an object with the same interface to control access to it. The wrapper can add lazy initialization, access control, caching, or logging — all without the client knowing it's not talking to the real object.
+Proxy wraps an object with the same interface to control access to it. The wrapper can add lazy initialization, access control, caching, or logging - all without the client knowing it's not talking to the real object.
 
 In Go, Proxy and Decorator look structurally identical (both wrap an interface). The distinction is intent: Decorator adds new behavior; Proxy controls access to existing behavior.
 
 ## Problem
 
-You have an image loader that reads files from disk — expensive on first access. Some callers also shouldn't see certain images. You want to defer loading until the image is actually displayed and enforce visibility rules, but you don't want to modify the loader or check permissions at every call site.
+You have an image loader that reads files from disk - expensive on first access. Some callers also shouldn't see certain images. You want to defer loading until the image is actually displayed and enforce visibility rules, but you don't want to modify the loader or check permissions at every call site.
 
 ```go
 // eager.go
@@ -37,7 +37,7 @@ func (l *ImageLoader) Display() string {
 }
 ```
 
-The loader reads the file on construction. If the image is never displayed — a collapsed section, an off-screen element — you've paid the I/O cost for nothing. And there's no access control.
+The loader reads the file on construction. If the image is never displayed - a collapsed section, an off-screen element - you've paid the I/O cost for nothing. And there's no access control.
 
 ## Solution
 
@@ -133,8 +133,8 @@ Output:
 
 ## When to Use
 
-- You need lazy initialization — the real object is expensive to create and may not be needed.
-- You need access control — check permissions before delegating to the real object.
+- You need lazy initialization - the real object is expensive to create and may not be needed.
+- You need access control - check permissions before delegating to the real object.
 - You need caching around an interface without modifying the implementation.
 - You want a local representative for a remote object.
 
@@ -142,13 +142,13 @@ Output:
 
 - The real object is cheap to create. Lazy initialization adds complexity without benefit.
 - Access control belongs at a higher level (HTTP middleware, gateway) rather than at the object level.
-- You're adding behavior without restricting access — that's [Decorator](/go/patterns/structural/decorator), not Proxy.
+- You're adding behavior without restricting access - that's [Decorator](/go/patterns/structural/decorator), not Proxy.
 
 ## Tradeoffs
 
-`sync.Once` makes lazy initialization goroutine-safe with no lock contention after the first call — it's the right tool here. The proxy is otherwise transparent: callers use the same interface and never know whether they're talking to the real object or the proxy. The cost is that the proxy must stay in sync with the real interface; if you add a method to `Image`, every proxy in the codebase must implement it too, and the compiler will enforce this — which is actually a feature, not a bug. The harder problem is debuggability: when a call goes wrong, the stack trace shows the proxy method, not the real one, and the first-call latency from lazy loading can surface as an intermittent slowness in the caller rather than a consistent cost at construction time.
+`sync.Once` makes lazy initialization goroutine-safe with no lock contention after the first call - it's the right tool here. The proxy is otherwise transparent: callers use the same interface and never know whether they're talking to the real object or the proxy. The cost is that the proxy must stay in sync with the real interface; if you add a method to `Image`, every proxy in the codebase must implement it too, and the compiler will enforce this - which is actually a feature, not a bug. The harder problem is debuggability: when a call goes wrong, the stack trace shows the proxy method, not the real one, and the first-call latency from lazy loading can surface as an intermittent slowness in the caller rather than a consistent cost at construction time.
 
 ## Related Patterns
 
-- **Adapter** — Adapter provides a different interface to bridge a mismatch; Proxy preserves the same interface — if your wrapper changes the API, it's an Adapter; if it intercepts calls through the same API, it's a Proxy.
-- **Decorator** — Proxy and Decorator are structurally identical in Go; the distinction is purpose — Proxy controls or intercepts access (lazy init, auth, caching), Decorator adds new capabilities while allowing unrestricted access to the original object.
+- **Adapter** - Adapter provides a different interface to bridge a mismatch; Proxy preserves the same interface - if your wrapper changes the API, it's an Adapter; if it intercepts calls through the same API, it's a Proxy.
+- **Decorator** - Proxy and Decorator are structurally identical in Go; the distinction is purpose - Proxy controls or intercepts access (lazy init, auth, caching), Decorator adds new capabilities while allowing unrestricted access to the original object.

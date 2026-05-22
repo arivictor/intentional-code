@@ -9,7 +9,7 @@ tags: [interfaces, dependency-inversion, migration]
 
 # Strangler Fig
 
-The Strangler Fig pattern is named after the tropical vine that grows around a host tree, eventually replacing it entirely. You build a new system around the edges of the old one — routing some calls to the new implementation — until the old system handles nothing and can be removed.
+The Strangler Fig pattern is named after the tropical vine that grows around a host tree, eventually replacing it entirely. You build a new system around the edges of the old one - routing some calls to the new implementation - until the old system handles nothing and can be removed.
 
 The key property: the old and new systems run simultaneously for an extended period. Traffic is divided at a routing layer that neither system knows about. The new implementation grows to cover more paths; the legacy shrinks. At completion, the routing layer becomes a direct pass-through to the new system, and the old one is deleted.
 
@@ -17,10 +17,10 @@ This is the practical alternative to a big-bang rewrite, which historically fail
 
 ## Problem
 
-A monolithic Go application handles orders, inventory, and customer accounts in one binary. The team wants to extract the inventory subsystem into a separate service. A full rewrite is too risky — thousands of call sites, no comprehensive test coverage, and the monolith is still receiving feature work.
+A monolithic Go application handles orders, inventory, and customer accounts in one binary. The team wants to extract the inventory subsystem into a separate service. A full rewrite is too risky - thousands of call sites, no comprehensive test coverage, and the monolith is still receiving feature work.
 
 ```go
-// monolith/router.go — everything handled by the monolith
+// monolith/router.go - everything handled by the monolith
 func (s *Server) routes() {
     http.HandleFunc("/inventory/", s.inventoryHandler)   // to replace
     http.HandleFunc("/orders/", s.ordersHandler)         // stay for now
@@ -84,7 +84,7 @@ func (r *StranglerRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 When you control both sides, a facade interface makes the transition invisible to callers in the same process:
 
 ```go
-// facade/inventory.go — callers see one interface; the implementation switches
+// facade/inventory.go - callers see one interface; the implementation switches
 package facade
 
 type InventoryService interface {
@@ -129,7 +129,7 @@ Phase 3: Legacy inventory code unreachable. Remove legacy routes and code.
 Shadow mode (run both, compare responses, serve from legacy) validates the new service before cutover:
 
 ```go
-// facade/shadow.go — validate new service without affecting callers
+// facade/shadow.go - validate new service without affecting callers
 func (s *stranglerInventory) Available(ctx context.Context, itemID string) (int, error) {
     legacyResult, legacyErr := s.legacy.Available(ctx, itemID)
 
@@ -155,15 +155,15 @@ func (s *stranglerInventory) Available(ctx context.Context, itemID string) (int,
 ## When Not to Use
 
 - The legacy system is small enough to rewrite and test in one cycle.
-- The old and new systems cannot share a data store or synchronize state — the data migration problem is harder than the code migration.
+- The old and new systems cannot share a data store or synchronize state - the data migration problem is harder than the code migration.
 - The routing layer is too expensive to maintain for the expected migration duration.
 
 ## Tradeoffs
 
-The main benefit is risk reduction: if the new service has a bug, you flip a flag and legacy handles the traffic again. You can verify each subsystem in production before expanding coverage. The costs are real: you maintain two implementations simultaneously, data consistency across old and new is a genuine engineering challenge (writes to the old system must propagate to the new, or vice versa), and the migration extends over months — the routing layer becomes long-lived infrastructure that teams sometimes forget to remove. Set a firm deadline for each phase. Shadow mode is invaluable for catching behavioral differences before cutover but doubles the load on both systems during validation.
+The main benefit is risk reduction: if the new service has a bug, you flip a flag and legacy handles the traffic again. You can verify each subsystem in production before expanding coverage. The costs are real: you maintain two implementations simultaneously, data consistency across old and new is a genuine engineering challenge (writes to the old system must propagate to the new, or vice versa), and the migration extends over months - the routing layer becomes long-lived infrastructure that teams sometimes forget to remove. Set a firm deadline for each phase. Shadow mode is invaluable for catching behavioral differences before cutover but doubles the load on both systems during validation.
 
 ## Related Patterns
 
-- **Microservices** — Strangler Fig is the migration path from a monolith to microservices. The pattern manages the transition; Microservices defines the target architecture.
-- **Hexagonal Architecture** — The facade that hides legacy vs. new is a port/adapter boundary. Hexagonal architecture makes the swap-out point explicit from the start, which is why systems built hexagonally are easier to strangle.
-- **Layered Architecture** — In a layered monolith, the strangler typically targets the outermost layers first (HTTP handlers) and works inward (service logic, then persistence).
+- **Microservices** - Strangler Fig is the migration path from a monolith to microservices. The pattern manages the transition; Microservices defines the target architecture.
+- **Hexagonal Architecture** - The facade that hides legacy vs. new is a port/adapter boundary. Hexagonal architecture makes the swap-out point explicit from the start, which is why systems built hexagonally are easier to strangle.
+- **Layered Architecture** - In a layered monolith, the strangler typically targets the outermost layers first (HTTP handlers) and works inward (service logic, then persistence).

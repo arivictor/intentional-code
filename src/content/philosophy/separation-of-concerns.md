@@ -1,13 +1,13 @@
 ---
 title: Separation of Concerns
-description: Each part of a system should address exactly one concern — and the boundaries between parts should be explicit.
+description: Each part of a system should address exactly one concern - and the boundaries between parts should be explicit.
 ---
 
 # Separation of Concerns
 
-*"Separation of concerns, even if not perfectly possible, is yet the only available technique for effective ordering of one's thoughts."* — Edsger Dijkstra, 1974
+*"Separation of concerns, even if not perfectly possible, is yet the only available technique for effective ordering of one's thoughts."* - Edsger Dijkstra, 1974
 
-A concern is a distinct responsibility — something a piece of software must do, know, or decide. Separation of Concerns (SoC) says those responsibilities should live in distinct places, with clear boundaries between them. When concerns are mixed, a change in one area ripples unpredictably into others.
+A concern is a distinct responsibility - something a piece of software must do, know, or decide. Separation of Concerns (SoC) says those responsibilities should live in distinct places, with clear boundaries between them. When concerns are mixed, a change in one area ripples unpredictably into others.
 
 SoC is closely related to the Single Responsibility Principle, but it operates at a higher level. SRP says a *type* should have one reason to change. SoC says an entire *layer or module* should address one domain of the problem. Both are expressions of the same underlying idea: isolate what changes together.
 
@@ -23,7 +23,7 @@ HTTP handlers  →  domain services  →  storage layer
 ```
 
 ```go
-// delivery/order_handler.go — HTTP concerns only.
+// delivery/order_handler.go - HTTP concerns only.
 // Knows about requests, responses, status codes.
 // Knows nothing about how orders are validated or stored.
 
@@ -48,7 +48,7 @@ func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
 ```
 
 ```go
-// domain/order_service.go — business rules only.
+// domain/order_service.go - business rules only.
 // Knows about validation, pricing, inventory.
 // Knows nothing about HTTP or SQL.
 
@@ -76,7 +76,7 @@ func (s *orderService) PlaceOrder(ctx context.Context, userID string, items []It
 ```
 
 ```go
-// store/order_store.go — persistence concerns only.
+// store/order_store.go - persistence concerns only.
 // Knows about SQL, transactions, connection pooling.
 // Knows nothing about business rules or HTTP.
 
@@ -106,7 +106,7 @@ Each layer can change independently. Replace Postgres with a different database 
 Concern leakage happens when one layer reaches into another's responsibilities.
 
 ```go
-// BAD — the HTTP handler contains business logic and SQL.
+// BAD - the HTTP handler contains business logic and SQL.
 // Three concerns in one place.
 
 func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
@@ -133,21 +133,21 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-When the business rule changes (minimum order amount, discount logic, inventory check), you edit the handler. When the database schema changes, you edit the handler. The handler has three reasons to change — a violation of both SoC and SRP.
+When the business rule changes (minimum order amount, discount logic, inventory check), you edit the handler. When the database schema changes, you edit the handler. The handler has three reasons to change - a violation of both SoC and SRP.
 
 ---
 
 ## Package boundaries in Go
 
-Go's package system is the natural mechanism for enforcing SoC. A package should represent a single concern. Packages that import each other in cycles are a signal that concerns have leaked — two packages are so entangled that neither can stand alone.
+Go's package system is the natural mechanism for enforcing SoC. A package should represent a single concern. Packages that import each other in cycles are a signal that concerns have leaked - two packages are so entangled that neither can stand alone.
 
 ```
-cmd/          — entry points, wires dependencies together
+cmd/          - entry points, wires dependencies together
 internal/
-  handler/    — HTTP delivery
-  domain/     — business rules and domain types
-  store/      — persistence
-  notify/     — notifications
+  handler/    - HTTP delivery
+  domain/     - business rules and domain types
+  store/      - persistence
+  notify/     - notifications
 ```
 
 The dependency graph should be a DAG. `handler` imports `domain`. `store` imports `domain`. `domain` imports nothing internal. `cmd` imports everything and wires it together.

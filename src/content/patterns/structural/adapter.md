@@ -9,13 +9,13 @@ tags: [interfaces, composition, dependency-inversion]
 
 # Adapter
 
-Any wrapper struct in Go that makes one package's type compatible with another's interface is an Adapter — one of the most common patterns in the language, frequently written without being recognized as one. The formal structure: a struct holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
+Any wrapper struct in Go that makes one package's type compatible with another's interface is an Adapter - one of the most common patterns in the language, frequently written without being recognized as one. The formal structure: a struct holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
 
 The pattern is especially common when integrating third-party packages: you can't modify the package, and you don't want to modify your domain interface, so you build a thin wrapper that translates between them once, in one place.
 
 ## Problem
 
-Your application writes log lines through a `Logger` interface. A third-party structured logging library is available, but it has a completely different method signature — it takes key-value pairs rather than a formatted string. You can't modify the library, and you don't want to change your `Logger` interface everywhere it's used.
+Your application writes log lines through a `Logger` interface. A third-party structured logging library is available, but it has a completely different method signature - it takes key-value pairs rather than a formatted string. You can't modify the library, and you don't want to change your `Logger` interface everywhere it's used.
 
 ```go
 // mismatch.go
@@ -26,7 +26,7 @@ type Logger interface {
     Log(msg string)
 }
 
-// Third-party library — you can't change this.
+// Third-party library - you can't change this.
 type StructuredLogger struct{}
 
 func (l *StructuredLogger) LogFields(fields map[string]string) {
@@ -35,7 +35,7 @@ func (l *StructuredLogger) LogFields(fields map[string]string) {
 }
 ```
 
-The library's method takes a map. Your interface takes a string. Without an adapter, you'd scatter conversion code throughout the codebase — every call site would need to build the map before calling the library.
+The library's method takes a map. Your interface takes a string. Without an adapter, you'd scatter conversion code throughout the codebase - every call site would need to build the map before calling the library.
 
 ## Solution
 
@@ -65,7 +65,7 @@ type Logger interface {
 	Log(msg string)
 }
 
-// Third-party library — you can't change this.
+// Third-party library - you can't change this.
 type StructuredLogger struct{}
 
 func (l *StructuredLogger) LogFields(fields map[string]string) {
@@ -109,17 +109,17 @@ func main() {
 
 ## When Not to Use
 
-- You can change the target interface to match — modifying the interface is simpler than wrapping.
+- You can change the target interface to match - modifying the interface is simpler than wrapping.
 - The adaptation is trivial (just renaming a method). Go's implicit interface satisfaction might mean you don't need a wrapper at all.
 - You're adapting for hypothetical future flexibility. Only adapt when the mismatch is real.
 
 ## Tradeoffs
 
-The benefit is concentrated: translation logic lives in one place, not scattered across every call site. Swapping the adapted library requires updating one struct rather than dozens of callers. The cost is a layer of indirection — one more file to open when tracing a call. If the adapted API changes (new parameters, changed return types), the adapter must be updated; the good news is that the compiler will catch this immediately. Adapters can silently lose information — translating a rich structured log entry down to a plain string means callers can never get that structure back. Be deliberate about what the adapter discards.
+The benefit is concentrated: translation logic lives in one place, not scattered across every call site. Swapping the adapted library requires updating one struct rather than dozens of callers. The cost is a layer of indirection - one more file to open when tracing a call. If the adapted API changes (new parameters, changed return types), the adapter must be updated; the good news is that the compiler will catch this immediately. Adapters can silently lose information - translating a rich structured log entry down to a plain string means callers can never get that structure back. Be deliberate about what the adapter discards.
 
 ## Related Patterns
 
-- **Bridge** — Bridge designs two interfaces to vary independently from the start; Adapter is a retrofit that reconciles two existing interfaces that were never designed to work together.
-- **Decorator** — Decorator preserves the same interface and adds behavior; Adapter changes the interface to resolve a mismatch — if your wrapper changes the API, it's an Adapter; if it adds to the same API, it's a Decorator.
-- **Facade** — Facade simplifies a whole subsystem's API into fewer entry points; Adapter makes one specific type compatible with one specific interface.
-- **Proxy** — Proxy preserves the same interface to control access to the real object; Adapter provides a different interface to bridge an incompatibility.
+- **Bridge** - Bridge designs two interfaces to vary independently from the start; Adapter is a retrofit that reconciles two existing interfaces that were never designed to work together.
+- **Decorator** - Decorator preserves the same interface and adds behavior; Adapter changes the interface to resolve a mismatch - if your wrapper changes the API, it's an Adapter; if it adds to the same API, it's a Decorator.
+- **Facade** - Facade simplifies a whole subsystem's API into fewer entry points; Adapter makes one specific type compatible with one specific interface.
+- **Proxy** - Proxy preserves the same interface to control access to the real object; Adapter provides a different interface to bridge an incompatibility.

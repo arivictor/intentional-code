@@ -10,7 +10,7 @@ isFeatured: false
 
 # Errgroup
 
-`errgroup` coordinates a group of goroutines that can fail. It collects errors from all goroutines and returns the first non-nil error. When used with `errgroup.WithContext`, it also cancels a shared context the moment any goroutine fails — stopping the rest of the group automatically.
+`errgroup` coordinates a group of goroutines that can fail. It collects errors from all goroutines and returns the first non-nil error. When used with `errgroup.WithContext`, it also cancels a shared context the moment any goroutine fails - stopping the rest of the group automatically.
 
 This is the right tool for the pattern that looks like: "start N concurrent operations, wait for all to complete or any to fail, stop everything on the first failure."
 
@@ -19,7 +19,7 @@ This is the right tool for the pattern that looks like: "start N concurrent oper
 You need to fetch data from three services in parallel. If any fetch fails, you want to cancel the others and return immediately rather than waiting for the slow ones to time out.
 
 ```go
-// Manual coordination — verbose and easy to get wrong.
+// Manual coordination - verbose and easy to get wrong.
 var wg sync.WaitGroup
 errs := make(chan error, 3)
 
@@ -182,11 +182,11 @@ return g.Wait()
 
 ## Tradeoffs
 
-`errgroup`'s cancellation is cooperative. The derived context is cancelled, but goroutines only stop when they check `ctx.Done()`. A goroutine that ignores context (a CPU-bound loop, a blocking syscall) will keep running until it finishes naturally. This means `g.Wait()` can block longer than expected after the first failure if goroutines aren't context-aware. The fix is to make all blocking operations select on `ctx.Done()` — which is good practice regardless of errgroup.
+`errgroup`'s cancellation is cooperative. The derived context is cancelled, but goroutines only stop when they check `ctx.Done()`. A goroutine that ignores context (a CPU-bound loop, a blocking syscall) will keep running until it finishes naturally. This means `g.Wait()` can block longer than expected after the first failure if goroutines aren't context-aware. The fix is to make all blocking operations select on `ctx.Done()` - which is good practice regardless of errgroup.
 
 ## Related Patterns
 
-- **Done Channel** — the cancellation mechanism errgroup uses internally; understand it to know why goroutines must select on `ctx.Done()` to respond to errgroup cancellation.
-- **Worker Pool** — for processing a stream of jobs where errors are per-job, not fatal to the whole group.
-- **Fan-out / Fan-in** — errgroup is a cleaner replacement for a `WaitGroup` + error channel in fan-out scenarios.
-- **Pipeline** — use errgroup to coordinate the goroutines in a pipeline where any stage failure should stop the whole pipeline.
+- **Done Channel** - the cancellation mechanism errgroup uses internally; understand it to know why goroutines must select on `ctx.Done()` to respond to errgroup cancellation.
+- **Worker Pool** - for processing a stream of jobs where errors are per-job, not fatal to the whole group.
+- **Fan-out / Fan-in** - errgroup is a cleaner replacement for a `WaitGroup` + error channel in fan-out scenarios.
+- **Pipeline** - use errgroup to coordinate the goroutines in a pipeline where any stage failure should stop the whole pipeline.

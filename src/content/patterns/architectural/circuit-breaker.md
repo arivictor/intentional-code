@@ -13,10 +13,10 @@ The Circuit Breaker protects a service from cascading failures when a dependency
 
 ## Problem
 
-Your service calls an external API to fetch weather data. The API starts timing out. Every request to your service now blocks for 30 seconds waiting for the timeout. Your goroutine pool fills up. Your service becomes unresponsive — not because of a bug in your code, but because a downstream dependency is slow. The failure cascades up.
+Your service calls an external API to fetch weather data. The API starts timing out. Every request to your service now blocks for 30 seconds waiting for the timeout. Your goroutine pool fills up. Your service becomes unresponsive - not because of a bug in your code, but because a downstream dependency is slow. The failure cascades up.
 
 ```go
-// Direct call — a slow dependency blocks the caller
+// Direct call - a slow dependency blocks the caller
 func (s *WeatherService) CurrentTemp(ctx context.Context, city string) (float64, error) {
     // If the upstream API hangs for 30s, this call hangs for 30s.
     // Under load, goroutines pile up waiting and the whole service stalls.
@@ -238,12 +238,12 @@ cb := gobreaker.NewCircuitBreaker(gobreaker.Settings{
 
 ## Tradeoffs
 
-The breaker adds complexity to what would otherwise be a direct function call, so only apply it at actual network boundaries. Threshold tuning is the persistent pain point: too sensitive and the breaker opens on normal jitter and starts degrading a healthy system; too lenient and it opens too late to stop the goroutine pile-up you were trying to prevent. The half-open state means some requests still fail during recovery, so every caller must handle `ErrCircuitOpen` explicitly — an error path that code reviews often skip. In multi-instance deployments, each instance carries its own breaker state with no shared coordination, so the same upstream can appear "open" to some instances and "closed" to others. When consistent circuit state across all instances is required, consider a Redis-backed shared breaker (store failure counts and state in Redis with atomic increments) or delegate circuit breaking entirely to a service mesh (Istio, Linkerd) that applies it at the network layer — outside your application code and consistent across all pods without any application-level coordination.
+The breaker adds complexity to what would otherwise be a direct function call, so only apply it at actual network boundaries. Threshold tuning is the persistent pain point: too sensitive and the breaker opens on normal jitter and starts degrading a healthy system; too lenient and it opens too late to stop the goroutine pile-up you were trying to prevent. The half-open state means some requests still fail during recovery, so every caller must handle `ErrCircuitOpen` explicitly - an error path that code reviews often skip. In multi-instance deployments, each instance carries its own breaker state with no shared coordination, so the same upstream can appear "open" to some instances and "closed" to others. When consistent circuit state across all instances is required, consider a Redis-backed shared breaker (store failure counts and state in Redis with atomic increments) or delegate circuit breaking entirely to a service mesh (Istio, Linkerd) that applies it at the network layer - outside your application code and consistent across all pods without any application-level coordination.
 
 ## Related Patterns
 
-- **Proxy** — Circuit Breaker is commonly implemented as a Proxy: it wraps a dependency behind the same interface the application already uses, intercepting calls to apply the state machine without changing the call site.
-- **Decorator** — An alternative implementation strategy. If the dependency interface is simple, a decorator that adds breaker behavior to any `func() error` is lighter than a full proxy struct.
-- **Event-Driven Architecture** — When a circuit opens, route events to a dead-letter queue instead of dropping them, then replay them once the circuit closes. The async nature of event-driven systems makes them more tolerant of short open periods.
-- **Hexagonal Architecture** — Put the circuit breaker inside the driven adapter (the infrastructure layer), not in the application core. The application calls the port interface without caring that a breaker is operating underneath.
-- **Layered Architecture** — The circuit breaker belongs in the Infrastructure layer. Service layer code calls repository interfaces normally, and the infrastructure implementation wraps outbound network calls in the breaker.
+- **Proxy** - Circuit Breaker is commonly implemented as a Proxy: it wraps a dependency behind the same interface the application already uses, intercepting calls to apply the state machine without changing the call site.
+- **Decorator** - An alternative implementation strategy. If the dependency interface is simple, a decorator that adds breaker behavior to any `func() error` is lighter than a full proxy struct.
+- **Event-Driven Architecture** - When a circuit opens, route events to a dead-letter queue instead of dropping them, then replay them once the circuit closes. The async nature of event-driven systems makes them more tolerant of short open periods.
+- **Hexagonal Architecture** - Put the circuit breaker inside the driven adapter (the infrastructure layer), not in the application core. The application calls the port interface without caring that a breaker is operating underneath.
+- **Layered Architecture** - The circuit breaker belongs in the Infrastructure layer. Service layer code calls repository interfaces normally, and the infrastructure implementation wraps outbound network calls in the breaker.

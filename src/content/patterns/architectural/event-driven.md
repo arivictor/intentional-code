@@ -18,7 +18,7 @@ The pattern spans both in-process (Go channels, event bus struct) and cross-serv
 A file-processing service calls the notification service, the search indexer, and the audit logger directly when a file is uploaded. Every new downstream concern means a new import and a new call site in the upload service. If the notification service is down, the upload fails. Testing the upload service requires all downstream services to be running.
 
 ```go
-// UploadService knows about every downstream concern — tight coupling
+// UploadService knows about every downstream concern - tight coupling
 func (s *UploadService) ProcessUpload(ctx context.Context, fileID string) error {
     if err := s.store.Save(ctx, fileID); err != nil {
         return err
@@ -213,7 +213,7 @@ func (s *IndexerService) RegisterHandlers(bus *eventbus.Bus) {
 }
 ```
 
-Wire it up at startup — the only place that needs to know about all services:
+Wire it up at startup - the only place that needs to know about all services:
 
 ```go
 // main.go
@@ -364,7 +364,7 @@ func (r *OutboxRelay) publishPending(ctx context.Context) {
 }
 ```
 
-At-least-once delivery is preserved: if the relay crashes after publishing but before updating `published_at`, the event is re-published on restart — consumers must be idempotent. For production use, consider a CDC (change data capture) tool like Debezium that reads the Postgres write-ahead log directly, avoiding the polling overhead.
+At-least-once delivery is preserved: if the relay crashes after publishing but before updating `published_at`, the event is re-published on restart - consumers must be idempotent. For production use, consider a CDC (change data capture) tool like Debezium that reads the Postgres write-ahead log directly, avoiding the polling overhead.
 
 ## When to Use
 
@@ -382,12 +382,12 @@ At-least-once delivery is preserved: if the relay crashes after publishing but b
 
 ## Tradeoffs
 
-The main benefit is isolation: producers stay stable as new consumers are added, and a failing consumer can't roll back the producer's work. The main cost is eventual consistency — consumers may lag behind the producer, so the indexer may not see a newly uploaded file immediately, and this surprises users who expect their own write to be immediately reflected. At-least-once delivery means every consumer must be idempotent, which isn't hard to implement but is easy to forget when adding a new handler. Schema coupling is the subtler ongoing cost: event schemas need to stay backward compatible or consumers break silently, requiring deliberate versioning discipline that pure function call contracts don't. The rules: add new fields additively and never remove or rename existing ones; use pointer types (`*string`, `*int`) for optional new fields so producers that omit the field produce valid JSON that older consumers can still decode; use a `Version` field to dispatch consumers to different deserialization paths when a structural change is unavoidable. Go's `json.Unmarshal` ignores unknown fields by default, which means producers can add fields without coordinating consumer deploys — as long as you never remove fields that consumers already depend on.
+The main benefit is isolation: producers stay stable as new consumers are added, and a failing consumer can't roll back the producer's work. The main cost is eventual consistency - consumers may lag behind the producer, so the indexer may not see a newly uploaded file immediately, and this surprises users who expect their own write to be immediately reflected. At-least-once delivery means every consumer must be idempotent, which isn't hard to implement but is easy to forget when adding a new handler. Schema coupling is the subtler ongoing cost: event schemas need to stay backward compatible or consumers break silently, requiring deliberate versioning discipline that pure function call contracts don't. The rules: add new fields additively and never remove or rename existing ones; use pointer types (`*string`, `*int`) for optional new fields so producers that omit the field produce valid JSON that older consumers can still decode; use a `Version` field to dispatch consumers to different deserialization paths when a structural change is unavoidable. Go's `json.Unmarshal` ignores unknown fields by default, which means producers can add fields without coordinating consumer deploys - as long as you never remove fields that consumers already depend on.
 
 ## Related Patterns
 
-- **Domain-Driven Design** — Domain Events are a natural producer for an event-driven system. Aggregates record events as facts during state transitions, and the application layer dispatches them after the transaction commits.
-- **CQRS** — Commands produce events, and read-side projections consume those events to build denormalized views. Together they give you a full write and read model with a useful audit history.
-- **Circuit Breaker** — Wrap message broker publish calls in a circuit breaker. If the broker is unavailable, fail fast and route events to a dead-letter queue instead of blocking the producer.
-- **Hexagonal Architecture** — The message broker is a driven adapter implementing a `Publisher` port, and the event handler function is another driven port implemented by the infrastructure layer.
-- **Observer** — Event-Driven Architecture is the distributed, cross-process form of the Observer pattern. Observer is in-process with direct method calls; Event-Driven adds a broker, serialization, and at-least-once delivery semantics.
+- **Domain-Driven Design** - Domain Events are a natural producer for an event-driven system. Aggregates record events as facts during state transitions, and the application layer dispatches them after the transaction commits.
+- **CQRS** - Commands produce events, and read-side projections consume those events to build denormalized views. Together they give you a full write and read model with a useful audit history.
+- **Circuit Breaker** - Wrap message broker publish calls in a circuit breaker. If the broker is unavailable, fail fast and route events to a dead-letter queue instead of blocking the producer.
+- **Hexagonal Architecture** - The message broker is a driven adapter implementing a `Publisher` port, and the event handler function is another driven port implemented by the infrastructure layer.
+- **Observer** - Event-Driven Architecture is the distributed, cross-process form of the Observer pattern. Observer is in-process with direct method calls; Event-Driven adds a broker, serialization, and at-least-once delivery semantics.

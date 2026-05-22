@@ -9,7 +9,7 @@ tags: [interfaces, dependency-inversion, testability, composition]
 
 # Clean Architecture
 
-Clean Architecture organizes code in concentric rings — Entities, Use Cases, Interface Adapters, Frameworks and Drivers — with one strict rule: source-code dependencies may only point inward. The innermost rings know nothing about HTTP, databases, or frameworks. Everything outside exists to serve the domain.
+Clean Architecture organizes code in concentric rings - Entities, Use Cases, Interface Adapters, Frameworks and Drivers - with one strict rule: source-code dependencies may only point inward. The innermost rings know nothing about HTTP, databases, or frameworks. Everything outside exists to serve the domain.
 
 ## Problem
 
@@ -105,7 +105,7 @@ import (
     "myapp/domain"
 )
 
-// Ports — defined by the use case and implemented by outer rings.
+// Ports - defined by the use case and implemented by outer rings.
 type NoteRepository interface {
     Save(ctx context.Context, n *domain.Note) error
 }
@@ -206,7 +206,7 @@ func (r *NoteRepo) Save(ctx context.Context, n *domain.Note) error {
 
 - You're building a long-lived service where domain rules are the core asset.
 - You need to support multiple delivery mechanisms (HTTP, gRPC, CLI, background workers) against the same business logic.
-- The domain is complex enough to justify the structure — multiple aggregates, non-trivial rules, frequent change.
+- The domain is complex enough to justify the structure - multiple aggregates, non-trivial rules, frequent change.
 - You want to test use cases without starting any infrastructure.
 
 ## When Not to Use
@@ -217,11 +217,11 @@ func (r *NoteRepo) Save(ctx context.Context, n *domain.Note) error {
 
 ## Tradeoffs
 
-The inward dependency rule is the entire mechanism, and it only holds if the team enforces it — a single `import "database/sql"` in a use case package silently breaks the guarantee, and Go's toolchain won't catch it without a lint rule like `depguard`. Data mapping between rings is mechanical but unavoidable: domain types need to be converted to DTOs for the HTTP response, to row types for the database, and back again, which adds boilerplate even for small features. In older Go codebases without generics, many small interfaces and converter functions compound this cost. The payoff arrives when you add a second delivery mechanism (gRPC, a worker, a CLI) without touching any domain code, or when you swap a database by replacing one adapter package — if you never do either of those things, the structure was overhead.
+The inward dependency rule is the entire mechanism, and it only holds if the team enforces it - a single `import "database/sql"` in a use case package silently breaks the guarantee, and Go's toolchain won't catch it without a lint rule like `depguard`. Data mapping between rings is mechanical but unavoidable: domain types need to be converted to DTOs for the HTTP response, to row types for the database, and back again, which adds boilerplate even for small features. In older Go codebases without generics, many small interfaces and converter functions compound this cost. The payoff arrives when you add a second delivery mechanism (gRPC, a worker, a CLI) without touching any domain code, or when you swap a database by replacing one adapter package - if you never do either of those things, the structure was overhead.
 
 ## Related Patterns
 
-- **Hexagonal Architecture** — Same goals, different vocabulary. Clean Architecture uses "concentric rings," Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule. They work well together, and many codebases use both terms interchangeably.
-- **Layered Architecture** — Clean Architecture is a stricter version of layered thinking. Layered gives you the tier structure, while Clean Architecture adds an explicit Dependency Rule and forbids inner rings from naming outer ones. Reach for it when you need that rule to hold under pressure.
-- **Repository** — Repository is the idiomatic Go implementation of the persistence port in Clean Architecture's Use Case ring. The interface belongs in Use Cases, the SQL implementation belongs in the outermost Frameworks and Drivers ring, and the inward dependency rule tells you exactly where each piece lives.
-- **Domain-Driven Design** — Clean Architecture's Entity ring maps directly to DDD's domain model. The two pair naturally: DDD gives you the modeling discipline for what belongs in the inner rings, and Clean Architecture gives you the structural rule that keeps it there.
+- **Hexagonal Architecture** - Same goals, different vocabulary. Clean Architecture uses "concentric rings," Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule. They work well together, and many codebases use both terms interchangeably.
+- **Layered Architecture** - Clean Architecture is a stricter version of layered thinking. Layered gives you the tier structure, while Clean Architecture adds an explicit Dependency Rule and forbids inner rings from naming outer ones. Reach for it when you need that rule to hold under pressure.
+- **Repository** - Repository is the idiomatic Go implementation of the persistence port in Clean Architecture's Use Case ring. The interface belongs in Use Cases, the SQL implementation belongs in the outermost Frameworks and Drivers ring, and the inward dependency rule tells you exactly where each piece lives.
+- **Domain-Driven Design** - Clean Architecture's Entity ring maps directly to DDD's domain model. The two pair naturally: DDD gives you the modeling discipline for what belongs in the inner rings, and Clean Architecture gives you the structural rule that keeps it there.

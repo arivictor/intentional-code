@@ -18,7 +18,7 @@ Each command and query gets its own handler type, its own input struct, and some
 A single `NoteService` handles both writes and reads. The `GetNote` method returns the full domain struct, which exposes internal state. The `CreateNote` and `GetNoteSummary` methods share the same repository, so optimising the read path requires touching the write path too. Every new read shape requires a new method on the same service.
 
 ```go
-// One service doing everything — reads and writes entangled
+// One service doing everything - reads and writes entangled
 type NoteService struct {
     repo NoteRepository
 }
@@ -299,11 +299,11 @@ func (h *NoteHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 When the read store is a separate projection updated asynchronously, a user who just submitted a command may query immediately and receive the old state. This surprises users who expect to see their own write reflected at once. Three strategies address this:
 
-**Optimistic UI** — Display the expected outcome in the UI immediately based on the command, without re-querying the server. Sync from the server on the next natural refresh. No server-side changes needed; works well when the UI can confidently predict the new state.
+**Optimistic UI** - Display the expected outcome in the UI immediately based on the command, without re-querying the server. Sync from the server on the next natural refresh. No server-side changes needed; works well when the UI can confidently predict the new state.
 
-**Read-from-write store** — For the actor's own recent changes, bypass the read store and query the write store directly for a short window after the command. Other users still get the eventually consistent projection. Simple to implement; adds load to the write store.
+**Read-from-write store** - For the actor's own recent changes, bypass the read store and query the write store directly for a short window after the command. Other users still get the eventually consistent projection. Simple to implement; adds load to the write store.
 
-**Version-aware query** — The command returns a version number; the query handler waits until the projection has caught up to that version before returning:
+**Version-aware query** - The command returns a version number; the query handler waits until the projection has caught up to that version before returning:
 
 ```go
 // command result includes the write version
@@ -331,7 +331,7 @@ func (h *GetNoteHandler) HandleAtVersion(ctx context.Context, id string, minVers
 }
 ```
 
-The version-aware approach requires the projection to store and expose a version number. It is the most consistent of the three strategies but adds complexity and a short blocking window. For most applications, optimistic UI is the right starting point — users already understand that submitted changes take a moment to appear.
+The version-aware approach requires the projection to store and expose a version number. It is the most consistent of the three strategies but adds complexity and a short blocking window. For most applications, optimistic UI is the right starting point - users already understand that submitted changes take a moment to appear.
 
 ## When to Use
 
@@ -348,12 +348,12 @@ The version-aware approach requires the projection to store and expose a version
 
 ## Tradeoffs
 
-The most immediate cost is volume: each operation gets its own struct and handler, so a ten-operation service becomes closer to twenty files. The split pays back through independent evolution — you can add a new query shape or optimize a read projection without touching the write model — but that dividend arrives only with enough operations to make the separation feel natural rather than forced. Eventual consistency is the non-obvious danger: if the read store is a separate projection updated asynchronously, queries may return stale data until it catches up, and this surprises users who expect to see their own write immediately. Even with a shared database, the separation doubles the integration test surface because both command handlers and query handlers need coverage.
+The most immediate cost is volume: each operation gets its own struct and handler, so a ten-operation service becomes closer to twenty files. The split pays back through independent evolution - you can add a new query shape or optimize a read projection without touching the write model - but that dividend arrives only with enough operations to make the separation feel natural rather than forced. Eventual consistency is the non-obvious danger: if the read store is a separate projection updated asynchronously, queries may return stale data until it catches up, and this surprises users who expect to see their own write immediately. Even with a shared database, the separation doubles the integration test surface because both command handlers and query handlers need coverage.
 
 ## Related Patterns
 
-- **Event-Driven Architecture** — Commands naturally emit Domain Events that update read-side projections asynchronously. CQRS and event-driven systems fit together well, but CQRS does not require them. A single database with separate read and write models is enough to get started.
-- **Domain-Driven Design** — Pairs naturally with DDD. The command side uses the rich aggregate model with enforced invariants, while the query side uses flat DTOs that bypass the domain model for read performance.
-- **Hexagonal Architecture** — Command and query handlers are driving ports called by HTTP or queue adapters. Write and read stores are driven ports implemented by database adapters.
-- **Clean Architecture** — Commands map to Use Cases in the inner ring, while queries can bypass the domain model and read directly from the store. The Dependency Rule still applies to both sides.
-- **Repository** — The write side of CQRS typically uses a Repository for its write store, while the read side often uses a lighter read store interface that returns projections rather than aggregates.
+- **Event-Driven Architecture** - Commands naturally emit Domain Events that update read-side projections asynchronously. CQRS and event-driven systems fit together well, but CQRS does not require them. A single database with separate read and write models is enough to get started.
+- **Domain-Driven Design** - Pairs naturally with DDD. The command side uses the rich aggregate model with enforced invariants, while the query side uses flat DTOs that bypass the domain model for read performance.
+- **Hexagonal Architecture** - Command and query handlers are driving ports called by HTTP or queue adapters. Write and read stores are driven ports implemented by database adapters.
+- **Clean Architecture** - Commands map to Use Cases in the inner ring, while queries can bypass the domain model and read directly from the store. The Dependency Rule still applies to both sides.
+- **Repository** - The write side of CQRS typically uses a Repository for its write store, while the read side often uses a lighter read store interface that returns projections rather than aggregates.

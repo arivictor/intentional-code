@@ -9,9 +9,9 @@ tags: [interfaces, closures, composition, testability]
 
 # Decorator
 
-Decorator wraps an object to add behavior, keeping the same interface. In Go, this pattern is everywhere — it's how HTTP middleware works. Any function that takes an interface and returns the same interface, adding behavior in between, is a decorator.
+Decorator wraps an object to add behavior, keeping the same interface. In Go, this pattern is everywhere - it's how HTTP middleware works. Any function that takes an interface and returns the same interface, adding behavior in between, is a decorator.
 
-The canonical Go example is `http.Handler` middleware: a function that takes a handler, returns a new handler that logs, authenticates, compresses, or rate-limits, and then calls the original. It's the [Open/Closed Principle](/go/philosophy/solid) made concrete — each concern is added without touching the code it wraps.
+The canonical Go example is `http.Handler` middleware: a function that takes a handler, returns a new handler that logs, authenticates, compresses, or rate-limits, and then calls the original. It's the [Open/Closed Principle](/go/philosophy/solid) made concrete - each concern is added without touching the code it wraps.
 
 ## Problem
 
@@ -44,7 +44,7 @@ func handleItems(w http.ResponseWriter, r *http.Request) {
     // CORS (shouldn't be here)
     w.Header().Set("Access-Control-Allow-Origin", "*")
 
-    // Actual response — buried under cross-cutting concerns
+    // Actual response - buried under cross-cutting concerns
     w.Write([]byte("items: []"))
 }
 ```
@@ -123,8 +123,8 @@ func main() {
 	health := Logging(http.HandlerFunc(healthHandler))
 
 	send(items, "/items", "token")   // 200
-	send(items, "/items", "")        // 401 — no auth
-	send(health, "/health", "")      // 200 — no auth required
+	send(items, "/items", "")        // 401 - no auth
+	send(health, "/health", "")      // 200 - no auth required
 }
 ```
 
@@ -140,23 +140,23 @@ Output:
 ## When to Use
 
 - You need to add behavior to objects without modifying their code.
-- You want to compose behaviors independently — different combinations for different cases.
+- You want to compose behaviors independently - different combinations for different cases.
 - The behavior is cross-cutting (logging, auth, caching, metrics) and shouldn't live in business logic.
-- You see yourself wrapping an `http.Handler` — you're already using Decorator.
+- You see yourself wrapping an `http.Handler` - you're already using Decorator.
 
 ## When Not to Use
 
-- The added behavior is tightly coupled to the object's internals. A decorator that needs private fields isn't a decorator — it's a refactoring need.
+- The added behavior is tightly coupled to the object's internals. A decorator that needs private fields isn't a decorator - it's a refactoring need.
 - Deep decorator stacks (5+ layers) make debugging difficult. Consider whether a [Chain of Responsibility](/go/patterns/behavioral/chain-of-responsibility) would be clearer.
 - You only ever need one fixed combination. Direct composition in a single handler might be simpler.
 
 ## Tradeoffs
 
-The function-wrapper form is idiomatic Go — returning `http.HandlerFunc(func(...) {...})` adds almost no boilerplate and every Go developer recognises it instantly. The cost that accumulates is order sensitivity: `Logging(Auth(handler))` logs all requests including rejected ones; `Auth(Logging(handler))` only logs authenticated traffic — small difference, large operational impact, and the compiler won't warn you either way. Stack traces through multiple anonymous closures also become hard to read; when `Auth` short-circuits inside a chain five wrappers deep, the request path in logs shows nothing useful. Name your handler functions rather than using anonymous closures, and keep chains to three or four layers.
+The function-wrapper form is idiomatic Go - returning `http.HandlerFunc(func(...) {...})` adds almost no boilerplate and every Go developer recognises it instantly. The cost that accumulates is order sensitivity: `Logging(Auth(handler))` logs all requests including rejected ones; `Auth(Logging(handler))` only logs authenticated traffic - small difference, large operational impact, and the compiler won't warn you either way. Stack traces through multiple anonymous closures also become hard to read; when `Auth` short-circuits inside a chain five wrappers deep, the request path in logs shows nothing useful. Name your handler functions rather than using anonymous closures, and keep chains to three or four layers.
 
 ## Related Patterns
 
-- **Adapter** — Adapter resolves an interface mismatch; Decorator keeps the same interface and adds behavior — if your wrapper changes the API, it's an Adapter; if it preserves the API and enriches it, it's a Decorator.
-- **Composite** — Decorator wraps exactly one object and adds behavior; Composite aggregates many objects of the same type — if you wrap one, Decorator; if you compose many, Composite.
-- **Proxy** — Proxy and Decorator are structurally identical in Go; the distinction is intent — Proxy controls or intercepts access (lazy init, auth, caching), Decorator adds new capabilities without restricting access.
-- **Chain of Responsibility** — HTTP middleware chains are both Decorator and Chain of Responsibility: each middleware wraps the next (Decorator) and may short-circuit the chain without calling the inner handler (Chain of Responsibility).
+- **Adapter** - Adapter resolves an interface mismatch; Decorator keeps the same interface and adds behavior - if your wrapper changes the API, it's an Adapter; if it preserves the API and enriches it, it's a Decorator.
+- **Composite** - Decorator wraps exactly one object and adds behavior; Composite aggregates many objects of the same type - if you wrap one, Decorator; if you compose many, Composite.
+- **Proxy** - Proxy and Decorator are structurally identical in Go; the distinction is intent - Proxy controls or intercepts access (lazy init, auth, caching), Decorator adds new capabilities without restricting access.
+- **Chain of Responsibility** - HTTP middleware chains are both Decorator and Chain of Responsibility: each middleware wraps the next (Decorator) and may short-circuit the chain without calling the inner handler (Chain of Responsibility).

@@ -16,10 +16,10 @@ The pattern addresses a specific bottleneck: a pipeline stage that is slower tha
 
 ## Problem
 
-An image processing pipeline fetches images from a channel, runs a CPU-intensive resize operation on each one, and emits the result. The resize step is the bottleneck — it's CPU-bound and takes 100ms per image. The upstream can produce images faster than a single goroutine can resize them.
+An image processing pipeline fetches images from a channel, runs a CPU-intensive resize operation on each one, and emits the result. The resize step is the bottleneck - it's CPU-bound and takes 100ms per image. The upstream can produce images faster than a single goroutine can resize them.
 
 ```go
-// Single-stage pipeline — resize is the bottleneck.
+// Single-stage pipeline - resize is the bottleneck.
 // All resizes happen sequentially despite having multiple CPUs available.
 func resize(in <-chan Image) <-chan Image {
     out := make(chan Image)
@@ -169,7 +169,7 @@ workers := runtime.NumCPU()
 workers := 50
 ```
 
-For I/O-bound work, consider a [Worker Pool](/go/patterns/concurrency/worker-pool) instead — it bounds concurrency with a fixed pool rather than spawning N goroutines upfront.
+For I/O-bound work, consider a [Worker Pool](/go/patterns/concurrency/worker-pool) instead - it bounds concurrency with a fixed pool rather than spawning N goroutines upfront.
 
 ## When to Use
 
@@ -180,18 +180,18 @@ For I/O-bound work, consider a [Worker Pool](/go/patterns/concurrency/worker-poo
 
 ## When Not to Use
 
-- Items are not independent — each depends on the result of the previous one.
+- Items are not independent - each depends on the result of the previous one.
 - The bottleneck is downstream (a slow consumer). Adding parallel producers makes the fan-in goroutines block on a full channel; fix the consumer instead.
 - The work is cheap enough that channel overhead exceeds the benefit of parallelism. Measure first.
 - You need a fixed upper bound on goroutines regardless of input size. Use a [Worker Pool](/go/patterns/concurrency/worker-pool).
 
 ## Tradeoffs
 
-Fan-out does not preserve input order in the output. If order matters, you need to tag each item with its index and reorder at the fan-in — or use a worker pool with an ordered results channel. The number of goroutines scales with the `workers` parameter, not with input size, so fan-out is safe for large input streams. The primary risk is the fan-in's `merged` channel becoming a bottleneck: if it's unbuffered, fast workers will block waiting for the consumer. A modest buffer (equal to the worker count) is often the right call.
+Fan-out does not preserve input order in the output. If order matters, you need to tag each item with its index and reorder at the fan-in - or use a worker pool with an ordered results channel. The number of goroutines scales with the `workers` parameter, not with input size, so fan-out is safe for large input streams. The primary risk is the fan-in's `merged` channel becoming a bottleneck: if it's unbuffered, fast workers will block waiting for the consumer. A modest buffer (equal to the worker count) is often the right call.
 
 ## Related Patterns
 
-- **Pipeline** — fan-out/fan-in is how you parallelise a single pipeline stage; the surrounding structure remains a pipeline.
-- **Worker Pool** — an alternative for bounded concurrency: a fixed goroutine count consuming from a job channel rather than N goroutines sharing an input channel.
-- **Done Channel** — cancellation discipline to prevent fan-in goroutines leaking when the consumer exits.
-- **Errgroup** — handles the case where workers can fail; cancels all workers on the first error.
+- **Pipeline** - fan-out/fan-in is how you parallelise a single pipeline stage; the surrounding structure remains a pipeline.
+- **Worker Pool** - an alternative for bounded concurrency: a fixed goroutine count consuming from a job channel rather than N goroutines sharing an input channel.
+- **Done Channel** - cancellation discipline to prevent fan-in goroutines leaking when the consumer exits.
+- **Errgroup** - handles the case where workers can fail; cancels all workers on the first error.

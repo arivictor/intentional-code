@@ -17,7 +17,7 @@ The tactical building blocks are **Entities** (identity-based, stateful), **Valu
 
 DDD operates at two levels. **Tactical DDD** is the building-block vocabulary: Entities, Value Objects, Aggregates, Repositories, Domain Events, and Domain Services. These clarify a single bounded context.
 
-**Strategic DDD** is the higher-level discipline: how you carve a large domain into coherent sub-domains, draw explicit boundaries between them, and manage the relationships across those boundaries. Most DDD failures stem from applying tactical patterns without the strategic foundation — you end up with rich aggregates that still create a tightly coupled system because context boundaries were never drawn.
+**Strategic DDD** is the higher-level discipline: how you carve a large domain into coherent sub-domains, draw explicit boundaries between them, and manage the relationships across those boundaries. Most DDD failures stem from applying tactical patterns without the strategic foundation - you end up with rich aggregates that still create a tightly coupled system because context boundaries were never drawn.
 
 ## Bounded Contexts
 
@@ -41,7 +41,7 @@ The word "Customer" appears across the entire e-commerce domain, but means somet
 In Go, each bounded context is its own package (or set of packages). The types are independent:
 
 ```go
-// billing/customer.go — the billing model of a customer
+// billing/customer.go - the billing model of a customer
 package billing
 
 type Customer struct {
@@ -53,7 +53,7 @@ type Customer struct {
 ```
 
 ```go
-// shipping/customer.go — the shipping model of a customer
+// shipping/customer.go - the shipping model of a customer
 package shipping
 
 type Customer struct {
@@ -70,13 +70,13 @@ Forcing a single `Customer` struct to serve both contexts produces a type with 1
 
 A context map documents the relationships between bounded contexts. The four most common relationships in practice:
 
-**Shared Kernel** — Two contexts share a small subset of the model (a `Money` type, an `OrderID`). Changes to the kernel require coordination between both teams.
+**Shared Kernel** - Two contexts share a small subset of the model (a `Money` type, an `OrderID`). Changes to the kernel require coordination between both teams.
 
-**Customer/Supplier** — One context is upstream (the supplier), one is downstream (the customer). The supplier defines the API; the customer adapts to it.
+**Customer/Supplier** - One context is upstream (the supplier), one is downstream (the customer). The supplier defines the API; the customer adapts to it.
 
-**Anti-Corruption Layer (ACL)** — The downstream context translates the upstream model into its own terms, protecting its domain from the upstream's design decisions. This is the most important relationship for legacy integration.
+**Anti-Corruption Layer (ACL)** - The downstream context translates the upstream model into its own terms, protecting its domain from the upstream's design decisions. This is the most important relationship for legacy integration.
 
-**Open Host Service** — The upstream publishes a stable, versioned API for any consumer, rather than negotiating separately with each one.
+**Open Host Service** - The upstream publishes a stable, versioned API for any consumer, rather than negotiating separately with each one.
 
 ```
 ┌─────────────────────┐      ACL      ┌─────────────────────┐
@@ -145,7 +145,7 @@ type UserRecord struct {
 
 func processUserRecord(db *sql.DB, r *UserRecord) error { ... }
 
-// After: ubiquitous language — code reads like the domain expert's sentences.
+// After: ubiquitous language - code reads like the domain expert's sentences.
 type Customer struct {
     ID           CustomerID
     RegisteredAt time.Time
@@ -161,7 +161,7 @@ The language flows through package names (`package billing`, not `package billin
 A content platform has an `Article` struct carrying 20 fields. It's updated from 8 different places. Some mutations are only valid in certain states. Bugs appear because invariants like "a draft can't be published without a title" are enforced in some callers but forgotten in others. The model is an anemic data bag, not a reflection of the business.
 
 ```go
-// Anemic domain model — data bag, no behavior, invariants scattered
+// Anemic domain model - data bag, no behavior, invariants scattered
 type Article struct {
     ID        string
     AuthorID  string
@@ -251,14 +251,14 @@ const (
     StatusArchived  Status = "archived"
 )
 
-// Domain Event — a fact that occurred inside the aggregate.
+// Domain Event - a fact that occurred inside the aggregate.
 type PublishedEvent struct {
     ArticleID   ArticleID
     Slug        Slug
     OccurredAt  time.Time
 }
 
-// Article is the aggregate root — the only entry point for mutations.
+// Article is the aggregate root - the only entry point for mutations.
 type Article struct {
     id       ArticleID
     authorID string
@@ -296,7 +296,7 @@ func (a *Article) UpdateBody(body string) {
     a.body = body
 }
 
-// Publish enforces the invariant — callers can't bypass it.
+// Publish enforces the invariant - callers can't bypass it.
 func (a *Article) Publish() error {
     if a.title == "" {
         return fmt.Errorf("cannot publish: title is required")
@@ -394,7 +394,7 @@ func (s *PublishService) Publish(ctx context.Context, id ArticleID) error {
 - The business domain is complex, with multiple interacting concepts, non-trivial rules, and frequent change driven by business requirements.
 - You need to communicate with domain experts and the code should reflect their language (the ubiquitous language).
 - Bugs are caused by invariants being enforced inconsistently in different places.
-- You have aggregates with clear consistency boundaries — things that must change together.
+- You have aggregates with clear consistency boundaries - things that must change together.
 
 ## When Not to Use
 
@@ -404,13 +404,13 @@ func (s *PublishService) Publish(ctx context.Context, id ArticleID) error {
 
 ## Tradeoffs
 
-The payoff is concentrated: aggregates enforce invariants in one place so callers can't accidentally bypass them, and the ubiquitous language keeps code and business conversation aligned. The cost is upfront and ongoing. Getting aggregate boundaries wrong is expensive to fix — split them too fine and you get coordination overhead across transactions; merge them too broadly and you get a 40-field struct that every feature touches. Persistence mapping between rich domain types and flat database rows is mechanical work that compounds with every aggregate. And applying DDD to a simple reporting or admin tool is over-engineering — not every problem benefits from a rich domain model.
+The payoff is concentrated: aggregates enforce invariants in one place so callers can't accidentally bypass them, and the ubiquitous language keeps code and business conversation aligned. The cost is upfront and ongoing. Getting aggregate boundaries wrong is expensive to fix - split them too fine and you get coordination overhead across transactions; merge them too broadly and you get a 40-field struct that every feature touches. Persistence mapping between rich domain types and flat database rows is mechanical work that compounds with every aggregate. And applying DDD to a simple reporting or admin tool is over-engineering - not every problem benefits from a rich domain model.
 
-Aggregate boundary heuristics: an aggregate root should enforce consistency within a single database transaction — if doing so requires loading many other entities, the aggregate is too large. Reference other aggregates by ID rather than by pointer; this forces cross-aggregate coordination through an explicit service or domain event, making the boundary visible in the code. Use domain events for cross-aggregate operations: when an `Order` is placed, publish an `OrderPlaced` event that the `Inventory` aggregate handles independently, rather than having `Order.Place()` reach into `Inventory` directly. A good rule of thumb: if you always load two aggregates together, they may belong in one; if enforcing an invariant on one requires reading another, the boundary is likely wrong.
+Aggregate boundary heuristics: an aggregate root should enforce consistency within a single database transaction - if doing so requires loading many other entities, the aggregate is too large. Reference other aggregates by ID rather than by pointer; this forces cross-aggregate coordination through an explicit service or domain event, making the boundary visible in the code. Use domain events for cross-aggregate operations: when an `Order` is placed, publish an `OrderPlaced` event that the `Inventory` aggregate handles independently, rather than having `Order.Place()` reach into `Inventory` directly. A good rule of thumb: if you always load two aggregates together, they may belong in one; if enforcing an invariant on one requires reading another, the boundary is likely wrong.
 
 ## Related Patterns
 
-- **Repository** — Repositories are a first-class DDD tactical pattern. The domain defines the interface, infrastructure implements it, and the aggregate root is the only unit the repository saves and loads.
-- **Event-Driven Architecture** — Domain Events are a natural source for an event-driven system. Aggregates record events as facts, and the application layer dispatches them to consumers after the transaction commits.
-- **CQRS** — Pairs directly with DDD. The command side uses the rich aggregate model with enforced invariants, while the query side uses flat DTOs that bypass the domain model for read performance.
-- **Clean Architecture** — DDD's domain model maps to Clean Architecture's innermost Entities ring. The two are complementary, not competing: DDD provides the modeling discipline, and Clean Architecture provides the structural boundary.
+- **Repository** - Repositories are a first-class DDD tactical pattern. The domain defines the interface, infrastructure implements it, and the aggregate root is the only unit the repository saves and loads.
+- **Event-Driven Architecture** - Domain Events are a natural source for an event-driven system. Aggregates record events as facts, and the application layer dispatches them to consumers after the transaction commits.
+- **CQRS** - Pairs directly with DDD. The command side uses the rich aggregate model with enforced invariants, while the query side uses flat DTOs that bypass the domain model for read performance.
+- **Clean Architecture** - DDD's domain model maps to Clean Architecture's innermost Entities ring. The two are complementary, not competing: DDD provides the modeling discipline, and Clean Architecture provides the structural boundary.

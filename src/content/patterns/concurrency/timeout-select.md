@@ -10,13 +10,13 @@ isFeatured: false
 
 # Timeout and Select
 
-`select` is Go's multiplexer for channel operations. It waits until one of several channel cases can proceed, then executes it. Combined with `time.After`, `time.NewTimer`, or `context.WithTimeout`, it gives you precise control over how long a goroutine is willing to wait — for a value, for a result, for a downstream service to respond.
+`select` is Go's multiplexer for channel operations. It waits until one of several channel cases can proceed, then executes it. Combined with `time.After`, `time.NewTimer`, or `context.WithTimeout`, it gives you precise control over how long a goroutine is willing to wait - for a value, for a result, for a downstream service to respond.
 
 Every goroutine that blocks on a channel without a timeout is a goroutine that can block forever. Adding a select with a timeout or done channel is the discipline that prevents that.
 
 ## Basic select
 
-`select` picks whichever case is ready. If multiple cases are ready simultaneously, it chooses one at random — intentionally, to prevent starvation.
+`select` picks whichever case is ready. If multiple cases are ready simultaneously, it chooses one at random - intentionally, to prevent starvation.
 
 ```go
 select {
@@ -34,7 +34,7 @@ select {
 case msg := <-messages:
     process(msg)
 default:
-    // nothing ready — continue without blocking
+    // nothing ready - continue without blocking
 }
 ```
 
@@ -107,14 +107,14 @@ func main() {
 }
 ```
 
-The `results` channel is buffered (capacity 1) so the goroutine doesn't leak if the timeout fires first — it can send its result and exit even if nobody is reading.
+The `results` channel is buffered (capacity 1) so the goroutine doesn't leak if the timeout fires first - it can send its result and exit even if nobody is reading.
 
 ## time.After vs time.NewTimer in loops
 
 `time.After(d)` creates a new timer on every call. In a loop, this leaks timers until they fire (after duration `d`):
 
 ```go
-// BAD in a loop — a new timer is created every iteration.
+// BAD in a loop - a new timer is created every iteration.
 // Old timers accumulate in memory until they fire.
 for {
     select {
@@ -127,7 +127,7 @@ for {
 ```
 
 ```go
-// GOOD in a loop — one timer, reset explicitly.
+// GOOD in a loop - one timer, reset explicitly.
 timer := time.NewTimer(idleTimeout)
 defer timer.Stop()
 for {
@@ -169,7 +169,7 @@ for {
 }
 ```
 
-The first `select` with a `default` is non-blocking — it checks `ctx.Done()` without waiting. If cancellation is pending, it returns immediately without risking processing another job.
+The first `select` with a `default` is non-blocking - it checks `ctx.Done()` without waiting. If cancellation is pending, it returns immediately without risking processing another job.
 
 ## Nil channels to disable cases
 
@@ -217,11 +217,11 @@ When `a` is closed, setting `a = nil` removes it from the select. The loop conti
 
 ## Tradeoffs
 
-`select` is inherently non-deterministic when multiple cases are ready. For most uses this is correct behaviour, but it means you cannot rely on case ordering for priority. The priority pattern above (double select) is the workaround and adds complexity. Timer management in loops is also easy to get wrong — the leak from `time.After` in loops is subtle and only shows up under sustained load.
+`select` is inherently non-deterministic when multiple cases are ready. For most uses this is correct behaviour, but it means you cannot rely on case ordering for priority. The priority pattern above (double select) is the workaround and adds complexity. Timer management in loops is also easy to get wrong - the leak from `time.After` in loops is subtle and only shows up under sustained load.
 
 ## Related Patterns
 
-- **Done Channel** — `ctx.Done()` is the done channel; this pattern explains how to use it inside a select.
-- **Pipeline** — each stage's goroutine typically selects on both its input channel and `ctx.Done()`.
-- **Worker Pool** — workers select on the jobs channel and `ctx.Done()` so they stop cleanly on cancellation.
-- **Errgroup** — uses `context.WithCancel` internally; when any goroutine fails the context is cancelled, which workers detect via select on `ctx.Done()`.
+- **Done Channel** - `ctx.Done()` is the done channel; this pattern explains how to use it inside a select.
+- **Pipeline** - each stage's goroutine typically selects on both its input channel and `ctx.Done()`.
+- **Worker Pool** - workers select on the jobs channel and `ctx.Done()` so they stop cleanly on cancellation.
+- **Errgroup** - uses `context.WithCancel` internally; when any goroutine fails the context is cancelled, which workers detect via select on `ctx.Done()`.

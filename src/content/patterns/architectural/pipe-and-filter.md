@@ -9,7 +9,7 @@ tags: [interfaces, composition, concurrency, separation-of-concerns]
 
 # Pipe and Filter
 
-Pipe and Filter structures a processing workflow as a sequence of steps (filters) connected by data conduits (pipes). Each filter reads input, applies a single transformation, and writes output. Filters have no shared state and no knowledge of each other — they're connected by the pipe, not by direct calls.
+Pipe and Filter structures a processing workflow as a sequence of steps (filters) connected by data conduits (pipes). Each filter reads input, applies a single transformation, and writes output. Filters have no shared state and no knowledge of each other - they're connected by the pipe, not by direct calls.
 
 This is the shell pipeline model (`cat file | grep pattern | sort | uniq`) applied to application architecture. In Go, the pipe is often a channel (for concurrent filters), an `io.Reader` chain (for stream processing), or simply a sequence of function calls that transform a value through stages.
 
@@ -20,7 +20,7 @@ The pattern appears under different names: data pipeline, processing pipeline, E
 An ETL job reads log records, filters out bot traffic, enriches each record with geo data, applies rate limits, and writes to a data warehouse. All five steps are written as one function. Adding a new transformation step requires modifying and retesting the whole function. Steps can't be reordered or reused elsewhere.
 
 ```go
-// monolithic.go — all stages tangled in one function
+// monolithic.go - all stages tangled in one function
 func processLogs(records []LogRecord) []EnrichedRecord {
     var results []EnrichedRecord
     for _, r := range records {
@@ -123,7 +123,7 @@ func main() {
 
 **Channel-based concurrent pipeline:**
 
-Use channels when filters can run concurrently — each filter runs in its own goroutine, and output channels feed the next stage.
+Use channels when filters can run concurrently - each filter runs in its own goroutine, and output channels feed the next stage.
 
 ```go
 package main
@@ -214,7 +214,7 @@ func BuildStreamPipeline(raw io.Reader) (io.Reader, error) {
     if err != nil {
         return nil, err
     }
-    // decrypted := cipher.NewCBCDecrypter(decompressed, ...) — next filter
+    // decrypted := cipher.NewCBCDecrypter(decompressed, ...) - next filter
     return decompressed, nil
 }
 ```
@@ -244,16 +244,16 @@ func TestRemoveBots(t *testing.T) {
 
 ## When Not to Use
 
-- Stages need to share significant state or coordinate closely — the stateless filter model breaks down when filters need to communicate back.
+- Stages need to share significant state or coordinate closely - the stateless filter model breaks down when filters need to communicate back.
 - The pipeline has only one or two steps and the abstraction adds more indirection than it removes.
-- Error handling across stages is complex — a filter that fails mid-stream needs careful shutdown signaling to avoid goroutine leaks in the channel-based form.
+- Error handling across stages is complex - a filter that fails mid-stream needs careful shutdown signaling to avoid goroutine leaks in the channel-based form.
 
 ## Tradeoffs
 
-Each filter is testable with a single function call and a slice of test records. Reordering the pipeline is a one-line change. Adding a new step is additive. The channel-based form enables true concurrency — the geo lookup filter and the rate limit filter run simultaneously on different records — which is valuable when individual filters are I/O-bound. The cost is operational: when a channel-based pipeline stalls, diagnosing which stage is blocked requires understanding the whole goroutine graph. Error propagation is non-obvious: a filter goroutine that panics or blocks without draining its input channel will block all upstream goroutines indefinitely — always drain the input channel or use context cancellation to unblock. For the simpler sequential form, the main cost is memory: each stage may allocate a new slice, increasing GC pressure for large record sets.
+Each filter is testable with a single function call and a slice of test records. Reordering the pipeline is a one-line change. Adding a new step is additive. The channel-based form enables true concurrency - the geo lookup filter and the rate limit filter run simultaneously on different records - which is valuable when individual filters are I/O-bound. The cost is operational: when a channel-based pipeline stalls, diagnosing which stage is blocked requires understanding the whole goroutine graph. Error propagation is non-obvious: a filter goroutine that panics or blocks without draining its input channel will block all upstream goroutines indefinitely - always drain the input channel or use context cancellation to unblock. For the simpler sequential form, the main cost is memory: each stage may allocate a new slice, increasing GC pressure for large record sets.
 
 ## Related Patterns
 
-- **Hexagonal Architecture** — Each stage in a pipe-and-filter pipeline is a natural hexagonal component: it has an input port and an output port, and its internal logic is independent of how it's wired into the pipeline.
-- **Event-Driven Architecture** — A distributed pipe-and-filter pattern. Filters are separate services; pipes are message topics. Each service subscribes to an input topic and publishes to an output topic.
-- **Layered Architecture** — Layers are a special case of pipe-and-filter where the sequence is fixed (presentation → service → repository) and each layer communicates only with the adjacent layer.
+- **Hexagonal Architecture** - Each stage in a pipe-and-filter pipeline is a natural hexagonal component: it has an input port and an output port, and its internal logic is independent of how it's wired into the pipeline.
+- **Event-Driven Architecture** - A distributed pipe-and-filter pattern. Filters are separate services; pipes are message topics. Each service subscribes to an input topic and publishes to an output topic.
+- **Layered Architecture** - Layers are a special case of pipe-and-filter where the sequence is fixed (presentation → service → repository) and each layer communicates only with the adjacent layer.

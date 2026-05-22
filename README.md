@@ -1,14 +1,23 @@
 # Intentional Code
 
-**About**
-
 This repository contains the Intentional Code reference site.
 
+## Prerequisites
 
-**Prerequisites:** 
+- A current Node.js LTS release
+- npm
 
-1. Clone the repository using the project's Git URL 
-2. Navigate to the project directory
-3. Install dependencies: `npm ci --legacy-peer-deps`
-4. Run the app locally: `npm run dev`
-5. `npm run build && node scripts/generate-sitemap.js` to generate the sitemap.xml file for production deployment.
+## Local setup
+
+1. Clone the repository and change into `/tmp/workspace/arivictor/intentional-code`.
+2. Install dependencies with `npm ci --legacy-peer-deps`.
+3. Start the local dev server with `npm run dev`.
+
+The install step uses `--legacy-peer-deps` because `@astrojs/tailwind` currently declares a peer range that does not include the Astro version used in this repo.
+
+## Build and generated assets
+
+- `npm run build` builds the Astro site.
+- `node scripts/generate-sitemap.js` generates `public/sitemap.xml` for production output.
+- `npm run generate:og` refreshes Open Graph images.
+- `npm run ci` runs the build plus the asset-generation steps used for deployment.

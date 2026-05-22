@@ -7,7 +7,7 @@ description: Complexity is the enemy. The simplest solution that correctly solve
 
 *"Simplicity is the ultimate sophistication."*
 
-KISS — Keep It Simple, Stupid — is not an insult. It's a warning about a bias every engineer carries: the pull toward clever, flexible, extensible solutions when a direct one would do. The most dangerous code is code that solves problems that don't exist yet.
+KISS - Keep It Simple, Stupid - is not an insult. It's a warning about a bias every engineer carries: the pull toward clever, flexible, extensible solutions when a direct one would do. The most dangerous code is code that solves problems that don't exist yet.
 
 Complexity has a cost that compounds. Each additional abstraction layer is a concept every future reader must hold in their head. Each additional configuration knob is a state your tests must cover. Each speculative interface is a constraint your design must honor even as requirements change. Simple code that's wrong is easy to fix. Complex code that's wrong is hard to even diagnose.
 
@@ -18,7 +18,7 @@ Go is opinionated toward simplicity. Explicit over implicit. Concrete over abstr
 ## Over-engineering: the most common violation
 
 ```go
-// BAD — a "flexible" solution to a problem that only has one case.
+// BAD - a "flexible" solution to a problem that only has one case.
 
 type Processor interface {
     Process(data []byte) ([]byte, error)
@@ -52,7 +52,7 @@ func (t *TrimProcessor) Process(data []byte) ([]byte, error) {
 ```
 
 ```go
-// GOOD — the actual requirement is to trim whitespace from user input.
+// GOOD - the actual requirement is to trim whitespace from user input.
 
 func sanitize(input string) string {
     return strings.TrimSpace(input)
@@ -66,7 +66,7 @@ The chain exists in case there are multiple processing steps in the future. Ther
 ## Accidental complexity in error handling
 
 ```go
-// BAD — custom error types for a function that can only fail one way.
+// BAD - custom error types for a function that can only fail one way.
 
 type ValidationError struct {
     Field   string
@@ -93,7 +93,7 @@ func validateEmail(email string) error {
 ```
 
 ```go
-// GOOD — return a plain error. If callers need structured data later, add it then.
+// GOOD - return a plain error. If callers need structured data later, add it then.
 
 func validateEmail(email string) error {
     if !strings.Contains(email, "@") {
@@ -120,7 +120,7 @@ func divide(a, b float64) (float64, error) {
 }
 ```
 
-This is simple. The edge case is real. Handling it is not complexity — it's correctness.
+This is simple. The edge case is real. Handling it is not complexity - it's correctness.
 
 ---
 

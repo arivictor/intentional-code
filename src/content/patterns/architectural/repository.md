@@ -159,7 +159,7 @@ func main() {
 	got, _ := repo.FindByID("p1")
 	fmt.Printf("post %s status: %s\n", got.ID, got.Status)
 
-	// Trying to publish again returns an error — invariant enforced by Post.Publish()
+	// Trying to publish again returns an error - invariant enforced by Post.Publish()
 	if err := svc.PublishPost("p1"); err != nil {
 		fmt.Println("second publish:", err)
 	}
@@ -175,7 +175,7 @@ func main() {
 The PostgreSQL implementation would live in a separate package (needs a real DB connection):
 
 ```go
-// Illustrative only — requires a real PostgreSQL connection to run.
+// Illustrative only - requires a real PostgreSQL connection to run.
 // infra/postgres/post_repo.go
 //
 // type PostRepo struct{ db *sql.DB }
@@ -218,7 +218,7 @@ The primary benefit is testability: the in-memory implementation lets you test a
 
 ## Related Patterns
 
-- **Hexagonal Architecture** — Repository is the canonical example of a driven port. The application defines the interface, and an adapter implements it. Use Repository anywhere you need a persistence port, and Hexagonal as the larger structure that tells you where each piece lives.
-- **Layered Architecture** — Repository sits at the Service-to-Infrastructure boundary. In a strictly layered codebase, it is the main tool for keeping business logic database-agnostic. If you are not doing full Hexagonal or Clean Architecture, Layered plus Repository is often enough.
-- **Domain-Driven Design** — Repositories are a first-class DDD tactical pattern with one repository per aggregate root. DDD adds the constraint that a repository should load and save complete aggregates, not partial state.
-- **Clean Architecture** — Repository interfaces belong in the Use Case (inner) ring, while implementations belong in the outermost Frameworks and Drivers ring. The Dependency Rule means the domain references only the interface, never the implementation.
+- **Hexagonal Architecture** - Repository is the canonical example of a driven port. The application defines the interface, and an adapter implements it. Use Repository anywhere you need a persistence port, and Hexagonal as the larger structure that tells you where each piece lives.
+- **Layered Architecture** - Repository sits at the Service-to-Infrastructure boundary. In a strictly layered codebase, it is the main tool for keeping business logic database-agnostic. If you are not doing full Hexagonal or Clean Architecture, Layered plus Repository is often enough.
+- **Domain-Driven Design** - Repositories are a first-class DDD tactical pattern with one repository per aggregate root. DDD adds the constraint that a repository should load and save complete aggregates, not partial state.
+- **Clean Architecture** - Repository interfaces belong in the Use Case (inner) ring, while implementations belong in the outermost Frameworks and Drivers ring. The Dependency Rule means the domain references only the interface, never the implementation.

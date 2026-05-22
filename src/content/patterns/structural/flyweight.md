@@ -9,13 +9,13 @@ tags: [state, performance, concurrency]
 
 # Flyweight
 
-Flyweight is a memory optimization: when you have thousands of similar objects, most of their data is identical. Instead of each object storing its own copy of that shared data, they all point to one shared instance. In Go this is usually a cache keyed on the shared value — the first time you need a particular entry you create it and store it; every subsequent request returns the same pointer. The data that never changes (a font, a colour, a locale) lives in the shared instance; the data that varies per object (a position, a timestamp, a count) stays on each individual instance.
+Flyweight is a memory optimization: when you have thousands of similar objects, most of their data is identical. Instead of each object storing its own copy of that shared data, they all point to one shared instance. In Go this is usually a cache keyed on the shared value - the first time you need a particular entry you create it and store it; every subsequent request returns the same pointer. The data that never changes (a font, a colour, a locale) lives in the shared instance; the data that varies per object (a position, a timestamp, a count) stays on each individual instance.
 
-`sync.Pool` is a related but different tool — it recycles mutable temporary objects to reduce GC pressure, whereas Flyweight shares immutable permanent state.
+`sync.Pool` is a related but different tool - it recycles mutable temporary objects to reduce GC pressure, whereas Flyweight shares immutable permanent state.
 
 ## Problem
 
-You're rendering a text editor with thousands of characters on screen. Each character has a glyph style (font name, size, bold, italic — large, repeated data) and a position (small, unique data). Storing the full style on every character wastes memory.
+You're rendering a text editor with thousands of characters on screen. Each character has a glyph style (font name, size, bold, italic - large, repeated data) and a position (small, unique data). Storing the full style on every character wastes memory.
 
 ```go
 // bloated.go
@@ -24,8 +24,8 @@ package editor
 type Character struct {
     Char     rune
     X, Y     int
-    FontName string  // "Helvetica" — same across thousands of characters
-    FontSize int     // 14 — same across a whole paragraph
+    FontName string  // "Helvetica" - same across thousands of characters
+    FontSize int     // 14 - same across a whole paragraph
     Bold     bool
     Italic   bool
 }
@@ -38,7 +38,7 @@ The font name, size, and style flags are the same for all characters in a paragr
 
 ## Solution
 
-Extract the shared intrinsic state (glyph style) into a separate type. Use a factory that interns these types — returning the existing instance if one with the same key already exists.
+Extract the shared intrinsic state (glyph style) into a separate type. Use a factory that interns these types - returning the existing instance if one with the same key already exists.
 
 ```
 ┌────────────────────┐
@@ -139,21 +139,21 @@ Unique styles: 2 (shared across 5 characters)
 ## When to Use
 
 - You have a large number of objects that share significant amounts of identical data.
-- Memory usage is a measurable problem — profile before optimizing.
+- Memory usage is a measurable problem - profile before optimizing.
 - The shared state is immutable (or can be made immutable).
 - You can clearly separate intrinsic (shared) from extrinsic (unique) state.
 
 ## When Not to Use
 
 - You don't have enough objects for the sharing to matter. Profile first.
-- The shared state is mutable — concurrent mutation of shared state creates race conditions.
+- The shared state is mutable - concurrent mutation of shared state creates race conditions.
 - The distinction between intrinsic and extrinsic state is unclear or unstable.
 
 ## Tradeoffs
 
-The memory savings are real and dramatic when the sharing ratio is high — two style objects serving ten thousand characters is the intended use. The cost is that the intern cache is package-level mutable state: in concurrent code you need a `sync.RWMutex` around reads and writes, and the cache itself never shrinks. An intern cache that grows unboundedly can leak memory if new keys arrive continuously (e.g., per-request keys built from user input). The split between intrinsic and extrinsic state also has to be stable — if what you thought was "shared" turns out to vary per-object, you end up with either incorrect sharing bugs or a cache that's just a thin wrapper around individual allocations with extra indirection.
+The memory savings are real and dramatic when the sharing ratio is high - two style objects serving ten thousand characters is the intended use. The cost is that the intern cache is package-level mutable state: in concurrent code you need a `sync.RWMutex` around reads and writes, and the cache itself never shrinks. An intern cache that grows unboundedly can leak memory if new keys arrive continuously (e.g., per-request keys built from user input). The split between intrinsic and extrinsic state also has to be stable - if what you thought was "shared" turns out to vary per-object, you end up with either incorrect sharing bugs or a cache that's just a thin wrapper around individual allocations with extra indirection.
 
 ## Related Patterns
 
-- **Composite** — Flyweight types often appear as leaves in a Composite tree: the shared Flyweight instance holds common data (style, type) while each Composite node holds unique data (position, quantity, parent).
-- **Singleton** — Singleton means one instance of one type; Flyweight means one instance per distinct key — the interning map acts like a keyed singleton registry; use Singleton when there's genuinely only one, Flyweight when there are several distinct shared values.
+- **Composite** - Flyweight types often appear as leaves in a Composite tree: the shared Flyweight instance holds common data (style, type) while each Composite node holds unique data (position, quantity, parent).
+- **Singleton** - Singleton means one instance of one type; Flyweight means one instance per distinct key - the interning map acts like a keyed singleton registry; use Singleton when there's genuinely only one, Flyweight when there are several distinct shared values.

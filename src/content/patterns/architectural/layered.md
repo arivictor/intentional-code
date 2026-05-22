@@ -9,14 +9,14 @@ tags: [interfaces, dependency-inversion, testability, composition]
 
 # Layered Architecture
 
-The warning sign that you need Layered Architecture is an HTTP handler that imports `database/sql`. Go encourages small, composable packages, which means a growing service will naturally tangle HTTP, business rules, and SQL if you don't deliberately separate them. Layered Architecture is usually the first fix: four horizontal tiers — Handler, Service, Repository, Infrastructure — where each layer depends only on the layer below it. Go's implicit interfaces do most of the boundary enforcement for free.
+The warning sign that you need Layered Architecture is an HTTP handler that imports `database/sql`. Go encourages small, composable packages, which means a growing service will naturally tangle HTTP, business rules, and SQL if you don't deliberately separate them. Layered Architecture is usually the first fix: four horizontal tiers - Handler, Service, Repository, Infrastructure - where each layer depends only on the layer below it. Go's implicit interfaces do most of the boundary enforcement for free.
 
 ## Problem
 
 A growing codebase has no clear structure. HTTP handlers call SQL queries directly. Business rules live in middleware. Email sending is triggered from a database callback. There is no obvious place to add new behaviour, and changing the database means searching the entire codebase.
 
 ```go
-// main.go — everything in one place
+// main.go - everything in one place
 func handleCreatePost(w http.ResponseWriter, r *http.Request) {
     var req CreatePostRequest
     json.NewDecoder(r.Body).Decode(&req)
@@ -65,7 +65,7 @@ Separate the code into four layers. Each layer has one responsibility and commun
 └──────────────────────────────────┘
 ```
 
-The following is a single runnable file demonstrating all four layers — Handler, Service, Repository (in-memory), and Infrastructure (stub mailer):
+The following is a single runnable file demonstrating all four layers - Handler, Service, Repository (in-memory), and Infrastructure (stub mailer):
 
 ```go
 package main
@@ -197,7 +197,7 @@ func main() {
 	mux.ServeHTTP(w, req)
 	fmt.Printf("POST /posts → %d %s", w.Code, w.Body.String())
 
-	// Missing title — business rule enforced by service layer
+	// Missing title - business rule enforced by service layer
 	body = `{"author_email":"bob@example.com","title":"","body":"Oops"}`
 	req = httptest.NewRequest(http.MethodPost, "/posts", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -223,7 +223,7 @@ func main() {
 The PostgreSQL repository implementation would live in a separate package (requires a real DB):
 
 ```go
-// Illustrative only — requires a real PostgreSQL connection to run.
+// Illustrative only - requires a real PostgreSQL connection to run.
 // repository/post_postgres.go
 //
 // type PostgresPostRepo struct{ db *sql.DB }
@@ -242,7 +242,7 @@ The PostgreSQL repository implementation would live in a separate package (requi
 - You're building a web service or API and want a clear place for each concern.
 - Teams are divided by layer (frontend/backend, DB specialists) and need clear boundaries.
 - You want business logic to be testable without HTTP or database infrastructure.
-- You need to swap a layer — for example replace PostgreSQL with a different store — without touching other layers.
+- You need to swap a layer - for example replace PostgreSQL with a different store - without touching other layers.
 
 ## When Not to Use
 
@@ -252,11 +252,11 @@ The PostgreSQL repository implementation would live in a separate package (requi
 
 ## Tradeoffs
 
-The clear separation of concerns is the main benefit: business logic sits in the service layer with no SQL or HTTP, and testing that logic requires only an in-memory repository and a fake mailer. The recurring failure mode is "lasagne code" — layers that do nothing but pass data through, adding indirection without capturing any real decision or invariant. Feature changes often touch every layer, so a simple addition like adding a new field to a post means updating the handler, the service, the domain type, and the SQL query, which makes the structure feel heavy for small changes. Strict downward layering also makes it awkward to optimize queries: the service layer can't reach into the database layer without going through the repository interface, which sometimes means the repository interface grows with filter, sort, and pagination parameters.
+The clear separation of concerns is the main benefit: business logic sits in the service layer with no SQL or HTTP, and testing that logic requires only an in-memory repository and a fake mailer. The recurring failure mode is "lasagne code" - layers that do nothing but pass data through, adding indirection without capturing any real decision or invariant. Feature changes often touch every layer, so a simple addition like adding a new field to a post means updating the handler, the service, the domain type, and the SQL query, which makes the structure feel heavy for small changes. Strict downward layering also makes it awkward to optimize queries: the service layer can't reach into the database layer without going through the repository interface, which sometimes means the repository interface grows with filter, sort, and pagination parameters.
 
 ## Related Patterns
 
-- **Repository** — The natural pattern for defining the Service-to-Infrastructure boundary. The service layer declares the interface it needs, and the repository layer implements it. Use Repository when persistence logic is complex enough to deserve its own package.
-- **Clean Architecture** — A more opinionated version of layered thinking that enforces the inward dependency rule with ring terminology. Prefer Clean Architecture when you need stronger isolation guarantees or multiple delivery mechanisms against the same domain.
-- **Hexagonal Architecture** — Replaces strict downward layering with symmetric ports. HTTP and databases become equivalent adapters plugging into the same hexagon. Prefer Hexagonal when you need to test the full application core without infrastructure, because the port model makes that clearer than strict layers.
-- **CQRS** — An alternative when reads and writes have very different shapes. Rather than adding more query methods to a single service, CQRS splits the layer into a command side and a query side, each with its own handler and data model.
+- **Repository** - The natural pattern for defining the Service-to-Infrastructure boundary. The service layer declares the interface it needs, and the repository layer implements it. Use Repository when persistence logic is complex enough to deserve its own package.
+- **Clean Architecture** - A more opinionated version of layered thinking that enforces the inward dependency rule with ring terminology. Prefer Clean Architecture when you need stronger isolation guarantees or multiple delivery mechanisms against the same domain.
+- **Hexagonal Architecture** - Replaces strict downward layering with symmetric ports. HTTP and databases become equivalent adapters plugging into the same hexagon. Prefer Hexagonal when you need to test the full application core without infrastructure, because the port model makes that clearer than strict layers.
+- **CQRS** - An alternative when reads and writes have very different shapes. Rather than adding more query methods to a single service, CQRS splits the layer into a command side and a query side, each with its own handler and data model.

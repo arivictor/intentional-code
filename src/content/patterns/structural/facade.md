@@ -10,7 +10,7 @@ isFeatured: true
 
 # Facade
 
-Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch job all repeat the same multi-step sequence — validate, process, notify, log — that sequence belongs in one struct, not scattered across entry points. In Go, a facade struct accepts its subsystems as interfaces (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.
+Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch job all repeat the same multi-step sequence - validate, process, notify, log - that sequence belongs in one struct, not scattered across entry points. In Go, a facade struct accepts its subsystems as interfaces (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.
 
 ## Problem
 
@@ -33,7 +33,7 @@ func HandleConvert(path string) {
 }
 ```
 
-This orchestration logic is duplicated wherever conversion happens — the HTTP handler, a CLI tool, a batch job. Change the sequence (add a compression step) and you must find and update every copy.
+This orchestration logic is duplicated wherever conversion happens - the HTTP handler, a CLI tool, a batch job. Change the sequence (add a compression step) and you must find and update every copy.
 
 ## Solution
 
@@ -167,9 +167,9 @@ converted person.yaml → person.json
 
 ## Tradeoffs
 
-The benefit is clear when the same sequence appears in three or more places — one change propagates everywhere. The risk is that the facade becomes a magnet for new concerns: someone adds compression, then encryption, then metrics, and the facade accumulates a dozen dependencies and a `Convert` method with a dozen steps. At that point it's a god object, not a simplification. Fight this by keeping the facade focused on one workflow; if a second distinct workflow emerges, create a second facade rather than extending the first. The interface-based dependencies are worth the ceremony — they make the facade trivially testable with simple fakes, which is difficult if the facade instantiates its own subsystems.
+The benefit is clear when the same sequence appears in three or more places - one change propagates everywhere. The risk is that the facade becomes a magnet for new concerns: someone adds compression, then encryption, then metrics, and the facade accumulates a dozen dependencies and a `Convert` method with a dozen steps. At that point it's a god object, not a simplification. Fight this by keeping the facade focused on one workflow; if a second distinct workflow emerges, create a second facade rather than extending the first. The interface-based dependencies are worth the ceremony - they make the facade trivially testable with simple fakes, which is difficult if the facade instantiates its own subsystems.
 
 ## Related Patterns
 
-- **Adapter** — Adapter makes one incompatible type compatible with one interface; Facade simplifies a whole subsystem into a more convenient API — use Adapter when you have an interface mismatch, Facade when you have a repeated orchestration problem.
-- **Mediator** — Mediator coordinates peers that know about each other and communicate through a central hub; Facade coordinates subsystems on behalf of an external caller — use Mediator when objects need to send messages to each other, Facade when callers just need a simpler entry point into complex subsystem code.
+- **Adapter** - Adapter makes one incompatible type compatible with one interface; Facade simplifies a whole subsystem into a more convenient API - use Adapter when you have an interface mismatch, Facade when you have a repeated orchestration problem.
+- **Mediator** - Mediator coordinates peers that know about each other and communicate through a central hub; Facade coordinates subsystems on behalf of an external caller - use Mediator when objects need to send messages to each other, Facade when callers just need a simpler entry point into complex subsystem code.

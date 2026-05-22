@@ -10,16 +10,16 @@ isFeatured: true
 
 # Worker Pool
 
-A worker pool processes a queue of jobs using a fixed number of goroutines. Rather than spawning one goroutine per job — which can exhaust memory under load — a pool creates N workers at startup and keeps them running, each drawing jobs from a shared channel. Work is bounded: at most N jobs run simultaneously regardless of how many are enqueued.
+A worker pool processes a queue of jobs using a fixed number of goroutines. Rather than spawning one goroutine per job - which can exhaust memory under load - a pool creates N workers at startup and keeps them running, each drawing jobs from a shared channel. Work is bounded: at most N jobs run simultaneously regardless of how many are enqueued.
 
 This is the most common concurrency pattern in production Go code.
 
 ## Problem
 
-You need to process 10,000 incoming HTTP webhooks concurrently. The naive approach spawns one goroutine per webhook — which means up to 10,000 goroutines simultaneously, each consuming stack memory and holding a database connection. Under burst traffic, this exhausts resources.
+You need to process 10,000 incoming HTTP webhooks concurrently. The naive approach spawns one goroutine per webhook - which means up to 10,000 goroutines simultaneously, each consuming stack memory and holding a database connection. Under burst traffic, this exhausts resources.
 
 ```go
-// BAD — unbounded goroutine spawn.
+// BAD - unbounded goroutine spawn.
 // 10,000 simultaneous requests → 10,000 goroutines → OOM or DB connection exhaustion.
 for _, event := range events {
     go processEvent(event)
@@ -150,7 +150,7 @@ func NewPool(ctx context.Context, workers int, jobs <-chan Job) <-chan Result {
 When you can't predetermine the right worker count, a [Semaphore](/go/patterns/concurrency/semaphore) gives you the same bound with a simpler structure: spawn one goroutine per job but limit how many run concurrently.
 
 ```go
-// Semaphore alternative — simpler when job count is known at call time.
+// Semaphore alternative - simpler when job count is known at call time.
 sem := make(chan struct{}, maxConcurrent)
 var wg sync.WaitGroup
 
@@ -185,7 +185,7 @@ Profile under realistic load. Too few workers: throughput is bounded by worker c
 - Processing a bounded or streaming queue of independent jobs concurrently.
 - You need to cap goroutine count regardless of input volume.
 - Downstream resources (DB connections, API rate limits) impose a natural concurrency ceiling.
-- Jobs are long-lived or I/O-heavy — the pool amortises goroutine startup cost.
+- Jobs are long-lived or I/O-heavy - the pool amortises goroutine startup cost.
 
 ## When Not to Use
 
@@ -195,12 +195,12 @@ Profile under realistic load. Too few workers: throughput is bounded by worker c
 
 ## Tradeoffs
 
-The jobs channel buffer size is a design decision. An unbuffered channel means the sender blocks until a worker is free — providing natural backpressure. A large buffer absorbs bursts but can accumulate jobs faster than workers process them, growing memory unboundedly if the sender is much faster than the workers. A buffer of one to two times the worker count is a reasonable starting point. The pool's error model is also a choice: the simple version above collects errors into the results channel and lets the consumer decide what to do. The [Errgroup](/go/patterns/concurrency/errgroup) pattern cancels the whole pool on the first error, which is appropriate when any failure makes the rest of the work pointless.
+The jobs channel buffer size is a design decision. An unbuffered channel means the sender blocks until a worker is free - providing natural backpressure. A large buffer absorbs bursts but can accumulate jobs faster than workers process them, growing memory unboundedly if the sender is much faster than the workers. A buffer of one to two times the worker count is a reasonable starting point. The pool's error model is also a choice: the simple version above collects errors into the results channel and lets the consumer decide what to do. The [Errgroup](/go/patterns/concurrency/errgroup) pattern cancels the whole pool on the first error, which is appropriate when any failure makes the rest of the work pointless.
 
 ## Related Patterns
 
-- **Fan-out / Fan-in** — a more dynamic alternative: spawn one goroutine per item, limited by a semaphore, rather than a fixed pool. Better when job count is known upfront and the pool size would be awkward to predetermine.
-- **Semaphore** — a lighter-weight alternative that bounds concurrency without a persistent pool of goroutines.
-- **Pipeline** — a pool is often one stage in a larger pipeline; the jobs channel is the pipeline's upstream and the results channel is its downstream.
-- **Done Channel** — the cancellation discipline; essential for pools that need to shut down before the jobs channel is exhausted.
-- **Errgroup** — cancel all workers on the first error rather than collecting all errors into a results channel.
+- **Fan-out / Fan-in** - a more dynamic alternative: spawn one goroutine per item, limited by a semaphore, rather than a fixed pool. Better when job count is known upfront and the pool size would be awkward to predetermine.
+- **Semaphore** - a lighter-weight alternative that bounds concurrency without a persistent pool of goroutines.
+- **Pipeline** - a pool is often one stage in a larger pipeline; the jobs channel is the pipeline's upstream and the results channel is its downstream.
+- **Done Channel** - the cancellation discipline; essential for pools that need to shut down before the jobs channel is exhausted.
+- **Errgroup** - cancel all workers on the first error rather than collecting all errors into a results channel.

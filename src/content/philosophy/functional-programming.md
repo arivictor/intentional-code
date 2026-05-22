@@ -1,6 +1,6 @@
 ---
 title: Functional Programming Principles
-description: Pure functions, immutability, and composability — and how these ideas make Go code more predictable and testable.
+description: Pure functions, immutability, and composability - and how these ideas make Go code more predictable and testable.
 ---
 
 # Functional Programming Principles
@@ -18,12 +18,12 @@ A pure function's output depends only on its inputs. It has no side effects: it 
 Pure functions are easy to test (no setup, no mocking), easy to reason about (no hidden state), and safe to call in any order or concurrently.
 
 ```go
-// IMPURE — depends on external state, result varies with time.
+// IMPURE - depends on external state, result varies with time.
 func isExpiredSession(s Session) bool {
     return time.Now().After(s.ExpiresAt) // hidden input: time.Now()
 }
 
-// PURE — expiry is a parameter. The function is deterministic.
+// PURE - expiry is a parameter. The function is deterministic.
 // In tests, pass any time you like.
 func isExpiredAt(s Session, now time.Time) bool {
     return now.After(s.ExpiresAt)
@@ -31,7 +31,7 @@ func isExpiredAt(s Session, now time.Time) bool {
 ```
 
 ```go
-// IMPURE — modifies a shared map, not safe to call concurrently.
+// IMPURE - modifies a shared map, not safe to call concurrently.
 var cache = map[string]int{}
 
 func getCached(key string) int {
@@ -43,7 +43,7 @@ func getCached(key string) int {
     return v
 }
 
-// PURE — takes the cache as input, returns the new cache as output.
+// PURE - takes the cache as input, returns the new cache as output.
 // Caller decides how to store state.
 func getCachedPure(cache map[string]int, key string) (int, map[string]int) {
     if v, ok := cache[key]; ok {
@@ -68,14 +68,14 @@ Mutable shared state is the source of most concurrency bugs. When multiple gorou
 In Go, full immutability isn't enforced by the compiler (there's no `const` struct), but you can design for it:
 
 ```go
-// Mutable — callers can modify Config after construction.
+// Mutable - callers can modify Config after construction.
 type Config struct {
     Host string
     Port int
     TLS  bool
 }
 
-// Immutable by convention — use a constructor that copies inputs,
+// Immutable by convention - use a constructor that copies inputs,
 // expose only read methods, never expose the underlying fields.
 type Config struct {
     host string
@@ -98,7 +98,7 @@ func (c Config) WithHost(host string) Config {
 }
 ```
 
-This pattern — value types that return modified copies — avoids shared mutable state entirely. It's safe to pass `Config` values between goroutines without a mutex.
+This pattern - value types that return modified copies - avoids shared mutable state entirely. It's safe to pass `Config` values between goroutines without a mutex.
 
 ---
 
@@ -126,7 +126,7 @@ result := Apply("  Hello, World!  ",
 ```
 
 ```go
-// Filter and Map — functional staples that work naturally in Go.
+// Filter and Map - functional staples that work naturally in Go.
 
 func Filter[T any](slice []T, keep func(T) bool) []T {
     out := make([]T, 0, len(slice))
@@ -146,7 +146,7 @@ func Map[T, U any](slice []T, transform func(T) U) []U {
     return out
 }
 
-// Usage — no mutable accumulator, no index arithmetic.
+// Usage - no mutable accumulator, no index arithmetic.
 activeUsers := Filter(users, func(u User) bool { return u.Active })
 emails := Map(activeUsers, func(u User) string { return u.Email })
 ```
@@ -155,7 +155,7 @@ emails := Map(activeUsers, func(u User) string { return u.Email })
 
 ## Functional options: clean constructors without overloading
 
-The functional options pattern uses higher-order functions to build flexible constructors — a common Go idiom that avoids both large config structs and function overloading.
+The functional options pattern uses higher-order functions to build flexible constructors - a common Go idiom that avoids both large config structs and function overloading.
 
 ```go
 type Server struct {
@@ -199,9 +199,9 @@ srv := NewServer(
 
 Taken too far, functional style in Go produces awkward code. Avoid:
 
-- Folding straightforward loops into recursive functions — Go has no tail-call optimisation
+- Folding straightforward loops into recursive functions - Go has no tail-call optimisation
 - Chaining function calls to the point where the call stack becomes the control flow
-- Avoiding all state — some state is inherent to the problem; immutability is a tool, not a doctrine
+- Avoiding all state - some state is inherent to the problem; immutability is a tool, not a doctrine
 
 Use the ideas that make code clearer. Ignore the ones that don't.
 

@@ -5,7 +5,7 @@ description: Code is read far more than it is written. Clarity is a feature, not
 
 # Clean Code
 
-Code is read by humans. Compilers don't care about names, structure, or clarity — developers do, and they'll spend far more time reading your code than you spent writing it. Clean code is code that communicates its intent so clearly that the next reader can work with it safely, without needing to reverse-engineer what it does.
+Code is read by humans. Compilers don't care about names, structure, or clarity - developers do, and they'll spend far more time reading your code than you spent writing it. Clean code is code that communicates its intent so clearly that the next reader can work with it safely, without needing to reverse-engineer what it does.
 
 Go's culture pushes hard in this direction: short functions, clear names, explicit error handling, standard formatting via `gofmt`. The language doesn't prevent bad code, but it removes many of the excuses for it.
 
@@ -16,7 +16,7 @@ Go's culture pushes hard in this direction: short functions, clear names, explic
 A good name makes a variable, function, or type self-documenting. A bad name forces every reader to trace execution to understand what a thing *is*.
 
 ```go
-// BAD — names that say nothing.
+// BAD - names that say nothing.
 
 func p(d []byte, t string) bool {
     var m map[string]any
@@ -29,7 +29,7 @@ func p(d []byte, t string) bool {
 ```
 
 ```go
-// GOOD — names that explain intent without a comment.
+// GOOD - names that explain intent without a comment.
 
 func hasField(jsonData []byte, fieldName string) bool {
     var parsed map[string]any
@@ -54,7 +54,7 @@ func hasField(jsonData []byte, fieldName string) bool {
 A function should do one thing. If you find yourself writing "and" in a function name, that's two functions.
 
 ```go
-// BAD — this function does three things.
+// BAD - this function does three things.
 
 func processOrder(o Order) error {
     // 1. validate
@@ -77,7 +77,7 @@ func processOrder(o Order) error {
 ```
 
 ```go
-// GOOD — each function does exactly one thing.
+// GOOD - each function does exactly one thing.
 
 func validateOrder(o Order) error {
     if o.Total <= 0 {
@@ -114,10 +114,10 @@ func processOrder(o Order) error {
 
 ## Avoid noise: comments that restate code
 
-Comments should explain *why*, not *what*. If a comment is just prose for the code directly below it, the code needs better names — not a comment.
+Comments should explain *why*, not *what*. If a comment is just prose for the code directly below it, the code needs better names - not a comment.
 
 ```go
-// BAD — the comment says exactly what the code says.
+// BAD - the comment says exactly what the code says.
 
 // Check if user is admin
 if user.Role == "admin" {
@@ -127,7 +127,7 @@ if user.Role == "admin" {
 ```
 
 ```go
-// GOOD — name the concept. No comment needed.
+// GOOD - name the concept. No comment needed.
 
 func isAdmin(u User) bool {
     return u.Role == "admin"
@@ -138,7 +138,7 @@ if isAdmin(user) {
 }
 ```
 
-Write a comment when the code cannot express the *reason* — a non-obvious constraint, a workaround for a known bug in a dependency, a performance tradeoff with measurement results.
+Write a comment when the code cannot express the *reason* - a non-obvious constraint, a workaround for a known bug in a dependency, a performance tradeoff with measurement results.
 
 ---
 
@@ -147,13 +147,13 @@ Write a comment when the code cannot express the *reason* — a non-obvious cons
 Error messages are read by developers diagnosing failures. Make them useful: include context, include values, don't just state the failure.
 
 ```go
-// BAD — error tells you nothing actionable.
+// BAD - error tells you nothing actionable.
 return errors.New("invalid input")
 
-// GOOD — error tells you what was invalid and why.
+// GOOD - error tells you what was invalid and why.
 return fmt.Errorf("invalid email %q: must contain exactly one @ sign", email)
 
-// GOOD — wrapped errors preserve the call chain.
+// GOOD - wrapped errors preserve the call chain.
 if err := store.Save(order); err != nil {
     return fmt.Errorf("placing order %s: %w", order.ID, err)
 }
@@ -165,7 +165,7 @@ if err := store.Save(order); err != nil {
 
 A codebase is clean when it reads as if it were written by one person with a single style. Inconsistency forces context-switching: the reader has to re-orient every time style shifts.
 
-In Go, `gofmt` handles formatting. Everything else — error handling patterns, naming conventions, struct layout — comes from team discipline. Pick conventions and follow them everywhere. The *which* matters less than the *always*.
+In Go, `gofmt` handles formatting. Everything else - error handling patterns, naming conventions, struct layout - comes from team discipline. Pick conventions and follow them everywhere. The *which* matters less than the *always*.
 
 > **Smell:** You have to read a function three times to understand what it does. A variable named `data`, `result`, `temp`, or `x` at package scope. A function whose name is a verb and a noun joined by "and." A comment that starts with "this function..."
 
@@ -184,18 +184,18 @@ if err := store.Save(order); err != nil {
 }
 ```
 
-**Inspect errors structurally** with `errors.Is` and `errors.As` — never by comparing `.Error()` strings:
+**Inspect errors structurally** with `errors.Is` and `errors.As` - never by comparing `.Error()` strings:
 
 ```go
 var ErrNotFound = errors.New("not found")
 
-// BAD — string comparison breaks if the message ever changes.
+// BAD - string comparison breaks if the message ever changes.
 if err.Error() == "not found" { ... }
 
-// GOOD — works correctly through any wrapping chain.
+// GOOD - works correctly through any wrapping chain.
 if errors.Is(err, ErrNotFound) { ... }
 
-// GOOD — unwraps to a specific error type to access its fields.
+// GOOD - unwraps to a specific error type to access its fields.
 var valErr *ValidationError
 if errors.As(err, &valErr) {
     fmt.Println(valErr.Field, valErr.Message)
@@ -219,7 +219,7 @@ var (
 A guard clause is an early return that handles a precondition at the top of a function, keeping the happy path at the left margin. Functions with nested `if` blocks force the reader to track multiple levels of indentation simultaneously.
 
 ```go
-// BAD — three levels of nesting; the happy path is buried at the bottom.
+// BAD - three levels of nesting; the happy path is buried at the bottom.
 func processPayment(card Card, amount Money) error {
     if card.IsValid() {
         if amount > 0 {
@@ -236,7 +236,7 @@ func processPayment(card Card, amount Money) error {
     }
 }
 
-// GOOD — guard clauses eliminate nesting; happy path is obvious.
+// GOOD - guard clauses eliminate nesting; happy path is obvious.
 func processPayment(card Card, amount Money) error {
     if !card.IsValid() {
         return errors.New("invalid card")

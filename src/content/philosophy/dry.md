@@ -1,21 +1,21 @@
 ---
 title: Don't Repeat Yourself
-description: Every piece of knowledge should have a single, authoritative representation — and why that's harder than it sounds.
+description: Every piece of knowledge should have a single, authoritative representation - and why that's harder than it sounds.
 ---
 
 # Don't Repeat Yourself
 
 *"Every piece of knowledge must have a single, unambiguous, authoritative representation within a system."*
 
-DRY is not about avoiding duplicated lines of code. It's about avoiding duplicated *knowledge* — business rules, validation logic, configuration values, data shapes. Two functions that happen to look similar are not necessarily a DRY violation. Two places that independently encode the same business rule absolutely are.
+DRY is not about avoiding duplicated lines of code. It's about avoiding duplicated *knowledge* - business rules, validation logic, configuration values, data shapes. Two functions that happen to look similar are not necessarily a DRY violation. Two places that independently encode the same business rule absolutely are.
 
-The practical test: when the rule changes, how many places do you have to update? One is DRY. More than one is a liability — and the second update you forget is a bug.
+The practical test: when the rule changes, how many places do you have to update? One is DRY. More than one is a liability - and the second update you forget is a bug.
 
 ---
 
 ## The failure mode: accidental similarity vs. duplicated knowledge
 
-Avoid reflexively extracting code just because it looks the same. Two loops that iterate over different things for different reasons happen to share syntax — merging them couples unrelated logic. The question is always: *do these represent the same knowledge?*
+Avoid reflexively extracting code just because it looks the same. Two loops that iterate over different things for different reasons happen to share syntax - merging them couples unrelated logic. The question is always: *do these represent the same knowledge?*
 
 ```go
 // Two functions that look similar but encode independent knowledge.
@@ -36,14 +36,14 @@ func validateDriverAge(age int) error {
 }
 ```
 
-These look like duplication. They are not. The rules are independent. If the driving age changes, you don't want it to affect user registration — and a shared `validateAge(min int)` wrapper would hide that they're different rules.
+These look like duplication. They are not. The rules are independent. If the driving age changes, you don't want it to affect user registration - and a shared `validateAge(min int)` wrapper would hide that they're different rules.
 
 ---
 
 ## Real duplication: the same rule in multiple places
 
 ```go
-// BAD — order status logic duplicated across the codebase.
+// BAD - order status logic duplicated across the codebase.
 // Every new status requires touching three functions.
 
 func CanCancel(o Order) bool {
@@ -60,7 +60,7 @@ func IsActive(o Order) bool {
 ```
 
 ```go
-// GOOD — the knowledge lives in one place.
+// GOOD - the knowledge lives in one place.
 // The rule changes in exactly one location.
 
 func IsMutable(o Order) bool {
@@ -76,10 +76,10 @@ func IsActive(o Order) bool  { return IsMutable(o) }
 
 ## Configuration duplication
 
-Magic values are a common DRY violation. When a value appears in multiple places, a change requires a search-and-replace — and one missed instance is a silent bug.
+Magic values are a common DRY violation. When a value appears in multiple places, a change requires a search-and-replace - and one missed instance is a silent bug.
 
 ```go
-// BAD — the session duration is scattered across the codebase.
+// BAD - the session duration is scattered across the codebase.
 
 func NewSession(userID string) Session {
     return Session{Expires: time.Now().Add(24 * time.Hour)}
@@ -95,7 +95,7 @@ func RefreshSession(s Session) Session {
 ```
 
 ```go
-// GOOD — one authoritative constant.
+// GOOD - one authoritative constant.
 
 const sessionTTL = 24 * time.Hour
 
@@ -124,7 +124,7 @@ Premature abstraction is its own problem: you create an abstraction before you u
 
 ## DRY and generated code
 
-Generated code is an exception. If a struct is generated from a schema, and a corresponding SQL table definition also comes from that schema, the *source of truth* is the schema — not the two outputs. The outputs can look identical without violating DRY because neither encodes the knowledge; the generator does.
+Generated code is an exception. If a struct is generated from a schema, and a corresponding SQL table definition also comes from that schema, the *source of truth* is the schema - not the two outputs. The outputs can look identical without violating DRY because neither encodes the knowledge; the generator does.
 
 The principle is about knowledge, not bytes.
 

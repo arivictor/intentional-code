@@ -1,13 +1,13 @@
 ---
 title: Composition over Inheritance
-description: Build behaviour by combining small, focused pieces — not by building tall hierarchies of shared ancestry.
+description: Build behaviour by combining small, focused pieces - not by building tall hierarchies of shared ancestry.
 ---
 
 # Composition over Inheritance
 
-*"Favour object composition over class inheritance."* — Gang of Four, 1994
+*"Favour object composition over class inheritance."* - Gang of Four, 1994
 
-Go made this decision for you: the language has no inheritance. There are no subclasses, no `extends`, no override. What Go has instead is embedding and interfaces — two mechanisms that let you compose behaviour from small, focused pieces without coupling types together through ancestry.
+Go made this decision for you: the language has no inheritance. There are no subclasses, no `extends`, no override. What Go has instead is embedding and interfaces - two mechanisms that let you compose behaviour from small, focused pieces without coupling types together through ancestry.
 
 This isn't a limitation. It's the right call. Inheritance hierarchies couple types through shared state and implementation in ways that are hard to reason about and harder to change. Composition keeps types independent: each piece does one thing, and you assemble them at the point of use.
 
@@ -59,20 +59,20 @@ func NewAPIServer() *APIServer {
 // Neither Logger nor Metrics know anything about APIServer.
 ```
 
-If this were inheritance-based, `APIServer` would subclass some `LoggingServer`, which might subclass some `MetricServer`. Changing the logging implementation would risk breaking every subclass. With composition, `Logger` is independent — swap it without touching `APIServer`.
+If this were inheritance-based, `APIServer` would subclass some `LoggingServer`, which might subclass some `MetricServer`. Changing the logging implementation would risk breaking every subclass. With composition, `Logger` is independent - swap it without touching `APIServer`.
 
 ---
 
 ## Interfaces: compose behaviour at the call site
 
-In inheritance hierarchies, types are grouped by what they *are*. In Go, types are grouped by what they *do* — and you define the grouping at the call site with an interface.
+In inheritance hierarchies, types are grouped by what they *are*. In Go, types are grouped by what they *do* - and you define the grouping at the call site with an interface.
 
 ```go
-// BAD (hypothetical inheritance) — types are coupled through ancestry.
+// BAD (hypothetical inheritance) - types are coupled through ancestry.
 // Animal → Swimmer → Duck
-// Animal → Runner → Duck  (impossible — can't inherit from two things)
+// Animal → Runner → Duck  (impossible - can't inherit from two things)
 
-// GOOD — compose behaviour through interfaces.
+// GOOD - compose behaviour through interfaces.
 
 type Swimmer interface {
     Swim() string
@@ -112,7 +112,7 @@ Classical inheritance has a fundamental problem: when a type inherits from two t
 // Both override the method. Child inherits Left and Right.
 // Which method does Child use? This is undefined or language-specific.
 
-// In Go — no problem. Each embedded type is a distinct field.
+// In Go - no problem. Each embedded type is a distinct field.
 type Left struct{}
 func (Left) Act() { fmt.Println("left") }
 
@@ -124,7 +124,7 @@ type Child struct {
     Right
 }
 
-// Ambiguous — Go will not compile a direct call to child.Act().
+// Ambiguous - Go will not compile a direct call to child.Act().
 // You must be explicit:
 c := Child{}
 c.Left.Act()  // "left"

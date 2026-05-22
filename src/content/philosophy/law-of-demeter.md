@@ -7,7 +7,7 @@ description: Talk only to your immediate collaborators. The further you reach in
 
 *"Each unit should have only limited knowledge about other units: only units 'closely' related to the current unit."*
 
-The Law of Demeter — also called the Principle of Least Knowledge — says a method should only call methods on:
+The Law of Demeter - also called the Principle of Least Knowledge - says a method should only call methods on:
 
 1. Itself
 2. Its parameters
@@ -23,14 +23,14 @@ The informal version: **don't talk to strangers**.
 ## The violation: method chaining through ownership
 
 ```go
-// BAD — the handler knows too much about the internal structure of Order.
+// BAD - the handler knows too much about the internal structure of Order.
 // If Order.customer changes from a Customer to a CustomerID,
 // this handler must change too.
 
 func (h *Handler) ShipOrder(w http.ResponseWriter, r *http.Request) {
     order := h.store.Find(r.URL.Query().Get("id"))
 
-    // Three levels deep — reaching through Order into Customer into Address
+    // Three levels deep - reaching through Order into Customer into Address
     city := order.Customer().Address().City()
 
     rate := h.shipping.QuoteFor(city)
@@ -39,7 +39,7 @@ func (h *Handler) ShipOrder(w http.ResponseWriter, r *http.Request) {
 ```
 
 ```go
-// GOOD — Order exposes what callers need, hiding its internal structure.
+// GOOD - Order exposes what callers need, hiding its internal structure.
 // The handler asks Order for a shipping destination; it doesn't care
 // how Order derives that information.
 
@@ -58,7 +58,7 @@ func (h *Handler) ShipOrder(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-The navigation from `Order` to city is encapsulated in `Order.ShippingDestination`. The handler's dependency is on `Order`'s interface — not on `Customer`, not on `Address`.
+The navigation from `Order` to city is encapsulated in `Order.ShippingDestination`. The handler's dependency is on `Order`'s interface - not on `Customer`, not on `Address`.
 
 ---
 
@@ -67,17 +67,17 @@ The navigation from `Order` to city is encapsulated in `Order.ShippingDestinatio
 A single dot is usually fine. Two dots is a yellow flag. Three or more is almost always a violation.
 
 ```go
-// One dot — fine.
+// One dot - fine.
 user.Name
 
-// Two dots — possibly fine if the middle type is a value type.
+// Two dots - possibly fine if the middle type is a value type.
 response.Body.Close()
 
-// Three dots — violation. You're navigating through someone else's structure.
+// Three dots - violation. You're navigating through someone else's structure.
 app.Config().Database().ConnectionString()
 ```
 
-The exception: fluent builder patterns are sometimes intentionally chained — `strings.NewReplacer(...).Replace(s)`. These return `self` at each step rather than reaching into collaborators' internals. That's different from traversing an ownership graph.
+The exception: fluent builder patterns are sometimes intentionally chained - `strings.NewReplacer(...).Replace(s)`. These return `self` at each step rather than reaching into collaborators' internals. That's different from traversing an ownership graph.
 
 ---
 
@@ -86,12 +86,12 @@ The exception: fluent builder patterns are sometimes intentionally chained — `
 The Law of Demeter is related to "Tell, Don't Ask": rather than asking an object for data to make a decision, tell it to make the decision itself.
 
 ```go
-// ASK — caller fetches data, makes a decision externally.
+// ASK - caller fetches data, makes a decision externally.
 if order.Status() == "pending" && order.Total() > 10000 {
     order.ApplyDiscount(500)
 }
 
-// TELL — caller tells Order to apply its own discount rule.
+// TELL - caller tells Order to apply its own discount rule.
 // Order owns the decision about when it qualifies.
 order.ApplyLargeOrderDiscount()
 ```
@@ -105,7 +105,7 @@ func (o *Order) ApplyLargeOrderDiscount() {
 }
 ```
 
-The decision logic — what counts as a "large order" — lives in `Order`. If the threshold changes, you update `Order`, not every caller that was querying its fields.
+The decision logic - what counts as a "large order" - lives in `Order`. If the threshold changes, you update `Order`, not every caller that was querying its fields.
 
 ---
 
@@ -114,14 +114,14 @@ The decision logic — what counts as a "large order" — lives in `Order`. If t
 In Go, the Law of Demeter applies most naturally at the package level. A package should be self-contained. If package A reaches through package B to directly manipulate package C's types, that's a three-layer dependency that should be collapsed.
 
 ```go
-// BAD — handler package reaches through service package into store package.
+// BAD - handler package reaches through service package into store package.
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
     svc := h.services.UserService()
     user, _ := svc.Store().FindByID(r.URL.Query().Get("id")) // reaches into store
     json.NewEncoder(w).Encode(user)
 }
 
-// GOOD — handler calls service; service calls store; each layer knows only its neighbour.
+// GOOD - handler calls service; service calls store; each layer knows only its neighbour.
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
     user, err := h.userService.GetByID(r.Context(), r.URL.Query().Get("id"))
     if err != nil {

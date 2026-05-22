@@ -11,7 +11,7 @@ tags: [interfaces, closures, composition]
 
 Chain of Responsibility passes a request along a sequence of handlers. Each handler decides whether to process the request, short-circuit with a response, or pass it on. In Go, this is most commonly seen as HTTP middleware chains, but the pattern applies anywhere you need a composable pipeline of independent checks or transformations.
 
-The Go idiom favors a slice of handler functions over linked-list objects — simpler to construct, reorder, and test in isolation.
+The Go idiom favors a slice of handler functions over linked-list objects - simpler to construct, reorder, and test in isolation.
 
 ## Problem
 
@@ -135,13 +135,13 @@ Output:
 ## When Not to Use
 
 - The processing order is fixed and unlikely to change. A straightforward function may be clearer.
-- There's only one or two steps — the chain machinery adds overhead without benefit.
+- There's only one or two steps - the chain machinery adds overhead without benefit.
 
 ## Tradeoffs
 
-Each handler is independently testable, which is the main win. The cost you pay is debuggability: when a request returns 401, you know the chain stopped somewhere, but you have to add logging or introspection to know where. If handlers need to share mutable context across the chain — adding a user ID after auth so later handlers can read it — you need to thread that through explicitly, typically via `context.Context` rather than mutating the request. The pattern also silently discards the "continue" bool from the final handler, so forgetting to add a terminal handler produces a confusing 500 from the fallthrough case rather than a compile error.
+Each handler is independently testable, which is the main win. The cost you pay is debuggability: when a request returns 401, you know the chain stopped somewhere, but you have to add logging or introspection to know where. If handlers need to share mutable context across the chain - adding a user ID after auth so later handlers can read it - you need to thread that through explicitly, typically via `context.Context` rather than mutating the request. The pattern also silently discards the "continue" bool from the final handler, so forgetting to add a terminal handler produces a confusing 500 from the fallthrough case rather than a compile error.
 
 ## Related Patterns
 
-- **Decorator** — HTTP middleware is both Decorator and Chain of Responsibility: each middleware wraps the next (Decorator) and may short-circuit without calling the inner handler (Chain of Responsibility) — if every step always calls the next, it's pure Decorator; if steps may stop the chain, it's Chain of Responsibility.
-- **Command** — Commands can be the handlers in a chain, combining pipeline composability with undo and queuing capabilities.
+- **Decorator** - HTTP middleware is both Decorator and Chain of Responsibility: each middleware wraps the next (Decorator) and may short-circuit without calling the inner handler (Chain of Responsibility) - if every step always calls the next, it's pure Decorator; if steps may stop the chain, it's Chain of Responsibility.
+- **Command** - Commands can be the handlers in a chain, combining pipeline composability with undo and queuing capabilities.
