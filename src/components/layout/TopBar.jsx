@@ -50,9 +50,8 @@ export default function TopBar({
             <Menu className="h-5 w-5" />
           </Button>
 
-          <a href={homePath} className="flex items-center gap-2 font-semibold text-foreground shrink-0">
-            <span className="text-primary font-mono text-lg font-bold">{sectionLabel}</span>
-            <span className="hidden sm:inline text-sm tracking-tight">Intentional Code</span>
+          <a href={homePath} className="flex items-center shrink-0 select-none">
+            <span className="text-foreground font-semibold text-base tracking-tight text-md">Intentional Code</span>
           </a>
 
           <div className="flex-1" />

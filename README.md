@@ -11,3 +11,4 @@ This project contains everything you needed to run the app locally.
 2. Navigate to the project directory
 3. Install dependencies: `npm install`
 4. Run the app locally: `npm run dev`
+5. `npm run build && node scripts/generate-sitemap.js` to generate the sitemap.xml file for production deployment.
