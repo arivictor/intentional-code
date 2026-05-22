@@ -1,27 +1,18 @@
-import React, { useState, useEffect, createContext } from "react";
+import React, { createContext } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeSlug from "rehype-slug";
 import rehypeAutolinkHeadings from "rehype-autolink-headings";
 import MarkdownCode from "@/components/content/MarkdownCode";
 import ComparisonTable from "@/components/content/ComparisonTable";
 import PatternLink from "@/components/content/PatternLink";
-import { isPatternRead, markPatternRead, markPatternUnread } from "@/lib/readingProgress";
-import { CheckCircle, Circle, Bookmark, Clock, AlertTriangle } from "lucide-react";
-import { isBookmarked, toggleBookmark } from "@/lib/bookmarks";
-import Breadcrumbs from "@/components/layout/Breadcrumbs";
-import PrevNextNav from "@/components/layout/PrevNextNav";
-import TableOfContents from "@/components/layout/TableOfContents";
-import HighlightableContent from "@/components/content/HighlightableContent";
-import { getHighlights, addHighlight, removeHighlight } from "@/lib/highlights";
-import ReadingProgressBar from "@/components/layout/ReadingProgressBar";
-import FeedbackButtons from "@/components/content/FeedbackButtons";
+import DetailPageShell, { AUTOLINK_OPTIONS } from "./DetailPageShell";
+import { AlertTriangle } from "lucide-react";
 
 export const PatternsContext = createContext({ allPatterns: [], basePath: "/go" });
 
-function readingTimeFromMarkdown(md) {
+function readingTime(md) {
   if (!md) return null;
-  const words = md.split(/\s+/).filter(Boolean).length;
-  return `${Math.max(1, Math.round(words / 200))} min read`;
+  return `${Math.max(1, Math.round(md.split(/\s+/).filter(Boolean).length / 200))} min read`;
 }
 
 function parseList(block) {
@@ -57,157 +48,69 @@ function splitMarkdown(md) {
   return { before, advantages: parseList(advContent), disadvantages: parseList(disContent), relatedPatterns };
 }
 
-export default function PatternPage({ pattern, markdown, allPatterns, navOrder, pathname, basePath = "/go" }) {
-  const [read, setRead] = useState(false);
-  const [bookmarked, setBookmarked] = useState(false);
-  const [highlights, setHighlights] = useState([]);
-  const { storageKey } = pattern;
-  const resolvedBasePath = pattern.basePath ?? basePath;
-
-  useEffect(() => {
-    setRead(isPatternRead(storageKey));
-    setBookmarked(isBookmarked(storageKey));
-    setHighlights(getHighlights(storageKey));
-  }, [storageKey]);
-
-  const handleAddHighlight = (highlight) => setHighlights(addHighlight(storageKey, highlight));
-  const handleRemoveHighlight = (id) => setHighlights(removeHighlight(storageKey, id));
-  const handleBookmark = () => setBookmarked(toggleBookmark(storageKey));
-  const toggleRead = () => {
-    if (read) {
-      markPatternUnread(storageKey);
-      setRead(false);
-    } else {
-      markPatternRead(storageKey);
-      setRead(true);
-    }
-  };
-
-  const patternMap = Object.fromEntries((allPatterns ?? []).map((entry) => [entry.slug, entry.title]));
-  const mdProps = {
-    rehypePlugins: [
-      rehypeSlug,
-      [rehypeAutolinkHeadings, {
-        behavior: "prepend",
-        properties: { className: ["heading-anchor"], ariaHidden: true, tabIndex: -1 },
-        content: {
-          type: "element",
-          tagName: "svg",
-          properties: {
-            xmlns: "http://www.w3.org/2000/svg",
-            width: "14",
-            height: "14",
-            viewBox: "0 0 24 24",
-            fill: "none",
-            stroke: "currentColor",
-            strokeWidth: "2",
-            strokeLinecap: "round",
-            strokeLinejoin: "round",
-          },
-          children: [
-            { type: "element", tagName: "path", properties: { d: "M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" }, children: [] },
-            { type: "element", tagName: "path", properties: { d: "M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" }, children: [] },
-          ],
-        },
-      }],
-    ],
-    components: {
-      code: MarkdownCode,
-      h1: () => null,
-      h2: ({ children, ...props }) => {
-        const text = Array.isArray(children) ? children.join("") : String(children ?? "");
-        if (text === "When Not to Use") {
-          return (
-            <h2 {...props} className="flex items-center gap-2 text-xl font-semibold mt-10 mb-3 text-foreground border-l-[3px] border-amber-500 pl-3">
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-              {children}
-            </h2>
-          );
-        }
-        return <h2 {...props}>{children}</h2>;
-      },
+const mdProps = {
+  rehypePlugins: [
+    rehypeSlug,
+    [rehypeAutolinkHeadings, AUTOLINK_OPTIONS],
+  ],
+  components: {
+    code: MarkdownCode,
+    h1: () => null,
+    h2: ({ children, ...props }) => {
+      const text = Array.isArray(children) ? children.join("") : String(children ?? "");
+      if (text === "When Not to Use") {
+        return (
+          <h2 {...props} className="flex items-center gap-2 text-xl font-semibold mt-10 mb-3 text-foreground border-l-[3px] border-amber-500 pl-3">
+            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+            {children}
+          </h2>
+        );
+      }
+      return <h2 {...props}>{children}</h2>;
     },
-  };
+  },
+};
+
+export default function PatternPage({ pattern, markdown, allPatterns, navOrder, pathname, basePath = "/go" }) {
+  const resolvedBasePath = pattern.basePath ?? basePath;
+  const patternMap = Object.fromEntries((allPatterns ?? []).map((p) => [p.slug, p.title]));
+  const sections = splitMarkdown(markdown);
 
   return (
     <PatternsContext.Provider value={{ allPatterns: allPatterns ?? [], basePath: resolvedBasePath }}>
-      <ReadingProgressBar />
-      <div className="flex gap-12 max-w-5xl mx-auto px-6 py-10">
-        <div className="flex-1 min-w-0">
-          <Breadcrumbs pathname={pathname} patternMap={patternMap} />
-
-          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">{pattern.title}</h1>
-          <p className="text-base text-muted-foreground leading-relaxed mb-4">{pattern.intent}</p>
-
-          <div className="flex items-center gap-3 mb-8">
-            <button
-              onClick={toggleRead}
-              className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-full border transition-all ${
-                read
-                  ? "bg-primary/10 border-primary/30 text-primary font-medium"
-                  : "border-border text-muted-foreground hover:border-primary/30 hover:text-primary"
-              }`}
-            >
-              {read ? <CheckCircle className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
-              {read ? "Read" : "Mark as read"}
-            </button>
-            {markdown && (
-              <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                {readingTimeFromMarkdown(markdown)}
-              </span>
+      <DetailPageShell
+        title={pattern.title}
+        subtitle={pattern.intent}
+        slug={pattern.storageKey}
+        storageKey={pattern.storageKey}
+        navOrder={navOrder}
+        pathname={pathname}
+        patternMap={patternMap}
+        readingTimeText={readingTime(markdown)}
+      >
+        {sections ? (
+          <>
+            <div className="prose-pattern">
+              <ReactMarkdown {...mdProps}>{sections.before}</ReactMarkdown>
+            </div>
+            <ComparisonTable advantages={sections.advantages} disadvantages={sections.disadvantages} />
+            {sections.relatedPatterns.length > 0 && (
+              <section id="related-patterns" className="mt-12">
+                <h2 className="text-2xl font-semibold mb-4 text-foreground">Related Patterns</h2>
+                <div className="space-y-3">
+                  {sections.relatedPatterns.map((rp, i) => (
+                    <PatternLink key={i} title={rp.title} description={rp.description} />
+                  ))}
+                </div>
+              </section>
             )}
-            <button
-              onClick={handleBookmark}
-              title={bookmarked ? "Remove bookmark" : "Bookmark this pattern"}
-              className={`flex items-center gap-1.5 text-sm transition-colors ${
-                bookmarked ? "text-primary" : "text-muted-foreground hover:text-primary"
-              }`}
-            >
-              <Bookmark className={`h-4 w-4 ${bookmarked ? "fill-current" : ""}`} />
-              <span>{bookmarked ? "Saved" : "Save for later"}</span>
-            </button>
+          </>
+        ) : (
+          <div className="prose-pattern">
+            <ReactMarkdown {...mdProps}>{markdown}</ReactMarkdown>
           </div>
-
-          <HighlightableContent highlights={highlights} onAdd={handleAddHighlight} onRemove={handleRemoveHighlight}>
-            {(() => {
-              const sections = splitMarkdown(markdown);
-              if (!sections) {
-                return (
-                  <div className="prose-pattern">
-                    <ReactMarkdown {...mdProps}>{markdown}</ReactMarkdown>
-                  </div>
-                );
-              }
-
-              return (
-                <>
-                  <div className="prose-pattern">
-                    <ReactMarkdown {...mdProps}>{sections.before}</ReactMarkdown>
-                  </div>
-                  <ComparisonTable advantages={sections.advantages} disadvantages={sections.disadvantages} />
-                  {sections.relatedPatterns.length > 0 && (
-                    <section id="related-patterns" className="mt-12">
-                      <h2 className="text-2xl font-semibold mb-4 text-foreground">Related Patterns</h2>
-                      <div className="space-y-3">
-                        {sections.relatedPatterns.map((relatedPattern, index) => (
-                          <PatternLink key={index} title={relatedPattern.title} description={relatedPattern.description} />
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                </>
-              );
-            })()}
-          </HighlightableContent>
-
-          <FeedbackButtons contentTitle={pattern.title} contentSlug={pattern.storageKey} />
-
-          <PrevNextNav navOrder={navOrder} pathname={pathname} />
-        </div>
-
-        <TableOfContents />
-      </div>
+        )}
+      </DetailPageShell>
     </PatternsContext.Provider>
   );
 }
