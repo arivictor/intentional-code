@@ -307,7 +307,7 @@ Optimistic locking works well when conflicts are rare — a deposit and a withdr
 
 ## Tradeoffs
 
-The audit log is a consequence of the storage strategy, not an add-on — you can't accidentally skip it. Time-travel and projection rebuilding are genuinely powerful for debugging and analytics. The costs are real: loading an aggregate requires a database query and a replay loop instead of a single row fetch (mitigated by snapshots), read models are eventually consistent (a projection may lag the event log by milliseconds to seconds), and event schemas must be backward-compatible forever because you can't change historical events. Schema evolution strategies — upcasting old events at read time, versioned event types — add operational discipline that current-state storage doesn't require.
+The audit log falls out of the storage strategy, so you can't accidentally skip it. Time-travel and projection rebuilding are useful for debugging and analytics. The costs are real: loading an aggregate requires a database query and a replay loop instead of a single row fetch (mitigated by snapshots), read models are eventually consistent (a projection may lag the event log by milliseconds to seconds), and event schemas must be backward-compatible forever because you can't change historical events. Schema evolution strategies — upcasting old events at read time, versioned event types — add operational discipline that current-state storage doesn't require.
 
 ## Related Patterns
 

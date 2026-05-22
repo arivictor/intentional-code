@@ -10,13 +10,13 @@ isFeatured: false
 
 # Done Channel
 
-A goroutine that nobody can stop is a goroutine leak. It consumes stack memory, holds open file descriptors, and may block goroutines downstream that are waiting on its output. The done channel pattern gives every goroutine a way to be told to stop — either by closing a dedicated `done` channel, or (the modern form) by cancelling a `context.Context`.
+A goroutine that nobody can stop is a goroutine leak. It keeps stack memory alive, may hold file descriptors or database connections, and can block other goroutines waiting on its output. The done channel pattern gives every goroutine a way to stop, either by closing a dedicated `done` channel or, more commonly now, by cancelling a `context.Context`.
 
-This is not a pattern you reach for occasionally. It is a discipline applied to every goroutine that isn't guaranteed to terminate on its own.
+Apply this to any goroutine that isn't guaranteed to terminate on its own.
 
 ## Problem
 
-A goroutine ranges over a channel, doing work and sending results. If the caller abandons the operation — because of a timeout, an error, or a user cancellation — the goroutine keeps running. It holds memory. It may hold a database connection. It blocks forever trying to send to a results channel that nobody is reading.
+A goroutine ranges over a channel, does work, and sends results. If the caller abandons the operation because of a timeout, an error, or a user cancellation, the goroutine keeps running. It still holds memory. It may still hold a database connection. It can block forever trying to send on a results channel that nobody is reading.
 
 ```go
 // Leaks a goroutine if the caller stops reading from results.
@@ -33,7 +33,7 @@ func startWorker(jobs <-chan string) <-chan string {
 
 ## The original pattern: done channel
 
-Before `context.Context` was standard, the idiom was a plain `done` channel. Closing `done` broadcasts to all goroutines selecting on it.
+Before `context.Context` became standard, the idiom was a plain `done` channel. Closing `done` broadcasts the signal to every goroutine selecting on it.
 
 ```go
 package main
@@ -81,11 +81,11 @@ func main() {
 }
 ```
 
-Closing a channel is the right primitive here because a send would wake only one reader, but a close wakes all of them simultaneously.
+Closing a channel is the right primitive here because a send wakes one reader, while a close wakes all of them at once.
 
 ## The modern form: context.Context
 
-`context.Context` supersedes the raw done channel. It carries a deadline, a cancellation signal, and arbitrary values. Pass it as the first argument to any function that starts goroutines.
+`context.Context` replaced the raw done channel for most code. It carries a deadline, a cancellation signal, and arbitrary values. Pass it as the first argument to any function that starts goroutines.
 
 ```go
 package main
@@ -134,11 +134,11 @@ func main() {
 }
 ```
 
-`defer cancel()` is idiomatic: even if the function returns normally, calling cancel cleans up the context's resources and sends the done signal to any goroutines still running.
+`defer cancel()` is the right default. Even when the function returns normally, it releases the context's resources and signals any goroutines that are still running.
 
 ## Propagating cancellation through a call chain
 
-The power of `context.Context` is propagation. A parent context cancelled at the top of the call tree cancels every derived child context simultaneously.
+`context.Context` matters because cancellation propagates. Cancel a parent context at the top of the call tree and every derived child context is cancelled too.
 
 ```go
 func (s *Server) HandleRequest(w http.ResponseWriter, r *http.Request) {
@@ -160,11 +160,11 @@ func (s *service) Process(ctx context.Context, req Request) ([]Result, error) {
 }
 ```
 
-If the client disconnects mid-request, `r.Context()` is cancelled, which cancels `ctx`, which stops `startWorker`'s goroutine, which closes `jobs` via `generateJobs`, which causes the whole chain to unwind cleanly.
+If the client disconnects mid-request, `r.Context()` is cancelled. That cancels `ctx`, stops `startWorker`, closes `jobs` through `generateJobs`, and lets the whole chain unwind cleanly.
 
 ## Detecting goroutine leaks in tests
 
-Use `goleak` to catch goroutines that survive beyond a test:
+Use `goleak` to catch goroutines that survive past the end of a test:
 
 ```go
 import "go.uber.org/goleak"
@@ -187,7 +187,7 @@ func TestWorker(t *testing.T) {
 
 ## When to Use
 
-- Every goroutine that could outlive its caller — which is most goroutines.
+- Every goroutine that could outlive its caller, which is most goroutines.
 - Any goroutine that blocks on a channel send or receive.
 - Any goroutine that runs in a loop without a guaranteed natural exit.
 
@@ -197,7 +197,7 @@ func TestWorker(t *testing.T) {
 
 ## Tradeoffs
 
-The main cost is verbosity: every blocking operation needs a `select` with `ctx.Done()`. Forgetting one is a goroutine leak that doesn't show up until production. The benefit is that the cancellation model is explicit, composable, and testable. `context.WithTimeout` and `context.WithDeadline` give you time-based cancellation for free on top of the same mechanism.
+The cost is verbosity: every blocking operation needs a `select` with `ctx.Done()`. Miss one and you've introduced a goroutine leak that may not show up until production. In return, cancellation stays explicit, composable, and testable. `context.WithTimeout` and `context.WithDeadline` give you time-based cancellation on top of the same mechanism.
 
 ## Related Patterns
 

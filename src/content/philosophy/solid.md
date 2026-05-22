@@ -7,7 +7,7 @@ description: The five SOLID principles, reinterpreted for Go's implicit-interfac
 
 In Go, three of the five SOLID principles apply almost by default: interfaces are implicit and small by convention (ISP), packages compose rather than inherit (OCP), and focused packages are idiomatic (SRP). The two that need deliberate effort are LSP — which in Go is about behavioral contracts for interface implementors, not subclass hierarchies — and DIP, where Go's "accept interfaces, return structs" idiom replaces abstract classes.
 
-Understanding the principles tells you *why* a design choice is good or bad. Patterns tell you *how* to implement a solution. If you internalize the principles, you'll often arrive at the right pattern naturally — or realize you don't need one. The [Repository](/go/patterns/architectural/repository) pattern is DIP applied to persistence; [Observer](/go/patterns/behavioral/observer) is OCP applied to event notification; [Strategy](/go/patterns/behavioral/strategy) is OCP applied to interchangeable algorithms.
+Understanding the principles tells you *why* a design choice is good or bad. Patterns tell you *how* to implement a solution. The principles usually point you to the right pattern — or show you that you don't need one. The [Repository](/go/patterns/architectural/repository) pattern is DIP applied to persistence; [Observer](/go/patterns/behavioral/observer) is OCP applied to event notification; [Strategy](/go/patterns/behavioral/strategy) is OCP applied to interchangeable algorithms.
 
 ---
 

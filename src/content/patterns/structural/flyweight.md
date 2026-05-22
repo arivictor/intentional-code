@@ -156,4 +156,4 @@ The memory savings are real and dramatic when the sharing ratio is high — two 
 ## Related Patterns
 
 - **Composite** — Flyweight types often appear as leaves in a Composite tree: the shared Flyweight instance holds common data (style, type) while each Composite node holds unique data (position, quantity, parent).
-- **Singleton** — Singleton means one instance of one type; Flyweight means one instance per distinct key — the interning map is effectively a keyed singleton registry; use Singleton when there's genuinely only one, Flyweight when there are several distinct shared values.
+- **Singleton** — Singleton means one instance of one type; Flyweight means one instance per distinct key — the interning map acts like a keyed singleton registry; use Singleton when there's genuinely only one, Flyweight when there are several distinct shared values.
