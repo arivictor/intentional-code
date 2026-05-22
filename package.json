@@ -7,8 +7,10 @@
     "dev": "astro dev --port 5173",
     "build": "astro build",
     "preview": "astro preview",
+    "generate:og": "node scripts/generate-og.mjs",
     "lint": "eslint . --quiet",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "ci": "npm run build && node scripts/generate-sitemap.js && npm run generate:og"
   },
   "dependencies": {
     "@astrojs/react": "^5.0.5",
