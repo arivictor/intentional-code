@@ -5,7 +5,7 @@ lede: Patterns for goroutines, channels, and coordinated concurrent work — the
 
 Go's concurrency model is built on two primitives: goroutines and channels. Goroutines are cheap, independently-scheduled functions. Channels are typed conduits that let goroutines communicate and synchronise without shared memory. The language slogan captures the philosophy: *"Do not communicate by sharing memory; instead, share memory by communicating."*
 
-These primitives are powerful and composable, but raw goroutines have failure modes that aren't obvious at first. Goroutines can leak — run forever because nothing signals them to stop. Channels can block forever when their sender or receiver exits early. Panics in goroutines kill the whole process if unrecovered. The patterns in this section are the established idioms for avoiding those failure modes and building concurrent systems that are correct, bounded, and cancellable.
+These primitives compose well, but raw goroutines fail in ways that are easy to miss at first. Goroutines leak when nothing tells them to stop. Channels block forever when a sender or receiver exits early. Unrecovered panics in goroutines crash the whole process. The patterns in this section are the standard ways to avoid those failures and build concurrent systems that stay correct, bounded, and cancellable.
 
 ## The building blocks
 

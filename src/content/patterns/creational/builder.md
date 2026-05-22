@@ -44,7 +44,7 @@ The caller must remember the position of every argument. Zero values are ambiguo
 
 ## Solution
 
-The functional options pattern solves this elegantly. Define an `Option` type as a function that modifies a config. The constructor accepts a variadic list of options. Defaults are set inside the constructor, and only the options you care about are passed.
+The functional options pattern fixes this cleanly. Define an `Option` type as a function that modifies a config. The constructor accepts a variadic list of options. Set defaults inside the constructor, then pass only the options you care about.
 
 ```
 ┌──────────────────────────────────┐

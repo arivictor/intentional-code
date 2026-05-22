@@ -158,7 +158,7 @@ Cannot send: not connected.
 
 ## When to Use
 
-- An object's behavior differs significantly based on its current state.
+- An object's behavior changes sharply based on its current state.
 - You have large switch/if-else blocks checking a state field in every method.
 - State transitions are complex and you want them explicitly modeled.
 

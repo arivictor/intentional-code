@@ -211,7 +211,7 @@ In Kubernetes, `web` and `worker` would be separate Deployments: `kubectl scale 
 
 ## IX. Disposability
 
-*Maximise robustness with fast startup and graceful shutdown.*
+*Start fast and shut down gracefully.*
 
 Processes should start fast (seconds, not minutes) and shut down gracefully, finishing in-flight requests before exiting.
 

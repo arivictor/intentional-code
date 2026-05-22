@@ -158,5 +158,5 @@ The open/closed guarantee runs in one direction only: adding a new operation is 
 
 ## Related Patterns
 
-- **Composite** — Visitor is most powerful when applied to Composite structures: the Composite defines the tree, Visitor adds operations that traverse it without modifying the node types.
+- **Composite** — Visitor works best with Composite structures: the Composite defines the tree, Visitor adds operations that traverse it without modifying the node types.
 - **Iterator** — Iterator provides sequential access to elements; Visitor performs type-specific operations on each element — combine them when you need to traverse a tree and apply different logic per node type.
