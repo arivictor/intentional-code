@@ -11,7 +11,7 @@ const svg = readFileSync(svgPath);
 
 await sharp(svg)
   .resize(1200, 630)
-  .flatten({ background: '#0c1018' })
+  .flatten({ background: '#ffffff' })
   .png({ compressionLevel: 9 })
   .toFile(pngPath);
 

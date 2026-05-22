@@ -1,213 +1,205 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
-    <!-- Bold diagonal gradient: deep navy to near-black -->
-    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0c1f58"/>
-      <stop offset="55%" stop-color="#080e26"/>
-      <stop offset="100%" stop-color="#04070f"/>
-    </linearGradient>
-
-    <!-- Left accent bar: vivid blue fade -->
-    <linearGradient id="leftBar" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#0065df" stop-opacity="0"/>
-      <stop offset="20%"  stop-color="#0065df"/>
-      <stop offset="80%"  stop-color="#0065df"/>
-      <stop offset="100%" stop-color="#0065df" stop-opacity="0"/>
-    </linearGradient>
-
-    <!-- Headline "Intentional" gradient: white to ice-blue -->
-    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"   stop-color="#f8fafc"/>
-      <stop offset="100%" stop-color="#c7dcff"/>
-    </linearGradient>
-
-    <!-- "Code." gradient: vivid blue to electric blue -->
-    <linearGradient id="blueGrad" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"   stop-color="#2b7fff"/>
-      <stop offset="100%" stop-color="#60a5fa"/>
-    </linearGradient>
-
-    <!-- Code block inner gradient (subtle depth) -->
-    <linearGradient id="codeBlockGrad" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"   stop-color="#131c36"/>
-      <stop offset="100%" stop-color="#0e1628"/>
-    </linearGradient>
-
-    <!-- Soft blur for ambient glows (no source merge = pure glow) -->
-    <filter id="bigGlow" x="-100%" y="-100%" width="300%" height="300%">
-      <feGaussianBlur stdDeviation="70"/>
-    </filter>
-    <filter id="midGlow" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="40"/>
-    </filter>
-
-    <!-- Dot grid texture -->
-    <pattern id="dotGrid" x="0" y="0" width="30" height="30" patternUnits="userSpaceOnUse">
-      <circle cx="15" cy="15" r="0.7" fill="#ffffff" opacity="0.07"/>
+    <pattern id="dotGrid" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="12" cy="12" r="0.5" fill="#000000" opacity="0.04"/>
     </pattern>
+
+    <filter id="blob1" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="60"/>
+    </filter>
+    <filter id="blob2" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="75"/>
+    </filter>
+
+    <!-- Fades text area back to clean white -->
+    <linearGradient id="fadeLeft" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="42%"  stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="68%"  stop-color="#ffffff" stop-opacity="0.2"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <!-- Softens gradient at very top -->
+    <linearGradient id="fadeTop" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%"  stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="40%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
   </defs>
 
   <!-- ── BACKGROUND ── -->
-  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+  <rect width="1200" height="630" fill="#ffffff"/>
   <rect width="1200" height="630" fill="url(#dotGrid)"/>
 
-  <!-- Bright focal glow top-left (source of the gradient light) -->
-  <ellipse cx="80"  cy="-40" rx="380" ry="300" fill="#1a5bcc" opacity="0.55" filter="url(#bigGlow)"/>
-  <!-- Secondary accent glow mid-left -->
-  <ellipse cx="220" cy="340" rx="180" ry="140" fill="#0a3a8a" opacity="0.40" filter="url(#midGlow)"/>
-  <!-- Subtle warm glow upper-right (code block area) -->
-  <ellipse cx="1020" cy="200" rx="260" ry="180" fill="#0d2f70" opacity="0.35" filter="url(#bigGlow)"/>
+  <!-- ── COLOR GRADIENT (upper-right) ── -->
+  <!-- Teal / mint -->
+  <ellipse cx="950" cy="370" rx="360" ry="280" fill="#00d4aa" opacity="0.55" filter="url(#blob1)"/>
+  <!-- Red / coral -->
+  <ellipse cx="1090" cy="110" rx="260" ry="210" fill="#ff4444" opacity="0.60" filter="url(#blob1)"/>
+  <!-- Orange -->
+  <ellipse cx="1010" cy="230" rx="210" ry="170" fill="#ff8800" opacity="0.45" filter="url(#blob2)"/>
+  <!-- Extra teal lower -->
+  <ellipse cx="850"  cy="490" rx="200" ry="160" fill="#0fd4bf" opacity="0.35" filter="url(#blob2)"/>
 
-  <!-- ── LEFT ACCENT BAR ── -->
-  <rect x="0" y="0" width="4" height="630" fill="url(#leftBar)"/>
+  <!-- ── FADE OVERLAYS ── -->
+  <rect width="1200" height="630" fill="url(#fadeLeft)"/>
+  <rect width="1200" height="160" fill="url(#fadeTop)"/>
 
-  <!-- ── BRAND MARK ── -->
-  <!-- {_} monogram -->
-  <text x="80" y="100" font-family="'Courier New', Courier, monospace" font-size="28" font-weight="700" fill="#2b7fff">{</text>
-  <text x="103" y="97" font-family="'Courier New', Courier, monospace" font-size="15" font-weight="700" fill="#60a5fa">_</text>
-  <text x="113" y="100" font-family="'Courier New', Courier, monospace" font-size="28" font-weight="700" fill="#2b7fff">}</text>
+  <!-- ── CORNER CROSSHAIRS ── -->
+  <line x1="18" y1="30" x2="42" y2="30" stroke="#d4d4d4" stroke-width="1"/>
+  <line x1="30" y1="18" x2="30" y2="42" stroke="#d4d4d4" stroke-width="1"/>
 
-  <!-- Go language chip -->
-  <rect x="154" y="76" width="46" height="24" rx="5" fill="#2b7fff" fill-opacity="0.2" stroke="#2b7fff" stroke-width="1.2" stroke-opacity="0.55"/>
-  <text x="177" y="92" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="12" font-weight="700" fill="#93c5fd" text-anchor="middle">Go</text>
+  <line x1="1158" y1="30" x2="1182" y2="30" stroke="#d4d4d4" stroke-width="1"/>
+  <line x1="1170" y1="18" x2="1170" y2="42" stroke="#d4d4d4" stroke-width="1"/>
+
+  <line x1="18" y1="600" x2="42" y2="600" stroke="#d4d4d4" stroke-width="1"/>
+  <line x1="30" y1="588" x2="30" y2="612" stroke="#d4d4d4" stroke-width="1"/>
+
+  <line x1="1158" y1="600" x2="1182" y2="600" stroke="#d4d4d4" stroke-width="1"/>
+  <line x1="1170" y1="588" x2="1170" y2="612" stroke="#d4d4d4" stroke-width="1"/>
+
+  <!-- ── BRAND ── -->
+  <text x="80" y="102"
+        font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif"
+        font-size="15" font-weight="600" letter-spacing="-0.2" fill="#000000">Intentional Code</text>
+  <text x="231" y="102"
+        font-family="'Courier New', Courier, monospace"
+        font-size="15" font-weight="700" fill="#000000">_</text>
+
+  <!-- Language chip -->
+  <rect x="80" y="116" width="38" height="20" rx="4" fill="none" stroke="#e5e5e5" stroke-width="1"/>
+  <text x="99" y="130"
+        font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif"
+        font-size="10" font-weight="600" fill="#737373" text-anchor="middle">Go</text>
 
   <!-- ── MAIN HEADLINE ── -->
-  <text x="80" y="252"
-        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif"
-        font-size="92" font-weight="800" letter-spacing="-3.5"
-        fill="url(#titleGrad)">Intentional</text>
-
-  <text x="80" y="350"
-        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif"
-        font-size="92" font-weight="800" letter-spacing="-3.5"
-        fill="url(#blueGrad)">Code.</text>
+  <text x="80" y="254"
+        font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif"
+        font-size="88" font-weight="800" letter-spacing="-4"
+        fill="#000000">Intentional</text>
+  <text x="80" y="348"
+        font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif"
+        font-size="88" font-weight="800" letter-spacing="-4"
+        fill="#000000">Code.</text>
 
   <!-- Divider -->
-  <rect x="80" y="374" width="540" height="1.5" fill="#1e3a7a" opacity="0.8"/>
+  <rect x="80" y="372" width="510" height="1" fill="#e5e5e5"/>
 
   <!-- ── TAGLINE ── -->
-  <text x="80" y="412"
-        font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-        font-size="18" font-weight="400" fill="#64748b" letter-spacing="0.4">
-    Gang of Four · SOLID Principles · Test-Driven Development
+  <text x="80" y="407"
+        font-family="-apple-system, BlinkMacSystemFont, 'Inter', sans-serif"
+        font-size="17" font-weight="400" fill="#737373" letter-spacing="0.1">
+    Patterns &amp; principles for production Go
   </text>
 
-  <!-- ── PATTERN CHIPS ── -->
-  <rect x="80"  y="452" width="95"  height="26" rx="5" fill="#2b7fff" fill-opacity="0.13" stroke="#2b7fff" stroke-width="1" stroke-opacity="0.4"/>
-  <text x="127" y="469" font-family="'Courier New', Courier, monospace" font-size="11" fill="#93c5fd" text-anchor="middle">Observer</text>
+  <!-- ── PATTERN CHIPS (light mode) ── -->
+  <rect x="80"  y="436" width="83"  height="23" rx="4" fill="#fafafa" stroke="#e5e5e5" stroke-width="1"/>
+  <text x="122" y="452" font-family="'Courier New', Courier, monospace" font-size="11" fill="#737373" text-anchor="middle">Observer</text>
 
-  <rect x="185" y="452" width="104" height="26" rx="5" fill="#2b7fff" fill-opacity="0.13" stroke="#2b7fff" stroke-width="1" stroke-opacity="0.4"/>
-  <text x="237" y="469" font-family="'Courier New', Courier, monospace" font-size="11" fill="#93c5fd" text-anchor="middle">Decorator</text>
+  <rect x="173" y="436" width="93"  height="23" rx="4" fill="#fafafa" stroke="#e5e5e5" stroke-width="1"/>
+  <text x="220" y="452" font-family="'Courier New', Courier, monospace" font-size="11" fill="#737373" text-anchor="middle">Decorator</text>
 
-  <rect x="299" y="452" width="83"  height="26" rx="5" fill="#2b7fff" fill-opacity="0.13" stroke="#2b7fff" stroke-width="1" stroke-opacity="0.4"/>
-  <text x="340" y="469" font-family="'Courier New', Courier, monospace" font-size="11" fill="#93c5fd" text-anchor="middle">Factory</text>
+  <rect x="276" y="436" width="74"  height="23" rx="4" fill="#fafafa" stroke="#e5e5e5" stroke-width="1"/>
+  <text x="313" y="452" font-family="'Courier New', Courier, monospace" font-size="11" fill="#737373" text-anchor="middle">Factory</text>
 
-  <rect x="392" y="452" width="89"  height="26" rx="5" fill="#2b7fff" fill-opacity="0.13" stroke="#2b7fff" stroke-width="1" stroke-opacity="0.4"/>
-  <text x="436" y="469" font-family="'Courier New', Courier, monospace" font-size="11" fill="#93c5fd" text-anchor="middle">Strategy</text>
+  <rect x="360" y="436" width="78"  height="23" rx="4" fill="#fafafa" stroke="#e5e5e5" stroke-width="1"/>
+  <text x="399" y="452" font-family="'Courier New', Courier, monospace" font-size="11" fill="#737373" text-anchor="middle">Strategy</text>
 
-  <rect x="491" y="452" width="84"  height="26" rx="5" fill="#2b7fff" fill-opacity="0.13" stroke="#2b7fff" stroke-width="1" stroke-opacity="0.4"/>
-  <text x="533" y="469" font-family="'Courier New', Courier, monospace" font-size="11" fill="#93c5fd" text-anchor="middle">Adapter</text>
-
-  <rect x="585" y="452" width="92"  height="26" rx="5" fill="#2b7fff" fill-opacity="0.13" stroke="#2b7fff" stroke-width="1" stroke-opacity="0.4"/>
-  <text x="631" y="469" font-family="'Courier New', Courier, monospace" font-size="11" fill="#93c5fd" text-anchor="middle">Singleton</text>
+  <rect x="448" y="436" width="74"  height="23" rx="4" fill="#fafafa" stroke="#e5e5e5" stroke-width="1"/>
+  <text x="485" y="452" font-family="'Courier New', Courier, monospace" font-size="11" fill="#737373" text-anchor="middle">Adapter</text>
 
   <!-- ── DOMAIN ── -->
   <text x="80" y="578"
         font-family="'Courier New', Courier, monospace"
-        font-size="14" fill="#334155">intentionalcode.com</text>
+        font-size="13" fill="#a3a3a3">intentionalcode.com</text>
 
-  <!-- ── CODE BLOCK (right side) ── -->
-  <rect x="722" y="76" width="440" height="466" rx="13" fill="url(#codeBlockGrad)" stroke="#1e304e" stroke-width="1.5"/>
+  <!-- ── CODE BLOCK (light mode) ── -->
+  <rect x="700" y="58" width="440" height="514" rx="12" fill="#fafafa" stroke="#e5e5e5" stroke-width="1"/>
 
-  <!-- Header bar -->
-  <rect x="722" y="76"  width="440" height="44" rx="13" fill="#0d1525"/>
-  <rect x="722" y="104" width="440" height="16"  fill="#0d1525"/>
+  <!-- Header -->
+  <rect x="700" y="58"  width="440" height="44" rx="12" fill="#f0f0f0"/>
+  <rect x="700" y="90"  width="440" height="12"  fill="#f0f0f0"/>
+  <rect x="700" y="101" width="440" height="1"   fill="#e5e5e5"/>
 
-  <!-- Header separator -->
-  <rect x="722" y="120" width="440" height="1" fill="#1a2d50"/>
-
-  <!-- Window dots -->
-  <circle cx="749" cy="98" r="5.5" fill="#ef4444" opacity="0.7"/>
-  <circle cx="769" cy="98" r="5.5" fill="#f59e0b" opacity="0.7"/>
-  <circle cx="789" cy="98" r="5.5" fill="#22c55e" opacity="0.7"/>
+  <!-- Window dots (muted) -->
+  <circle cx="726" cy="80" r="5" fill="#d4d4d4"/>
+  <circle cx="744" cy="80" r="5" fill="#d4d4d4"/>
+  <circle cx="762" cy="80" r="5" fill="#d4d4d4"/>
 
   <!-- File tab -->
-  <rect x="810" y="83" width="112" height="26" rx="4" fill="#131c36"/>
-  <text x="866" y="100" font-family="'Courier New', Courier, monospace" font-size="11" fill="#475569" text-anchor="middle">observer.go</text>
+  <rect x="784" y="66" width="106" height="26" rx="4" fill="#fafafa" stroke="#e5e5e5" stroke-width="1"/>
+  <text x="837" y="83" font-family="'Courier New', Courier, monospace" font-size="11" fill="#a3a3a3" text-anchor="middle">observer.go</text>
 
-  <!-- Subtle top highlight on code block -->
-  <rect x="722" y="76" width="440" height="1" rx="1" fill="#2a4080" opacity="0.6"/>
+  <!-- ── CODE LINES ── line-height 22, start y=133
+       keywords: #7c3aed  types: #1d4ed8  functions: #059669  comments: #9ca3af  default: #1a1a1a  nums: #d1d5db -->
 
-  <!-- ── CODE LINES ── (font-size 12, line-height 22) -->
-  <!-- L01: type Observer interface { -->
-  <text x="756" y="151" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">01</text>
-  <text x="782" y="151" font-family="'Courier New', Courier, monospace" font-size="12"><tspan fill="#8b5cf6">type </tspan><tspan fill="#60a5fa">Observer </tspan><tspan fill="#8b5cf6">interface </tspan><tspan fill="#e2e8f0">{</tspan></text>
+  <!-- 01: type Observer interface { -->
+  <text x="734" y="133" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">01</text>
+  <text x="762" y="133" font-family="'Courier New', monospace" font-size="12"><tspan fill="#7c3aed">type </tspan><tspan fill="#1d4ed8">Observer </tspan><tspan fill="#7c3aed">interface </tspan><tspan fill="#1a1a1a">{</tspan></text>
 
-  <!-- L02:     Update(event Event) -->
-  <text x="756" y="173" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">02</text>
-  <text x="782" y="173" font-family="'Courier New', Courier, monospace" font-size="12"><tspan fill="#34d399">    Update</tspan><tspan fill="#e2e8f0">(event </tspan><tspan fill="#60a5fa">Event</tspan><tspan fill="#e2e8f0">)</tspan></text>
+  <!-- 02:     Update(event Event) -->
+  <text x="734" y="155" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">02</text>
+  <text x="762" y="155" font-family="'Courier New', monospace" font-size="12"><tspan fill="#059669">    Update</tspan><tspan fill="#1a1a1a">(event </tspan><tspan fill="#1d4ed8">Event</tspan><tspan fill="#1a1a1a">)</tspan></text>
 
-  <!-- L03: } -->
-  <text x="756" y="195" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">03</text>
-  <text x="782" y="195" font-family="'Courier New', Courier, monospace" font-size="12" fill="#e2e8f0">}</text>
+  <!-- 03: } -->
+  <text x="734" y="177" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">03</text>
+  <text x="762" y="177" font-family="'Courier New', monospace" font-size="12" fill="#1a1a1a">}</text>
 
-  <!-- L04: blank -->
-  <text x="756" y="217" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">04</text>
+  <!-- 04: blank -->
+  <text x="734" y="199" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">04</text>
 
-  <!-- L05: // EventBus notifies all registered observers -->
-  <text x="756" y="239" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">05</text>
-  <text x="782" y="239" font-family="'Courier New', Courier, monospace" font-size="12" fill="#3a5070">// EventBus notifies registered observers</text>
+  <!-- 05: // EventBus notifies registered observers -->
+  <text x="734" y="221" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">05</text>
+  <text x="762" y="221" font-family="'Courier New', monospace" font-size="12" fill="#9ca3af">// EventBus notifies registered observers</text>
 
-  <!-- L06: type EventBus struct { -->
-  <text x="756" y="261" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">06</text>
-  <text x="782" y="261" font-family="'Courier New', Courier, monospace" font-size="12"><tspan fill="#8b5cf6">type </tspan><tspan fill="#60a5fa">EventBus </tspan><tspan fill="#8b5cf6">struct </tspan><tspan fill="#e2e8f0">{</tspan></text>
+  <!-- 06: type EventBus struct { -->
+  <text x="734" y="243" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">06</text>
+  <text x="762" y="243" font-family="'Courier New', monospace" font-size="12"><tspan fill="#7c3aed">type </tspan><tspan fill="#1d4ed8">EventBus </tspan><tspan fill="#7c3aed">struct </tspan><tspan fill="#1a1a1a">{</tspan></text>
 
-  <!-- L07:     observers []Observer -->
-  <text x="756" y="283" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">07</text>
-  <text x="782" y="283" font-family="'Courier New', Courier, monospace" font-size="12"><tspan fill="#e2e8f0">    observers []</tspan><tspan fill="#60a5fa">Observer</tspan></text>
+  <!-- 07:     observers []Observer -->
+  <text x="734" y="265" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">07</text>
+  <text x="762" y="265" font-family="'Courier New', monospace" font-size="12"><tspan fill="#1a1a1a">    observers []</tspan><tspan fill="#1d4ed8">Observer</tspan></text>
 
-  <!-- L08: } -->
-  <text x="756" y="305" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">08</text>
-  <text x="782" y="305" font-family="'Courier New', Courier, monospace" font-size="12" fill="#e2e8f0">}</text>
+  <!-- 08: } -->
+  <text x="734" y="287" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">08</text>
+  <text x="762" y="287" font-family="'Courier New', monospace" font-size="12" fill="#1a1a1a">}</text>
 
-  <!-- L09: blank -->
-  <text x="756" y="327" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">09</text>
+  <!-- 09: blank -->
+  <text x="734" y="309" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">09</text>
 
-  <!-- L10: func (b *EventBus) Publish(e Event) { -->
-  <text x="756" y="349" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">10</text>
-  <text x="782" y="349" font-family="'Courier New', Courier, monospace" font-size="12"><tspan fill="#8b5cf6">func </tspan><tspan fill="#e2e8f0">(b *</tspan><tspan fill="#60a5fa">EventBus</tspan><tspan fill="#e2e8f0">) </tspan><tspan fill="#34d399">Publish</tspan><tspan fill="#e2e8f0">(e </tspan><tspan fill="#60a5fa">Event</tspan><tspan fill="#e2e8f0">) {</tspan></text>
+  <!-- 10: func (b *EventBus) Publish(e Event) { -->
+  <text x="734" y="331" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">10</text>
+  <text x="762" y="331" font-family="'Courier New', monospace" font-size="12"><tspan fill="#7c3aed">func </tspan><tspan fill="#1a1a1a">(b *</tspan><tspan fill="#1d4ed8">EventBus</tspan><tspan fill="#1a1a1a">) </tspan><tspan fill="#059669">Publish</tspan><tspan fill="#1a1a1a">(e </tspan><tspan fill="#1d4ed8">Event</tspan><tspan fill="#1a1a1a">) {</tspan></text>
 
-  <!-- L11:     for _, o := range b.observers { -->
-  <text x="756" y="371" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">11</text>
-  <text x="782" y="371" font-family="'Courier New', Courier, monospace" font-size="12"><tspan fill="#8b5cf6">    for </tspan><tspan fill="#e2e8f0">_, o := </tspan><tspan fill="#8b5cf6">range </tspan><tspan fill="#e2e8f0">b.observers {</tspan></text>
+  <!-- 11:     for _, o := range b.observers { -->
+  <text x="734" y="353" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">11</text>
+  <text x="762" y="353" font-family="'Courier New', monospace" font-size="12"><tspan fill="#7c3aed">    for </tspan><tspan fill="#1a1a1a">_, o := </tspan><tspan fill="#7c3aed">range </tspan><tspan fill="#1a1a1a">b.observers {</tspan></text>
 
-  <!-- Active line highlight (L12) -->
-  <rect x="722" y="382" width="440" height="22" fill="#2b7fff" fill-opacity="0.09"/>
+  <!-- Active line highlight -->
+  <rect x="700" y="363" width="440" height="22" fill="#000000" fill-opacity="0.03"/>
 
-  <!-- L12:         o.Update(e) -->
-  <text x="756" y="397" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">12</text>
-  <text x="782" y="397" font-family="'Courier New', Courier, monospace" font-size="12"><tspan fill="#e2e8f0">        o.</tspan><tspan fill="#34d399">Update</tspan><tspan fill="#e2e8f0">(e)</tspan></text>
+  <!-- 12:         o.Update(e) -->
+  <text x="734" y="378" font-family="'Courier New', monospace" font-size="12" fill="#c0c0c0">12</text>
+  <text x="762" y="378" font-family="'Courier New', monospace" font-size="12"><tspan fill="#1a1a1a">        o.</tspan><tspan fill="#059669">Update</tspan><tspan fill="#1a1a1a">(e)</tspan></text>
 
-  <!-- L13:     } -->
-  <text x="756" y="419" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">13</text>
-  <text x="782" y="419" font-family="'Courier New', Courier, monospace" font-size="12" fill="#e2e8f0">    }</text>
+  <!-- 13:     } -->
+  <text x="734" y="400" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">13</text>
+  <text x="762" y="400" font-family="'Courier New', monospace" font-size="12" fill="#1a1a1a">    }</text>
 
-  <!-- L14: } -->
-  <text x="756" y="441" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">14</text>
-  <text x="782" y="441" font-family="'Courier New', Courier, monospace" font-size="12" fill="#e2e8f0">}</text>
+  <!-- 14: } -->
+  <text x="734" y="422" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">14</text>
+  <text x="762" y="422" font-family="'Courier New', monospace" font-size="12" fill="#1a1a1a">}</text>
 
-  <!-- L15: blank -->
-  <text x="756" y="463" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">15</text>
+  <!-- 15: blank -->
+  <text x="734" y="444" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">15</text>
 
-  <!-- L16: func (b *EventBus) Subscribe(o Observer) { -->
-  <text x="756" y="485" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">16</text>
-  <text x="782" y="485" font-family="'Courier New', Courier, monospace" font-size="12"><tspan fill="#8b5cf6">func </tspan><tspan fill="#e2e8f0">(b *</tspan><tspan fill="#60a5fa">EventBus</tspan><tspan fill="#e2e8f0">) </tspan><tspan fill="#34d399">Subscribe</tspan><tspan fill="#e2e8f0">(o </tspan><tspan fill="#60a5fa">Observer</tspan><tspan fill="#e2e8f0">) {</tspan></text>
+  <!-- 16: func (b *EventBus) Subscribe(o Observer) { -->
+  <text x="734" y="466" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">16</text>
+  <text x="762" y="466" font-family="'Courier New', monospace" font-size="12"><tspan fill="#7c3aed">func </tspan><tspan fill="#1a1a1a">(b *</tspan><tspan fill="#1d4ed8">EventBus</tspan><tspan fill="#1a1a1a">) </tspan><tspan fill="#059669">Subscribe</tspan><tspan fill="#1a1a1a">(o </tspan><tspan fill="#1d4ed8">Observer</tspan><tspan fill="#1a1a1a">) {</tspan></text>
 
-  <!-- L17:     b.observers = append(b.observers, o) -->
-  <text x="756" y="507" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">17</text>
-  <text x="782" y="507" font-family="'Courier New', Courier, monospace" font-size="12"><tspan fill="#e2e8f0">    b.observers = </tspan><tspan fill="#34d399">append</tspan><tspan fill="#e2e8f0">(b.observers, o)</tspan></text>
+  <!-- 17:     b.observers = append(b.observers, o) -->
+  <text x="734" y="488" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">17</text>
+  <text x="762" y="488" font-family="'Courier New', monospace" font-size="12"><tspan fill="#1a1a1a">    b.observers = </tspan><tspan fill="#059669">append</tspan><tspan fill="#1a1a1a">(b.observers, o)</tspan></text>
 
-  <!-- L18: } -->
-  <text x="756" y="529" font-family="'Courier New', Courier, monospace" font-size="12" fill="#1e3050">18</text>
-  <text x="782" y="529" font-family="'Courier New', Courier, monospace" font-size="12" fill="#e2e8f0">}</text>
+  <!-- 18: } -->
+  <text x="734" y="510" font-family="'Courier New', monospace" font-size="12" fill="#d1d5db">18</text>
+  <text x="762" y="510" font-family="'Courier New', monospace" font-size="12" fill="#1a1a1a">}</text>
 </svg>
