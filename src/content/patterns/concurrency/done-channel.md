@@ -134,7 +134,7 @@ func main() {
 }
 ```
 
-`defer cancel()` is still the right default. Even when the function returns normally, it releases the context's resources and signals any goroutines that are still running.
+`defer cancel()` is the right default. Even when the function returns normally, it releases the context's resources and signals any goroutines that are still running.
 
 ## Propagating cancellation through a call chain
 
