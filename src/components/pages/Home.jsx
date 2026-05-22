@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch, Shuffle, Compass } from "lucide-react";
+import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch, Shuffle } from "lucide-react";
 import { getReadPatterns } from "@/lib/readingProgress";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 
@@ -97,35 +97,54 @@ export default function Home({
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-10">
-      <div className="mb-10">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground mb-3">
-          Intentional Code <span className="text-primary">with {languageLabel}</span>
-        </h1>
-        {tagline && <p className="text-base text-foreground leading-relaxed mb-3 font-medium">{tagline}</p>}
-        {heroBody && (
-          <ReactMarkdown
-            components={{
-              p: ({ children }) => <p className="text-base text-muted-foreground leading-relaxed mb-3">{children}</p>,
-              a: ({ href, children }) => (
-                <a href={href} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary transition-colors">
-                  {children}
-                </a>
-              ),
-            }}
-          >
-            {heroBody}
-          </ReactMarkdown>
-        )}
-      </div>
 
-      <div className="mb-10 flex items-center gap-3 p-4 rounded-lg border border-border bg-muted/30">
-        <Compass className="h-4 w-4 text-primary shrink-0" />
-        <p className="text-sm text-muted-foreground">
-          Not sure which pattern you need?{" "}
-          <a href={`${basePath}/finder`} className="text-primary font-medium hover:underline underline-offset-2">
-            Answer a few questions →
+      {/* ── Hero ── */}
+      <div className="mb-12">
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-mono font-medium bg-accent text-accent-foreground border border-border mb-6 select-none">
+          {languageLabel}
+        </span>
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground leading-[1.15] mb-4">
+          Intentional Code{" "}
+          <span className="text-primary">with {languageLabel}</span>
+        </h1>
+        {tagline && (
+          <p className="text-lg text-muted-foreground leading-relaxed max-w-xl mb-8">
+            {tagline}
+          </p>
+        )}
+        <div className="flex flex-wrap gap-3">
+          <a
+            href="#patterns"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-semibold hover:bg-primary/90 transition-colors"
+          >
+            Browse patterns <ArrowRight className="h-4 w-4" />
           </a>
-        </p>
+          <a
+            href={`${basePath}/finder`}
+            className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors"
+          >
+            Find a pattern
+          </a>
+          <a
+            href={`${basePath}/philosophy`}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Read the philosophy →
+          </a>
+        </div>
+
+        {/* Stats row */}
+        <div className="flex flex-wrap gap-x-5 gap-y-1.5 items-center text-sm text-muted-foreground border-t border-border mt-8 pt-5">
+          <span><span className="font-semibold text-foreground tabular-nums">{patterns.length}</span> patterns</span>
+          <span aria-hidden>·</span>
+          <span><span className="font-semibold text-foreground tabular-nums">{categories.length}</span> categories</span>
+          <span aria-hidden>·</span>
+          <span>Gang of Four</span>
+          <span aria-hidden>·</span>
+          <span>SOLID</span>
+          <span aria-hidden>·</span>
+          <span>TDD</span>
+        </div>
       </div>
 
       {readCount > 0 && (
