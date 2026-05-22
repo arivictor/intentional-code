@@ -15,7 +15,7 @@ export default function TableOfContents() {
         const visible = entries.filter((e) => e.isIntersecting);
         if (visible.length > 0) setActiveId(visible[0].target.id);
       },
-      { rootMargin: "-80px 0px -60% 0px", threshold: 0 }
+      { rootMargin: "-64px 0px -60% 0px", threshold: 0 }
     );
 
     headings.forEach((el) => observer.observe(el));
@@ -25,16 +25,16 @@ export default function TableOfContents() {
   if (sections.length === 0) return null;
 
   return (
-    <aside className="hidden xl:block w-60 shrink-0 sticky top-20 h-fit" aria-label="Table of contents">
-      <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-        On this page
+    <aside className="hidden xl:block w-56 shrink-0 sticky top-16 h-fit" aria-label="In this article">
+      <div className="text-xs font-bold uppercase tracking-wider text-foreground mb-3">
+        In this article
       </div>
-      <nav className="space-y-1 border-l border-border">
+      <nav className="border-l border-border">
         {sections.map(({ id, label, depth }) => (
           <a
             key={id}
             href={`#${id}`}
-            className={`block py-0.5 text-[13px] transition-colors border-l-2 -ml-px ${
+            className={`block py-1 text-[13px] leading-snug transition-colors border-l-2 -ml-px ${
               depth === "H3" ? "pl-5" : "pl-3"
             } ${
               activeId === id

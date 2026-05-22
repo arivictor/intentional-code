@@ -131,12 +131,12 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
   return (
     <PatternsContext.Provider value={{ allPatterns: allPatterns ?? [], basePath: resolvedBasePath }}>
       <ReadingProgressBar />
-      <div className="flex gap-8 max-w-5xl mx-auto px-6 py-12">
+      <div className="flex gap-12 max-w-5xl mx-auto px-6 py-10">
         <div className="flex-1 min-w-0">
           <Breadcrumbs pathname={pathname} patternMap={patternMap} />
 
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-2">{pattern.title}</h1>
-          <p className="text-lg text-muted-foreground leading-relaxed mb-4">{pattern.intent}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">{pattern.title}</h1>
+          <p className="text-base text-muted-foreground leading-relaxed mb-4">{pattern.intent}</p>
 
           <div className="flex items-center gap-3 mb-8">
             <button

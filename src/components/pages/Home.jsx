@@ -96,12 +96,12 @@ export default function Home({
   ));
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-12">
-      <div className="mb-12">
-        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-4">
+    <div className="max-w-4xl mx-auto px-6 py-10">
+      <div className="mb-10">
+        <h1 className="text-3xl font-bold tracking-tight text-foreground mb-3">
           Intentional Code <span className="text-primary">with {languageLabel}</span>
         </h1>
-        {tagline && <p className="text-xl text-foreground leading-relaxed mb-4 font-medium">{tagline}</p>}
+        {tagline && <p className="text-base text-foreground leading-relaxed mb-3 font-medium">{tagline}</p>}
         {heroBody && (
           <ReactMarkdown
             components={{

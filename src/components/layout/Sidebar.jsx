@@ -1,32 +1,20 @@
 import React, { useState, useEffect } from "react";
-import { ChevronDown, ChevronRight, BookOpen, Lightbulb, Box, Puzzle, Workflow, Bookmark, Database, GitBranch, Building2, Shuffle } from "lucide-react";
+import { ChevronDown, ChevronRight, Filter } from "lucide-react";
 
-const CATEGORY_ICONS = {
-  creational: Box,
-  structural: Puzzle,
-  behavioral: Workflow,
-  architectural: Building2,
-  concurrency: Shuffle,
-  modules: Box,
-  state: Database,
-  delivery: GitBranch,
-  architecture: Building2,
-};
-
-function SidebarSection({ title, icon: Icon, children, defaultOpen = false }) {
+function SidebarSection({ title, children, defaultOpen = false, forceOpen = false }) {
   const [open, setOpen] = useState(defaultOpen);
+  const isOpen = forceOpen || open;
   return (
-    <div className="mb-1">
+    <div className="mb-0.5">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 w-full px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-md hover:bg-accent/50"
-        aria-expanded={open}
+        className="flex items-center gap-1.5 w-full px-2 py-1.5 text-[13px] font-bold text-foreground hover:text-primary transition-colors"
+        aria-expanded={isOpen}
       >
-        {Icon && <Icon className="h-3.5 w-3.5 shrink-0" />}
-        <span className="flex-1 text-left">{title}</span>
-        {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+        <span className="flex-1 text-left uppercase tracking-wide text-xs">{title}</span>
+        {isOpen ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
       </button>
-      {open && <div className="ml-2 mt-0.5">{children}</div>}
+      {isOpen && <div>{children}</div>}
     </div>
   );
 }
@@ -35,10 +23,10 @@ function SidebarLink({ href, children, active }) {
   return (
     <a
       href={href}
-      className={`block px-3 py-1 text-[13px] rounded-md transition-colors truncate ${
+      className={`block px-2 py-1 text-[13px] transition-colors truncate border-l-2 -ml-px pl-3 ${
         active
-          ? "bg-accent text-accent-foreground font-medium"
-          : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
+          ? "border-primary text-primary font-medium bg-accent/60"
+          : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
       }`}
     >
       {children}
@@ -55,6 +43,7 @@ export default function Sidebar({
   philosophyItems = [],
 }) {
   const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState("");
 
   useEffect(() => {
     const handler = () => setOpen((value) => !value);
@@ -62,57 +51,91 @@ export default function Sidebar({
     return () => document.removeEventListener("sidebar-toggle", handler);
   }, []);
 
+  const filterLower = filter.toLowerCase();
+  const matchesFilter = (text) => !filterLower || text.toLowerCase().includes(filterLower);
+
   const nav = (
-    <nav className="py-4 px-2 overflow-y-auto h-full scrollbar-thin" aria-label="Site navigation">
-      <div className="mb-4 space-y-0.5">
-        <SidebarLink href={homePath} active={pathname === homePath}>
-          <span className="flex items-center gap-2"><BookOpen className="h-3.5 w-3.5" /> Home</span>
-        </SidebarLink>
-        <SidebarLink href={`${basePath}/saved`} active={pathname === `${basePath}/saved`}>
-          <span className="flex items-center gap-2"><Bookmark className="h-3.5 w-3.5" /> Saved Content</span>
-        </SidebarLink>
+    <nav className="overflow-y-auto h-full scrollbar-thin" aria-label="Site navigation">
+      <div className="px-3 py-3 border-b border-border">
+        <div className="relative">
+          <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <input
+            type="search"
+            placeholder="Filter"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            className="w-full pl-8 pr-3 py-1.5 text-[13px] bg-muted border border-border rounded outline-none focus:border-primary focus:ring-1 focus:ring-primary text-foreground placeholder:text-muted-foreground"
+          />
+        </div>
       </div>
 
-      <SidebarSection title="Philosophy" icon={Lightbulb} defaultOpen={pathname.startsWith(`${basePath}/philosophy`)}>
-        <SidebarLink href={`${basePath}/philosophy`} active={pathname === `${basePath}/philosophy`}>Overview</SidebarLink>
-        {philosophyItems.map((item) => (
-          <SidebarLink
-            key={item.slug}
-            href={`${basePath}/philosophy/${item.slug}`}
-            active={pathname === `${basePath}/philosophy/${item.slug}`}
-          >
-            {item.title}
-          </SidebarLink>
-        ))}
-      </SidebarSection>
+      <div className="px-3 py-3 border-b border-border space-y-0.5">
+        {matchesFilter("Home") && (
+          <SidebarLink href={homePath} active={pathname === homePath}>Home</SidebarLink>
+        )}
+        {matchesFilter("Saved") && (
+          <SidebarLink href={`${basePath}/saved`} active={pathname === `${basePath}/saved`}>Saved Content</SidebarLink>
+        )}
+      </div>
 
-      {(navData ?? []).map((category) => {
-        const Icon = CATEGORY_ICONS[category.slug] ?? BookOpen;
-        const isActive = pathname.includes(`${basePath}/patterns/${category.slug}`);
-        return (
-          <SidebarSection key={category.slug} title={category.title} icon={Icon} defaultOpen={isActive}>
-            <SidebarLink href={`${basePath}/patterns/${category.slug}`} active={pathname === `${basePath}/patterns/${category.slug}`}>
-              Overview
+      <div className="px-3 py-3 border-b border-border">
+        <SidebarSection
+          title="Philosophy"
+          defaultOpen={pathname.startsWith(`${basePath}/philosophy`)}
+          forceOpen={!!filterLower}
+        >
+          {matchesFilter("Overview") && (
+            <SidebarLink href={`${basePath}/philosophy`} active={pathname === `${basePath}/philosophy`}>Overview</SidebarLink>
+          )}
+          {philosophyItems.filter((item) => matchesFilter(item.title)).map((item) => (
+            <SidebarLink
+              key={item.slug}
+              href={`${basePath}/philosophy/${item.slug}`}
+              active={pathname === `${basePath}/philosophy/${item.slug}`}
+            >
+              {item.title}
             </SidebarLink>
-            {category.patterns.map((pattern) => (
-              <SidebarLink
-                key={pattern.slug}
-                href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
-                active={pathname === `${basePath}/patterns/${pattern.category}/${pattern.slug}`}
-              >
-                {pattern.title}
-              </SidebarLink>
-            ))}
-          </SidebarSection>
-        );
-      })}
+          ))}
+        </SidebarSection>
+      </div>
 
+      <div className="px-3 py-3 space-y-1">
+        {(navData ?? []).map((category) => {
+          const isActive = pathname.includes(`${basePath}/patterns/${category.slug}`);
+          const visiblePatterns = category.patterns.filter((p) => matchesFilter(p.title));
+          const showCategory = matchesFilter(category.title) || visiblePatterns.length > 0;
+          if (!showCategory) return null;
+          return (
+            <SidebarSection
+              key={category.slug}
+              title={category.title}
+              defaultOpen={isActive}
+              forceOpen={!!filterLower}
+            >
+              {matchesFilter("Overview") && (
+                <SidebarLink href={`${basePath}/patterns/${category.slug}`} active={pathname === `${basePath}/patterns/${category.slug}`}>
+                  Overview
+                </SidebarLink>
+              )}
+              {visiblePatterns.map((pattern) => (
+                <SidebarLink
+                  key={pattern.slug}
+                  href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
+                  active={pathname === `${basePath}/patterns/${pattern.category}/${pattern.slug}`}
+                >
+                  {pattern.title}
+                </SidebarLink>
+              ))}
+            </SidebarSection>
+          );
+        })}
+      </div>
     </nav>
   );
 
   return (
     <>
-      <aside className="hidden lg:flex flex-col w-64 shrink-0 border-r border-border bg-sidebar h-[calc(100vh-3.5rem)] sticky top-14 overflow-hidden">
+      <aside className="hidden lg:flex flex-col w-60 shrink-0 border-r border-border bg-sidebar h-[calc(100vh-3rem)] sticky top-12 overflow-hidden">
         {nav}
       </aside>
 
@@ -120,9 +143,9 @@ export default function Sidebar({
         <>
           <div className="fixed inset-0 z-50 bg-black/50 lg:hidden" onClick={() => setOpen(false)} />
           <aside className="fixed left-0 top-0 z-50 w-72 h-full bg-sidebar border-r border-border lg:hidden shadow-xl">
-            <div className="h-14 flex items-center px-4 border-b border-border">
-              <span className="text-primary font-mono text-lg font-bold">{sectionLabel}</span>
-              <span className="ml-2 text-sm font-semibold">Intentional Code</span>
+            <div className="h-12 flex items-center px-4 border-b border-border">
+              <span className="font-bold text-sm text-foreground">Intentional Code</span>
+              <span className="text-primary font-bold text-sm ml-1">_</span>
             </div>
             {nav}
           </aside>
