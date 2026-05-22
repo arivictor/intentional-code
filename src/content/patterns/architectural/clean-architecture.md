@@ -58,148 +58,208 @@ Enforce the Dependency Rule: source code in an inner ring never names, imports, 
             ← dependencies point inward
 ```
 
-**Entities:** pure domain types, no imports beyond the standard library:
+The following is a single runnable file combining all four rings — Entities, Use Cases, Interface Adapters, and a stub infrastructure adapter:
 
 ```go
-// domain/note.go
-package domain
+package main
 
 import (
-    "fmt"
-    "time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
+// --- Entities (innermost ring): pure domain types, no infrastructure imports ---
+
 type Note struct {
-    ID        string
-    Title     string
-    Body      string
-    CreatedAt time.Time
+	ID        string
+	Title     string
+	Body      string
+	CreatedAt time.Time
 }
 
 func NewNote(id, title, body string) (*Note, error) {
-    if title == "" {
-        return nil, fmt.Errorf("title is required")
-    }
-    return &Note{
-        ID:        id,
-        Title:     title,
-        Body:      body,
-        CreatedAt: time.Now(),
-    }, nil
+	if title == "" {
+		return nil, fmt.Errorf("title is required")
+	}
+	return &Note{
+		ID:        id,
+		Title:     title,
+		Body:      body,
+		CreatedAt: time.Now(),
+	}, nil
 }
 
 func (n *Note) UpdateBody(body string) {
-    n.Body = body
+	n.Body = body
 }
-```
 
-**Use Cases:** define interfaces for everything they need, implement nothing:
+// --- Use Cases (second ring): define ports (interfaces), implement nothing ---
 
-```go
-// usecase/save_note.go
-package usecase
-
-import (
-    "context"
-    "fmt"
-    "myapp/domain"
-)
-
-// Ports — defined by the use case and implemented by outer rings.
+// Ports — defined by the use case, implemented by the outer rings.
 type NoteRepository interface {
-    Save(ctx context.Context, n *domain.Note) error
+	Save(ctx context.Context, n *Note) error
+	FindByID(ctx context.Context, id string) (*Note, error)
 }
 
 type IDGenerator interface {
-    NewID() string
+	NewID() string
 }
 
 type SaveNoteInput struct {
-    Title string
-    Body  string
+	Title string
+	Body  string
 }
 
 type SaveNoteOutput struct {
-    NoteID string
+	NoteID string
 }
 
 type SaveNoteUseCase struct {
-    notes   NoteRepository
-    ids     IDGenerator
+	notes NoteRepository
+	ids   IDGenerator
 }
 
 func NewSaveNoteUseCase(notes NoteRepository, ids IDGenerator) *SaveNoteUseCase {
-    return &SaveNoteUseCase{notes: notes, ids: ids}
+	return &SaveNoteUseCase{notes: notes, ids: ids}
 }
 
 func (uc *SaveNoteUseCase) Execute(ctx context.Context, in SaveNoteInput) (SaveNoteOutput, error) {
-    note, err := domain.NewNote(uc.ids.NewID(), in.Title, in.Body)
-    if err != nil {
-        return SaveNoteOutput{}, err
-    }
-    if err := uc.notes.Save(ctx, note); err != nil {
-        return SaveNoteOutput{}, fmt.Errorf("saving note: %w", err)
-    }
-    return SaveNoteOutput{NoteID: note.ID}, nil
+	note, err := NewNote(uc.ids.NewID(), in.Title, in.Body)
+	if err != nil {
+		return SaveNoteOutput{}, err
+	}
+	if err := uc.notes.Save(ctx, note); err != nil {
+		return SaveNoteOutput{}, fmt.Errorf("saving note: %w", err)
+	}
+	return SaveNoteOutput{NoteID: note.ID}, nil
 }
-```
 
-**Interface Adapters:** convert between the use-case world and the infrastructure world:
+// --- Interface Adapters (third ring): convert between use-case and infrastructure worlds ---
 
-```go
-// adapter/http/note_handler.go
-package httpadapter
-
-import (
-    "encoding/json"
-    "myapp/usecase"
-    "net/http"
-)
-
+// HTTP adapter (controller) — knows about HTTP, knows about use cases, not about SQL.
 type NoteHandler struct {
-    saveNote *usecase.SaveNoteUseCase
+	saveNote *SaveNoteUseCase
 }
 
 func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
-    var req struct {
-        Title string `json:"title"`
-        Body  string `json:"body"`
-    }
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, "bad request", 400)
-        return
-    }
-    out, err := h.saveNote.Execute(r.Context(), usecase.SaveNoteInput{
-        Title: req.Title,
-        Body:  req.Body,
-    })
-    if err != nil {
-        http.Error(w, err.Error(), 422)
-        return
-    }
-    json.NewEncoder(w).Encode(map[string]string{"note_id": out.NoteID})
+	var req struct {
+		Title string `json:"title"`
+		Body  string `json:"body"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "bad request", 400)
+		return
+	}
+	out, err := h.saveNote.Execute(r.Context(), SaveNoteInput{
+		Title: req.Title,
+		Body:  req.Body,
+	})
+	if err != nil {
+		http.Error(w, err.Error(), 422)
+		return
+	}
+	json.NewEncoder(w).Encode(map[string]string{"note_id": out.NoteID})
+}
+
+// --- Frameworks & Drivers (outermost ring): infrastructure adapters ---
+
+// In-memory repository adapter — implements NoteRepository, knows about storage, not domain rules.
+type MemNoteRepo struct {
+	mu    sync.RWMutex
+	notes map[string]*Note
+}
+
+func NewMemNoteRepo() *MemNoteRepo {
+	return &MemNoteRepo{notes: make(map[string]*Note)}
+}
+
+func (r *MemNoteRepo) Save(_ context.Context, n *Note) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.notes[n.ID] = n
+	return nil
+}
+
+func (r *MemNoteRepo) FindByID(_ context.Context, id string) (*Note, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	n, ok := r.notes[id]
+	if !ok {
+		return nil, fmt.Errorf("note %s not found", id)
+	}
+	return n, nil
+}
+
+// Sequential ID generator adapter.
+type SeqIDGen struct{ n atomic.Int64 }
+
+func (g *SeqIDGen) NewID() string {
+	return fmt.Sprintf("note-%d", g.n.Add(1))
+}
+
+func main() {
+	// Wire all rings together — only main knows about all of them.
+	repo := NewMemNoteRepo()
+	ids := &SeqIDGen{}
+	saveNote := NewSaveNoteUseCase(repo, ids)
+	handler := &NoteHandler{saveNote: saveNote}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /notes", handler.Create)
+
+	// Exercise with httptest — no real server needed.
+	for _, tc := range []struct {
+		body string
+		want int
+	}{
+		{`{"title":"Clean Architecture","body":"Dependencies point inward"}`, 200},
+		{`{"title":"","body":"Missing title"}`, 422},
+	} {
+		req := httptest.NewRequest(http.MethodPost, "/notes", strings.NewReader(tc.body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		fmt.Printf("POST /notes → %d %s", w.Code, w.Body.String())
+	}
 }
 ```
 
+```
+// Output:
+// POST /notes → 200 {"note_id":"note-1"}
+// POST /notes → 422 title is required
+```
+
+The PostgreSQL adapter (outermost ring — requires a real DB) would implement `NoteRepository`:
+
 ```go
+// Illustrative only — requires a real PostgreSQL connection to run.
 // adapter/postgres/note_repo.go
-package postgres
-
-import (
-    "context"
-    "database/sql"
-    "myapp/domain"
-)
-
-type NoteRepo struct{ db *sql.DB }
-
-func (r *NoteRepo) Save(ctx context.Context, n *domain.Note) error {
-    _, err := r.db.ExecContext(ctx,
-        "INSERT INTO notes (id, title, body, created_at) VALUES ($1,$2,$3,$4)",
-        n.ID, n.Title, n.Body, n.CreatedAt,
-    )
-    return err
-}
+//
+// type PostgresNoteRepo struct{ db *sql.DB }
+//
+// func (r *PostgresNoteRepo) Save(ctx context.Context, n *Note) error {
+//     _, err := r.db.ExecContext(ctx,
+//         "INSERT INTO notes (id, title, body, created_at) VALUES ($1,$2,$3,$4)",
+//         n.ID, n.Title, n.Body, n.CreatedAt,
+//     )
+//     return err
+// }
+//
+// func (r *PostgresNoteRepo) FindByID(ctx context.Context, id string) (*Note, error) {
+//     var n Note
+//     err := r.db.QueryRowContext(ctx,
+//         "SELECT id, title, body, created_at FROM notes WHERE id = $1", id,
+//     ).Scan(&n.ID, &n.Title, &n.Body, &n.CreatedAt)
+//     return &n, err
+// }
 ```
 
 ## When to Use

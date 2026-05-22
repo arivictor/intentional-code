@@ -208,185 +208,247 @@ Model the domain explicitly. Each building block has a specific role.
               ArticlePublished (Domain Event)
 ```
 
-**Value Objects:** immutable, compared by value:
+The following is a single runnable file combining Value Objects, Entity/Aggregate Root, Repository interface, and Domain Service:
 
 ```go
-// domain/article/value_objects.go
-package article
+package main
 
 import (
-    "fmt"
-    "strings"
+	"context"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
 )
+
+// --- Value Objects: immutable, compared by value ---
 
 type ArticleID string
 
 type Slug string
 
 func NewSlug(title string) (Slug, error) {
-    s := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(title), " ", "-"))
-    if s == "" {
-        return "", fmt.Errorf("slug cannot be empty")
-    }
-    return Slug(s), nil
+	s := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(title), " ", "-"))
+	if s == "" {
+		return "", fmt.Errorf("slug cannot be empty")
+	}
+	return Slug(s), nil
 }
-```
 
-**Entity and Aggregate Root:** identity, state, and invariants enforced together:
-
-```go
-// domain/article/article.go
-package article
-
-import (
-    "fmt"
-    "time"
-)
+// --- Entity and Aggregate Root: identity, state, and invariants enforced together ---
 
 type Status string
 
 const (
-    StatusDraft     Status = "draft"
-    StatusPublished Status = "published"
-    StatusArchived  Status = "archived"
+	StatusDraft     Status = "draft"
+	StatusPublished Status = "published"
+	StatusArchived  Status = "archived"
 )
 
 // Domain Event — a fact that occurred inside the aggregate.
 type PublishedEvent struct {
-    ArticleID   ArticleID
-    Slug        Slug
-    OccurredAt  time.Time
+	ArticleID  ArticleID
+	Slug       Slug
+	OccurredAt time.Time
 }
 
 // Article is the aggregate root — the only entry point for mutations.
 type Article struct {
-    id       ArticleID
-    authorID string
-    title    string
-    body     string
-    slug     Slug
-    status   Status
+	id       ArticleID
+	authorID string
+	title    string
+	body     string
+	slug     Slug
+	status   Status
 
-    events []interface{} // uncommitted domain events
+	events []interface{} // uncommitted domain events
 }
 
-func New(id ArticleID, authorID, title, body string) (*Article, error) {
-    if title == "" {
-        return nil, fmt.Errorf("title is required")
-    }
-    slug, err := NewSlug(title)
-    if err != nil {
-        return nil, err
-    }
-    return &Article{
-        id:       id,
-        authorID: authorID,
-        title:    title,
-        body:     body,
-        slug:     slug,
-        status:   StatusDraft,
-    }, nil
+func NewArticle(id ArticleID, authorID, title, body string) (*Article, error) {
+	if title == "" {
+		return nil, fmt.Errorf("title is required")
+	}
+	slug, err := NewSlug(title)
+	if err != nil {
+		return nil, err
+	}
+	return &Article{
+		id:       id,
+		authorID: authorID,
+		title:    title,
+		body:     body,
+		slug:     slug,
+		status:   StatusDraft,
+	}, nil
 }
 
-func (a *Article) ID() ArticleID { return a.id }
-func (a *Article) Status() Status { return a.status }
-func (a *Article) Slug() Slug     { return a.slug }
-
-func (a *Article) UpdateBody(body string) {
-    a.body = body
-}
+func (a *Article) ID() ArticleID   { return a.id }
+func (a *Article) Status() Status  { return a.status }
+func (a *Article) Slug() Slug      { return a.slug }
+func (a *Article) UpdateBody(body string) { a.body = body }
 
 // Publish enforces the invariant — callers can't bypass it.
 func (a *Article) Publish() error {
-    if a.title == "" {
-        return fmt.Errorf("cannot publish: title is required")
-    }
-    if a.status == StatusArchived {
-        return fmt.Errorf("cannot publish an archived article")
-    }
-    if a.status == StatusPublished {
-        return nil // idempotent
-    }
-    a.status = StatusPublished
-    a.events = append(a.events, PublishedEvent{
-        ArticleID:  a.id,
-        Slug:       a.slug,
-        OccurredAt: time.Now(),
-    })
-    return nil
+	if a.title == "" {
+		return fmt.Errorf("cannot publish: title is required")
+	}
+	if a.status == StatusArchived {
+		return fmt.Errorf("cannot publish an archived article")
+	}
+	if a.status == StatusPublished {
+		return nil // idempotent
+	}
+	a.status = StatusPublished
+	a.events = append(a.events, PublishedEvent{
+		ArticleID:  a.id,
+		Slug:       a.slug,
+		OccurredAt: time.Now(),
+	})
+	return nil
 }
 
 func (a *Article) Archive() error {
-    if a.status == StatusArchived {
-        return nil
-    }
-    a.status = StatusArchived
-    return nil
+	if a.status == StatusArchived {
+		return nil
+	}
+	a.status = StatusArchived
+	return nil
 }
 
 // PopEvents returns and clears uncommitted domain events.
 func (a *Article) PopEvents() []interface{} {
-    evts := a.events
-    a.events = nil
-    return evts
+	evts := a.events
+	a.events = nil
+	return evts
 }
-```
 
-**Repository interface:** defined by the domain, implemented by infrastructure:
+// --- Repository interface: defined by the domain, implemented by infrastructure ---
 
-```go
-// domain/article/repository.go
-package article
-
-import "context"
-
-type Repository interface {
-    FindByID(ctx context.Context, id ArticleID) (*Article, error)
-    Save(ctx context.Context, a *Article) error
+type ArticleRepository interface {
+	FindByID(ctx context.Context, id ArticleID) (*Article, error)
+	Save(ctx context.Context, a *Article) error
 }
-```
 
-**Domain Service:** operations that span the aggregate boundary, like checking for slug uniqueness across all articles:
+// In-memory repository (infrastructure adapter)
+type MemArticleRepo struct {
+	mu       sync.RWMutex
+	articles map[ArticleID]*Article
+	slugs    map[Slug]ArticleID
+}
 
-```go
-// domain/article/service.go
-package article
+func NewMemArticleRepo() *MemArticleRepo {
+	return &MemArticleRepo{
+		articles: make(map[ArticleID]*Article),
+		slugs:    make(map[Slug]ArticleID),
+	}
+}
 
-import (
-    "context"
-    "fmt"
-)
+func (r *MemArticleRepo) FindByID(_ context.Context, id ArticleID) (*Article, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	a, ok := r.articles[id]
+	if !ok {
+		return nil, fmt.Errorf("article %s not found", id)
+	}
+	return a, nil
+}
+
+func (r *MemArticleRepo) Save(_ context.Context, a *Article) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.articles[a.id] = a
+	r.slugs[a.slug] = a.id
+	return nil
+}
+
+func (r *MemArticleRepo) SlugExists(_ context.Context, slug Slug) (bool, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	_, ok := r.slugs[slug]
+	return ok, nil
+}
+
+// --- Domain Service: operations that span the aggregate boundary ---
 
 type SlugChecker interface {
-    SlugExists(ctx context.Context, slug Slug) (bool, error)
+	SlugExists(ctx context.Context, slug Slug) (bool, error)
 }
 
 type PublishService struct {
-    repo    Repository
-    slugs   SlugChecker
+	repo  ArticleRepository
+	slugs SlugChecker
 }
 
-func NewPublishService(repo Repository, slugs SlugChecker) *PublishService {
-    return &PublishService{repo: repo, slugs: slugs}
+func NewPublishService(repo ArticleRepository, slugs SlugChecker) *PublishService {
+	return &PublishService{repo: repo, slugs: slugs}
 }
 
 func (s *PublishService) Publish(ctx context.Context, id ArticleID) error {
-    a, err := s.repo.FindByID(ctx, id)
-    if err != nil {
-        return fmt.Errorf("finding article: %w", err)
-    }
-    exists, err := s.slugs.SlugExists(ctx, a.Slug())
-    if err != nil {
-        return fmt.Errorf("checking slug: %w", err)
-    }
-    if exists {
-        return fmt.Errorf("slug %q is already in use", a.Slug())
-    }
-    if err := a.Publish(); err != nil {
-        return err
-    }
-    return s.repo.Save(ctx, a)
+	a, err := s.repo.FindByID(ctx, id)
+	if err != nil {
+		return fmt.Errorf("finding article: %w", err)
+	}
+	exists, err := s.slugs.SlugExists(ctx, a.Slug())
+	if err != nil {
+		return fmt.Errorf("checking slug: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("slug %q is already in use", a.Slug())
+	}
+	if err := a.Publish(); err != nil {
+		return err
+	}
+	return s.repo.Save(ctx, a)
 }
+
+func main() {
+	ctx := context.Background()
+	repo := NewMemArticleRepo()
+	svc := NewPublishService(repo, repo)
+
+	// Create and save a draft
+	a, err := NewArticle("art-1", "alice", "Hello DDD", "Domain-driven content")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	repo.Save(ctx, a)
+	fmt.Printf("created article %s: status=%s slug=%s\n", a.ID(), a.Status(), a.Slug())
+
+	// Publish through the domain service (checks slug uniqueness)
+	if err := svc.Publish(ctx, "art-1"); err != nil {
+		fmt.Println("publish error:", err)
+		return
+	}
+	published, _ := repo.FindByID(ctx, "art-1")
+	fmt.Printf("published article %s: status=%s\n", published.ID(), published.Status())
+
+	// Domain events emitted during the state transition
+	for _, evt := range published.PopEvents() {
+		fmt.Printf("domain event: %T\n", evt)
+	}
+
+	// Invariant: archived articles cannot be published
+	published.Archive()
+	if err := published.Publish(); err != nil {
+		fmt.Println("invariant enforced:", err)
+	}
+
+	// Invariant: title cannot be empty
+	_, err = NewArticle("art-2", "bob", "", "No title")
+	if err != nil {
+		fmt.Println("invariant enforced:", err)
+	}
+}
+```
+
+```
+// Output:
+// created article art-1: status=draft slug=hello-ddd
+// published article art-1: status=published
+// domain event: main.PublishedEvent
+// invariant enforced: cannot publish an archived article
+// invariant enforced: title is required
 ```
 
 ## When to Use

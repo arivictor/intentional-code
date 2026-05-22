@@ -44,73 +44,168 @@ Caller ────────────►│                     │
                     └─────────────────────┘
 ```
 
-In Go, the routing layer is typically a reverse proxy or an HTTP handler that selectively delegates:
+In Go, the routing layer is typically a reverse proxy or an HTTP handler that selectively delegates. The following is a single runnable file demonstrating the facade approach (using `httptest` servers to simulate legacy and new services):
 
 ```go
-// proxy/router.go
-package proxy
+package main
 
 import (
-    "net/http"
-    "net/http/httputil"
-    "net/url"
+	"context"
+	"fmt"
+	"log"
+	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
+	"net/url"
+	"strings"
 )
 
-type StranglerRouter struct {
-    newInventory *httputil.ReverseProxy
-    legacy       *httputil.ReverseProxy
-}
-
-func NewStranglerRouter(newServiceURL, legacyURL string) *StranglerRouter {
-    newURL, _ := url.Parse(newServiceURL)
-    legURL, _ := url.Parse(legacyURL)
-    return &StranglerRouter{
-        newInventory: httputil.NewSingleHostReverseProxy(newURL),
-        legacy:       httputil.NewSingleHostReverseProxy(legURL),
-    }
-}
-
-func (r *StranglerRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-    // Covered paths go to the new service
-    if strings.HasPrefix(req.URL.Path, "/inventory/") {
-        r.newInventory.ServeHTTP(w, req)
-        return
-    }
-    // Everything else falls through to the legacy monolith
-    r.legacy.ServeHTTP(w, req)
-}
-```
-
-When you control both sides, a facade interface makes the transition invisible to callers in the same process:
-
-```go
-// facade/inventory.go — callers see one interface; the implementation switches
-package facade
+// --- Service interface (callers see only this) ---
 
 type InventoryService interface {
-    Reserve(ctx context.Context, itemID string, qty int) error
-    Available(ctx context.Context, itemID string) (int, error)
+	Reserve(ctx context.Context, itemID string, qty int) error
+	Available(ctx context.Context, itemID string) (int, error)
 }
 
+// --- Stub legacy implementation ---
+
+type legacyInventory struct{}
+
+func (l *legacyInventory) Reserve(_ context.Context, itemID string, qty int) error {
+	fmt.Printf("  [legacy] reserve %s x%d\n", itemID, qty)
+	return nil
+}
+func (l *legacyInventory) Available(_ context.Context, itemID string) (int, error) {
+	fmt.Printf("  [legacy] available %s → 10\n", itemID)
+	return 10, nil
+}
+
+// --- Stub new service implementation ---
+
+type newInventory struct{}
+
+func (n *newInventory) Reserve(_ context.Context, itemID string, qty int) error {
+	fmt.Printf("  [new] reserve %s x%d\n", itemID, qty)
+	return nil
+}
+func (n *newInventory) Available(_ context.Context, itemID string) (int, error) {
+	fmt.Printf("  [new] available %s → 10\n", itemID)
+	return 10, nil
+}
+
+// --- Strangler facade: switches between legacy and new based on a feature flag ---
+
+type FeatureFlags struct{ enabled map[string]bool }
+
+func (f *FeatureFlags) IsEnabled(flag string) bool { return f.enabled[flag] }
+
 type stranglerInventory struct {
-    legacy    InventoryService // monolith implementation
-    newSvc    InventoryService // new microservice client
-    migration *FeatureFlags
+	legacy    InventoryService
+	newSvc    InventoryService
+	migration *FeatureFlags
 }
 
 func (s *stranglerInventory) Reserve(ctx context.Context, itemID string, qty int) error {
-    if s.migration.IsEnabled("inventory-new-service") {
-        return s.newSvc.Reserve(ctx, itemID, qty)
-    }
-    return s.legacy.Reserve(ctx, itemID, qty)
+	if s.migration.IsEnabled("inventory-new-service") {
+		return s.newSvc.Reserve(ctx, itemID, qty)
+	}
+	return s.legacy.Reserve(ctx, itemID, qty)
 }
 
 func (s *stranglerInventory) Available(ctx context.Context, itemID string) (int, error) {
-    if s.migration.IsEnabled("inventory-new-service") {
-        return s.newSvc.Available(ctx, itemID)
-    }
-    return s.legacy.Available(ctx, itemID)
+	if s.migration.IsEnabled("inventory-new-service") {
+		return s.newSvc.Available(ctx, itemID)
+	}
+	return s.legacy.Available(ctx, itemID)
 }
+
+// --- HTTP routing layer (reverse proxy style) ---
+
+type StranglerRouter struct {
+	newInventory http.Handler
+	legacy       http.Handler
+}
+
+func NewStranglerRouter(newServiceURL, legacyURL string) *StranglerRouter {
+	newURL, _ := url.Parse(newServiceURL)
+	legURL, _ := url.Parse(legacyURL)
+	return &StranglerRouter{
+		newInventory: httputil.NewSingleHostReverseProxy(newURL),
+		legacy:       httputil.NewSingleHostReverseProxy(legURL),
+	}
+}
+
+func (r *StranglerRouter) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	// Covered paths go to the new service
+	if strings.HasPrefix(req.URL.Path, "/inventory/") {
+		r.newInventory.ServeHTTP(w, req)
+		return
+	}
+	// Everything else falls through to the legacy monolith
+	r.legacy.ServeHTTP(w, req)
+}
+
+func main() {
+	ctx := context.Background()
+	flags := &FeatureFlags{enabled: map[string]bool{}}
+
+	svc := &stranglerInventory{
+		legacy:    &legacyInventory{},
+		newSvc:    &newInventory{},
+		migration: flags,
+	}
+
+	fmt.Println("=== Phase 1: flag OFF — legacy handles all calls ===")
+	svc.Available(ctx, "item-A")
+	svc.Reserve(ctx, "item-A", 3)
+
+	fmt.Println("\n=== Phase 2: flag ON — new service handles all calls ===")
+	flags.enabled["inventory-new-service"] = true
+	svc.Available(ctx, "item-A")
+	svc.Reserve(ctx, "item-A", 3)
+
+	// Demonstrate the HTTP reverse-proxy routing layer using httptest servers.
+	legacySrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "legacy: %s", r.URL.Path)
+	}))
+	defer legacySrv.Close()
+
+	newSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprintf(w, "new: %s", r.URL.Path)
+	}))
+	defer newSrv.Close()
+
+	router := NewStranglerRouter(newSrv.URL, legacySrv.URL)
+	testSrv := httptest.NewServer(router)
+	defer testSrv.Close()
+
+	fmt.Println("\n=== HTTP routing layer ===")
+	for _, path := range []string{"/inventory/item-A", "/orders/ord-1"} {
+		resp, err := http.Get(testSrv.URL + path)
+		if err != nil {
+			log.Fatal(err)
+		}
+		var buf strings.Builder
+		fmt.Fscan(resp.Body, &buf)
+		resp.Body.Close()
+		fmt.Printf("GET %s → %s\n", path, buf.String())
+	}
+}
+```
+
+```
+// Output:
+// === Phase 1: flag OFF — legacy handles all calls ===
+//   [legacy] available item-A → 10
+//   [legacy] reserve item-A x3
+//
+// === Phase 2: flag ON — new service handles all calls ===
+//   [new] available item-A → 10
+//   [new] reserve item-A x3
+//
+// === HTTP routing layer ===
+// GET /inventory/item-A → new: /inventory/item-A
+// GET /orders/ord-1 → legacy: /orders/ord-1
 ```
 
 The migration proceeds in phases:
@@ -126,23 +221,22 @@ Phase 3: Legacy inventory code unreachable. Remove legacy routes and code.
          Routing layer becomes direct pass-through.
 ```
 
-Shadow mode (run both, compare responses, serve from legacy) validates the new service before cutover:
+Shadow mode (run both, compare responses, serve from legacy) validates the new service before cutover (illustrative):
 
 ```go
-// facade/shadow.go — validate new service without affecting callers
-func (s *stranglerInventory) Available(ctx context.Context, itemID string) (int, error) {
-    legacyResult, legacyErr := s.legacy.Available(ctx, itemID)
-
-    // Run new service in background; discard result
-    go func() {
-        newResult, newErr := s.newSvc.Available(ctx, itemID)
-        if newErr != legacyErr || newResult != legacyResult {
-            s.metrics.Record("inventory.shadow.mismatch", itemID)
-        }
-    }()
-
-    return legacyResult, legacyErr // callers always see legacy result
-}
+// Illustrative only — shadow mode pattern.
+// func (s *stranglerInventory) Available(ctx context.Context, itemID string) (int, error) {
+//     legacyResult, legacyErr := s.legacy.Available(ctx, itemID)
+//
+//     go func() {
+//         newResult, newErr := s.newSvc.Available(ctx, itemID)
+//         if newErr != legacyErr || newResult != legacyResult {
+//             s.metrics.Record("inventory.shadow.mismatch", itemID)
+//         }
+//     }()
+//
+//     return legacyResult, legacyErr // callers always see legacy result
+// }
 ```
 
 ## When to Use

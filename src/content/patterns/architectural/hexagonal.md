@@ -56,205 +56,193 @@ Draw a hexagon. The application (business logic) lives inside. Ports are the sid
 **Left (driving) ports:** interfaces the application exposes *to* be driven. Adapters call them.
 **Right (driven) ports:** interfaces the application uses to *drive* infrastructure. Adapters implement them.
 
-Define the application core with its driven ports:
+The following is a single runnable file combining the application core, in-memory adapters, and a main function that exercises a transfer:
 
 ```go
-// app/transfer.go
-package app
+package main
 
 import (
-    "context"
-    "fmt"
+	"context"
+	"fmt"
+	"sync"
 )
 
-// Driven ports — defined here and implemented by infrastructure adapters.
+// --- Application core (inside the hexagon) ---
+
+// Driven ports — defined by the application, implemented by adapters.
 type AccountRepository interface {
-    FindByID(ctx context.Context, id string) (*Account, error)
-    Save(ctx context.Context, a *Account) error
+	FindByID(ctx context.Context, id string) (*Account, error)
+	Save(ctx context.Context, a *Account) error
 }
 
 type Notifier interface {
-    NotifyTransfer(ctx context.Context, email string, amount int64) error
+	NotifyTransfer(ctx context.Context, email string, amount int64) error
 }
 
 type Account struct {
-    ID      string
-    Email   string
-    Balance int64
+	ID      string
+	Email   string
+	Balance int64
 }
 
-// TransferService is the driving port — what callers interact with.
+// TransferService is the driving port — what callers (HTTP, CLI, tests) interact with.
 type TransferService struct {
-    accounts AccountRepository
-    notifier Notifier
+	accounts AccountRepository
+	notifier Notifier
 }
 
 func NewTransferService(accounts AccountRepository, notifier Notifier) *TransferService {
-    return &TransferService{accounts: accounts, notifier: notifier}
+	return &TransferService{accounts: accounts, notifier: notifier}
 }
 
 func (s *TransferService) Transfer(ctx context.Context, fromID, toID string, amount int64) error {
-    from, err := s.accounts.FindByID(ctx, fromID)
-    if err != nil {
-        return fmt.Errorf("from account: %w", err)
-    }
-    to, err := s.accounts.FindByID(ctx, toID)
-    if err != nil {
-        return fmt.Errorf("to account: %w", err)
-    }
-    if from.Balance < amount {
-        return fmt.Errorf("insufficient funds: have %d, need %d", from.Balance, amount)
-    }
-    from.Balance -= amount
-    to.Balance += amount
-    if err := s.accounts.Save(ctx, from); err != nil {
-        return fmt.Errorf("saving from account: %w", err)
-    }
-    if err := s.accounts.Save(ctx, to); err != nil {
-        return fmt.Errorf("saving to account: %w", err)
-    }
-    s.notifier.NotifyTransfer(ctx, from.Email, amount)
-    return nil
+	from, err := s.accounts.FindByID(ctx, fromID)
+	if err != nil {
+		return fmt.Errorf("from account: %w", err)
+	}
+	to, err := s.accounts.FindByID(ctx, toID)
+	if err != nil {
+		return fmt.Errorf("to account: %w", err)
+	}
+	if from.Balance < amount {
+		return fmt.Errorf("insufficient funds: have %d, need %d", from.Balance, amount)
+	}
+	from.Balance -= amount
+	to.Balance += amount
+	if err := s.accounts.Save(ctx, from); err != nil {
+		return fmt.Errorf("saving from account: %w", err)
+	}
+	if err := s.accounts.Save(ctx, to); err != nil {
+		return fmt.Errorf("saving to account: %w", err)
+	}
+	s.notifier.NotifyTransfer(ctx, from.Email, amount)
+	return nil
+}
+
+// --- Right (driven) adapter: in-memory account repository ---
+
+type MemAccountRepo struct {
+	mu       sync.RWMutex
+	accounts map[string]*Account
+}
+
+func NewMemAccountRepo(accounts ...*Account) *MemAccountRepo {
+	m := make(map[string]*Account, len(accounts))
+	for _, a := range accounts {
+		m[a.ID] = a
+	}
+	return &MemAccountRepo{accounts: m}
+}
+
+func (r *MemAccountRepo) FindByID(_ context.Context, id string) (*Account, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	a, ok := r.accounts[id]
+	if !ok {
+		return nil, fmt.Errorf("account %s not found", id)
+	}
+	return a, nil
+}
+
+func (r *MemAccountRepo) Save(_ context.Context, a *Account) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.accounts[a.ID] = a
+	return nil
+}
+
+// --- Right (driven) adapter: log notifier ---
+
+type LogNotifier struct{}
+
+func (n *LogNotifier) NotifyTransfer(_ context.Context, email string, amount int64) error {
+	fmt.Printf("  notified %s: transferred %d\n", email, amount)
+	return nil
+}
+
+func main() {
+	ctx := context.Background()
+
+	accounts := NewMemAccountRepo(
+		&Account{ID: "alice", Email: "alice@example.com", Balance: 1000},
+		&Account{ID: "bob", Email: "bob@example.com", Balance: 500},
+	)
+	svc := NewTransferService(accounts, &LogNotifier{})
+
+	fmt.Println("transferring 300 from alice to bob:")
+	if err := svc.Transfer(ctx, "alice", "bob", 300); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+
+	alice, _ := accounts.FindByID(ctx, "alice")
+	bob, _ := accounts.FindByID(ctx, "bob")
+	fmt.Printf("alice balance: %d\n", alice.Balance)
+	fmt.Printf("bob balance:   %d\n", bob.Balance)
+
+	fmt.Println("\nattempting overdraft:")
+	if err := svc.Transfer(ctx, "alice", "bob", 10000); err != nil {
+		fmt.Println("error:", err)
+	}
 }
 ```
 
-Left adapter — HTTP driving the application:
-
-```go
-// adapter/http/transfer_handler.go
-package httpadapter
-
-import (
-    "encoding/json"
-    "myapp/app"
-    "net/http"
-)
-
-type TransferHandler struct {
-    svc *app.TransferService
-}
-
-func (h *TransferHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-    var req struct {
-        From   string `json:"from"`
-        To     string `json:"to"`
-        Amount int64  `json:"amount"`
-    }
-    json.NewDecoder(r.Body).Decode(&req)
-    if err := h.svc.Transfer(r.Context(), req.From, req.To, req.Amount); err != nil {
-        http.Error(w, err.Error(), 422)
-        return
-    }
-    w.WriteHeader(200)
-}
+```
+// Output:
+// transferring 300 from alice to bob:
+//   notified alice@example.com: transferred 300
+// alice balance: 700
+// bob balance:   800
+//
+// attempting overdraft:
+// error: insufficient funds: have 700, need 10000
 ```
 
-Right adapter — PostgreSQL implementing AccountRepository:
+The PostgreSQL adapter (left outside the hexagon, requires a real DB):
 
 ```go
+// Illustrative only — requires a real PostgreSQL connection to run.
 // adapter/postgres/account_repo.go
-package postgres
-
-import (
-    "context"
-    "database/sql"
-    "myapp/app"
-)
-
-type AccountRepo struct{ db *sql.DB }
-
-func (r *AccountRepo) FindByID(ctx context.Context, id string) (*app.Account, error) {
-    var a app.Account
-    err := r.db.QueryRowContext(ctx,
-        "SELECT id, email, balance FROM accounts WHERE id = $1", id,
-    ).Scan(&a.ID, &a.Email, &a.Balance)
-    return &a, err
-}
-
-func (r *AccountRepo) Save(ctx context.Context, a *app.Account) error {
-    _, err := r.db.ExecContext(ctx,
-        "UPDATE accounts SET balance = $1 WHERE id = $2", a.Balance, a.ID,
-    )
-    return err
-}
+//
+// type PostgresAccountRepo struct{ db *sql.DB }
+//
+// func (r *PostgresAccountRepo) FindByID(ctx context.Context, id string) (*Account, error) {
+//     var a Account
+//     err := r.db.QueryRowContext(ctx,
+//         "SELECT id, email, balance FROM accounts WHERE id = $1", id,
+//     ).Scan(&a.ID, &a.Email, &a.Balance)
+//     return &a, err
+// }
+//
+// func (r *PostgresAccountRepo) Save(ctx context.Context, a *Account) error {
+//     _, err := r.db.ExecContext(ctx,
+//         "UPDATE accounts SET balance = $1 WHERE id = $2", a.Balance, a.ID,
+//     )
+//     return err
+// }
 ```
 
-Right adapter — in-memory fake for tests:
+The HTTP driving adapter (left side of the hexagon):
 
 ```go
-// adapter/memory/account_repo.go
-package memory
-
-import (
-    "context"
-    "fmt"
-    "myapp/app"
-    "sync"
-)
-
-type AccountRepo struct {
-    mu       sync.RWMutex
-    accounts map[string]*app.Account
-}
-
-func NewAccountRepo(accounts ...*app.Account) *AccountRepo {
-    m := make(map[string]*app.Account, len(accounts))
-    for _, a := range accounts {
-        m[a.ID] = a
-    }
-    return &AccountRepo{accounts: m}
-}
-
-func (r *AccountRepo) FindByID(_ context.Context, id string) (*app.Account, error) {
-    r.mu.RLock()
-    defer r.mu.RUnlock()
-    a, ok := r.accounts[id]
-    if !ok {
-        return nil, fmt.Errorf("account %s not found", id)
-    }
-    return a, nil
-}
-
-func (r *AccountRepo) Save(_ context.Context, a *app.Account) error {
-    r.mu.Lock()
-    defer r.mu.Unlock()
-    r.accounts[a.ID] = a
-    return nil
-}
-```
-
-Test the application core with no infrastructure:
-
-```go
-// app/transfer_test.go
-package app_test
-
-import (
-    "context"
-    "myapp/adapter/memory"
-    "myapp/app"
-    "testing"
-)
-
-type fakeNotifier struct{}
-
-func (f *fakeNotifier) NotifyTransfer(_ context.Context, _ string, _ int64) error { return nil }
-
-func TestTransfer(t *testing.T) {
-    accounts := memory.NewAccountRepo(
-        &app.Account{ID: "alice", Email: "alice@example.com", Balance: 1000},
-        &app.Account{ID: "bob",   Email: "bob@example.com",   Balance: 500},
-    )
-    svc := app.NewTransferService(accounts, &fakeNotifier{})
-
-    if err := svc.Transfer(context.Background(), "alice", "bob", 300); err != nil {
-        t.Fatal(err)
-    }
-    alice, _ := accounts.FindByID(context.Background(), "alice")
-    if alice.Balance != 700 {
-        t.Errorf("alice balance = %d, want 700", alice.Balance)
-    }
-}
+// Illustrative only — shows how an HTTP handler drives the application core.
+// adapter/http/transfer_handler.go
+//
+// type TransferHandler struct{ svc *TransferService }
+//
+// func (h *TransferHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+//     var req struct {
+//         From   string `json:"from"`
+//         To     string `json:"to"`
+//         Amount int64  `json:"amount"`
+//     }
+//     json.NewDecoder(r.Body).Decode(&req)
+//     if err := h.svc.Transfer(r.Context(), req.From, req.To, req.Amount); err != nil {
+//         http.Error(w, err.Error(), 422)
+//         return
+//     }
+//     w.WriteHeader(200)
+// }
 ```
 
 ## When to Use

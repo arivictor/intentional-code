@@ -59,240 +59,254 @@ Separate every operation into a command or a query. Commands mutate; queries rea
 └──────────────────┘      └───────────────────────────┘
 ```
 
-Define commands and queries as plain structs:
+The following is a single runnable file with command handlers, query handlers, and an in-memory store:
 
 ```go
-// command/create_note.go
-package command
+package main
 
 import (
-    "context"
-    "fmt"
-    "time"
+	"context"
+	"fmt"
+	"strings"
+	"sync"
+	"time"
 )
 
+// --- Write model (command side) ---
+
 type Note struct {
-    ID        string
-    Title     string
-    Body      string
-    CreatedAt time.Time
+	ID        string
+	Title     string
+	Body      string
+	CreatedAt time.Time
 }
 
-type NoteRepository interface {
-    Save(ctx context.Context, n *Note) error
+// NoteWriteStore is used by command handlers.
+type NoteWriteStore interface {
+	Save(ctx context.Context, n *Note) error
+	FindByID(ctx context.Context, id string) (*Note, error)
 }
 
 type CreateNote struct {
-    ID    string
-    Title string
-    Body  string
+	ID    string
+	Title string
+	Body  string
 }
 
 type CreateNoteHandler struct {
-    repo NoteRepository
+	store NoteWriteStore
 }
 
-func NewCreateNoteHandler(repo NoteRepository) *CreateNoteHandler {
-    return &CreateNoteHandler{repo: repo}
+func NewCreateNoteHandler(store NoteWriteStore) *CreateNoteHandler {
+	return &CreateNoteHandler{store: store}
 }
 
 func (h *CreateNoteHandler) Handle(ctx context.Context, cmd CreateNote) error {
-    if cmd.Title == "" {
-        return fmt.Errorf("title is required")
-    }
-    n := &Note{
-        ID:        cmd.ID,
-        Title:     cmd.Title,
-        Body:      cmd.Body,
-        CreatedAt: time.Now(),
-    }
-    return h.repo.Save(ctx, n)
-}
-```
-
-```go
-// command/update_note.go
-package command
-
-import (
-    "context"
-    "fmt"
-)
-
-type NoteReader interface {
-    FindByID(ctx context.Context, id string) (*Note, error)
-}
-
-type NoteWriter interface {
-    NoteReader
-    Save(ctx context.Context, n *Note) error
+	if cmd.Title == "" {
+		return fmt.Errorf("title is required")
+	}
+	n := &Note{
+		ID:        cmd.ID,
+		Title:     cmd.Title,
+		Body:      cmd.Body,
+		CreatedAt: time.Now(),
+	}
+	return h.store.Save(ctx, n)
 }
 
 type UpdateNote struct {
-    ID   string
-    Body string
+	ID   string
+	Body string
 }
 
 type UpdateNoteHandler struct {
-    repo NoteWriter
+	store NoteWriteStore
 }
 
-func NewUpdateNoteHandler(repo NoteWriter) *UpdateNoteHandler {
-    return &UpdateNoteHandler{repo: repo}
+func NewUpdateNoteHandler(store NoteWriteStore) *UpdateNoteHandler {
+	return &UpdateNoteHandler{store: store}
 }
 
 func (h *UpdateNoteHandler) Handle(ctx context.Context, cmd UpdateNote) error {
-    n, err := h.repo.FindByID(ctx, cmd.ID)
-    if err != nil {
-        return fmt.Errorf("finding note: %w", err)
-    }
-    n.Body = cmd.Body
-    return h.repo.Save(ctx, n)
+	n, err := h.store.FindByID(ctx, cmd.ID)
+	if err != nil {
+		return fmt.Errorf("finding note: %w", err)
+	}
+	n.Body = cmd.Body
+	return h.store.Save(ctx, n)
 }
-```
 
-Queries return purpose-built DTOs, not domain objects:
+// --- Read model (query side) — purpose-built DTOs, not domain objects ---
 
-```go
-// query/get_note.go
-package query
-
-import "context"
-
-// NoteView is a read-optimized projection, not the domain type.
+// NoteView is a read-optimized projection.
 type NoteView struct {
-    ID        string
-    Title     string
-    Preview   string // first 100 chars of body
-    WordCount int
+	ID        string
+	Title     string
+	Preview   string // first 100 chars of body
+	WordCount int
 }
 
 type NoteSummary struct {
-    ID    string
-    Title string
+	ID    string
+	Title string
 }
 
+// NoteReadStore is used by query handlers.
 type NoteReadStore interface {
-    FindByID(ctx context.Context, id string) (*NoteView, error)
-    List(ctx context.Context) ([]NoteSummary, error)
+	FindByID(ctx context.Context, id string) (*NoteView, error)
+	List(ctx context.Context) ([]NoteSummary, error)
 }
 
 type GetNoteHandler struct {
-    store NoteReadStore
-}
-
-func NewGetNoteHandler(store NoteReadStore) *GetNoteHandler {
-    return &GetNoteHandler{store: store}
+	store NoteReadStore
 }
 
 func (h *GetNoteHandler) Handle(ctx context.Context, id string) (*NoteView, error) {
-    return h.store.FindByID(ctx, id)
+	return h.store.FindByID(ctx, id)
 }
 
 type ListNotesHandler struct {
-    store NoteReadStore
-}
-
-func NewListNotesHandler(store NoteReadStore) *ListNotesHandler {
-    return &ListNotesHandler{store: store}
+	store NoteReadStore
 }
 
 func (h *ListNotesHandler) Handle(ctx context.Context) ([]NoteSummary, error) {
-    return h.store.List(ctx)
+	return h.store.List(ctx)
+}
+
+// --- In-memory store implementing both write and read sides ---
+
+type MemNoteStore struct {
+	mu    sync.RWMutex
+	notes map[string]*Note
+}
+
+func NewMemNoteStore() *MemNoteStore {
+	return &MemNoteStore{notes: make(map[string]*Note)}
+}
+
+func (s *MemNoteStore) Save(_ context.Context, n *Note) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.notes[n.ID] = n
+	return nil
+}
+
+func (s *MemNoteStore) FindByID(_ context.Context, id string) (*Note, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	n, ok := s.notes[id]
+	if !ok {
+		return nil, fmt.Errorf("note %s not found", id)
+	}
+	return n, nil
+}
+
+func (s *MemNoteStore) FindByIDView(_ context.Context, id string) (*NoteView, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	n, ok := s.notes[id]
+	if !ok {
+		return nil, fmt.Errorf("note %s not found", id)
+	}
+	preview := n.Body
+	if len(preview) > 100 {
+		preview = preview[:100]
+	}
+	return &NoteView{
+		ID:        n.ID,
+		Title:     n.Title,
+		Preview:   preview,
+		WordCount: len(strings.Fields(n.Body)),
+	}, nil
+}
+
+func (s *MemNoteStore) ListSummaries(_ context.Context) ([]NoteSummary, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var result []NoteSummary
+	for _, n := range s.notes {
+		result = append(result, NoteSummary{ID: n.ID, Title: n.Title})
+	}
+	return result, nil
+}
+
+// readAdapter wraps MemNoteStore to satisfy NoteReadStore.
+type readAdapter struct{ s *MemNoteStore }
+
+func (a *readAdapter) FindByID(ctx context.Context, id string) (*NoteView, error) {
+	return a.s.FindByIDView(ctx, id)
+}
+func (a *readAdapter) List(ctx context.Context) ([]NoteSummary, error) {
+	return a.s.ListSummaries(ctx)
+}
+
+func main() {
+	ctx := context.Background()
+
+	store := NewMemNoteStore()
+	read := &readAdapter{store}
+
+	createNote := NewCreateNoteHandler(store)
+	updateNote := NewUpdateNoteHandler(store)
+	getNote := &GetNoteHandler{store: read}
+	listNotes := &ListNotesHandler{store: read}
+
+	// Command: create
+	if err := createNote.Handle(ctx, CreateNote{ID: "n1", Title: "Hello CQRS", Body: "Write model handles commands"}); err != nil {
+		fmt.Println("create error:", err)
+		return
+	}
+
+	// Command: update
+	if err := updateNote.Handle(ctx, UpdateNote{ID: "n1", Body: "Updated body text here"}); err != nil {
+		fmt.Println("update error:", err)
+		return
+	}
+
+	// Query: get by ID (read model returns a projection)
+	view, err := getNote.Handle(ctx, "n1")
+	if err != nil {
+		fmt.Println("get error:", err)
+		return
+	}
+	fmt.Printf("note %s: title=%q preview=%q words=%d\n", view.ID, view.Title, view.Preview, view.WordCount)
+
+	// Query: list
+	summaries, _ := listNotes.Handle(ctx)
+	for _, s := range summaries {
+		fmt.Printf("summary: %s – %s\n", s.ID, s.Title)
+	}
+
+	// Command validation
+	if err := createNote.Handle(ctx, CreateNote{ID: "n2", Title: ""}); err != nil {
+		fmt.Println("validation:", err)
+	}
 }
 ```
 
-The read store can be the same database with a purpose-built query or a separate projection:
+```
+// Output:
+// note n1: title="Hello CQRS" preview="Updated body text here" words=4
+// summary: n1 – Hello CQRS
+// validation: title is required
+```
+
+The PostgreSQL read store (requires a real DB) would implement `NoteReadStore` with purpose-built SQL projections:
 
 ```go
+// Illustrative only — requires a real PostgreSQL connection to run.
 // infra/postgres/note_read_store.go
-package postgres
-
-import (
-    "context"
-    "database/sql"
-    "myapp/query"
-)
-
-type NoteReadStore struct{ db *sql.DB }
-
-func (s *NoteReadStore) FindByID(ctx context.Context, id string) (*query.NoteView, error) {
-    var v query.NoteView
-    err := s.db.QueryRowContext(ctx, `
-        SELECT id, title,
-               LEFT(body, 100)                 AS preview,
-               array_length(string_to_array(trim(body), ' '), 1) AS word_count
-        FROM notes
-        WHERE id = $1
-    `, id).Scan(&v.ID, &v.Title, &v.Preview, &v.WordCount)
-    return &v, err
-}
-
-func (s *NoteReadStore) List(ctx context.Context) ([]query.NoteSummary, error) {
-    rows, err := s.db.QueryContext(ctx,
-        "SELECT id, title FROM notes ORDER BY created_at DESC",
-    )
-    if err != nil {
-        return nil, err
-    }
-    defer rows.Close()
-    var result []query.NoteSummary
-    for rows.Next() {
-        var s query.NoteSummary
-        rows.Scan(&s.ID, &s.Title)
-        result = append(result, s)
-    }
-    return result, rows.Err()
-}
-```
-
-Wire it up in the HTTP layer, where commands and queries have separate endpoints:
-
-```go
-// adapter/http/note_handler.go
-package httpadapter
-
-import (
-    "encoding/json"
-    "myapp/command"
-    "myapp/query"
-    "net/http"
-)
-
-type NoteHandler struct {
-    createNote *command.CreateNoteHandler
-    updateNote *command.UpdateNoteHandler
-    getNote    *query.GetNoteHandler
-    listNotes  *query.ListNotesHandler
-}
-
-func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
-    var req struct {
-        ID    string `json:"id"`
-        Title string `json:"title"`
-        Body  string `json:"body"`
-    }
-    json.NewDecoder(r.Body).Decode(&req)
-    if err := h.createNote.Handle(r.Context(), command.CreateNote{
-        ID:    req.ID,
-        Title: req.Title,
-        Body:  req.Body,
-    }); err != nil {
-        http.Error(w, err.Error(), 422)
-        return
-    }
-    w.WriteHeader(201)
-}
-
-func (h *NoteHandler) Get(w http.ResponseWriter, r *http.Request) {
-    id := r.PathValue("id")
-    view, err := h.getNote.Handle(r.Context(), id)
-    if err != nil {
-        http.Error(w, err.Error(), 404)
-        return
-    }
-    json.NewEncoder(w).Encode(view)
-}
+//
+// func (s *NoteReadStore) FindByID(ctx context.Context, id string) (*NoteView, error) {
+//     var v NoteView
+//     err := s.db.QueryRowContext(ctx, `
+//         SELECT id, title,
+//                LEFT(body, 100)    AS preview,
+//                array_length(string_to_array(trim(body), ' '), 1) AS word_count
+//         FROM notes WHERE id = $1
+//     `, id).Scan(&v.ID, &v.Title, &v.Preview, &v.WordCount)
+//     return &v, err
+// }
 ```
 
 ## Handling Eventual Consistency

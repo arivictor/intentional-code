@@ -56,237 +56,298 @@ Deposit(100)──────►Apply──────AppendEvent──►[Acc
                   balance=520
 ```
 
-Define the events and the aggregate:
+The following is a single runnable file with the aggregate, in-memory event store, and a command handler:
 
 ```go
-// domain/events.go
-package domain
+package main
 
-import "time"
+import (
+	"context"
+	"errors"
+	"fmt"
+	"sync"
+	"time"
+)
+
+// --- Domain events ---
 
 type EventType string
 
 const (
-    EventAccountOpened   EventType = "AccountOpened"
-    EventMoneyDeposited  EventType = "MoneyDeposited"
-    EventMoneyWithdrawn  EventType = "MoneyWithdrawn"
+	EventAccountOpened  EventType = "AccountOpened"
+	EventMoneyDeposited EventType = "MoneyDeposited"
+	EventMoneyWithdrawn EventType = "MoneyWithdrawn"
 )
 
 type Event struct {
-    Type      EventType
-    OccuredAt time.Time
-    Data      any
+	Type      EventType
+	OccuredAt time.Time
+	Data      any
 }
 
-type AccountOpenedData  struct{ InitialBalance int }
+type AccountOpenedData struct{ InitialBalance int }
 type MoneyDepositedData struct{ Amount int }
 type MoneyWithdrawnData struct{ Amount int }
-```
 
-```go
-// domain/account.go
-package domain
-
-import (
-    "errors"
-    "time"
-)
+// --- Aggregate ---
 
 type Account struct {
-    ID      string
-    Balance int
-    changes []Event // uncommitted events
+	ID      string
+	Balance int
+	changes []Event // uncommitted events
 }
 
 func NewAccount(id string, initial int) *Account {
-    a := &Account{ID: id}
-    a.apply(Event{
-        Type:      EventAccountOpened,
-        OccuredAt: time.Now(),
-        Data:      AccountOpenedData{InitialBalance: initial},
-    })
-    return a
+	a := &Account{ID: id}
+	a.apply(Event{
+		Type:      EventAccountOpened,
+		OccuredAt: time.Now(),
+		Data:      AccountOpenedData{InitialBalance: initial},
+	})
+	return a
 }
 
 func (a *Account) Deposit(amount int) {
-    a.apply(Event{
-        Type:      EventMoneyDeposited,
-        OccuredAt: time.Now(),
-        Data:      MoneyDepositedData{Amount: amount},
-    })
+	a.apply(Event{
+		Type:      EventMoneyDeposited,
+		OccuredAt: time.Now(),
+		Data:      MoneyDepositedData{Amount: amount},
+	})
 }
 
 func (a *Account) Withdraw(amount int) error {
-    if amount > a.Balance {
-        return errors.New("insufficient funds")
-    }
-    a.apply(Event{
-        Type:      EventMoneyWithdrawn,
-        OccuredAt: time.Now(),
-        Data:      MoneyWithdrawnData{Amount: amount},
-    })
-    return nil
+	if amount > a.Balance {
+		return errors.New("insufficient funds")
+	}
+	a.apply(Event{
+		Type:      EventMoneyWithdrawn,
+		OccuredAt: time.Now(),
+		Data:      MoneyWithdrawnData{Amount: amount},
+	})
+	return nil
 }
 
 // apply updates in-memory state and records the event for persistence.
 func (a *Account) apply(e Event) {
-    switch d := e.Data.(type) {
-    case AccountOpenedData:
-        a.Balance = d.InitialBalance
-    case MoneyDepositedData:
-        a.Balance += d.Amount
-    case MoneyWithdrawnData:
-        a.Balance -= d.Amount
-    }
-    a.changes = append(a.changes, e)
+	switch d := e.Data.(type) {
+	case AccountOpenedData:
+		a.Balance = d.InitialBalance
+	case MoneyDepositedData:
+		a.Balance += d.Amount
+	case MoneyWithdrawnData:
+		a.Balance -= d.Amount
+	}
+	a.changes = append(a.changes, e)
+}
+
+// ApplyEvent replays a persisted event without recording it to changes.
+func (a *Account) ApplyEvent(e Event) {
+	switch d := e.Data.(type) {
+	case AccountOpenedData:
+		a.Balance = d.InitialBalance
+	case MoneyDepositedData:
+		a.Balance += d.Amount
+	case MoneyWithdrawnData:
+		a.Balance -= d.Amount
+	}
 }
 
 func (a *Account) Changes() []Event { return a.changes }
 func (a *Account) ClearChanges()    { a.changes = nil }
-```
 
-The event store persists and loads events:
-
-```go
-// store/event_store.go
-package store
-
-import "myapp/domain"
+// --- In-memory event store ---
 
 type EventStore interface {
-    Append(ctx context.Context, aggregateID string, events []domain.Event) error
-    Load(ctx context.Context, aggregateID string) ([]domain.Event, error)
+	Append(ctx context.Context, aggregateID string, events []Event) error
+	Load(ctx context.Context, aggregateID string) ([]Event, error)
 }
 
-func ReplayAccount(events []domain.Event) *domain.Account {
-    a := &domain.Account{}
-    for _, e := range events {
-        a.ApplyEvent(e) // version of apply that doesn't record to changes
-    }
-    return a
+type MemEventStore struct {
+	mu     sync.Mutex
+	events map[string][]Event
 }
-```
 
-Command handler: load by replaying, execute command, persist new events:
+func NewMemEventStore() *MemEventStore {
+	return &MemEventStore{events: make(map[string][]Event)}
+}
 
-```go
-// app/account_commands.go
-package app
+func (s *MemEventStore) Append(_ context.Context, id string, events []Event) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.events[id] = append(s.events[id], events...)
+	return nil
+}
 
-import "myapp/domain"
+func (s *MemEventStore) Load(_ context.Context, id string) ([]Event, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]Event(nil), s.events[id]...), nil
+}
+
+func ReplayAccount(events []Event) *Account {
+	a := &Account{}
+	for _, e := range events {
+		a.ApplyEvent(e)
+	}
+	return a
+}
+
+// --- Command handler ---
 
 type DepositCommand struct {
-    AccountID string
-    Amount    int
+	AccountID string
+	Amount    int
+}
+
+type WithdrawCommand struct {
+	AccountID string
+	Amount    int
 }
 
 type AccountCommandHandler struct {
-    store store.EventStore
+	store EventStore
 }
 
 func (h *AccountCommandHandler) HandleDeposit(ctx context.Context, cmd DepositCommand) error {
-    events, err := h.store.Load(ctx, cmd.AccountID)
-    if err != nil {
-        return err
-    }
-    account := store.ReplayAccount(events)
-    account.Deposit(cmd.Amount)
-    return h.store.Append(ctx, cmd.AccountID, account.Changes())
+	events, err := h.store.Load(ctx, cmd.AccountID)
+	if err != nil {
+		return err
+	}
+	account := ReplayAccount(events)
+	account.Deposit(cmd.Amount)
+	return h.store.Append(ctx, cmd.AccountID, account.Changes())
+}
+
+func (h *AccountCommandHandler) HandleWithdraw(ctx context.Context, cmd WithdrawCommand) error {
+	events, err := h.store.Load(ctx, cmd.AccountID)
+	if err != nil {
+		return err
+	}
+	account := ReplayAccount(events)
+	if err := account.Withdraw(cmd.Amount); err != nil {
+		return err
+	}
+	return h.store.Append(ctx, cmd.AccountID, account.Changes())
+}
+
+func main() {
+	ctx := context.Background()
+	store := NewMemEventStore()
+
+	// Bootstrap: open account by seeding the event store with its first event.
+	seed := NewAccount("acc-1", 500)
+	store.Append(ctx, "acc-1", seed.Changes())
+
+	handler := &AccountCommandHandler{store: store}
+
+	handler.HandleDeposit(ctx, DepositCommand{AccountID: "acc-1", Amount: 200})
+	handler.HandleWithdraw(ctx, WithdrawCommand{AccountID: "acc-1", Amount: 80})
+
+	// Replay from scratch to get current state
+	events, _ := store.Load(ctx, "acc-1")
+	account := ReplayAccount(events)
+	fmt.Printf("account acc-1 balance: %d\n", account.Balance)
+	fmt.Printf("event log (%d events):\n", len(events))
+	for _, e := range events {
+		fmt.Printf("  %s %+v\n", e.Type, e.Data)
+	}
+
+	// Withdrawal beyond balance
+	if err := handler.HandleWithdraw(ctx, WithdrawCommand{AccountID: "acc-1", Amount: 10000}); err != nil {
+		fmt.Println("withdrawal error:", err)
+	}
 }
 ```
 
-Snapshots cap replay cost when event histories grow long:
+```
+// Output:
+// account acc-1 balance: 620
+// event log (3 events):
+//   AccountOpened {InitialBalance:500}
+//   MoneyDeposited {Amount:200}
+//   MoneyWithdrawn {Amount:80}
+// withdrawal error: insufficient funds
+```
+
+Snapshots cap replay cost when event histories grow long (illustrative):
 
 ```go
-// store/snapshot.go — store a state snapshot every N events
-type Snapshot struct {
-    AggregateID string
-    Balance     int
-    EventCount  int
-}
-
-func (h *AccountCommandHandler) HandleDepositWithSnapshot(ctx context.Context, cmd DepositCommand) error {
-    snap, _ := h.snapshots.Load(ctx, cmd.AccountID)
-    events, err := h.store.LoadFrom(ctx, cmd.AccountID, snap.EventCount)
-    if err != nil {
-        return err
-    }
-    account := &domain.Account{Balance: snap.Balance}
-    for _, e := range events {
-        account.ApplyEvent(e)
-    }
-    account.Deposit(cmd.Amount)
-    if err := h.store.Append(ctx, cmd.AccountID, account.Changes()); err != nil {
-        return err
-    }
-    if len(events)+len(account.Changes()) > 100 {
-        h.snapshots.Save(ctx, Snapshot{
-            AggregateID: cmd.AccountID,
-            Balance:     account.Balance,
-            EventCount:  snap.EventCount + len(events) + len(account.Changes()),
-        })
-    }
-    return nil
-}
+// Illustrative only — shows the snapshot strategy. In production, store snapshots
+// in a database table and load them before replaying only the events that follow.
+//
+// type Snapshot struct {
+//     AggregateID string
+//     Balance     int
+//     EventCount  int // how many events are represented by this snapshot
+// }
+//
+// func (h *AccountCommandHandler) HandleDepositWithSnapshot(ctx context.Context, cmd DepositCommand) error {
+//     snap, _ := h.snapshots.Load(ctx, cmd.AccountID)
+//     events, err := h.store.LoadFrom(ctx, cmd.AccountID, snap.EventCount)
+//     if err != nil { return err }
+//     account := &Account{Balance: snap.Balance}
+//     for _, e := range events { account.ApplyEvent(e) }
+//     account.Deposit(cmd.Amount)
+//     if err := h.store.Append(ctx, cmd.AccountID, account.Changes()); err != nil { return err }
+//     if len(events)+len(account.Changes()) > 100 {
+//         h.snapshots.Save(ctx, Snapshot{
+//             AggregateID: cmd.AccountID,
+//             Balance:     account.Balance,
+//             EventCount:  snap.EventCount + len(events) + len(account.Changes()),
+//         })
+//     }
+//     return nil
+// }
 ```
 
 ## Concurrency and Optimistic Locking
 
 When two commands modify the same aggregate concurrently, the second write must detect that the first has already changed the stream. Without a check, both commands load the same events, both produce new events at the same version, and both append — the second write silently overwrites the first.
 
-The fix is optimistic locking: `Append` accepts an `expectedVersion` (the length of events loaded), and the store rejects writes where the stream has advanced beyond that version:
+The fix is optimistic locking: `Append` accepts an `expectedVersion` (the length of events loaded), and the store rejects writes where the stream has advanced beyond that version (illustrative — shows the interface extension):
 
 ```go
-// store/event_store.go
-var ErrVersionConflict = errors.New("optimistic lock conflict: stream was modified")
-
-type EventStore interface {
-    // expectedVersion is the number of events loaded before the command ran.
-    // Append fails with ErrVersionConflict if the stream has more events than that.
-    Append(ctx context.Context, aggregateID string, expectedVersion int, events []domain.Event) error
-    Load(ctx context.Context, aggregateID string) ([]domain.Event, error)
-}
+// Illustrative — extends the EventStore interface with optimistic locking.
+// var ErrVersionConflict = errors.New("optimistic lock conflict: stream was modified")
+//
+// type EventStore interface {
+//     // Append fails with ErrVersionConflict if the stream has more events than expectedVersion.
+//     Append(ctx context.Context, aggregateID string, expectedVersion int, events []Event) error
+//     Load(ctx context.Context, aggregateID string) ([]Event, error)
+// }
 ```
 
 The command handler passes `len(events)` as the expected version:
 
 ```go
-func (h *AccountCommandHandler) HandleDeposit(ctx context.Context, cmd DepositCommand) error {
-    events, err := h.store.Load(ctx, cmd.AccountID)
-    if err != nil {
-        return err
-    }
-    account := store.ReplayAccount(events)
-    account.Deposit(cmd.Amount)
-
-    err = h.store.Append(ctx, cmd.AccountID, len(events), account.Changes())
-    if errors.Is(err, store.ErrVersionConflict) {
-        // Another command won the race. Retry from the top.
-        return h.HandleDeposit(ctx, cmd)
-    }
-    return err
-}
+// Illustrative — command handler with optimistic-locking retry.
+// func (h *AccountCommandHandler) HandleDeposit(ctx context.Context, cmd DepositCommand) error {
+//     events, err := h.store.Load(ctx, cmd.AccountID)
+//     if err != nil { return err }
+//     account := ReplayAccount(events)
+//     account.Deposit(cmd.Amount)
+//     err = h.store.Append(ctx, cmd.AccountID, len(events), account.Changes())
+//     if errors.Is(err, ErrVersionConflict) {
+//         return h.HandleDeposit(ctx, cmd) // retry from the top
+//     }
+//     return err
+// }
 ```
 
-The store checks the current stream length before appending:
+The store checks the current stream length before appending (illustrative — PostgreSQL implementation):
 
 ```go
-// postgres implementation — append atomically if version matches
-func (s *PostgresEventStore) Append(ctx context.Context, aggregateID string, expectedVersion int, events []domain.Event) error {
-    var currentVersion int
-    err := s.db.QueryRowContext(ctx,
-        "SELECT COUNT(*) FROM events WHERE aggregate_id = $1",
-        aggregateID,
-    ).Scan(&currentVersion)
-    if err != nil {
-        return err
-    }
-    if currentVersion != expectedVersion {
-        return store.ErrVersionConflict
-    }
-    // insert new events...
-    return nil
-}
+// Illustrative only — requires a real PostgreSQL connection to run.
+// func (s *PostgresEventStore) Append(ctx context.Context, id string, expectedVersion int, events []Event) error {
+//     var currentVersion int
+//     err := s.db.QueryRowContext(ctx,
+//         "SELECT COUNT(*) FROM events WHERE aggregate_id = $1", id,
+//     ).Scan(&currentVersion)
+//     if err != nil { return err }
+//     if currentVersion != expectedVersion { return ErrVersionConflict }
+//     // insert new events...
+//     return nil
+// }
 ```
 
 Optimistic locking works well when conflicts are rare — a deposit and a withdrawal hitting the same account within milliseconds is uncommon. For high-contention aggregates, a retry loop is acceptable; for truly write-heavy paths, consider sharding or a different aggregate boundary.

@@ -49,84 +49,162 @@ Extract independent domains into separate services with explicit API boundaries:
           └──► Analytics Service
 ```
 
-Each service is a standalone Go binary:
+Each service is a standalone Go binary. The following runnable example simulates two services (Order and Inventory) communicating over HTTP using `httptest`:
 
 ```go
-// cmd/order-service/main.go
 package main
 
 import (
-    "myapp/internal/orderservice/app"
-    "myapp/internal/orderservice/infra/postgres"
-    "myapp/internal/orderservice/infra/nats"
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"time"
 )
 
-func main() {
-    repo := postgres.NewOrderRepo(os.Getenv("DATABASE_URL"))
-    publisher := nats.NewPublisher(os.Getenv("NATS_URL"))
-    svc := app.NewOrderService(repo, publisher)
+// --- Shared event schema (versioned carefully) ---
 
-    srv := &http.Server{
-        Addr:    ":8080",
-        Handler: api.NewRouter(svc),
-    }
-    srv.ListenAndServe()
+type Item struct {
+	ProductID string `json:"product_id"`
+	Qty       int    `json:"qty"`
 }
-```
 
-Services communicate synchronously via gRPC or HTTP for request/response:
-
-```go
-// clients/inventory_client.go — typed client hides network details
-package clients
-
-import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "net/http"
-)
-
-type InventoryClient struct {
-    base   string
-    client *http.Client
+type OrderPlacedEvent struct {
+	OrderID    string    `json:"order_id"`
+	CustomerID string    `json:"customer_id"`
+	Items      []Item    `json:"items"`
+	Total      float64   `json:"total"`
+	PlacedAt   time.Time `json:"placed_at"`
+	Version    int       `json:"version"` // schema version for evolution
 }
+
+// --- Inventory Service ---
 
 type ReservationResult struct {
-    Reserved bool
-    Reason   string
+	Reserved bool   `json:"reserved"`
+	Reason   string `json:"reason,omitempty"`
+}
+
+// inventoryHandler simulates the inventory microservice's HTTP API.
+func inventoryHandler(w http.ResponseWriter, r *http.Request) {
+	// In a real service this would check and update its own database.
+	result := ReservationResult{Reserved: true}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// --- Inventory Client (used by Order Service) ---
+
+// InventoryClient hides network details from the Order Service.
+type InventoryClient struct {
+	base   string
+	client *http.Client
 }
 
 func (c *InventoryClient) Reserve(ctx context.Context, itemID string, qty int) (ReservationResult, error) {
-    url := fmt.Sprintf("%s/inventory/%s/reserve?qty=%d", c.base, itemID, qty)
-    req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
-    resp, err := c.client.Do(req)
-    if err != nil {
-        return ReservationResult{}, fmt.Errorf("inventory reserve: %w", err)
-    }
-    defer resp.Body.Close()
-    var result ReservationResult
-    json.NewDecoder(resp.Body).Decode(&result)
-    return result, nil
+	url := fmt.Sprintf("%s/inventory/%s/reserve?qty=%d", c.base, itemID, qty)
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return ReservationResult{}, fmt.Errorf("inventory reserve: %w", err)
+	}
+	defer resp.Body.Close()
+	var result ReservationResult
+	json.NewDecoder(resp.Body).Decode(&result)
+	return result, nil
+}
+
+// --- Order Service ---
+
+type PlaceOrderRequest struct {
+	CustomerID string `json:"customer_id"`
+	Items      []Item `json:"items"`
+	Total      float64 `json:"total"`
+}
+
+type OrderService struct {
+	inventory *InventoryClient
+	events    []OrderPlacedEvent // in production: publish to NATS/Kafka
+}
+
+func (s *OrderService) PlaceOrder(ctx context.Context, req PlaceOrderRequest) (string, error) {
+	// Reserve inventory for each item (synchronous cross-service call)
+	for _, item := range req.Items {
+		result, err := s.inventory.Reserve(ctx, item.ProductID, item.Qty)
+		if err != nil {
+			return "", fmt.Errorf("reserving %s: %w", item.ProductID, err)
+		}
+		if !result.Reserved {
+			return "", fmt.Errorf("item %s unavailable: %s", item.ProductID, result.Reason)
+		}
+	}
+
+	orderID := fmt.Sprintf("ord-%d", time.Now().UnixNano())
+
+	// Publish event asynchronously (notification, analytics subscribe independently)
+	s.events = append(s.events, OrderPlacedEvent{
+		OrderID:    orderID,
+		CustomerID: req.CustomerID,
+		Items:      req.Items,
+		Total:      req.Total,
+		PlacedAt:   time.Now(),
+		Version:    1,
+	})
+
+	return orderID, nil
+}
+
+func orderHandler(svc *OrderService) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req PlaceOrderRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "bad request", 400)
+			return
+		}
+		orderID, err := svc.PlaceOrder(r.Context(), req)
+		if err != nil {
+			http.Error(w, err.Error(), 422)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"order_id": orderID})
+	}
+}
+
+func main() {
+	// Start the Inventory Service
+	invSrv := httptest.NewServer(http.HandlerFunc(inventoryHandler))
+	defer invSrv.Close()
+
+	invClient := &InventoryClient{base: invSrv.URL, client: &http.Client{Timeout: 5 * time.Second}}
+	orderSvc := &OrderService{inventory: invClient}
+
+	// Start the Order Service
+	orderSrv := httptest.NewServer(orderHandler(orderSvc))
+	defer orderSrv.Close()
+
+	// Place an order
+	body := `{"customer_id":"cust-1","items":[{"product_id":"prod-A","qty":2}],"total":49.99}`
+	resp, err := http.Post(orderSrv.URL+"/orders", "application/json", strings.NewReader(body))
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	defer resp.Body.Close()
+	var result map[string]string
+	json.NewDecoder(resp.Body).Decode(&result)
+	fmt.Printf("order placed: %s\n", result["order_id"])
+	fmt.Printf("events published: %d\n", len(orderSvc.events))
+	fmt.Printf("event: orderID=%s customer=%s\n", orderSvc.events[0].OrderID, orderSvc.events[0].CustomerID)
 }
 ```
 
-And asynchronously via events for work that doesn't require an immediate response:
-
-```go
-// events/order_events.go — shared event schema (versioned carefully)
-package events
-
-const OrderPlaced = "order.placed"
-
-type OrderPlacedEvent struct {
-    OrderID    string    `json:"order_id"`
-    CustomerID string    `json:"customer_id"`
-    Items      []Item    `json:"items"`
-    Total      float64   `json:"total"`
-    PlacedAt   time.Time `json:"placed_at"`
-    Version    int       `json:"version"` // schema version for evolution
-}
+```
+// Output:
+// order placed: ord-...
+// events published: 1
+// event: orderID=ord-... customer=cust-1
 ```
 
 Service boundaries follow domain boundaries, not technical layers:
@@ -139,12 +217,26 @@ Bad: data-service, api-service, logic-service (technical layers, not domains)
 Each service has its own database and schema — no shared tables:
 
 ```
-order-service  → orders_db  (orders, order_items tables)
-inventory-service → inventory_db (products, stock_levels tables)
-customer-service → customers_db (customers, addresses tables)
+order-service     → orders_db     (orders, order_items tables)
+inventory-service → inventory_db  (products, stock_levels tables)
+customer-service  → customers_db  (customers, addresses tables)
 
 // Services NEVER query each other's databases directly.
 // Cross-service reads go through the owning service's API.
+```
+
+The entry point for a real production service binary (illustrative — requires real infrastructure):
+
+```go
+// Illustrative only — shows how a real order-service binary would wire up.
+// cmd/order-service/main.go
+//
+// func main() {
+//     repo := postgres.NewOrderRepo(os.Getenv("DATABASE_URL"))
+//     publisher := nats.NewPublisher(os.Getenv("NATS_URL"))
+//     svc := app.NewOrderService(repo, publisher)
+//     http.ListenAndServe(":8080", api.NewRouter(svc))
+// }
 ```
 
 ## Service Discovery and API Versioning
