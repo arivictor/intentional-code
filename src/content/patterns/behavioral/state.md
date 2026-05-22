@@ -9,7 +9,7 @@ tags: [interfaces, state]
 
 # State
 
-State's identifying signal is a type with switch statements in every method, all checking the same state field. Adding a new state means adding a case to every switch across the entire type. State replaces those switches with one interface and one struct per state — each state's behavior is isolated, and transitions are explicit field assignments on the context.
+The telltale sign you need this pattern is a type with switch statements in every method, all checking the same state field. Adding a new state means adding a case to every switch across the entire type. State replaces those switches with one interface and one struct per state: each state's behavior is isolated, and transitions are explicit field assignments on the context.
 
 In Go, the context struct holds a `State` interface value and delegates method calls to it. Transition logic lives inside the state that initiates the change, not scattered across the context's methods.
 
@@ -40,7 +40,7 @@ func (c *Connection) Connect() {
 }
 ```
 
-State logic is scattered across every method. Adding a new state means adding a case to every switch in every method. States and their transitions are implicit — you have to read all the switches to understand the machine.
+State logic is scattered across every method. Adding a new state means adding a case to every switch in every method. The transitions are implicit; you have to read all the switches to understand the machine.
 
 ## Solution
 
@@ -165,13 +165,15 @@ Cannot send: not connected.
 ## When Not to Use
 
 - There are only two or three states with trivial behavior differences. A boolean or enum is simpler.
-- The state machine is better expressed as a state-transition table (map of state × event → next state).
+- The state machine is better expressed as a state-transition table (a map of state × event → next state).
 
 ## Tradeoffs
 
-Each state's behavior is isolated in its own type, which makes adding a new state cheap — you write one new struct and don't touch any existing state. The cost is type proliferation: a machine with seven states produces seven structs plus the interface, which can feel heavy for a relatively simple machine. States that initiate transitions hold a `*Connection` reference, creating a circular-looking dependency between the state and its context — this is normal for the pattern but surprises developers who encounter it for the first time. For machines with many states and mostly uniform behavior differences, a table-driven approach (a `map[State]map[Event]State`) is often more readable than the full struct-per-state form.
+Each state's behavior is isolated in its own type, which makes adding a new state cheap. You write one new struct and don't touch any existing state. The cost is type proliferation: a machine with seven states produces seven structs plus the interface, which can feel heavy for a relatively simple machine.
+
+States that initiate transitions hold a `*Connection` reference, creating a circular-looking dependency between the state and its context. This is normal for the pattern but surprises developers who encounter it for the first time. For machines with many states and mostly uniform behavior differences, a table-driven approach (a `map[State]map[Event]State`) is often more readable than the full struct-per-state form.
 
 ## Related Patterns
 
-- **Strategy** — Both delegate behavior to an interchangeable implementation; the distinction is control — Strategy is selected and set by an external caller, State transitions internally in response to events within the object itself.
-- **Command** — Commands can trigger state transitions; combine them when each transition needs to be undoable — the Command holds the transition logic and the previous state to restore.
+- **Strategy**: Both delegate behavior to an interchangeable implementation. The distinction is control: Strategy is selected and set by an external caller; State transitions internally in response to events within the object itself.
+- **Command**: Commands can trigger state transitions. Combine them when each transition needs to be undoable: the Command holds the transition logic and the previous state to restore.

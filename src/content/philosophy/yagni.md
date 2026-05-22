@@ -5,11 +5,11 @@ description: Don't build features, abstractions, or flexibility you don't need t
 
 # You Aren't Gonna Need It
 
-*"Always implement things when you actually need them, never when you just foresee that you need them."* — Ron Jeffries
+*"Always implement things when you actually need them, never when you just foresee that you need them."* (Ron Jeffries)
 
 YAGNI is a practice from Extreme Programming with a specific, narrow claim: don't implement a feature until it is required. Not "keep it in mind." Not "leave a hook for it." Don't build it.
 
-This sounds obvious. It isn't. The pull toward speculative design is strong — it *feels* like good engineering to plan ahead, to leave room for extension, to avoid painting yourself into a corner. But speculative features have real costs: they take time to write, time to test, time to maintain, and they constrain future design based on requirements that were never real.
+This sounds obvious. It isn't. The pull toward speculative design is strong; it *feels* like good engineering to plan ahead, to leave room for extension, to avoid painting yourself into a corner. But speculative features have real costs: they take time to write, time to test, time to maintain, and they constrain future design based on requirements that were never real.
 
 The code you didn't write has no bugs.
 
@@ -111,12 +111,12 @@ Unused code isn't free:
 
 YAGNI has a boundary. Some structural decisions are genuinely hard to reverse:
 
-- **Data formats.** If you're defining a wire format or a storage schema, think about versioning — not because you'll need it, but because changing it later is disproportionately expensive.
+- **Data formats.** If you're defining a wire format or a storage schema, think about versioning. Not because you'll definitely need it, but because changing it later is disproportionately expensive.
 - **Public APIs.** If you're shipping a library, the interface is a contract. Breaking it has real cost.
 - **Performance headroom.** If you know from measurement (not intuition) that a naive approach will hit a wall, address it.
 
 These are exceptions. The default is: don't.
 
-> **Smell:** You search for usages of a function and find exactly one caller — the test. Or: a config struct with eight fields where every caller sets the same six. Or: an interface defined in the same package as its only implementation.
+> **Smell:** You search for usages of a function and find exactly one caller: the test. Or a config struct with eight fields where every caller sets the same six. Or an interface defined in the same package as its only implementation.
 
 See also: [KISS](/go/philosophy/kiss), [DRY](/go/philosophy/dry).

@@ -10,9 +10,9 @@ isFeatured: false
 
 # Pipeline
 
-A pipeline is a series of stages connected by channels. Each stage consumes values from an upstream channel, applies a transformation, and sends results to a downstream channel. Each stage runs in its own goroutine, so all stages run concurrently — while one stage processes item N, the next stage processes item N-1, and the previous stage is already fetching item N+1.
+A pipeline is a series of stages connected by channels. Each stage consumes values from an upstream channel, applies a transformation, and sends results to a downstream channel. Each stage runs in its own goroutine, so all stages run concurrently: while one stage processes item N, the next stage processes item N-1, and the previous stage is already fetching item N+1.
 
-The pattern composes well: stages are functions with a consistent signature, and you chain them by passing the output of one as the input to the next.
+The pattern composes well. Stages are functions with a consistent signature, and you chain them by passing the output of one as the input to the next.
 
 ## Problem
 
@@ -125,7 +125,7 @@ func main() {
 }
 ```
 
-The call `parseRecords(readFiles(generate(paths)))` reads left-to-right as "generate paths, read files, parse records." Each stage starts running the moment its goroutine is launched — before the downstream stage has consumed a single value.
+The call `parseRecords(readFiles(generate(paths)))` reads left-to-right as "generate paths, read files, parse records." Each stage starts running the moment its goroutine is launched, before the downstream stage has consumed a single value.
 
 ## Adding cancellation
 
@@ -191,15 +191,15 @@ func parseRecords(ctx context.Context, files <-chan []byte) <-chan result {
 
 - The transformation is a single step. A loop is simpler.
 - Stages are so fast that channel overhead dominates. Benchmark before adding goroutines to a tight loop.
-- You need all results before any downstream processing can start — a pipeline doesn't help you there.
+- You need all results before any downstream processing can start. A pipeline won't help you there.
 
 ## Tradeoffs
 
-The pipeline's strength — stages overlap — is also its diagnostic challenge. When something goes wrong, the error is in one goroutine and the symptom may appear in another. Each stage must propagate errors correctly (see above) or they silently disappear. Buffered channels between stages can improve throughput by reducing stage synchronisation, but they also mask backpressure — a fast upstream will outrun a slow downstream if you buffer too aggressively. Start with unbuffered channels and add buffering only when you have measured the bottleneck.
+The pipeline's strength (stages overlap) is also its diagnostic challenge. When something goes wrong, the error is in one goroutine and the symptom may appear in another. Each stage must propagate errors correctly or they silently disappear. Buffered channels between stages can improve throughput by reducing stage synchronisation, but they also mask backpressure: a fast upstream will outrun a slow downstream if you buffer too aggressively. Start with unbuffered channels and add buffering only when you have measured the bottleneck.
 
 ## Related Patterns
 
-- **Fan-out / Fan-in** — extend any pipeline stage to run in parallel by fanning out to multiple goroutines and fanning in their results before the next stage.
-- **Worker Pool** — a fan-out pattern with a fixed number of workers; use it when you need to cap goroutine count rather than spawning one per item.
-- **Done Channel** — the cancellation discipline that prevents pipeline goroutines from leaking when a consumer exits early.
-- **Errgroup** — coordinates goroutine groups with shared error handling and automatic cancellation on first failure; cleaner than managing a separate error channel per stage.
+- **Fan-out / Fan-in**: extend any pipeline stage to run in parallel by fanning out to multiple goroutines and fanning in their results before the next stage.
+- **Worker Pool**: a fan-out pattern with a fixed number of workers; use it when you need to cap goroutine count rather than spawning one per item.
+- **Done Channel**: the cancellation discipline that prevents pipeline goroutines from leaking when a consumer exits early.
+- **Errgroup**: coordinates goroutine groups with shared error handling and automatic cancellation on first failure; cleaner than managing a separate error channel per stage.

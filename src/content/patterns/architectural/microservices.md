@@ -11,7 +11,7 @@ tags: [distributed, interfaces, separation-of-concerns, dependency-inversion]
 
 Microservices is an architectural style in which an application is built as a collection of small, independently deployable services. Each service owns a single bounded domain, runs as a separate process, manages its own data store, and communicates with other services over a network API. Services are deployed, scaled, and failed independently.
 
-The promise of microservices is organizational as much as technical: teams can own, release, and scale their service without coordinating with other teams. The cost is the distributed systems tax — network calls fail, services become unavailable, data is eventually consistent across service boundaries, and debugging a request that spans five services requires distributed tracing infrastructure.
+The promise of microservices is organizational as much as technical: teams can own, release, and scale their service without coordinating with other teams. The cost is the distributed systems tax. Network calls fail, services become unavailable, data is eventually consistent across service boundaries, and debugging a request that spans five services requires distributed tracing infrastructure.
 
 **Start with a monolith.** Extract services when independent scaling or deployment becomes a real constraint, not a hypothetical one. A monolith built with clean internal boundaries (hexagonal architecture, domain packages) is much easier to decompose than one that isn't.
 
@@ -136,7 +136,7 @@ Good: order-service, inventory-service, payment-service, notification-service
 Bad: data-service, api-service, logic-service (technical layers, not domains)
 ```
 
-Each service has its own database and schema — no shared tables:
+Each service has its own database and schema. No shared tables:
 
 ```
 order-service  → orders_db  (orders, order_items tables)
@@ -200,7 +200,7 @@ type OrderPlacedEvent struct {
 - Teams need to deploy independently, and a shared release pipeline creates real organizational bottlenecks.
 - One domain has radically different scaling requirements than others (a recommendation engine vs. a customer settings page).
 - Different parts of the system have different reliability, compliance, or security requirements.
-- The domain is well-understood and boundaries are stable — extracting a service before the domain is understood leads to wrong boundaries that are expensive to fix later.
+- The domain is well-understood and boundaries are stable; extracting a service before the domain is understood leads to wrong boundaries that are expensive to fix later.
 
 ## When Not to Use
 
@@ -211,12 +211,12 @@ type OrderPlacedEvent struct {
 
 ## Tradeoffs
 
-Independent deployment and scaling are genuine advantages. Teams that own a service end-to-end — design, build, operate — move faster than teams that share a monolith with complex coordination overhead. The distributed systems tax is real: every network call can fail, timeout, or return stale data; services need circuit breakers; cross-service operations need sagas instead of transactions; data consistency is eventual across service boundaries. The operational floor is higher: you need container orchestration, service discovery, distributed tracing, centralized logging, and health-check infrastructure from day one. These tools are mature now (Kubernetes, Jaeger, OpenTelemetry), but they add cognitive load. Teams that succeed with microservices usually have strong platform engineering support; teams without it often end up with a distributed monolith — all the complexity of microservices with none of the isolation benefits.
+Independent deployment and scaling are genuine advantages. Teams that own a service end-to-end (design, build, operate) move faster than teams that share a monolith with complex coordination overhead. The distributed systems tax is real: every network call can fail, timeout, or return stale data; services need circuit breakers; cross-service operations need sagas instead of transactions; data consistency is eventual across service boundaries. The operational floor is higher: you need container orchestration, service discovery, distributed tracing, centralized logging, and health-check infrastructure from day one. These tools are mature now (Kubernetes, Jaeger, OpenTelemetry), but they add cognitive load. Teams that succeed with microservices usually have strong platform engineering support; teams without it often end up with a distributed monolith, all the complexity of microservices with none of the isolation benefits.
 
 ## Related Patterns
 
-- **Event-Driven Architecture** — Services communicate asynchronously via events. A failing consumer can't block the producer, and new consumers can subscribe without changing the producer.
-- **Saga** — Multi-step operations that span services need sagas instead of distributed transactions. Choreography or orchestration; both require idempotent compensating transactions.
-- **Circuit Breaker** — Wrap every synchronous service call in a circuit breaker. When the downstream service is slow or unavailable, fail fast rather than letting goroutines pile up.
-- **Strangler Fig** — The migration path from monolith to microservices. Route covered paths to the new service; uncovered paths fall through to the monolith. Remove the monolith incrementally.
-- **Hexagonal Architecture** — Apply hexagonal architecture inside each microservice to keep the domain logic isolated from network and database adapters. This makes individual services testable and their infrastructure swappable.
+- **Event-Driven Architecture:** Services communicate asynchronously via events. A failing consumer can't block the producer, and new consumers can subscribe without changing the producer.
+- **Saga:** Multi-step operations that span services need sagas instead of distributed transactions. Choreography or orchestration; both require idempotent compensating transactions.
+- **Circuit Breaker:** Wrap every synchronous service call in a circuit breaker. When the downstream service is slow or unavailable, fail fast rather than letting goroutines pile up.
+- **Strangler Fig:** The migration path from monolith to microservices. Route covered paths to the new service; uncovered paths fall through to the monolith. Remove the monolith incrementally.
+- **Hexagonal Architecture:** Apply hexagonal architecture inside each microservice to keep the domain logic isolated from network and database adapters. This makes individual services testable and their infrastructure swappable.

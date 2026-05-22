@@ -7,7 +7,7 @@ description: Talk only to your immediate collaborators. The further you reach in
 
 *"Each unit should have only limited knowledge about other units: only units 'closely' related to the current unit."*
 
-The Law of Demeter — also called the Principle of Least Knowledge — says a method should only call methods on:
+The Law of Demeter, also called the Principle of Least Knowledge, says a method should only call methods on:
 
 1. Itself
 2. Its parameters
@@ -58,7 +58,7 @@ func (h *Handler) ShipOrder(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-The navigation from `Order` to city is encapsulated in `Order.ShippingDestination`. The handler's dependency is on `Order`'s interface — not on `Customer`, not on `Address`.
+The navigation from `Order` to city is encapsulated in `Order.ShippingDestination`. The handler's dependency is on `Order`'s interface, not on `Customer` or `Address`.
 
 ---
 
@@ -77,7 +77,7 @@ response.Body.Close()
 app.Config().Database().ConnectionString()
 ```
 
-The exception: fluent builder patterns are sometimes intentionally chained — `strings.NewReplacer(...).Replace(s)`. These return `self` at each step rather than reaching into collaborators' internals. That's different from traversing an ownership graph.
+The exception: fluent builder patterns are sometimes intentionally chained, like `strings.NewReplacer(...).Replace(s)`. These return `self` at each step rather than reaching into collaborators' internals. That's different from traversing an ownership graph.
 
 ---
 
@@ -105,7 +105,7 @@ func (o *Order) ApplyLargeOrderDiscount() {
 }
 ```
 
-The decision logic — what counts as a "large order" — lives in `Order`. If the threshold changes, you update `Order`, not every caller that was querying its fields.
+The decision logic about what counts as a "large order" lives in `Order`. If the threshold changes, you update `Order`, not every caller that was querying its fields.
 
 ---
 

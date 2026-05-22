@@ -1,17 +1,17 @@
 ---
 title: Test-Driven Development
-description: The red/green/refactor loop in Go — and how design pressure naturally produces patterns.
+description: The red/green/refactor loop in Go, and how design pressure naturally produces patterns.
 ---
 
 # Test-Driven Development
 
-Write a failing test. Make it pass. Refactor. Go's tooling makes this loop faster and more pleasant than in most languages: `go test ./...` needs no configuration, implicit interfaces eliminate the need for mocking frameworks, and table-driven tests keep test cases as data rather than duplicated functions. More importantly, the design pressure TDD creates naturally produces the small interfaces and clean boundaries that patterns like [Strategy](/go/patterns/behavioral/strategy), [Repository](/go/patterns/architectural/repository), and [Observer](/go/patterns/behavioral/observer) formalize — you often arrive at the pattern without setting out to implement it.
+Write a failing test. Make it pass. Refactor. Go's tooling makes this loop faster and more pleasant than in most languages: `go test ./...` needs no configuration, implicit interfaces eliminate the need for mocking frameworks, and table-driven tests keep test cases as data rather than duplicated functions. More importantly, the design pressure TDD creates naturally produces the small interfaces and clean boundaries that patterns like [Strategy](/go/patterns/behavioral/strategy), [Repository](/go/patterns/architectural/repository), and [Observer](/go/patterns/behavioral/observer) formalize. You often arrive at the pattern without setting out to implement it.
 
 ## The red / green / refactor loop
 
 TDD is not "write tests." It's a design discipline with three steps, always in order:
 
-- **Red:** Write a test for behavior that doesn't exist yet. Run it. Watch it fail. This proves the test is meaningful — it actually checks something.
+- **Red:** Write a test for behavior that doesn't exist yet. Run it. Watch it fail. This proves the test is meaningful; it actually checks something.
 - **Green:** Write the smallest amount of production code that makes the test pass. Don't optimize, don't generalize. Just make the red go green.
 - **Refactor:** Now that you have a green test as a safety net, clean up. Extract functions, rename, remove duplication. The test tells you immediately if you break anything.
 
@@ -19,7 +19,7 @@ The discipline is in the order. You never write production code without a failin
 
 ## Why Go makes TDD pleasant
 
-### go test — zero configuration
+### go test: zero configuration
 
 No test runner to install, no configuration files. Put a `_test.go` file next to your code, write functions starting with `Test`, and run `go test ./...`. The convention is the configuration.
 
@@ -122,7 +122,7 @@ Go 1.18 added native fuzzing. Write a `Fuzz` function, seed it with a few cases,
 
 Let's build a small discount calculator, driven from a failing test, and watch how TDD pressure naturally produces a clean strategy-based design.
 
-### Step 1 — Red: write the failing test
+### Step 1: Red, write the failing test
 
 We want to calculate order discounts. Start with the simplest case: no discount.
 
@@ -141,9 +141,9 @@ func TestNoDiscount(t *testing.T) {
 }
 ```
 
-This doesn't compile — `NewCalculator` doesn't exist. Good. Red.
+This doesn't compile. `NewCalculator` doesn't exist. Good. Red.
 
-### Step 2 — Green: make it pass with minimum code
+### Step 2: Green, make it pass with minimum code
 
 ```go
 // discount.go
@@ -170,7 +170,7 @@ func (c *Calculator) FinalPrice(price int64) int64 {
 
 Run `go test`. Green. Now we can extend.
 
-### Step 3 — Red: add a percentage discount test
+### Step 3: Red, add a percentage discount test
 
 ```go
 // discount_test.go
@@ -186,9 +186,9 @@ func TestPercentageDiscount(t *testing.T) {
 }
 ```
 
-Run `go test`. This already passes — our design is general enough. Green without new code.
+Run `go test`. This already passes; our design is general enough. Green without new code.
 
-### Step 4 — Red: composing multiple discounts
+### Step 4: Red, composing multiple discounts
 
 ```go
 // discount_test.go
@@ -205,9 +205,9 @@ func TestStackedDiscounts(t *testing.T) {
 }
 ```
 
-Red — `Stack` doesn't exist.
+Red. `Stack` doesn't exist.
 
-### Step 5 — Green: implement Stack
+### Step 5: Green, implement Stack
 
 ```go
 // discount.go
@@ -227,7 +227,7 @@ func Stack(fns ...DiscountFunc) DiscountFunc {
 
 Green. Now refactor.
 
-### Step 6 — Refactor: table-driven tests
+### Step 6: Refactor, table-driven tests
 
 ```go
 // discount_test.go
@@ -259,7 +259,7 @@ func TestCalculator(t *testing.T) {
 }
 ```
 
-> **Notice what happened.** TDD pressure naturally produced a [Strategy](/go/patterns/behavioral/strategy) pattern — `DiscountFunc` is a function type that encapsulates an algorithm. We didn't set out to implement Strategy; the tests drove us toward it. This is how principles and patterns connect: good tests push you toward good design.
+> **Notice what happened.** TDD pressure naturally produced a [Strategy](/go/patterns/behavioral/strategy) pattern. `DiscountFunc` is a function type that encapsulates an algorithm. We didn't set out to implement Strategy; the tests drove us toward it. This is how principles and patterns connect: good tests push you toward good design.
 
 ## TDD anti-patterns to avoid
 

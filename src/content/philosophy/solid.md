@@ -5,21 +5,21 @@ description: The five SOLID principles, reinterpreted for Go's implicit-interfac
 
 # SOLID Principles
 
-In Go, three of the five SOLID principles apply almost by default: interfaces are implicit and small by convention (ISP), packages compose rather than inherit (OCP), and focused packages are idiomatic (SRP). The two that need deliberate effort are LSP — which in Go is about behavioral contracts for interface implementors, not subclass hierarchies — and DIP, where Go's "accept interfaces, return structs" idiom replaces abstract classes.
+In Go, three of the five SOLID principles apply almost by default: interfaces are implicit and small by convention (ISP), packages compose rather than inherit (OCP), and focused packages are idiomatic (SRP). The two that need deliberate effort are LSP (which in Go is about behavioral contracts for interface implementors, not subclass hierarchies) and DIP, where Go's "accept interfaces, return structs" idiom replaces abstract classes.
 
-Understanding the principles tells you *why* a design choice is good or bad. Patterns tell you *how* to implement a solution. The principles usually point you to the right pattern — or show you that you don't need one. The [Repository](/go/patterns/architectural/repository) pattern is DIP applied to persistence; [Observer](/go/patterns/behavioral/observer) is OCP applied to event notification; [Strategy](/go/patterns/behavioral/strategy) is OCP applied to interchangeable algorithms.
+Understanding the principles tells you *why* a design choice is good or bad. Patterns tell you *how* to implement a solution. The principles usually point you to the right pattern, or show you that you don't need one. The [Repository](/go/patterns/architectural/repository) pattern is DIP applied to persistence; [Observer](/go/patterns/behavioral/observer) is OCP applied to event notification; [Strategy](/go/patterns/behavioral/strategy) is OCP applied to interchangeable algorithms.
 
 ---
 
-## S — Single Responsibility Principle
+## S: Single Responsibility Principle
 
 *"A module should have one, and only one, reason to change."*
 
-In Go, "module" maps most naturally to a package — and within a package, to a single type or function. A struct that handles HTTP routing, business logic, and database queries has three reasons to change. Split it.
+In Go, "module" maps most naturally to a package, and within a package, to a single type or function. A struct that handles HTTP routing, business logic, and database queries has three reasons to change. Split it.
 
-Go's package system encourages this naturally. Small packages with focused APIs are idiomatic. The standard library models this well: `net/http` handles HTTP, `encoding/json` handles JSON — they never mix concerns.
+Go's package system encourages this naturally. Small packages with focused APIs are idiomatic. The standard library models this well: `net/http` handles HTTP, `encoding/json` handles JSON; they never mix concerns.
 
-**Before — the violation:**
+**Before (the violation):**
 
 ```go
 // user.go — one struct doing everything
@@ -50,7 +50,7 @@ func (s *UserService) Register(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-**After — the principle applied:**
+**After (the principle applied):**
 
 ```go
 // store/user.go — data access only
@@ -91,19 +91,19 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-> **Smell:** You change a type for reasons that have nothing to do with each other — fixing a validation rule also requires re-testing the database layer, or changing an HTTP response format forces you to touch business logic.
+> **Smell:** You change a type for reasons that have nothing to do with each other. Fixing a validation rule also requires re-testing the database layer, or changing an HTTP response format forces you to touch business logic.
 
 ---
 
-## O — Open/Closed Principle
+## O: Open/Closed Principle
 
 *"Software entities should be open for extension, closed for modification."*
 
 In inheritance-heavy languages, OCP is about subclassing. In Go, it's about interfaces and composition. When you define behavior through an interface, new implementations can be added without modifying existing code.
 
-The key Go insight: small interfaces (one or two methods) make OCP almost free. `io.Reader`, `io.Writer`, `http.Handler` — these tiny interfaces let the entire ecosystem extend behavior without touching the core.
+The key Go insight: small interfaces (one or two methods) make OCP almost free. `io.Reader`, `io.Writer`, `http.Handler`: these tiny interfaces let the entire ecosystem extend behavior without touching the core.
 
-**Before — the violation:**
+**Before (the violation):**
 
 ```go
 // notification.go — closed to extension, must modify to add types
@@ -121,7 +121,7 @@ func SendNotification(kind string, msg string, recipient string) error {
 }
 ```
 
-**After — the principle applied:**
+**After (the principle applied):**
 
 ```go
 // notifier.go — open for extension via interface
@@ -157,15 +157,15 @@ func SendAll(notifiers []Notifier, recipient, msg string) error {
 
 ---
 
-## L — Liskov Substitution Principle
+## L: Liskov Substitution Principle
 
 *"Subtypes must be substitutable for their base types without altering correctness."*
 
-Go has no subclassing, so LSP isn't about inheritance hierarchies. Instead, it's about interface contracts. Any type that satisfies an interface must honor the behavioral expectations of that interface — not just the method signatures.
+Go has no subclassing, so LSP isn't about inheritance hierarchies. It's about interface contracts. Any type that satisfies an interface must honor the behavioral expectations of that interface, not just the method signatures.
 
 If your `io.Reader`'s `Read` method sometimes returns data without advancing, or your `http.Handler` panics instead of writing a response, you've violated LSP. The compiler won't catch this; tests and documentation must.
 
-**Before — the violation:**
+**Before (the violation):**
 
 ```go
 // Violating LSP — a "Reader" that doesn't behave like one
@@ -196,7 +196,7 @@ func Process(r io.Reader) error {
 }
 ```
 
-**After — the principle applied:**
+**After (the principle applied):**
 
 ```go
 // Honoring the io.Reader contract
@@ -222,17 +222,17 @@ func (r *LimitedReader) Read(p []byte) (int, error) {
 
 ---
 
-## I — Interface Segregation Principle
+## I: Interface Segregation Principle
 
 *"No client should be forced to depend on methods it does not use."*
 
-This is where Go shines. Interfaces in Go are implicitly satisfied and idiomatically small — often just one method. `io.Reader`, `io.Writer`, `fmt.Stringer`, `sort.Interface` — the standard library is built on tiny, focused interfaces.
+This is where Go shines. Interfaces in Go are implicitly satisfied and idiomatically small, often just one method. `io.Reader`, `io.Writer`, `fmt.Stringer`, `sort.Interface`: the standard library is built on tiny, focused interfaces.
 
 The "accept interfaces, return structs" proverb is ISP distilled. When your function only needs to read, accept an `io.Reader`, not an `*os.File`. When you only need to close, accept an `io.Closer`.
 
 ISP is so natural in Go that violating it takes deliberate effort. If you find yourself defining an interface with five or more methods, stop and ask whether every consumer actually needs all of them.
 
-**Before — the violation:**
+**Before (the violation):**
 
 ```go
 // A fat interface that forces implementors to provide everything
@@ -256,7 +256,7 @@ func (s *ReportService) Delete(id string) error { panic("not supported") }
 // ... forced to implement everything just to satisfy the interface
 ```
 
-**After — the principle applied:**
+**After (the principle applied):**
 
 ```go
 // Small, focused interfaces — Go's natural strength
@@ -291,17 +291,17 @@ func GenerateReport(src Lister) (Report, error) {
 
 ---
 
-## D — Dependency Inversion Principle
+## D: Dependency Inversion Principle
 
 *"Depend on abstractions, not concretions."*
 
 In Go, DIP is expressed through the "accept interfaces, return structs" pattern. High-level business logic should depend on small interfaces (abstractions), not on concrete database clients, HTTP packages, or third-party SDKs.
 
-This is the foundation of testable Go code. When your service accepts a `Sender` interface rather than a concrete `*smtp.Client`, you can test it with a simple in-memory fake. No mocking framework needed — just a struct with the right methods.
+This is the foundation of testable Go code. When your service accepts a `Sender` interface rather than a concrete `*smtp.Client`, you can test it with a simple in-memory fake. No mocking framework needed; just a struct with the right methods.
 
 The consumer should define the interface, not the provider. This is the opposite of Java convention but idiomatic in Go. Your handler package defines what it needs; the infrastructure package implements it.
 
-**Before — the violation:**
+**Before (the violation):**
 
 ```go
 // Tightly coupled — depends on concrete types
@@ -323,7 +323,7 @@ func (s *OrderService) Place(o Order) error {
 // Changing the email provider means changing OrderService.
 ```
 
-**After — the principle applied:**
+**After (the principle applied):**
 
 ```go
 // Depends on abstractions defined by the consumer

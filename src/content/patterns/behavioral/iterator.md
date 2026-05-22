@@ -11,11 +11,11 @@ tags: [closures, interfaces]
 
 Go 1.23 made Iterator a first-class language feature: `iter.Seq[T]` (a function of the form `func(yield func(T) bool)`) integrates directly with for-range, replacing the channel-based and explicit `Next()`/`Value()` struct approaches that preceded it. Write the traversal once; every consumer gets a plain `for v := range collection.InOrder()` loop.
 
-This is one of the patterns most transformed by Go's evolution — if you're on 1.23+, external iterator structs are rarely worth reaching for.
+This is one of the patterns most changed by Go's evolution. If you're on 1.23+, external iterator structs are rarely worth reaching for.
 
 ## Problem
 
-You have a binary tree and need to traverse it in multiple ways. Without an iterator abstraction, the traversal logic gets embedded in every function that processes the tree — search, print, collect, and filter all duplicate the same recursive walk.
+You have a binary tree and need to traverse it in multiple ways. Without an iterator abstraction, the traversal logic gets embedded in every function that processes the tree. Search, print, collect, and filter all duplicate the same recursive walk.
 
 ```go
 // duplicated_walk.go
@@ -52,11 +52,11 @@ func CollectInOrder(n *Node) []int {
 // Same walk, three copies. Adding pre-order multiplies this again.
 ```
 
-The traversal logic (go left, visit, go right) is copy-pasted into every function that needs to process the tree. Adding a new traversal order means duplicating all the processing functions.
+The traversal logic (go left, visit, go right) is copy-pasted into every function that needs to process the tree. Adding a new traversal order means duplicating all the processing functions alongside it.
 
 ## Solution
 
-With Go 1.23's range-over-func, define an iterator that yields values. Consumers use a plain for-range loop — the traversal logic is written once.
+With Go 1.23's range-over-func, define an iterator that yields values. Consumers use a plain for-range loop, and the traversal logic is written once.
 
 ```
 ┌─────────────┐
@@ -157,20 +157,22 @@ First 3: 1 2 3
 
 - You need to traverse a data structure without exposing its internals.
 - Multiple consumers need different processing of the same traversal.
-- You want lazy evaluation — don't build a full slice when you only need the first few elements.
-- You're on Go 1.23+ — use `iter.Seq[T]` as the primary approach.
+- You want lazy evaluation: no need to build a full slice when you only need the first few elements.
+- You're on Go 1.23+. Use `iter.Seq[T]` as the primary approach.
 
 ## When Not to Use
 
 - A simple slice covers your needs. `[]T` with a for-range loop is the simplest iterator.
-- The collection is small and fits in memory — just return a slice from a method.
-- You need bidirectional iteration (prev/next) — `iter.Seq` doesn't support this naturally.
+- The collection is small and fits in memory. Just return a slice from a method.
+- You need bidirectional iteration (prev/next). `iter.Seq` doesn't support this naturally.
 
 ## Tradeoffs
 
-The range-over-func form integrates cleanly with Go's syntax and handles early termination via `break` naturally — the `yield` return value propagates the stop signal up the call stack. The main cost is that recursive iterators, like tree traversal, carry goroutine-free stack frames for each level of nesting, which adds overhead compared to a plain recursive function materializing a slice. Before Go 1.23, channel-based iterators were the workaround, but they leak goroutines if the consumer breaks early without draining the channel — a real production bug waiting to happen. The `iter.Seq` approach eliminates that hazard entirely. The trade-off that remains: if you need two-pointer traversal or bidirectional iteration, you'll need to materialize a slice or build an explicit cursor struct.
+The range-over-func form integrates cleanly with Go's syntax and handles early termination via `break` naturally; the `yield` return value propagates the stop signal up the call stack. The main cost is that recursive iterators (like tree traversal) carry goroutine-free stack frames for each level of nesting, which adds overhead compared to a plain recursive function materializing a slice.
+
+Before Go 1.23, channel-based iterators were the common workaround, but they leak goroutines if the consumer breaks early without draining the channel. That's a real production bug waiting to happen. The `iter.Seq` approach eliminates that hazard entirely. The trade-off that remains: if you need two-pointer traversal or bidirectional iteration, you'll need to materialize a slice or build an explicit cursor struct.
 
 ## Related Patterns
 
-- **Composite** — Iterator is the natural way to traverse a Composite tree without exposing its structure; the traversal logic is written once in the iterator and all consumers use for-range.
-- **Visitor** — Iterator provides sequential access to elements; Visitor performs type-specific operations on each element — combine them when you need to traverse a tree and apply different logic per node type.
+- **Composite:** Iterator is the natural way to traverse a Composite tree without exposing its structure. The traversal logic is written once in the iterator; all consumers use for-range.
+- **Visitor:** Iterator provides sequential access to elements; Visitor performs type-specific operations on each element. Combine them when you need to traverse a tree and apply different logic per node type.

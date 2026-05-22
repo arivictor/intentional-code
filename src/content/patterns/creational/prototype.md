@@ -9,11 +9,11 @@ tags: [state, composition]
 
 # Prototype
 
-Go's struct assignment copies by value — clean for `string` and `int` fields, but silently dangerous for `[]string`, `map[string]string`, and pointer fields, which share the same underlying memory with the original. The value of Prototype in Go is not performance (avoiding expensive constructors) but correctness: a `Clone()` method makes deep-copy semantics explicit and localized, so reference types are never accidentally shared between what you thought were independent copies.
+Go's struct assignment copies by value: clean for `string` and `int` fields, but silently dangerous for `[]string`, `map[string]string`, and pointer fields, which share the same underlying memory with the original. The value of Prototype in Go is not performance (avoiding expensive constructors) but correctness. A `Clone()` method makes deep-copy semantics explicit and localized, so reference types are never accidentally shared between what you thought were independent copies.
 
 ## Problem
 
-You have an HTTP request template — a base request with preset headers and query parameters that many parts of the code build on. The template has nested structures: a header map, a slice of query parameters. You need independent copies per request, but Go's assignment operator only does a shallow copy. Modifying the "copy" mutates the template.
+You have an HTTP request template: a base request with preset headers and query parameters that many parts of the code build on. The template has nested structures (a header map, a slice of query parameters). You need independent copies per request, but Go's assignment operator only does a shallow copy. Modifying the "copy" mutates the template.
 
 ```go
 // shallow_bug.go
@@ -121,20 +121,22 @@ users tags:      [v1 users]
 ## When to Use
 
 - You need to create objects that are variations of an existing instance, and construction from scratch is expensive or complex.
-- You want to decouple code from the concrete types it copies — work with a `Cloneable` interface.
+- You want to decouple code from the concrete types it copies: work with a `Cloneable` interface.
 - Your types contain reference types (slices, maps, pointers) and you need truly independent copies.
 
 ## When Not to Use
 
-- Your type is simple and has only value fields — plain struct assignment is the correct copy mechanism.
-- Deep copying is too expensive for your use case — consider immutable shared state ([Flyweight](/go/patterns/structural/flyweight)) instead.
-- You only need a few variations — a constructor with parameters is simpler than cloning and modifying.
+- Your type is simple and has only value fields. Plain struct assignment is the correct copy mechanism.
+- Deep copying is too expensive for your use case. Consider immutable shared state ([Flyweight](/go/patterns/structural/flyweight)) instead.
+- You only need a few variations. A constructor with parameters is simpler than cloning and modifying.
 
 ## Tradeoffs
 
-The `Clone()` method is the right tool when correctness requires truly independent copies of reference types — but it has to be maintained manually. Every time you add a slice, map, or pointer field to a struct, you must also update `Clone()` or you silently introduce a sharing bug. The Go compiler gives you no help here: a forgotten field passes all type checks and only fails at runtime when a mutation bleeds through. Deep-copying large object graphs is also proportionally expensive — if the object you're cloning contains many nested pointers, the clone walks all of them. For objects with circular references, you need to track visited nodes, which adds real complexity. If the primary goal is snapshotting state for undo rather than creating a new independent instance, [Memento](/go/patterns/behavioral/memento) is a more targeted fit.
+The `Clone()` method is the right tool when correctness requires truly independent copies of reference types, but it has to be maintained manually. Every time you add a slice, map, or pointer field to a struct, you must also update `Clone()` or you silently introduce a sharing bug. The Go compiler gives you no help here: a forgotten field passes all type checks and only fails at runtime when a mutation bleeds through.
+
+Deep-copying large object graphs is also proportionally expensive. If the object you're cloning contains many nested pointers, the clone walks all of them. For objects with circular references, you need to track visited nodes, which adds real complexity. If the primary goal is snapshotting state for undo rather than creating a new independent instance, [Memento](/go/patterns/behavioral/memento) is a more targeted fit.
 
 ## Related Patterns
 
-- **Factory Method** — Use Factory Method when creating an object from scratch is straightforward and the choice of which concrete type matters; use Prototype when the existing state of an instance is the right starting point for a new independent copy.
-- **Memento** — Memento also copies object state, but for undo/restore rather than creating new independent instances; the distinction is purpose — Memento saves a snapshot to roll back to, Prototype creates a new peer to build on separately.
+- **Factory Method**: Use Factory Method when creating an object from scratch is straightforward and the choice of which concrete type matters; use Prototype when the existing state of an instance is the right starting point for a new independent copy.
+- **Memento**: Memento also copies object state, but for undo/restore rather than creating new independent instances. The distinction is purpose: Memento saves a snapshot to roll back to, Prototype creates a new peer to build on separately.

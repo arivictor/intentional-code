@@ -10,7 +10,7 @@ isFeatured: false
 
 # Done Channel
 
-A goroutine that nobody can stop is a goroutine leak. It keeps stack memory alive, may hold file descriptors or database connections, and can block other goroutines waiting on its output. The done channel pattern gives every goroutine a way to stop, either by closing a dedicated `done` channel or, more commonly now, by cancelling a `context.Context`.
+A goroutine that nobody can stop is a goroutine leak. It keeps stack memory alive, may hold file descriptors or database connections, and can block other goroutines waiting on its output. The done channel pattern gives every goroutine a way to stop, either by closing a dedicated `done` channel or (the modern form) by cancelling a `context.Context`.
 
 Apply this to any goroutine that isn't guaranteed to terminate on its own.
 
@@ -201,7 +201,7 @@ The cost is verbosity: every blocking operation needs a `select` with `ctx.Done(
 
 ## Related Patterns
 
-- **Pipeline** — every stage's goroutine should select on `ctx.Done()` alongside its channel receive to prevent leaks when a consumer exits early.
-- **Worker Pool** — the pool's workers need `ctx.Done()` to shut down gracefully before the jobs channel is exhausted.
-- **Timeout and Select** — `context.WithTimeout` is the idiomatic way to add a deadline to any goroutine tree.
-- **Errgroup** — uses context cancellation internally; calling `errgroup.WithContext` gives you a group-scoped context that cancels all goroutines on the first error.
+- **Pipeline**: every stage's goroutine should select on `ctx.Done()` alongside its channel receive to prevent leaks when a consumer exits early.
+- **Worker Pool**: the pool's workers need `ctx.Done()` to shut down gracefully before the jobs channel is exhausted.
+- **Timeout and Select**: `context.WithTimeout` is the idiomatic way to add a deadline to any goroutine tree.
+- **Errgroup**: uses context cancellation internally; calling `errgroup.WithContext` gives you a group-scoped context that cancels all goroutines on the first error.

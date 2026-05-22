@@ -9,7 +9,7 @@ tags: [events, distributed, interfaces, dependency-inversion]
 
 # Event Sourcing
 
-Most systems store the current state of an entity. Event Sourcing stores the history of what happened to it instead, and derives current state by replaying that history. Instead of a row that says `balance = 420`, the account aggregate has an event log: `AccountOpened`, `MoneyDeposited(500)`, `MoneyWithdrawn(80)` — and the balance is the sum of those events.
+Most systems store the current state of an entity. Event Sourcing stores the history of what happened to it instead, and derives current state by replaying that history. Instead of a row that says `balance = 420`, the account aggregate has an event log: `AccountOpened`, `MoneyDeposited(500)`, `MoneyWithdrawn(80)`. The balance is the sum of those events.
 
 The audit log is free. Time-travel debugging is built in. You can replay events through a new projection to answer questions you didn't think to ask when the system was built. These benefits come with real costs: queries are harder (read models need projections), replaying long histories is slow without snapshots, and schema evolution for events requires careful versioning.
 
@@ -232,7 +232,7 @@ func (h *AccountCommandHandler) HandleDepositWithSnapshot(ctx context.Context, c
 
 ## Concurrency and Optimistic Locking
 
-When two commands modify the same aggregate concurrently, the second write must detect that the first has already changed the stream. Without a check, both commands load the same events, both produce new events at the same version, and both append — the second write silently overwrites the first.
+When two commands modify the same aggregate concurrently, the second write must detect that the first has already changed the stream. Without a check, both commands load the same events, both produce new events at the same version, and both append. The second write silently overwrites the first.
 
 The fix is optimistic locking: `Append` accepts an `expectedVersion` (the length of events loaded), and the store rejects writes where the stream has advanced beyond that version:
 
@@ -289,11 +289,11 @@ func (s *PostgresEventStore) Append(ctx context.Context, aggregateID string, exp
 }
 ```
 
-Optimistic locking works well when conflicts are rare — a deposit and a withdrawal hitting the same account within milliseconds is uncommon. For high-contention aggregates, a retry loop is acceptable; for truly write-heavy paths, consider sharding or a different aggregate boundary.
+Optimistic locking works well when conflicts are rare. A deposit and a withdrawal hitting the same account within milliseconds is uncommon. For high-contention aggregates, a retry loop is acceptable; for truly write-heavy paths, consider sharding or a different aggregate boundary.
 
 ## When to Use
 
-- You need a full audit trail as a first-class requirement — financial systems, healthcare records, legal contracts.
+- You need a full audit trail as a first-class requirement (financial systems, healthcare records, legal contracts).
 - You need temporal queries: "what was the state at time T?"
 - You have multiple read models with different shapes that evolve over time and can be rebuilt by replaying the log.
 - You're using [CQRS](/go/patterns/architectural/cqrs) and want the event log to drive read-side projections.
@@ -302,15 +302,15 @@ Optimistic locking works well when conflicts are rare — a deposit and a withdr
 
 - Simple CRUD where history doesn't matter. An accounts table is simpler than an event log.
 - The team isn't ready for eventual consistency in read models and the operational complexity of projection rebuilds.
-- The aggregate's event history grows unboundedly fast (millions of events per aggregate per day) — snapshots alone won't save you.
+- The aggregate's event history grows unboundedly fast (millions of events per aggregate per day); snapshots alone won't save you.
 - You need simple point-in-time queries and a soft-delete column would do the job.
 
 ## Tradeoffs
 
-The audit log falls out of the storage strategy, so you can't accidentally skip it. Time-travel and projection rebuilding are useful for debugging and analytics. The costs are real: loading an aggregate requires a database query and a replay loop instead of a single row fetch (mitigated by snapshots), read models are eventually consistent (a projection may lag the event log by milliseconds to seconds), and event schemas must be backward-compatible forever because you can't change historical events. Schema evolution strategies — upcasting old events at read time, versioned event types — add operational discipline that current-state storage doesn't require.
+The audit log falls out of the storage strategy, so you can't accidentally skip it. Time-travel and projection rebuilding are useful for debugging and analytics. The costs are real: loading an aggregate requires a database query and a replay loop instead of a single row fetch (mitigated by snapshots), read models are eventually consistent (a projection may lag the event log by milliseconds to seconds), and event schemas must be backward-compatible forever because you can't change historical events. Schema evolution strategies like upcasting old events at read time or using versioned event types add operational discipline that current-state storage doesn't require.
 
 ## Related Patterns
 
-- **CQRS** — The natural partner: commands produce events appended to the store; read-side projections consume those events to build query-optimized views. Event Sourcing gives CQRS its event log.
-- **Event-Driven Architecture** — Event Sourcing focuses on aggregate state inside a bounded context; Event-Driven Architecture focuses on asynchronous communication between services. The two are complementary: an aggregate's persisted events can also be published to a broker for cross-service consumption.
-- **Domain-Driven Design** — Domain Events in DDD are the events in Event Sourcing. Aggregates emit events during state transitions; the application layer persists and dispatches them.
+- **CQRS:** The natural partner. Commands produce events appended to the store; read-side projections consume those events to build query-optimized views. Event Sourcing gives CQRS its event log.
+- **Event-Driven Architecture:** Event Sourcing focuses on aggregate state inside a bounded context; Event-Driven Architecture focuses on asynchronous communication between services. The two are complementary: an aggregate's persisted events can also be published to a broker for cross-service consumption.
+- **Domain-Driven Design:** Domain Events in DDD are the events in Event Sourcing. Aggregates emit events during state transitions; the application layer persists and dispatches them.

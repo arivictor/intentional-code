@@ -113,7 +113,7 @@ func fetchAll(ctx context.Context, urls []string) error {
 
 ## The x/sync weighted semaphore
 
-For more control — dynamic weights, or avoiding a separate goroutine per job — use `golang.org/x/sync/semaphore`:
+For more control (dynamic weights, or avoiding a separate goroutine per job) use `golang.org/x/sync/semaphore`:
 
 ```go
 import "golang.org/x/sync/semaphore"
@@ -140,7 +140,7 @@ if err := sem.Acquire(ctx, 10); err != nil {
 sem.Release(10)
 ```
 
-Weighted semaphores are useful when jobs have different costs — a large file upload might acquire weight 4 while a small metadata request acquires weight 1.
+Weighted semaphores are useful when jobs have different costs. A large file upload might acquire weight 4 while a small metadata request acquires weight 1.
 
 ## Semaphore vs Worker Pool
 
@@ -169,10 +169,10 @@ If jobs arrive continuously over time, a [Worker Pool](/go/patterns/concurrency/
 
 ## Tradeoffs
 
-The buffered-channel semaphore is simple but has one edge: the acquire (`sem <- struct{}{}`) happens in the calling goroutine before the worker goroutine is spawned. If the context is cancelled while the caller is blocked on the acquire, the cancellation is detected only if you select on `ctx.Done()` — a plain `sem <- struct{}{}` will block forever. The `x/sync/semaphore` package handles this correctly with `Acquire(ctx, n)`.
+The buffered-channel semaphore is simple but has one edge case: the acquire (`sem <- struct{}{}`) happens in the calling goroutine before the worker goroutine is spawned. If the context is cancelled while the caller is blocked on the acquire, the cancellation is detected only if you select on `ctx.Done()`. A plain `sem <- struct{}{}` will block forever. The `x/sync/semaphore` package handles this correctly with `Acquire(ctx, n)`.
 
 ## Related Patterns
 
-- **Worker Pool** — a persistent pool of N goroutines consuming a jobs channel; better for high-volume, continuous workloads.
-- **Fan-out / Fan-in** — fan-out with a semaphore bound is a common lightweight alternative to a full worker pool.
-- **Done Channel** — combine a semaphore with context cancellation to stop new acquisitions when the parent operation is cancelled.
+- **Worker Pool**: a persistent pool of N goroutines consuming a jobs channel; better for high-volume, continuous workloads.
+- **Fan-out / Fan-in**: fan-out with a semaphore bound is a common lightweight alternative to a full worker pool.
+- **Done Channel**: combine a semaphore with context cancellation to stop new acquisitions when the parent operation is cancelled.

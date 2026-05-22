@@ -9,9 +9,9 @@ tags: [closures, state, events]
 
 # Command
 
-In Go, the simplest command is a function value: `queue := []func(){}`. You don't need a struct unless you need `Undo()` or command metadata. When you do, Command encapsulates each operation as a struct that captures everything required to reverse it — the target object, the position, the data that was there before.
+In Go, the simplest command is a function value: `queue := []func(){}`. You don't need a struct unless you need `Undo()` or command metadata. When you do, Command encapsulates each operation as a struct that captures everything required to reverse it: the target object, the position, the data that was there before.
 
-The pattern earns its full weight for text editors, transaction systems, and task queues where operations must be reversible, loggable, or replayable.
+The pattern earns its full weight in text editors, transaction systems, and task queues where operations must be reversible, loggable, or replayable.
 
 ## Problem
 
@@ -145,7 +145,7 @@ After undo:   Hello Beautiful World
 After undo:   Hello World
 ```
 
-> When you don't need undo, a Go function value is the simplest command. `queue := []func(){}` — push functions onto it, pop and call. Only use the struct-based form when you need `Undo()` or command metadata.
+> When you don't need undo, a Go function value is the simplest command. `queue := []func(){}`: push functions onto it, pop and call. Only use the struct-based form when you need `Undo()` or command metadata.
 
 ## When to Use
 
@@ -161,10 +161,12 @@ After undo:   Hello World
 
 ## Tradeoffs
 
-The function-value form costs nothing and is completely idiomatic — if you just need to queue work, use `[]func()`. The struct form earns its weight only when you need undo: each command must capture a complete snapshot of what it changed, which is easy for simple mutations (a position and a string) but gets expensive fast for operations on large data structures. Undo logic is also where bugs hide — the `Execute` path gets tested constantly, but `Undo` only runs when the user hits ctrl-Z, so subtle state corruption can go unnoticed for a long time. The history stack has no built-in redo: if you undo and then run a new command, the redo branch is silently discarded unless you explicitly track it.
+The function-value form costs nothing and is completely idiomatic. If you just need to queue work, use `[]func()`. The struct form earns its weight only when you need undo: each command must capture a complete snapshot of what it changed, which is easy for simple mutations (a position and a string) but gets expensive fast for operations on large data structures.
+
+Undo logic is also where bugs hide. The `Execute` path gets tested constantly, but `Undo` only runs when the user hits Ctrl-Z, so subtle state corruption can go unnoticed for a long time. The history stack has no built-in redo: if you undo and then run a new command, the redo branch is silently discarded unless you explicitly track it.
 
 ## Related Patterns
 
-- **Chain of Responsibility** — Commands can be the handlers in a chain, combining pipeline composability with Command's undo and queuing capabilities.
-- **Memento** — Use Memento alongside Command when reversing an operation isn't enough and you need to restore a full state snapshot — Command records what happened, Memento records what was.
-- **Strategy** — Both encapsulate behavior as a value; reach for Strategy when you need interchangeable algorithms, Command when you also need undo, queuing, or logging of the operations.
+- **Chain of Responsibility:** Commands can be the handlers in a chain, combining pipeline composability with Command's undo and queuing capabilities.
+- **Memento:** Use Memento alongside Command when reversing an operation isn't enough and you need to restore a full state snapshot. Command records what happened; Memento records what was.
+- **Strategy:** Both encapsulate behavior as a value. Reach for Strategy when you need interchangeable algorithms; reach for Command when you also need undo, queuing, or logging of the operations.

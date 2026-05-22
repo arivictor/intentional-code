@@ -9,13 +9,13 @@ tags: [interfaces, composition]
 
 # Visitor
 
-Visitor separates an operation from the types it operates on. Instead of adding a new method to every type each time you need a new operation, the operations live in a visitor struct — each type accepts a visitor and calls the right method on it. In Go, this means every element type implements `Accept(Visitor)`, and the visitor implements one method per element type.
+Visitor separates an operation from the types it operates on. Instead of adding a new method to every type each time you need a new operation, the operations live in a visitor struct. Each type accepts a visitor and calls the right method on it. In Go, this means every element type implements `Accept(Visitor)`, and the visitor implements one method per element type.
 
-Here's the honest truth: Visitor is verbose in Go and often not the best choice. The Go alternative — a type switch — is simpler and covers most use cases. Use Visitor when you need the open/closed principle for operations (adding new operations without modifying element types). Use type-switch when you need simplicity and your element types are stable.
+Here's the honest truth: Visitor is verbose in Go and often not the right choice. The Go alternative (a type switch) is simpler and covers most use cases. Use Visitor when you need the open/closed principle for operations, meaning you want to add new operations without modifying element types. Use a type switch when you need simplicity and your element types are stable.
 
 ## Problem
 
-You have a small expression tree — numbers, addition, multiplication. You need to evaluate it, print it, and eventually type-check it. Without Visitor, each new operation adds a method to every node type.
+You have a small expression tree: numbers, addition, multiplication. You need to evaluate it, print it, and eventually type-check it. Without Visitor, each new operation adds a method to every node type.
 
 ```go
 // bloated_nodes.go
@@ -49,7 +49,7 @@ Each new operation adds a method to every node. The node types become dumping gr
 
 ## Solution
 
-Define a `Visitor` interface with one `Visit` method per node type. Each node has `Accept(Visitor)` that calls the appropriate `Visit` method. New operations are new `Visitor` implementations — node types don't change.
+Define a `Visitor` interface with one `Visit` method per node type. Each node has `Accept(Visitor)` that calls the appropriate `Visit` method. New operations are new `Visitor` implementations; node types don't change.
 
 ```
 Visitor interface               Node interface
@@ -138,25 +138,27 @@ Expression: ((3 + 4) * 2)
 Result:     14
 ```
 
-> In most Go codebases, a type-switch is preferred over Visitor. It's simpler, more readable, and exhaustive-switch linters tell you when you've missed a case. Use Visitor only when you truly need the open/closed principle for operations — e.g., a compiler or interpreter where new analysis passes are added frequently but the AST node types are stable.
+> In most Go codebases, a type switch is preferred over Visitor. It's simpler, more readable, and exhaustive-switch linters tell you when you've missed a case. Use Visitor only when you truly need the open/closed principle for operations, for example in a compiler or interpreter where new analysis passes are added frequently but the AST node types are stable.
 
 ## When to Use
 
 - You need to add many operations to a stable set of element types.
 - Operations are the dimension that changes; element types are stable.
-- You want operations to be defined outside the element types' package.
+- You want operations defined outside the element types' package.
 
 ## When Not to Use
 
-- Element types change frequently — every new type requires updating every Visitor.
-- You have few operations — type-switch is simpler and more Go-idiomatic.
+- Element types change frequently. Every new type requires updating every Visitor.
+- You have few operations. A type switch is simpler and more Go-idiomatic.
 - The double dispatch ceremony (Accept/Visit) feels disproportionate to the problem.
 
 ## Tradeoffs
 
-The open/closed guarantee runs in one direction only: adding a new operation is cheap (one new struct, zero changes to existing code), but adding a new node type forces you to update every existing visitor — the axes are exactly swapped compared to the type-switch. The `interface{}` return type in the example is the main roughness in Go's Visitor: it loses type safety on every `Accept` call and requires type assertions that panic at runtime if you get them wrong. Go generics can help here but add complexity. The verbosity is real and unavoidable — for an expression tree with five node types and ten operations you're writing fifty methods. The pattern pays for itself only when operations genuinely outnumber types and are added more frequently.
+The open/closed guarantee runs in one direction only: adding a new operation is cheap (one new struct, zero changes to existing code), but adding a new node type forces you to update every existing visitor. The axes are exactly swapped compared to the type switch.
+
+The `interface{}` return type in the example is the main roughness in Go's Visitor implementation. It loses type safety on every `Accept` call and requires type assertions that panic at runtime if you get them wrong. Go generics can help here but add complexity. The verbosity is real and unavoidable: for an expression tree with five node types and ten operations, you're writing fifty methods. The pattern pays for itself only when operations genuinely outnumber types and are added more frequently.
 
 ## Related Patterns
 
-- **Composite** — Visitor works best with Composite structures: the Composite defines the tree, Visitor adds operations that traverse it without modifying the node types.
-- **Iterator** — Iterator provides sequential access to elements; Visitor performs type-specific operations on each element — combine them when you need to traverse a tree and apply different logic per node type.
+- **Composite**: Visitor works best with Composite structures: the Composite defines the tree, Visitor adds operations that traverse it without modifying the node types.
+- **Iterator**: Iterator provides sequential access to elements; Visitor performs type-specific operations on each element. Combine them when you need to traverse a tree and apply different logic per node type.

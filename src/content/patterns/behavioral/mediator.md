@@ -9,7 +9,7 @@ tags: [interfaces, dependency-inversion, events]
 
 # Mediator
 
-In a system where every peer knows about every other peer, adding one participant requires updating every other participant's reference list — O(n²) connections growing as the system scales. Mediator collapses this to O(n): each participant holds only a reference to the mediator, which routes messages to whoever needs them.
+In a system where every peer knows about every other peer, adding one participant requires updating every other participant's reference list: O(n²) connections growing as the system scales. Mediator collapses this to O(n). Each participant holds only a reference to the mediator, which routes messages to whoever needs them.
 
 In Go, the mediator is a struct that holds references to the participants. The participants' own types stay small and contain no cross-references to each other.
 
@@ -196,7 +196,7 @@ func main() {
 }
 ```
 
-The HTTP adapter imports `bus` and the command struct, but not the handler package. Handler packages can live in separate packages with no import cycles. This is the same O(n) decoupling the chat room example demonstrates — applied to request dispatching instead of peer messaging.
+The HTTP adapter imports `bus` and the command struct, but not the handler package. Handler packages can live in separate packages with no import cycles. This is the same O(n) decoupling the chat room example demonstrates, applied to request dispatching instead of peer messaging.
 
 ## When to Use
 
@@ -206,15 +206,17 @@ The HTTP adapter imports `bus` and the command struct, but not the handler packa
 
 ## When Not to Use
 
-- Only two objects communicate — direct references are simpler.
+- Only two objects communicate. Direct references are simpler.
 - The mediator becomes a god object that knows too much about its participants.
 - The communication pattern is simple and unlikely to change.
 
 ## Tradeoffs
 
-The main gain is that participants stay small — they only know about the mediator, not about each other. This makes adding a new participant a local change: register with the room and you're done. The cost is that the mediator absorbs all the routing complexity, and as you add features (private messages, topic filtering, muting) it becomes the place where everything hard lives. A mediator that reaches into participant internals to implement its logic has quietly become a god object that violates the encapsulation it was meant to protect. In practice, keep the mediator's interface narrow — it should route, not orchestrate — and split it before it grows beyond one responsibility.
+The main gain is that participants stay small: they only know about the mediator, not about each other. Adding a new participant becomes a local change (register with the room and you're done). The cost is that the mediator absorbs all the routing complexity, and as you add features (private messages, topic filtering, muting) it becomes the place where everything hard lives.
+
+A mediator that reaches into participant internals to implement its logic has quietly become a god object that violates the encapsulation it was meant to protect. In practice, keep the mediator's interface narrow (it should route, not orchestrate) and split it before it grows beyond one responsibility.
 
 ## Related Patterns
 
-- **Facade** — Facade coordinates subsystems on behalf of an external caller; Mediator coordinates peers that could otherwise speak directly to each other — use Facade when the complexity is in the subsystem, Mediator when it's in the peer relationships.
-- **Observer** — Mediator coordinates bidirectionally (participants can send and receive through the hub); Observer is unidirectional (subject notifies listeners, listeners don't respond) — use Mediator when peers need to exchange messages, Observer when one object needs to broadcast state changes to passive listeners.
+- **Facade:** Facade coordinates subsystems on behalf of an external caller; Mediator coordinates peers that could otherwise speak directly to each other. Use Facade when the complexity is in the subsystem; use Mediator when it's in the peer relationships.
+- **Observer:** Mediator coordinates bidirectionally (participants can send and receive through the hub); Observer is unidirectional (subject notifies listeners, listeners don't respond). Use Mediator when peers need to exchange messages; use Observer when one object needs to broadcast state changes to passive listeners.

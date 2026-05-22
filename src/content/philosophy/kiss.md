@@ -7,7 +7,7 @@ description: Complexity is the enemy. The simplest solution that correctly solve
 
 *"Simplicity is the ultimate sophistication."*
 
-KISS — Keep It Simple, Stupid — is not an insult. It's a warning about a bias every engineer carries: the pull toward clever, flexible, extensible solutions when a direct one would do. The most dangerous code is code that solves problems that don't exist yet.
+KISS (Keep It Simple, Stupid) is not an insult. It's a warning about a bias every engineer carries: the pull toward clever, flexible, extensible solutions when a direct one would do. The most dangerous code is code that solves problems that don't exist yet.
 
 Complexity has a cost that compounds. Each additional abstraction layer is a concept every future reader must hold in their head. Each additional configuration knob is a state your tests must cover. Each speculative interface is a constraint your design must honor even as requirements change. Simple code that's wrong is easy to fix. Complex code that's wrong is hard to even diagnose.
 
@@ -120,7 +120,7 @@ func divide(a, b float64) (float64, error) {
 }
 ```
 
-This is simple. The edge case is real. Handling it is not complexity — it's correctness.
+This is simple. The edge case is real. Handling it is not complexity; it's correctness.
 
 ---
 

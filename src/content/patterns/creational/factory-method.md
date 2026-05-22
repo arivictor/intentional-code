@@ -10,9 +10,9 @@ isFeatured: true
 
 # Factory Method
 
-In class-based languages, Factory Method is an abstract class with an overridable creation method. In Go, it's a function that returns an interface — the entire pattern reduces to that. The "factory" is the constructor; the "method" is its return type.
+In class-based languages, Factory Method is an abstract class with an overridable creation method. In Go, it's a function that returns an interface. The entire pattern reduces to that. The "factory" is the constructor; the "method" is its return type.
 
-The pattern earns its keep when you find yourself extending a switch statement every time you add a new type. That switch is a signal: move the selection logic into one place, hide it behind a constructor, and let new implementations register without touching existing code. This is the [Open/Closed Principle](/go/philosophy/solid) in practice — open for extension, closed for modification.
+The pattern earns its keep when you find yourself extending a switch statement every time you add a new type. That switch is a signal: move the selection logic into one place, hide it behind a constructor, and let new implementations register without touching existing code. This is the [Open/Closed Principle](/go/philosophy/solid) in practice: open for extension, closed for modification.
 
 ## Problem
 
@@ -134,20 +134,20 @@ level=info msg="server started"
 - You see a growing switch or if/else chain selecting which type to create based on a runtime value.
 - Different parts of your system need to create objects that share a common interface but differ in implementation.
 - You want to let packages or plugins register new implementations without modifying core code.
-- You need to decouple object creation from usage — the caller should work with the interface, not know the concrete type.
+- You need to decouple object creation from usage: the caller should work with the interface, not know the concrete type.
 
 ## When Not to Use
 
 - You have only one or two implementations and no expectation of more. A plain constructor function (`NewJSONFormatter`) is simpler and more direct.
-- The concrete type matters to the caller — they need access to type-specific methods beyond the interface. In that case, return the concrete type.
-- The factory adds indirection without benefit. Don't add a factory "just in case" — add it when you feel the switch-statement pain.
+- The concrete type matters to the caller: they need access to type-specific methods beyond the interface. In that case, return the concrete type.
+- The factory adds indirection without benefit. Don't add a factory "just in case"; add it when you feel the switch-statement pain.
 
 ## Tradeoffs
 
-The map-of-constructors approach pays for itself quickly: new formats require zero changes to existing code, and each formatter is isolated so a bug in JSON can't break text. The cost is indirection — you must look up the registry to find the concrete type, and unknown format names become runtime errors rather than compile-time ones. The registry is also package-level mutable state, which can cause test flakiness if tests register formats and don't clean up. For small, stable sets of types — say, two formats you're never changing — a plain switch or direct construction is clearer; the factory only earns its overhead when the set of implementations is open-ended or needs to be extended from outside the package.
+The map-of-constructors approach pays for itself quickly: new formats require zero changes to existing code, and each formatter is isolated so a bug in JSON can't break text. The cost is indirection. You must look up the registry to find the concrete type, and unknown format names become runtime errors rather than compile-time ones. The registry is also package-level mutable state, which can cause test flakiness if tests register formats and don't clean up. For small, stable sets of types (say, two formats you're never changing), a plain switch or direct construction is clearer. The factory only earns its overhead when the set of implementations is open-ended or needs to be extended from outside the package.
 
 ## Related Patterns
 
-- **Abstract Factory** — Use Abstract Factory when you need to guarantee that multiple created types come from the same family and work together; Factory Method is simpler when you only need to select one type.
-- **Builder** — Use Builder when construction requires many optional parameters or a meaningful sequence of steps; Factory Method is for selecting *which* type to create, not for configuring a complex one.
-- **Prototype** — Use Prototype when cloning an existing instance is cheaper or more convenient than calling a constructor; Factory Method when you want to encapsulate the constructor selection logic.
+- **Abstract Factory**: Use Abstract Factory when you need to guarantee that multiple created types come from the same family and work together; Factory Method is simpler when you only need to select one type.
+- **Builder**: Use Builder when construction requires many optional parameters or a meaningful sequence of steps; Factory Method is for selecting *which* type to create, not for configuring a complex one.
+- **Prototype**: Use Prototype when cloning an existing instance is cheaper or more convenient than calling a constructor; Factory Method when you want to encapsulate the constructor selection logic.

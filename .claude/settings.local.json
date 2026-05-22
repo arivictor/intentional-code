@@ -22,7 +22,9 @@
       "Bash(npm install *)",
       "Bash(identify public/og-image.png)",
       "Bash(python3 -c \"from PIL import Image; i=Image.open\\('public/og-image.png'\\); print\\(i.size\\)\")",
-      "Bash(node scripts/generate-og.mjs)"
+      "Bash(node scripts/generate-og.mjs)",
+      "Bash(perl -i -pe \"s/single-method strategies — a/single-method strategies; a/\" src/content/patterns/behavioral/strategy.md)",
+      "Bash(grep -v \"^\\\\s*\\\\`\\\\`\\\\`\")"
     ]
   }
 }

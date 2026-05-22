@@ -5,7 +5,7 @@ description: Code is read far more than it is written. Clarity is a feature, not
 
 # Clean Code
 
-Code is read by humans. Compilers don't care about names, structure, or clarity — developers do, and they'll spend far more time reading your code than you spent writing it. Clean code is code that communicates its intent so clearly that the next reader can work with it safely, without needing to reverse-engineer what it does.
+Code is read by humans. Compilers don't care about names, structure, or clarity; developers do, and they'll spend far more time reading your code than you spent writing it. Clean code communicates its intent so clearly that the next reader can work with it safely, without reverse-engineering what it does.
 
 Go's culture pushes hard in this direction: short functions, clear names, explicit error handling, standard formatting via `gofmt`. The language doesn't prevent bad code, but it removes many of the excuses for it.
 
@@ -44,7 +44,7 @@ func hasField(jsonData []byte, fieldName string) bool {
 **Go naming conventions:**
 - Short names for short-lived variables in tight scopes (`i`, `b`, `err`)
 - Descriptive names for package-level declarations and exported symbols
-- Avoid redundant prefixes: `user.UserID` → `user.ID`
+- Avoid redundant prefixes: `user.UserID` becomes `user.ID`
 - Boolean functions read as questions: `isExpired`, `hasPermission`, `canRetry`
 
 ---
@@ -114,7 +114,7 @@ func processOrder(o Order) error {
 
 ## Avoid noise: comments that restate code
 
-Comments should explain *why*, not *what*. If a comment is just prose for the code directly below it, the code needs better names — not a comment.
+Comments should explain *why*, not *what*. If a comment is just prose for the code directly below it, the code needs better names, not a comment.
 
 ```go
 // BAD — the comment says exactly what the code says.
@@ -138,7 +138,7 @@ if isAdmin(user) {
 }
 ```
 
-Write a comment when the code cannot express the *reason* — a non-obvious constraint, a workaround for a known bug in a dependency, a performance tradeoff with measurement results.
+Write a comment when the code cannot express the *reason*: a non-obvious constraint, a workaround for a known bug in a dependency, a performance tradeoff with measurement results attached.
 
 ---
 
@@ -165,7 +165,7 @@ if err := store.Save(order); err != nil {
 
 A codebase is clean when it reads as if it were written by one person with a single style. Inconsistency forces context-switching: the reader has to re-orient every time style shifts.
 
-In Go, `gofmt` handles formatting. Everything else — error handling patterns, naming conventions, struct layout — comes from team discipline. Pick conventions and follow them everywhere. The *which* matters less than the *always*.
+In Go, `gofmt` handles formatting. Everything else (error handling patterns, naming conventions, struct layout) comes from team discipline. Pick conventions and follow them everywhere. The *which* matters less than the *always*.
 
 > **Smell:** You have to read a function three times to understand what it does. A variable named `data`, `result`, `temp`, or `x` at package scope. A function whose name is a verb and a noun joined by "and." A comment that starts with "this function..."
 
@@ -175,7 +175,7 @@ In Go, `gofmt` handles formatting. Everything else — error handling patterns, 
 
 Go's error handling is explicit by design. Three idioms keep it safe and debuggable:
 
-**Wrap errors with context** using `fmt.Errorf` and the `%w` verb. The resulting error is inspectable by callers through the full wrapping chain:
+**Wrap errors with context** using `fmt.Errorf` and the `%w` verb. The resulting error is inspectable by callers through the full wrapping chain, making debugging a production failure much faster:
 
 ```go
 // Wrapping preserves the original error and adds context at each layer.
@@ -184,7 +184,7 @@ if err := store.Save(order); err != nil {
 }
 ```
 
-**Inspect errors structurally** with `errors.Is` and `errors.As` — never by comparing `.Error()` strings:
+**Inspect errors structurally** with `errors.Is` and `errors.As`. Never compare `.Error()` strings:
 
 ```go
 var ErrNotFound = errors.New("not found")

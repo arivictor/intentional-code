@@ -40,7 +40,7 @@ func PublishPost(db *sql.DB, postID string) error {
 }
 ```
 
-The business rule (`status must be "draft"`) is entangled with SQL. There is no way to test `PublishPost` without a real database running.
+The business rule (`status must be "draft"`) is entangled with SQL. There's no way to test `PublishPost` without a real database running.
 
 ## Solution
 
@@ -203,7 +203,7 @@ The PostgreSQL implementation would live in a separate package (needs a real DB 
 
 - Your domain logic needs to be tested without a real database.
 - You want the flexibility to change your persistence layer without touching business logic.
-- Multiple storage backends are needed (e.g., SQL for production, in-memory for tests, Redis for caching).
+- Multiple storage backends are needed (SQL for production, in-memory for tests, Redis for caching).
 - You're following Layered, Clean, or Hexagonal Architecture and need a defined persistence boundary.
 
 ## When Not to Use
@@ -214,11 +214,13 @@ The PostgreSQL implementation would live in a separate package (needs a real DB 
 
 ## Tradeoffs
 
-The primary benefit is testability: the in-memory implementation lets you test all domain logic with no database process and no slow I/O. The interface also documents exactly what persistence operations the domain actually needs, which makes it obvious when a feature is adding an unusual query. The costs are proportional to the number of aggregates: one interface per aggregate grows into many small interfaces, each requiring both a production implementation and an in-memory fake that must stay in sync or tests give false confidence. Complex read requirements (pagination, filtering, sorting, joins) tend to leak through the interface as method parameters, gradually making the interface harder to satisfy and harder to fake accurately.
+The primary benefit is testability: the in-memory implementation lets you test all domain logic with no database process and no slow I/O. The interface also documents exactly what persistence operations the domain actually needs, which makes it obvious when a feature is adding an unusual query.
+
+The costs are proportional to the number of aggregates. One interface per aggregate grows into many small interfaces, each requiring both a production implementation and an in-memory fake that must stay in sync, or tests give false confidence. Complex read requirements (pagination, filtering, sorting, joins) tend to leak through the interface as method parameters, gradually making the interface harder to satisfy and harder to fake accurately.
 
 ## Related Patterns
 
-- **Hexagonal Architecture** — Repository is the canonical example of a driven port. The application defines the interface, and an adapter implements it. Use Repository anywhere you need a persistence port, and Hexagonal as the larger structure that tells you where each piece lives.
-- **Layered Architecture** — Repository sits at the Service-to-Infrastructure boundary. In a strictly layered codebase, it is the main tool for keeping business logic database-agnostic. If you are not doing full Hexagonal or Clean Architecture, Layered plus Repository is often enough.
-- **Domain-Driven Design** — Repositories are a first-class DDD tactical pattern with one repository per aggregate root. DDD adds the constraint that a repository should load and save complete aggregates, not partial state.
-- **Clean Architecture** — Repository interfaces belong in the Use Case (inner) ring, while implementations belong in the outermost Frameworks and Drivers ring. The Dependency Rule means the domain references only the interface, never the implementation.
+- **Hexagonal Architecture:** Repository is the canonical example of a driven port. The application defines the interface; an adapter implements it. Use Repository anywhere you need a persistence port, and Hexagonal as the larger structure that tells you where each piece lives.
+- **Layered Architecture:** Repository sits at the service-to-infrastructure boundary. In a strictly layered codebase, it's the main tool for keeping business logic database-agnostic. If you're not doing full Hexagonal or Clean Architecture, Layered plus Repository is often enough.
+- **Domain-Driven Design:** Repositories are a first-class DDD tactical pattern with one repository per aggregate root. DDD adds the constraint that a repository should load and save complete aggregates, not partial state.
+- **Clean Architecture:** Repository interfaces belong in the Use Case (inner) ring, while implementations belong in the outermost Frameworks and Drivers ring. The Dependency Rule means the domain references only the interface, never the implementation.

@@ -9,13 +9,13 @@ tags: [closures, composition, interfaces]
 
 # Template Method
 
-Template Method defines the skeleton of an algorithm in a base class, letting subclasses override specific steps. In Go, this pattern fights the language — there's no inheritance, no abstract classes, no method overriding. But the problem it solves is real: you need a fixed algorithm structure with pluggable steps.
+Template Method defines the skeleton of an algorithm in a base class, letting subclasses override specific steps. In Go, this pattern fights the language: there's no inheritance, no abstract classes, no method overriding. But the problem it solves is real. You need a fixed algorithm structure with pluggable steps.
 
-The Go solution: pass the variable steps as function values or interfaces via composition. This achieves the same result without fighting the language.
+The Go solution: pass the variable steps as function values or interfaces via composition. Same result, without fighting the language.
 
 ## Problem
 
-You're generating reports in different formats — plain text, CSV, and JSON. The overall process is identical: write a header, write each row, write a footer. Only the formatting step differs, but the skeleton is duplicated for each format.
+You're generating reports in different formats: plain text, CSV, and JSON. The overall process is identical (write a header, write each row, write a footer) but the formatting step differs. The skeleton is duplicated for each format.
 
 ```go
 // duplicated.go
@@ -130,23 +130,25 @@ Charlie
 | Charlie |
 ```
 
-> In Go, Template Method as described in the GoF book (using inheritance and method overriding) is impossible and should not be attempted. The idiomatic Go solution — injecting hook functions or accepting an interface with the variable steps — achieves the same goal through composition.
+> In Go, Template Method as described in the GoF book (using inheritance and method overriding) is impossible and should not be attempted. The idiomatic Go solution, injecting hook functions or accepting an interface with the variable steps, achieves the same goal through composition.
 
 ## When to Use
 
 - You have an algorithm with a fixed structure and one or two steps that vary.
-- In Go: use this when you'd use Template Method in Java — but pass function values instead of overriding methods.
+- In Go: use this when you'd use Template Method in Java, but pass function values instead of overriding methods.
 
 ## When Not to Use
 
-- Most or all steps vary — you don't have a fixed skeleton, you have a completely different algorithm. Use [Strategy](/go/patterns/behavioral/strategy) instead.
-- The skeleton is trivial (2–3 lines). Just inline it.
+- Most or all steps vary. You don't have a fixed skeleton; you have a completely different algorithm. Use [Strategy](/go/patterns/behavioral/strategy) instead.
+- The skeleton is trivial (2-3 lines). Just inline it.
 
 ## Tradeoffs
 
-Function injection is lightweight in Go — no new types required, and the variable steps are explicit in the function signature. The cost appears when there are many hooks: a `Formatter` struct with five or six fields of type `func() string` becomes hard to initialize correctly, and callers must fill every field or get a nil panic at runtime. An interface enforces completeness at compile time, so prefer an interface over a struct-of-functions when the number of hooks grows beyond two or three. The fixed steps in the skeleton are deliberately non-overridable — that's the whole point — but this can feel limiting when a caller needs a slightly different skeleton; at that point, reach for Strategy, which replaces the whole algorithm rather than plugging in pieces.
+Function injection is lightweight in Go. No new types required, and the variable steps are explicit in the function signature.
+
+The cost appears when there are many hooks: a `Formatter` struct with five or six fields of type `func() string` becomes hard to initialize correctly, and callers must fill every field or get a nil panic at runtime. An interface enforces completeness at compile time, so prefer an interface over a struct-of-functions when the number of hooks grows beyond two or three. The fixed steps in the skeleton are deliberately non-overridable (that's the whole point), but this can feel limiting when a caller needs a slightly different skeleton. At that point, reach for Strategy, which replaces the whole algorithm rather than plugging in pieces.
 
 ## Related Patterns
 
-- **Strategy** — Strategy replaces the entire algorithm; Template Method holds the skeleton fixed and replaces one or two steps — prefer Strategy when the overall structure varies, Template Method when only the details do.
-- **Factory Method** — Factory Method is commonly used as one pluggable step inside a Template Method skeleton, where the "how to create the object" step varies while the overall process stays fixed.
+- **Strategy**: Strategy replaces the entire algorithm; Template Method holds the skeleton fixed and replaces one or two steps. Prefer Strategy when the overall structure varies, Template Method when only the details do.
+- **Factory Method**: Factory Method is commonly used as one pluggable step inside a Template Method skeleton, where the "how to create the object" step varies while the overall process stays fixed.

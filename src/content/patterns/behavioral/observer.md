@@ -9,9 +9,9 @@ tags: [interfaces, closures, concurrency, events, testability]
 
 # Observer
 
-In Go, Observer gives you three subscriber mechanisms: interface values (classic, stateful), function values (lighter, more composable), and channels (goroutine-friendly, but requiring careful lifecycle management — a subscriber goroutine that is never unsubscribed leaks). Picking the wrong form for your lifecycle requirements is the most common Observer mistake in Go.
+In Go, Observer gives you three subscriber mechanisms: interface values (classic, stateful), function values (lighter, more composable), and channels (goroutine-friendly, but requiring careful lifecycle management; a subscriber goroutine that is never unsubscribed leaks). Picking the wrong form for your lifecycle requirements is the most common Observer mistake in Go.
 
-The pattern's core guarantee: when the subject's state changes, it doesn't know or care who reacts. Registered observers are notified; the subject imports nothing from observer packages. This is the [Open/Closed Principle](/go/philosophy/solid) applied to event notification — you add new reactions without touching the thing that changed.
+The pattern's core guarantee: when the subject's state changes, it doesn't know or care who reacts. Registered observers are notified; the subject imports nothing from observer packages. This is the [Open/Closed Principle](/go/philosophy/solid) applied to event notification. You add new reactions without touching the thing that changed.
 
 ## Problem
 
@@ -31,7 +31,7 @@ func (c *Config) Reload() {
 }
 ```
 
-The config type directly calls every subsystem that cares about changes. Adding a new listener requires modifying `Reload`. The config package imports logger, server, and metrics packages — a dependency tangle.
+The config type directly calls every subsystem that cares about changes. Adding a new listener requires modifying `Reload`. The config package imports logger, server, and metrics packages, which is a dependency tangle.
 
 ## Solution
 
@@ -137,7 +137,7 @@ Config reloaded: level=warn timeout=30
 
 ## Async Notification
 
-The synchronous `notify()` blocks the subject until every observer completes. When observers do I/O — sending emails, writing metrics — the subject pays for every observer's latency. The async alternative dispatches each observer in its own goroutine:
+The synchronous `notify()` blocks the subject until every observer completes. When observers do I/O (sending emails, writing metrics) the subject pays for every observer's latency. The async alternative dispatches each observer in its own goroutine:
 
 ```go
 // async notify — subject returns immediately; observers run in the background.
@@ -148,7 +148,7 @@ func (c *Config) notifyAsync() {
 }
 ```
 
-Tradeoff: observers may process out of order, and panics in observer goroutines are unrecovered unless you add `recover()`. Errors are silently lost unless the observer has its own error channel.
+Tradeoff: observers may process out of order, and panics in observer goroutines go unrecovered unless you add `recover()`. Errors are silently lost unless the observer has its own error channel.
 
 For tighter goroutine lifecycle control, use channel-based observers instead of an interface. The subject sends on a buffered channel; the observer owns a reader goroutine that exits when the channel is closed:
 
@@ -190,19 +190,23 @@ The reader goroutine exits when `ctx` is cancelled, preventing leaks. The buffer
 
 - Multiple independent components need to react to changes in another component.
 - You want to add new reactions without modifying the thing that changes.
-- The set of listeners is dynamic — subscribers come and go at runtime.
+- The set of listeners is dynamic: subscribers come and go at runtime.
 
 ## When Not to Use
 
 - You have exactly one listener and it won't change. A direct function call is simpler.
-- Notification ordering matters — Observer doesn't guarantee order.
-- The observer needs to send data back to the subject — this creates circular dependencies.
+- Notification ordering matters. Observer doesn't guarantee order.
+- The observer needs to send data back to the subject, which creates circular dependencies.
 
 ## Tradeoffs
 
-The decoupling is genuine: the config package never imports the logger or server packages, which keeps the dependency graph clean. What you lose is traceability — "who's listening to this config?" is invisible from the source code, and a missing `Unsubscribe` call on a long-lived observer is a memory leak. In concurrent programs, the observer list needs a `sync.RWMutex`: reads during `notify` race with writes during `Subscribe`/`Unsubscribe`, and this is exactly the kind of bug that only surfaces under load. The channel-based form avoids the mutex but introduces goroutine lifecycle responsibility — a subscriber goroutine that never exits leaks permanently if the subject is long-lived. The async goroutine form (one `go` per notification) decouples observer latency from the subject — a slow email send no longer delays a metrics update — but removes ordering guarantees: if two notifications fire in quick succession, faster observers may process the second before the first. Channel-based observers restore ordering within each observer (events arrive in send order) while still keeping the subject non-blocking; the trade-off is that a slow reader can fall behind, requiring a decision between buffering (absorb bursts) and dropping (protect the subject) when the buffer fills.
+The decoupling is genuine: the config package never imports the logger or server packages, which keeps the dependency graph clean. What you lose is traceability. "Who's listening to this config?" is invisible from the source code, and a missing `Unsubscribe` call on a long-lived observer is a memory leak.
+
+In concurrent programs, the observer list needs a `sync.RWMutex`. Reads during `notify` race with writes during `Subscribe`/`Unsubscribe`, and this is exactly the kind of bug that only surfaces under load. The channel-based form avoids the mutex but introduces goroutine lifecycle responsibility; a subscriber goroutine that never exits leaks permanently if the subject is long-lived.
+
+The async goroutine form (one `go` per notification) decouples observer latency from the subject. A slow email send no longer delays a metrics update, but ordering guarantees disappear: if two notifications fire in quick succession, faster observers may process the second before the first. Channel-based observers restore ordering within each observer (events arrive in send order) while still keeping the subject non-blocking. The tradeoff is that a slow reader can fall behind, forcing a choice between buffering (absorb bursts) and dropping (protect the subject) when the buffer fills.
 
 ## Related Patterns
 
-- **Mediator** — Mediator is better when several peers need to coordinate bidirectionally (each can send and receive through the hub); prefer Observer when you need one broadcaster and many independent listeners that don't communicate back.
-- **Command** — Use Command alongside Observer when you need to queue, log, or make event notifications undoable — the Command wraps the notification payload; the Observer dispatches it.
+- **Mediator**: Mediator is better when several peers need to coordinate bidirectionally (each can send and receive through the hub). Prefer Observer when you need one broadcaster and many independent listeners that don't communicate back.
+- **Command**: Use Command alongside Observer when you need to queue, log, or make event notifications undoable. The Command wraps the notification payload; the Observer dispatches it.

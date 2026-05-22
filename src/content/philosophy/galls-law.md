@@ -1,13 +1,13 @@
 ---
 title: Gall's Law
-description: Complex systems that work evolved from simple systems that worked. Design for simplicity first — complexity that emerges is manageable; complexity that is designed in is not.
+description: Complex systems that work evolved from simple systems that worked. Design for simplicity first. Complexity that emerges is manageable; complexity that is designed in is not.
 ---
 
 # Gall's Law
 
-*"A complex system that works is invariably found to have evolved from a simple system that worked. A complex system designed from scratch never works and cannot be made to work. You have to start over with a working simple system."* — John Gall, *Systemantics*, 1975
+*"A complex system that works is invariably found to have evolved from a simple system that worked. A complex system designed from scratch never works and cannot be made to work. You have to start over with a working simple system."* (John Gall, *Systemantics*, 1975)
 
-Gall's Law is an observation, not a prescription: complex systems that actually work didn't start complex. They started simple, proved themselves, and accumulated complexity only where the real world demanded it. Attempts to design a complex system from scratch — to anticipate every requirement, every failure mode, every integration — consistently fail.
+Gall's Law is an observation, not a prescription: complex systems that actually work didn't start complex. They started simple, proved themselves, and accumulated complexity only where the real world demanded it. Attempts to design a complex system from scratch (anticipating every requirement, every failure mode, every integration) consistently fail.
 
 The reason is fundamental: a complex system has so many interacting parts that you cannot predict the emergent behaviour without actually running it. Assumptions that seemed reasonable during design turn out to be wrong. Interactions that looked orthogonal turn out to be coupled. The only way to discover these problems is through operation, and the only way to survive them is to have a simple, working foundation to reason from.
 
@@ -34,7 +34,7 @@ type EventBus struct {
 }
 ```
 
-This system is difficult to build, difficult to test, and impossible to debug when something goes wrong. The designer has made dozens of architectural decisions — retry policies, transport layers, schema registries — before a single message has been sent in production. Most of those decisions are wrong, or at least suboptimal for the real workload that emerges.
+This system is difficult to build, difficult to test, and impossible to debug when something goes wrong. The designer has made dozens of architectural decisions (retry policies, transport layers, schema registries) before a single message has been sent in production. Most of those decisions are wrong, or at least suboptimal for the real workload that emerges.
 
 ---
 
@@ -97,9 +97,9 @@ The complexity that was added is motivated by real operational evidence. It solv
 
 The principle applies at every scale:
 
-**Microservices:** Don't start with a microservices architecture. Start with a monolith. When specific services have scaling requirements that the monolith can't meet, extract them. The [Strangler Fig pattern](https://martinfowler.com/bliki/StranglerFigApplication.html) applies Gall's Law to migration — keep the working system running while incrementally replacing parts.
+**Microservices:** Don't start with a microservices architecture. Start with a monolith. When specific services have scaling requirements that the monolith can't meet, extract them. The [Strangler Fig pattern](https://martinfowler.com/bliki/StranglerFigApplication.html) applies Gall's Law to migration: keep the working system running while incrementally replacing parts.
 
-**Databases:** Don't shard on day one. A single Postgres instance handles enormous load. Add read replicas when you have measured read latency. Shard when you have a partition key that matches real access patterns — which you can only identify through operation.
+**Databases:** Don't shard on day one. A single Postgres instance handles enormous load. Add read replicas when you have measured read latency. Shard when you have a partition key that matches real access patterns, which you can only identify through operation.
 
 **Abstractions:** Don't design the plugin system before you have three plugins. The right abstraction emerges from real usage. The Rule of Three (see [DRY](/go/philosophy/dry)) is Gall's Law applied to code.
 
@@ -120,7 +120,7 @@ The distinction is: structural decisions that are genuinely hard to reverse (dat
 
 ## The working simple system as foundation
 
-Gall's Law explains why rewrites fail. A rewrite discards the working simple system — all the edge cases it handles, all the implicit knowledge baked into its behaviour, all the operational experience that shaped it. The rewrite starts from scratch with a complex design and no operational baseline.
+Gall's Law explains why rewrites fail. A rewrite discards the working simple system: all the edge cases it handles, all the implicit knowledge baked into its behaviour, all the operational experience that shaped it. The rewrite starts from scratch with a complex design and no operational baseline.
 
 The alternative is iterative evolution: keep the system running, add complexity in the places where evidence demands it, and retire old approaches incrementally. The system remains understandable because each addition was motivated by a real problem.
 

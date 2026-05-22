@@ -1,6 +1,6 @@
 ---
 title: Functional Programming Principles
-description: Pure functions, immutability, and composability — and how these ideas make Go code more predictable and testable.
+description: Pure functions, immutability, and composability, and how these ideas make Go code more predictable and testable.
 ---
 
 # Functional Programming Principles
@@ -98,7 +98,7 @@ func (c Config) WithHost(host string) Config {
 }
 ```
 
-This pattern — value types that return modified copies — avoids shared mutable state entirely. It's safe to pass `Config` values between goroutines without a mutex.
+This pattern (value types that return modified copies) avoids shared mutable state entirely. It's safe to pass `Config` values between goroutines without a mutex.
 
 ---
 
@@ -155,7 +155,7 @@ emails := Map(activeUsers, func(u User) string { return u.Email })
 
 ## Functional options: clean constructors without overloading
 
-The functional options pattern uses higher-order functions to build flexible constructors — a common Go idiom that avoids both large config structs and function overloading.
+The functional options pattern uses higher-order functions to build flexible constructors. It's a common Go idiom that avoids both large config structs and function overloading.
 
 ```go
 type Server struct {
@@ -199,9 +199,9 @@ srv := NewServer(
 
 Taken too far, functional style in Go produces awkward code. Avoid:
 
-- Folding straightforward loops into recursive functions — Go has no tail-call optimisation
+- Folding straightforward loops into recursive functions (Go has no tail-call optimisation)
 - Chaining function calls to the point where the call stack becomes the control flow
-- Avoiding all state — some state is inherent to the problem; immutability is a tool, not a doctrine
+- Avoiding all state; some state is inherent to the problem, and immutability is a tool, not a doctrine
 
 Use the ideas that make code clearer. Ignore the ones that don't.
 

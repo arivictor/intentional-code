@@ -15,7 +15,7 @@ The key question before reaching for Bridge: are these two dimensions truly inde
 
 ## Problem
 
-You're building a report generator that produces reports in different formats (plain text, JSON) and writes them to different outputs (console, file). Without Bridge, you'd need `PlainTextConsoleReport`, `PlainTextFileReport`, `JSONConsoleReport`, `JSONFileReport` — four types, growing quadratically.
+You're building a report generator that produces reports in different formats (plain text, JSON) and writes them to different outputs (console, file). Without Bridge, you'd need `PlainTextConsoleReport`, `PlainTextFileReport`, `JSONConsoleReport`, `JSONFileReport`: four types, growing quadratically.
 
 ```go
 // explosion.go
@@ -41,7 +41,7 @@ func (r *JSONFileReport) Generate(data string) { /* format as JSON, write to fil
 // Adding "network" output means 2 more types.
 ```
 
-The formatting logic (how to shape the data) is duplicated across output-specific types, and the output logic is duplicated across format-specific types. Two independent axes, one tangled mess.
+The formatting logic is duplicated across output-specific types, and the output logic is duplicated across format-specific types. Two independent axes, one tangled mess.
 
 ## Solution
 
@@ -141,14 +141,16 @@ Report: sales up 12%
 ## When Not to Use
 
 - You only have one dimension of variation. Use a simple interface instead.
-- The two dimensions are tightly coupled and always change together — separation adds complexity without benefit.
+- The two dimensions are tightly coupled and always change together: separation adds complexity without benefit.
 - Your type hierarchy is small and unlikely to grow. Two or three concrete types are fine.
 
 ## Tradeoffs
 
-Bridge prevents a N×M type explosion by decomposing it into N+M — a real win once you have three or more values on each axis. Before that point, the two interfaces and the composition struct feel like overhead for no reason. The abstraction/implementation split is also non-obvious: teams frequently argue about which side a new feature belongs on, and getting it wrong means refactoring later. In Go, Bridge can look identical to Strategy at a glance — the difference is that Strategy varies one algorithm while Bridge explicitly holds two dimensions in a stable, composed relationship. If you have one axis, use Strategy; if you have two, Bridge earns its structure.
+Bridge prevents an N×M type explosion by decomposing it into N+M: a real win once you have three or more values on each axis. Before that point, the two interfaces and the composition struct feel like overhead for no reason. The abstraction/implementation split is also non-obvious; teams frequently argue about which side a new feature belongs on, and getting it wrong means refactoring later.
+
+In Go, Bridge can look identical to Strategy at a glance. The difference is that Strategy varies one algorithm while Bridge explicitly holds two dimensions in a stable, composed relationship. If you have one axis, use Strategy; if you have two, Bridge earns its structure.
 
 ## Related Patterns
 
-- **Adapter** — Adapter fixes an existing mismatch between two interfaces after the fact; Bridge designs the separation upfront so two dimensions can evolve independently without ever creating the mismatch.
-- **Strategy** — Strategy varies one algorithm pluggably via an interface; Bridge varies two dimensions simultaneously — if you only have one dimension of variation, Strategy is simpler and clearer.
+- **Adapter**: Adapter fixes an existing mismatch between two interfaces after the fact; Bridge designs the separation upfront so two dimensions can evolve independently without ever creating the mismatch.
+- **Strategy**: Strategy varies one algorithm pluggably via an interface; Bridge varies two dimensions simultaneously. If you only have one dimension of variation, Strategy is simpler and clearer.

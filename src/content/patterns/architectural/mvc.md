@@ -9,19 +9,19 @@ tags: [interfaces, separation-of-concerns, testability, dependency-inversion]
 
 # MVC / MVP / MVVM
 
-MVC, MVP, and MVVM are three variations on the same core idea: business logic should not live inside the code that renders the UI. They differ in how tightly the view and the mediator are coupled and who initiates the update cycle. In a Go HTTP service, the distinction between the three collapses somewhat — HTTP handlers are stateless, there's no persistent view object, and no data-binding framework. What remains is the essential principle: handlers coordinate, domain packages decide, templates or serializers render.
+MVC, MVP, and MVVM are three variations on the same core idea: business logic should not live inside the code that renders the UI. They differ in how tightly the view and the mediator are coupled, and who initiates the update cycle. In a Go HTTP service, the distinction between the three collapses somewhat. HTTP handlers are stateless, there's no persistent view object, and no data-binding framework. What remains is the essential principle: handlers coordinate, domain packages decide, templates or serializers render.
 
 ## The Three Variants
 
-**MVC (Model-View-Controller):** The Controller receives input, calls the Model (service/domain), and passes data to the View (template or JSON). The View has a reference back to the Model in classic GUI MVC, but in HTTP-based Go this reference disappears — the handler renders the response and the connection closes.
+**MVC (Model-View-Controller):** The Controller receives input, calls the Model (service/domain), and passes data to the View (template or JSON). The View has a reference back to the Model in classic GUI MVC, but in HTTP-based Go this reference disappears. The handler renders the response and the connection closes.
 
-**MVP (Model-View-Presenter):** The Presenter owns all display logic; the View is a dumb interface with no knowledge of the Model. The View calls the Presenter on user events; the Presenter calls the Model and then calls View methods to update the display. This is the form most useful in Go when the "View" is an interface you control — a terminal UI, a test double, or a CLI output writer.
+**MVP (Model-View-Presenter):** The Presenter owns all display logic; the View is a dumb interface with no knowledge of the Model. The View calls the Presenter on user events; the Presenter calls the Model and then calls View methods to update the display. This form is most useful in Go when the "View" is an interface you control: a terminal UI, a test double, or a CLI output writer.
 
-**MVVM (Model-View-ViewModel):** The ViewModel exposes observable properties that the View binds to automatically. Popular in frontend frameworks (React, SwiftUI, Kotlin Compose). In Go backend services, this is rarely applicable directly, but the ViewModel concept — a struct shaped specifically for the view's needs, not the domain's — is useful for keeping domain types out of JSON responses.
+**MVVM (Model-View-ViewModel):** The ViewModel exposes observable properties that the View binds to automatically. Popular in frontend frameworks (React, SwiftUI, Kotlin Compose). In Go backend services, this is rarely applicable directly, but the ViewModel concept (a struct shaped specifically for the view's needs, not the domain's) is useful for keeping domain types out of JSON responses.
 
 ## Problem
 
-Business logic leaks into HTTP handlers. The handler queries the database directly, applies discount rules, formats output, and returns JSON — all in one function. Adding a CLI client means duplicating the discount logic. Testing the discount logic requires an HTTP test server.
+Business logic leaks into HTTP handlers. The handler queries the database directly, applies discount rules, formats output, and returns JSON, all in one function. Adding a CLI client means duplicating the discount logic. Testing the discount logic requires an HTTP test server.
 
 ```go
 // handler.go — business logic embedded in the handler
@@ -178,7 +178,7 @@ func main() {
 // GET /orders?id=ord-99 → 404 not found
 ```
 
-**MVP for a CLI or terminal UI** (illustrative — shows the Presenter pattern with a View interface):
+**MVP for a CLI or terminal UI** (illustrative, shows the Presenter pattern with a View interface):
 
 ```go
 // Presenter with a View interface — the View is injected, making the Presenter
@@ -212,21 +212,21 @@ func (v *captureView) ShowError(msg string)       { v.errMsg = msg }
 
 ## When to Use
 
-- **MVC** — any HTTP service where you want handlers to be thin coordinators and the domain logic to be independently testable.
-- **MVP** — when the view is controlled through an interface (CLI, terminal UI, test double) and you need complete isolation of display logic.
-- **MVVM** — when your view layer has data-binding capabilities (frontend frameworks, desktop UI); less common in Go backends but the ViewModel concept (response DTO shaped for the view) applies everywhere.
+- **MVC** fits any HTTP service where you want handlers to be thin coordinators and domain logic to be independently testable.
+- **MVP** works well when the view is controlled through an interface (CLI, terminal UI, test double) and you need complete isolation of display logic.
+- **MVVM** is most relevant when your view layer supports data binding (frontend frameworks, desktop UI); less common in Go backends, but the ViewModel concept (a response DTO shaped for the view) applies everywhere.
 
 ## When Not to Use
 
-- A simple CRUD endpoint with no business logic — splitting three layers for a thin wrapper adds indirection without benefit.
+- A simple CRUD endpoint with no business logic: splitting three layers for a thin wrapper adds indirection without benefit.
 - A script or one-shot tool where UI and logic are naturally one function.
 
 ## Tradeoffs
 
-The separation makes the service layer independently testable, reusable across delivery mechanisms (HTTP, gRPC, CLI), and easier to reason about. The cost is indirection: more files, more types, more wiring. The ViewModel/response DTO type (the `OrderResponse` above) is often dismissed as boilerplate, but it serves a real purpose — domain types leak internal structure into the API surface unless something explicitly shapes the output. Avoid "view-aware" leakage in both directions: don't let `http.Request` reach the service layer, and don't let domain types reach the JSON serializer.
+The separation makes the service layer independently testable, reusable across delivery mechanisms (HTTP, gRPC, CLI), and easier to reason about. The cost is indirection: more files, more types, more wiring. The ViewModel/response DTO type (the `OrderResponse` above) is often dismissed as boilerplate, but it serves a real purpose. Domain types leak internal structure into the API surface unless something explicitly shapes the output. Avoid "view-aware" leakage in both directions: don't let `http.Request` reach the service layer, and don't let domain types reach the JSON serializer.
 
 ## Related Patterns
 
-- **Layered Architecture** — MVC is often implemented as one layer of a broader layered system. The Controller lives in the presentation layer, the Model in the service and data layers.
-- **Clean Architecture / Hexagonal Architecture** — Both formalize the inward dependency rule that MVC implies: the domain (Model) imports nothing from the outer layers. The HTTP handler is one of many possible adapters.
-- **Repository** — The Model's data access layer. The service calls the repository interface; the handler never touches persistence directly.
+- **Layered Architecture:** MVC is often implemented as one layer of a broader layered system. The Controller lives in the presentation layer; the Model lives in the service and data layers.
+- **Clean Architecture / Hexagonal Architecture:** Both formalize the inward dependency rule that MVC implies: the domain (Model) imports nothing from the outer layers. The HTTP handler is one of many possible adapters.
+- **Repository:** The Model's data access layer. The service calls the repository interface; the handler never touches persistence directly.

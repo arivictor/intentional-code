@@ -9,9 +9,9 @@ tags: [interfaces, closures, testability, dependency-inversion]
 
 # Strategy
 
-Strategy defines a family of algorithms and makes them interchangeable. In Go, the most idiomatic form is a function type — you pass a function value rather than creating an interface with a single method. Use the interface form when the strategy has multiple methods or carries state.
+Strategy defines a family of algorithms and makes them interchangeable. In Go, the most idiomatic form is a function type: pass a function value rather than creating an interface with a single method. Use the interface form when the strategy has multiple methods or carries state.
 
-This is the [Open/Closed Principle](/go/philosophy/solid) applied to algorithms — the context is open to new behaviours without modifying existing code. It's also one of the patterns that becomes nearly invisible in Go. When someone passes a `func` to a constructor or a `sort.Slice` call, they're using Strategy without naming it.
+This is the [Open/Closed Principle](/go/philosophy/solid) applied to algorithms. The context is open to new behaviours without modifying existing code. It's also one of the patterns that becomes nearly invisible in Go. When someone passes a `func` to a constructor or a `sort.Slice` call, they're using Strategy without naming it.
 
 ## Problem
 
@@ -46,7 +46,7 @@ Notify(msg, SMS)     ──► func(string) error
 Notify(msg, Console) ──► func(string) error
 ```
 
-The function-type approach — idiomatic Go:
+The function-type approach, idiomatic Go:
 
 ```go
 package main
@@ -120,7 +120,7 @@ func main() {
 }
 ```
 
-> In Go, a function type IS a strategy. `sort.Slice(data, func(i, j int) bool { ... })` is Strategy. You don't need an interface for single-method strategies — a `func` type is simpler and more idiomatic.
+> In Go, a function type IS a strategy. `sort.Slice(data, func(i, j int) bool { ... })` is Strategy. You don't need an interface for single-method strategies; a `func` type is simpler and more idiomatic.
 
 ## When to Use
 
@@ -136,11 +136,13 @@ func main() {
 
 ## Tradeoffs
 
-The function-type form costs almost nothing in Go — passing a `func` is idiomatic and adds no boilerplate. The interface form adds a little more structure but buys you config state and the ability to introspect the strategy (e.g., a `Name()` method for logging). The cost that never goes away is that the switch doesn't disappear — it moves to the caller. If every call site does `if userType == "premium" { send = PremiumNotifier{} }`, you've relocated the problem rather than solved it. Centralise strategy selection in a factory or constructor, not scattered across call sites.
+The function-type form costs almost nothing in Go. Passing a `func` is idiomatic and adds no boilerplate. The interface form adds a little more structure but buys you config state and the ability to introspect the strategy (for example, a `Name()` method for logging).
+
+The cost that never goes away is that the switch doesn't disappear; it moves to the caller. If every call site does `if userType == "premium" { send = PremiumNotifier{} }`, you've relocated the problem rather than solved it. Centralise strategy selection in a factory or constructor, not scattered across call sites.
 
 ## Related Patterns
 
-- **Bridge** — Strategy varies one interchangeable algorithm; Bridge separates two independent dimensions of variation simultaneously — if you have two axes (abstraction + implementation), Bridge; if you have one (algorithm selection), Strategy.
-- **State** — Both swap behavior at runtime; the distinction is who controls the swap — Strategy is chosen and set by an external caller, State transitions internally in response to events.
-- **Template Method** — Template Method holds the algorithm skeleton fixed and plugs in one or two steps; Strategy replaces the whole algorithm — prefer Template Method when the structure matters, Strategy when it doesn't.
-- **Command** — Both encapsulate behavior as a value; Command adds undo and queuing on top — if you need those capabilities, use Command; if you only need interchangeability, Strategy is simpler.
+- **Bridge**: Strategy varies one interchangeable algorithm; Bridge separates two independent dimensions of variation simultaneously. If you have two axes (abstraction + implementation), use Bridge. If you have one (algorithm selection), use Strategy.
+- **State**: Both swap behavior at runtime. The distinction is who controls the swap: Strategy is chosen and set by an external caller; State transitions internally in response to events.
+- **Template Method**: Template Method holds the algorithm skeleton fixed and plugs in one or two steps; Strategy replaces the whole algorithm. Prefer Template Method when the structure matters, Strategy when it doesn't.
+- **Command**: Both encapsulate behavior as a value; Command adds undo and queuing on top. If you need those capabilities, use Command. If you only need interchangeability, Strategy is simpler.

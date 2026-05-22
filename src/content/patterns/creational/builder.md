@@ -9,7 +9,7 @@ tags: [closures, composition, dependency-inversion]
 
 # Builder
 
-Long parameter lists cause two problems: callers must fill every position even for optional fields, and zero values become ambiguous (`timeout=0` could mean "no timeout" or "instant timeout"). In Go, the functional options pattern solves both — a variadic list of option functions lets callers specify only what they need, defaults are centralized in the constructor, and adding new options never breaks existing call sites.
+Long parameter lists cause two problems: callers must fill every position even for optional fields, and zero values become ambiguous (`timeout=0` could mean "no timeout" or "instant timeout"). In Go, the functional options pattern solves both. A variadic list of option functions lets callers specify only what they need, defaults are centralized in the constructor, and adding new options never breaks existing call sites.
 
 The classic chained builder also works in Go and is preferable when construction has a meaningful order or when you want to reuse a partially configured builder across multiple similar objects.
 
@@ -40,7 +40,7 @@ func NewClient(
 // c := NewClient("https://api.example.com", 5*time.Second, 3, "myapp/1.0", "key-123", 10)
 ```
 
-The caller must remember the position of every argument. Zero values are ambiguous — is `retries=0` "no retries" or "use the default"? Adding a new parameter changes every call site.
+The caller must remember the position of every argument. Zero values are ambiguous: is `retries=0` "no retries" or "use the default"? Adding a new parameter changes every call site.
 
 ## Solution
 
@@ -135,20 +135,20 @@ Client{url=https://api.example.com, timeout=30s, retries=5, ua=myapp/2.0}
 
 - A constructor needs more than 3–4 optional parameters.
 - You want sensible defaults with the ability to override any subset.
-- The API needs to be extensible — adding options shouldn't break existing callers.
+- The API needs to be extensible: adding options shouldn't break existing callers.
 - Configuration is provided at construction time and doesn't change afterward.
 
 ## When Not to Use
 
 - The object has only a few required fields and no optional ones. A plain `NewX(a, b)` is simpler.
-- Construction has a meaningful sequence of steps that must be followed in order — use a chained builder or a step-interface builder instead.
-- You need to reuse a partially configured builder to stamp out similar objects — the functional options pattern creates a new config each time.
+- Construction has a meaningful sequence of steps that must be followed in order. Use a chained builder or a step-interface builder instead.
+- You need to reuse a partially configured builder to stamp out similar objects. The functional options pattern creates a new config each time.
 
 ## Tradeoffs
 
-The functional options pattern costs almost nothing at the call site — callers only name what they care about, and adding a new option never breaks existing code. The cost is one extra function per option, which adds up in large APIs; a twenty-option type means twenty small functions to write and test. Option validation happens at runtime inside the constructor, not at compile time — an invalid combination (mutually exclusive options, out-of-range values) won't be caught until the constructor runs. The pattern also doesn't compose naturally when you want to reuse a partially built object: each `NewClient` call starts fresh from defaults, so you can't cheaply stamp out five clients that share most settings without building a preset slice of options yourself.
+The functional options pattern costs almost nothing at the call site: callers only name what they care about, and adding a new option never breaks existing code. The cost is one extra function per option, which adds up in large APIs. A twenty-option type means twenty small functions to write and test. Option validation happens at runtime inside the constructor, not at compile time, so an invalid combination (mutually exclusive options, out-of-range values) won't be caught until the constructor runs. The pattern also doesn't compose naturally when you want to reuse a partially built object: each `NewClient` call starts fresh from defaults, so you can't cheaply stamp out five clients that share most settings without building a preset slice of options yourself.
 
 ## Related Patterns
 
-- **Factory Method** — Use Factory Method when the choice of *which type* to create is the core decision; use Builder when you need fine-grained control over *how* one specific type is constructed with many optional parameters.
-- **Abstract Factory** — Use Abstract Factory when you need a consistent family of related objects created together; use Builder when you need one complex object configured precisely, with defaults and overrides.
+- **Factory Method**: Use Factory Method when the choice of *which type* to create is the core decision; use Builder when you need fine-grained control over *how* one specific type is constructed with many optional parameters.
+- **Abstract Factory**: Use Abstract Factory when you need a consistent family of related objects created together; use Builder when you need one complex object configured precisely, with defaults and overrides.

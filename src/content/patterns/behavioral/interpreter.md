@@ -9,7 +9,7 @@ tags: [interfaces, recursion, composition]
 
 # Interpreter
 
-Interpreter defines a grammar as a set of types — one type per grammar rule — and evaluates a sentence by walking the resulting tree. Every node implements a shared interface with a single method (`Interpret`, `Eval`, or `Execute`). Composite nodes (binary operations, sequences) hold child nodes and delegate to them recursively; terminal nodes (literals, variables) return a value directly.
+Interpreter defines a grammar as a set of types (one type per grammar rule) and evaluates a sentence by walking the resulting tree. Every node implements a shared interface with a single method (`Interpret`, `Eval`, or `Execute`). Composite nodes (binary operations, sequences) hold child nodes and delegate to them recursively; terminal nodes (literals, variables) return a value directly.
 
 The pattern is a natural fit for small, domain-specific languages: filter expressions, arithmetic evaluators, rule engines, and template renderers. For large or performance-critical grammars, a dedicated parser generator or bytecode VM will outperform a hand-rolled tree, but for a DSL that fits in a hundred rules, Interpreter keeps the grammar visible and testable.
 
@@ -35,7 +35,7 @@ func evaluate(expr string, record map[string]interface{}) bool {
 
 ## Solution
 
-Map each grammar rule to a struct implementing `Expression`. The tree structure mirrors the grammar structure, and adding a new rule means adding a new struct — no modification to existing types.
+Map each grammar rule to a struct implementing `Expression`. The tree structure mirrors the grammar structure, and adding a new rule means adding a new struct with no modification to existing types.
 
 ```
 ┌───────────────────────────────────────────┐
@@ -147,21 +147,23 @@ Adding a new operator (`>=`) means adding one case to `CompareExpr.Interpret`. A
 ## When to Use
 
 - You need to evaluate expressions or rules defined at runtime, not compile time.
-- The grammar is small and stable — a handful of rules, not a general-purpose language.
+- The grammar is small and stable (a handful of rules, not a general-purpose language).
 - You want each rule to be independently testable as a unit.
 
 ## When Not to Use
 
-- The grammar is large or deeply nested — the tree becomes expensive to traverse on each evaluation.
-- You need good error messages from a parser, line numbers, and recovery — a proper parser generator (ANTLR, PEG, etc.) does this far better.
-- Performance is critical — a bytecode VM or compiled approach will outperform a recursive tree walk by an order of magnitude.
+- The grammar is large or deeply nested. The tree becomes expensive to traverse on each evaluation.
+- You need good error messages from a parser, line numbers, and recovery. A proper parser generator (ANTLR, PEG, etc.) does this far better.
+- Performance is critical. A bytecode VM or compiled approach will outperform a recursive tree walk by an order of magnitude.
 
 ## Tradeoffs
 
-Each grammar rule is isolated and testable — you can unit test `AndExpr` without a parser by constructing the tree directly. Adding a new rule is additive, not a modification. The downside is that a deep or wide tree introduces significant allocation and indirection. For long-lived filter expressions evaluated millions of times per second, compile the expression to a closure or bytecode instead of walking the tree on every call. The context map (`map[string]any`) is convenient but loses type safety; typed context structs improve performance and catch field name typos at compile time.
+Each grammar rule is isolated and testable: you can unit test `AndExpr` without a parser by constructing the tree directly. Adding a new rule is additive, not a modification. The downside is that a deep or wide tree introduces significant allocation and indirection. For long-lived filter expressions evaluated millions of times per second, compile the expression to a closure or bytecode rather than walking the tree on every call.
+
+The context map (`map[string]any`) is convenient but loses type safety. Typed context structs improve performance and catch field name typos at compile time.
 
 ## Related Patterns
 
-- **Composite** — Interpreter's composite expressions are a direct application of Composite: each expression is either a leaf (terminal) or a container of child expressions (non-terminal). Interpreter gives Composite a purpose; Composite provides the structural foundation.
-- **Visitor** — Use Visitor alongside Interpreter when you need multiple operations over the same expression tree (evaluate, pretty-print, type-check, optimize) without adding methods to each node type.
-- **Iterator** — When evaluating an Interpreter tree over a sequence of records, an Iterator provides the traversal over the record set while the Interpreter handles the predicate logic.
+- **Composite:** Interpreter's composite expressions are a direct application of Composite: each expression is either a leaf (terminal) or a container of child expressions (non-terminal). Interpreter gives Composite a purpose; Composite provides the structural foundation.
+- **Visitor:** Use Visitor alongside Interpreter when you need multiple operations over the same expression tree (evaluate, pretty-print, type-check, optimize) without adding methods to each node type.
+- **Iterator:** When evaluating an Interpreter tree over a sequence of records, an Iterator provides the traversal over the record set while the Interpreter handles the predicate logic.

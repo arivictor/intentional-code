@@ -13,9 +13,9 @@ A distributed system can't use a database transaction to span multiple services.
 
 There are two coordination styles:
 
-**Choreography:** Each service publishes an event on success. Other services subscribe to that event and execute their own step. No central coordinator; the workflow emerges from the event flow. Simple to implement; harder to reason about as the number of steps grows.
+**Choreography:** Each service publishes an event on success. Other services subscribe to that event and execute their own step. No central coordinator; the workflow emerges from the event flow. Simple to implement, but harder to reason about as the number of steps grows.
 
-**Orchestration:** A saga coordinator (a struct or a service) drives the workflow explicitly — call step 1, wait for result, call step 2, and so on. Easier to reason about and monitor; the coordinator is a single point of failure and complexity.
+**Orchestration:** A saga coordinator (a struct or a service) drives the workflow explicitly. Call step 1, wait for result, call step 2, and so on. Easier to reason about and monitor; the coordinator is a single point of failure and complexity.
 
 ## Problem
 
@@ -162,7 +162,7 @@ func (s *BillingHandler) OnInventoryReserved(ctx context.Context, evt InventoryR
 }
 ```
 
-Compensating transactions must be idempotent — if the refund message is delivered twice, the second call must be safe:
+Compensating transactions must be idempotent. If the refund message is delivered twice, the second call must be safe:
 
 ```go
 // Idempotent compensation: check before acting
@@ -291,7 +291,7 @@ func ResumeSaga(ctx context.Context, store SagaStore, saga *DurableOrderSaga, id
 }
 ```
 
-Each service call should carry an idempotency key (typically the saga ID plus the step name) so that retried calls after a crash don't double-charge or double-reserve. A saga that crashes after charging but before recording `charge_customer` will retry the charge on resume — the billing service must recognise the idempotency key and return success without charging again.
+Each service call should carry an idempotency key (typically the saga ID plus the step name) so that retried calls after a crash don't double-charge or double-reserve. A saga that crashes after charging but before recording `charge_customer` will retry the charge on resume. The billing service must recognize the idempotency key and return success without charging again.
 
 ## When to Use
 
@@ -301,16 +301,18 @@ Each service call should carry an idempotency key (typically the saga ID plus th
 
 ## When Not to Use
 
-- All data lives in a single database — use a regular transaction.
-- Compensation is not possible or meaningful (you can't "unsend" an email; use outbox pattern or accept it).
+- All data lives in a single database. Use a regular transaction.
+- Compensation is not possible or meaningful (you can't "unsend" an email; use the outbox pattern or accept it).
 - The workflow is so short-lived that eventual consistency and compensations are overkill.
 
 ## Tradeoffs
 
-The orchestration style puts the workflow in one place — easy to read, trace, and modify — but the coordinator is a dependency for every step and a complexity concentration point. Choreography distributes workflow across services — no single point of failure — but the sequence is implicit in the event flow, which makes it harder to trace ("which service handles `inventory.reserve.failed`?"). Both styles require compensating transactions to be idempotent, because at-least-once delivery means they will sometimes be called more than once. Compensations must never fail permanently; if a refund fails, you need a retry mechanism and dead-letter queue, not a return value nobody watches.
+The orchestration style puts the workflow in one place: easy to read, trace, and modify. The coordinator is a dependency for every step and a complexity concentration point. Choreography distributes workflow across services with no single point of failure, but the sequence is implicit in the event flow, which makes it harder to trace ("which service handles `inventory.reserve.failed`?").
+
+Both styles require compensating transactions to be idempotent, because at-least-once delivery means they will sometimes be called more than once. Compensations must never fail permanently. If a refund fails, you need a retry mechanism and dead-letter queue, not a return value nobody watches.
 
 ## Related Patterns
 
-- **Event-Driven Architecture** — Choreography sagas are built on event-driven communication. Each service publishes facts; other services subscribe and react. The Saga pattern adds the concept of compensating transactions to the event-driven model.
-- **Event Sourcing** — Saga state (which steps have completed, which compensations are needed) can be stored as events in an event log, giving you a full history of the saga's progress.
-- **CQRS** — Command handlers often initiate sagas. The saga coordinates writes across services; CQRS separates the write-side command handling from the read-side query model.
+- **Event-Driven Architecture:** Choreography sagas are built on event-driven communication. Each service publishes facts; other services subscribe and react. The Saga pattern adds the concept of compensating transactions to the event-driven model.
+- **Event Sourcing:** Saga state (which steps have completed, which compensations are needed) can be stored as events in an event log, giving you a full history of the saga's progress.
+- **CQRS:** Command handlers often initiate sagas. The saga coordinates writes across services; CQRS separates the write-side command handling from the read-side query model.

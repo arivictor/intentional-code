@@ -1,13 +1,13 @@
 ---
 title: Separation of Concerns
-description: Each part of a system should address exactly one concern — and the boundaries between parts should be explicit.
+description: Each part of a system should address exactly one concern, and the boundaries between parts should be explicit.
 ---
 
 # Separation of Concerns
 
-*"Separation of concerns, even if not perfectly possible, is yet the only available technique for effective ordering of one's thoughts."* — Edsger Dijkstra, 1974
+*"Separation of concerns, even if not perfectly possible, is yet the only available technique for effective ordering of one's thoughts."* (Edsger Dijkstra, 1974)
 
-A concern is a distinct responsibility — something a piece of software must do, know, or decide. Separation of Concerns (SoC) says those responsibilities should live in distinct places, with clear boundaries between them. When concerns are mixed, a change in one area ripples unpredictably into others.
+A concern is a distinct responsibility: something a piece of software must do, know, or decide. Separation of Concerns (SoC) says those responsibilities should live in distinct places, with clear boundaries between them. When concerns are mixed, a change in one area ripples unpredictably into others.
 
 SoC is closely related to the Single Responsibility Principle, but it operates at a higher level. SRP says a *type* should have one reason to change. SoC says an entire *layer or module* should address one domain of the problem. Both are expressions of the same underlying idea: isolate what changes together.
 
@@ -133,13 +133,13 @@ func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-When the business rule changes (minimum order amount, discount logic, inventory check), you edit the handler. When the database schema changes, you edit the handler. The handler has three reasons to change — a violation of both SoC and SRP.
+When the business rule changes (minimum order amount, discount logic, inventory check), you edit the handler. When the database schema changes, you edit the handler. The handler has three reasons to change, which violates both SoC and SRP.
 
 ---
 
 ## Package boundaries in Go
 
-Go's package system is the natural mechanism for enforcing SoC. A package should represent a single concern. Packages that import each other in cycles are a signal that concerns have leaked — two packages are so entangled that neither can stand alone.
+Go's package system is the natural mechanism for enforcing SoC. A package should represent a single concern. Packages that import each other in cycles are a signal that concerns have leaked; two packages become so entangled that neither can stand alone.
 
 ```
 cmd/          — entry points, wires dependencies together

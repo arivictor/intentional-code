@@ -9,7 +9,7 @@ tags: [interfaces, composition, dependency-inversion, testability]
 
 # Abstract Factory
 
-Abstract Factory solves a specific problem: your system needs families of related objects that must be used together — a JSON encoder paired with a JSON decoder, not a JSON encoder with a CSV decoder — and the entire family should be swappable as a unit.
+Abstract Factory solves a specific problem: your system needs families of related objects that must be used together. A JSON encoder paired with a JSON decoder, not a JSON encoder with a CSV decoder. The entire family should be swappable as a unit.
 
 In Go, the pattern is an interface whose methods each return a product interface. One struct per family satisfies the factory interface, and the compiler enforces that code written against that interface can never accidentally mix families. This is the critical advantage over individual [Factory Methods](/go/patterns/creational/factory-method): a factory method prevents you from picking the wrong *type*, but it can't prevent you from picking types from different families.
 
@@ -155,15 +155,15 @@ Output:
 
 ## When Not to Use
 
-- You only have one product type — use [Factory Method](/go/patterns/creational/factory-method) instead.
-- The products in each family are trivially different — the abstraction overhead isn't justified.
+- You only have one product type. Use [Factory Method](/go/patterns/creational/factory-method) instead.
+- The products in each family are trivially different. The abstraction overhead isn't justified.
 - You don't actually need family consistency. If mixing is fine, individual factory functions are simpler.
 
 ## Tradeoffs
 
-Abstract Factory provides the strongest consistency guarantee in Go's creational toolkit — the compiler makes it impossible to pair a JSON reader with a CSV writer. That guarantee comes at a real cost: adding a new product type (say, a `Compressor`) requires changing the factory interface and every implementation that satisfies it. If you have three families and add one method, you touch four files. In Go, where implicit interfaces already give you most of the decoupling benefit, this can feel like a lot of ceremony for small programs. The pattern pays off when you have two or more product types that genuinely must stay in sync across multiple families — if you only ever need to swap one object type, [Factory Method](/go/patterns/creational/factory-method) is simpler.
+Abstract Factory provides the strongest consistency guarantee in Go's creational toolkit: the compiler makes it impossible to pair a JSON reader with a CSV writer. That guarantee comes at a real cost. Adding a new product type (say, a `Compressor`) requires changing the factory interface and every implementation that satisfies it. Three families plus one new method means touching four files. In Go, where implicit interfaces already give you most of the decoupling benefit, this can feel like a lot of ceremony for small programs. The pattern pays off when you have two or more product types that genuinely must stay in sync across multiple families. If you only ever need to swap one object type, [Factory Method](/go/patterns/creational/factory-method) is simpler.
 
 ## Related Patterns
 
-- **Factory Method** — Use Factory Method when you only need to select one type; reach for Abstract Factory when you need to guarantee that multiple types come from the same family and must be used together correctly.
-- **Builder** — Use Builder when constructing one complex object with many optional parts; Abstract Factory is for selecting a consistent set of simpler objects across multiple product types.
+- **Factory Method**: Use Factory Method when you only need to select one type; reach for Abstract Factory when you need to guarantee that multiple types come from the same family and must be used together correctly.
+- **Builder**: Use Builder when constructing one complex object with many optional parts; Abstract Factory is for selecting a consistent set of simpler objects across multiple product types.
