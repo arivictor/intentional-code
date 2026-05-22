@@ -14,6 +14,7 @@ import TableOfContents from "@/components/layout/TableOfContents";
 import HighlightableContent from "@/components/content/HighlightableContent";
 import { getHighlights, addHighlight, removeHighlight } from "@/lib/highlights";
 import ReadingProgressBar from "@/components/layout/ReadingProgressBar";
+import FeedbackButtons from "@/components/content/FeedbackButtons";
 
 export const PatternsContext = createContext({ allPatterns: [], basePath: "/go" });
 
@@ -199,6 +200,8 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
               );
             })()}
           </HighlightableContent>
+
+          <FeedbackButtons contentTitle={pattern.title} contentSlug={pattern.storageKey} />
 
           <PrevNextNav navOrder={navOrder} pathname={pathname} />
         </div>

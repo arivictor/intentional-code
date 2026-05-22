@@ -6,6 +6,7 @@ import PrevNextNav from "@/components/layout/PrevNextNav";
 import TableOfContents from "@/components/layout/TableOfContents";
 import MarkdownCode from "@/components/content/MarkdownCode";
 import ReadingProgressBar from "@/components/layout/ReadingProgressBar";
+import FeedbackButtons from "@/components/content/FeedbackButtons";
 import { CheckCircle, Circle, Bookmark, Clock } from "lucide-react";
 import { isPatternRead, markPatternRead, markPatternUnread } from "@/lib/readingProgress";
 import { isBookmarked, toggleBookmark } from "@/lib/bookmarks";
@@ -84,6 +85,8 @@ export default function PhilosophyDetailPage({ slug, title, description, markdow
               </ReactMarkdown>
             </div>
           </HighlightableContent>
+
+          <FeedbackButtons contentTitle={title} contentSlug={slug} />
 
           <PrevNextNav navOrder={navOrder} pathname={pathname} />
         </div>

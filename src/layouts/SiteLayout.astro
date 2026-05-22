@@ -4,6 +4,7 @@ import TopBar from '@/components/layout/TopBar';
 import Sidebar from '@/components/layout/Sidebar';
 import { buildNavData, buildNavOrder, buildSearchData } from '@/lib/site-data';
 import { GO_SECTION } from '@/lib/section-config';
+import Footer from '@/components/layout/Footer.astro';
 import '@/index.css';
 
 interface Props {
@@ -124,5 +125,6 @@ const sectionKey = basePath.replace(/^\//, '') || 'go';
         <slot />
       </main>
     </div>
+    <Footer basePath={basePath} categoryOrder={categoryOrder} />
   </body>
 </html>
