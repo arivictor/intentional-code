@@ -1,7 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
-import PhilosophyDetailPage from '@/components/pages/PhilosophyDetailPage';
+import PatternPage from '@/components/pages/PatternPage';
 import { buildNavOrder } from '@/lib/site-data';
 import { GO_SECTION } from '@/lib/section-config';
 
@@ -21,23 +21,27 @@ export async function getStaticPaths() {
       return {
         params: { slug },
         props: {
-          slug,
-          title: entry.data.title,
-          description: entry.data.description,
+          pattern: {
+            slug,
+            storageKey: `${GO_SECTION.basePath}/philosophy/${slug}`,
+            title: entry.data.title,
+            intent: entry.data.description,
+            basePath: GO_SECTION.basePath,
+          },
           markdown: entry.body,
-          storageKey: `${GO_SECTION.basePath}/philosophy/${slug}`,
+          allPatterns: [],
           navOrder,
         },
       };
     });
 }
 
-const { slug, title, description, markdown, storageKey, navOrder } = Astro.props;
+const { pattern, markdown, allPatterns, navOrder } = Astro.props;
 ---
 
 <SiteLayout
-  title={title}
-  description={description}
+  title={pattern.title}
+  description={pattern.intent}
   basePath={GO_SECTION.basePath}
   sectionLabel={GO_SECTION.label}
   themeStorageKey={GO_SECTION.themeStorageKey}
@@ -45,14 +49,12 @@ const { slug, title, description, markdown, storageKey, navOrder } = Astro.props
   philosophyOrder={GO_SECTION.philosophyOrder}
   collections={GO_SECTION.collections}
 >
-  <PhilosophyDetailPage
-    slug={slug}
-    title={title}
-    description={description}
+  <PatternPage
+    pattern={pattern}
     markdown={markdown}
-    storageKey={storageKey}
+    allPatterns={allPatterns}
     navOrder={navOrder}
-    pathname={`${GO_SECTION.basePath}/philosophy/${slug}`}
+    pathname={`${GO_SECTION.basePath}/philosophy/${pattern.slug}`}
     client:load
   />
 </SiteLayout>
