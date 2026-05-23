@@ -45,6 +45,7 @@ export default function DetailPageShell({
   pathname,
   patternMap = {},
   readingTimeText = null,
+  markdown = null,
   children,
 }) {
   const [read, setRead] = useState(false);
@@ -115,7 +116,7 @@ export default function DetailPageShell({
           <PrevNextNav navOrder={navOrder} pathname={pathname} />
         </div>
 
-        <TableOfContents />
+        <TableOfContents markdown={markdown} title={title} />
       </div>
     </>
   );

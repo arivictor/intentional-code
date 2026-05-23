@@ -87,6 +87,7 @@ export default function PatternPage({ pattern, markdown, allPatterns, navOrder, 
         pathname={pathname}
         patternMap={patternMap}
         readingTimeText={readingTime(markdown)}
+        markdown={markdown}
       >
         {sections ? (
           <>
