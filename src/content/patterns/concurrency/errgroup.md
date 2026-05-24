@@ -6,6 +6,7 @@ idiomSummary: "Use golang.org/x/sync/errgroup; call g.Go for each goroutine; cal
 relatedSlugs: ["done-channel", "worker-pool", "fan-out-fan-in", "pipeline"]
 tags: [concurrency, testability, interfaces, events]
 isFeatured: false
+recognitionHook: "You need three things to happen in parallel and want to fail fast if any of them fails."
 ---
 
 # Errgroup

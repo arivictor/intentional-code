@@ -5,6 +5,7 @@ intent: "Structure an application as a collection of small, independently deploy
 idiomSummary: "Each service is a separate Go binary with its own go.mod, database schema, and deployment unit. Services communicate via HTTP/gRPC or message queues. Start with a well-structured monolith; extract services when independent scalability or deployment becomes a genuine constraint."
 relatedSlugs: ["event-driven", "saga", "strangler-fig", "hexagonal", "circuit-breaker"]
 tags: [distributed, interfaces, separation-of-concerns, dependency-inversion]
+recognitionHook: "Different parts of your system need to scale, deploy, or change at different rates."
 ---
 
 # Microservices

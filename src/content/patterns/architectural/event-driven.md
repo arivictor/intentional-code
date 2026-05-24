@@ -5,6 +5,7 @@ intent: "Decouple services by having producers emit domain events and consumers 
 idiomSummary: "In-process: Go channels or a simple event bus struct. Cross-service: publish to Kafka/NATS/SQS; consumers implement an idempotent handler interface."
 relatedSlugs: ["cqrs", "domain-driven-design", "observer"]
 tags: [interfaces, concurrency, events, distributed, testability]
+recognitionHook: "Services call each other synchronously and one slow service makes everything slow."
 ---
 
 # Event-Driven Architecture

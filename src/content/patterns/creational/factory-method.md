@@ -6,6 +6,7 @@ idiomSummary: "Constructor functions returning an interface; selection via map o
 relatedSlugs: ["abstract-factory", "builder", "prototype"]
 tags: [interfaces, dependency-inversion, testability]
 isFeatured: true
+recognitionHook: "You have a switch statement that creates different concrete types based on a runtime value."
 ---
 
 # Factory Method

@@ -5,6 +5,7 @@ intent: "Define a family of algorithms, encapsulate each one, and make them inte
 idiomSummary: "A function type is the idiomatic form; show interface-based too and say when each fits."
 relatedSlugs: ["bridge", "state", "template-method", "command"]
 tags: [interfaces, closures, testability, dependency-inversion]
+recognitionHook: "Same algorithm skeleton, but one step changes depending on runtime context."
 ---
 
 # Strategy

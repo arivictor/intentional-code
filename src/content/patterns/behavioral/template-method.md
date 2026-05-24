@@ -5,6 +5,7 @@ intent: "Define the skeleton of an algorithm in a base operation, deferring some
 idiomSummary: "Fights Go (no inheritance); implement via composition + injected hook funcs or an interface."
 relatedSlugs: ["strategy", "factory-method"]
 tags: [closures, composition, interfaces]
+recognitionHook: "You have duplicated structs where only one step differs; Go replaces inheritance with injected hook functions."
 ---
 
 # Template Method

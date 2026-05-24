@@ -5,6 +5,7 @@ intent: "Pass a request along a chain of handlers, where each handler decides wh
 idiomSummary: "A slice or linked list of handlers, or composed middleware that may pass to next."
 relatedSlugs: ["decorator", "command"]
 tags: [interfaces, closures, composition]
+recognitionHook: "You have a growing if/switch that checks conditions and routes requests to handlers."
 ---
 
 # Chain of Responsibility

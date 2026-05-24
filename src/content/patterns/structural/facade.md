@@ -6,6 +6,7 @@ idiomSummary: "A struct exposing a small API over several subsystem packages."
 relatedSlugs: ["adapter", "mediator"]
 tags: [interfaces, composition, testability, dependency-inversion]
 isFeatured: true
+recognitionHook: "Callers must orchestrate five subsystems to do one thing; you want to expose one method."
 ---
 
 # Facade

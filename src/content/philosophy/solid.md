@@ -132,12 +132,14 @@ type Notifier interface {
 type EmailNotifier struct{ smtpAddr string }
 
 func (e *EmailNotifier) Notify(recipient, message string) error {
+    fmt.Printf("[email via %s] to %s: %s\n", e.smtpAddr, recipient, message)
     return nil
 }
 
 type SMSNotifier struct{ apiKey string }
 
 func (s *SMSNotifier) Notify(recipient, message string) error {
+    fmt.Printf("[sms] to %s: %s\n", recipient, message)
     return nil
 }
 
@@ -368,3 +370,96 @@ func (f *fakeNotifier) NotifyConfirmation(email, id string) error {
 ```
 
 > **Smell:** You can't test a function without spinning up infrastructure. Changing a database or email provider requires modifying business logic. If you find yourself writing fakes for complex interfaces, consider the [Repository](/go/patterns/architectural/repository) pattern to define exactly the persistence contract your domain needs.
+
+---
+
+## Putting It Together
+
+The five principles don't operate independently. When you fix one, you often fix two others for free. Here's a struct that violates four of them simultaneously:
+
+```go
+// report.go — four violations in one type
+type ReportService struct {
+    db     *sql.DB     // DIP: depends on a concrete type
+    mailer *smtp.Client // DIP: same
+}
+
+// SRP: owns report generation AND delivery in one method
+// OCP: adding a new delivery channel requires modifying this tested method
+// ISP: callers must construct a full ReportService even if they only need one report type
+func (s *ReportService) Send(reportType, recipient string) error {
+    var query string
+    switch reportType {
+    case "daily":
+        query = "SELECT * FROM events WHERE date = today()"
+    case "weekly":
+        query = "SELECT * FROM events WHERE date > week_ago()"
+    default:
+        return fmt.Errorf("unknown report type: %s", reportType)
+    }
+    rows, err := s.db.Query(query)
+    if err != nil {
+        return err
+    }
+    defer rows.Close()
+    body := buildReport(rows)
+    return s.mailer.SendMail("reports@co.com", []string{recipient}, nil, body)
+}
+```
+
+Testing `Send` requires a real database and SMTP server. Adding a Slack channel requires modifying a tested method. Changing the weekly query risks breaking the daily path.
+
+Now apply SRP, OCP, DIP, and ISP together — one refactor, not five:
+
+```go
+// Interfaces defined where they're consumed, named for what the consumer needs.
+type ReportSource interface {
+    Rows(reportType string) (*sql.Rows, error)
+}
+
+type ReportSender interface {
+    Send(recipient string, body []byte) error
+}
+
+// SRP: one reason to change — report orchestration.
+// DIP: depends on abstractions, not concrete infrastructure.
+type ReportService struct {
+    source ReportSource
+    sender ReportSender
+}
+
+// OCP: adding Slack means a new ReportSender struct, not a new switch case.
+// ISP: each dependency is as narrow as possible.
+func (s *ReportService) Send(reportType, recipient string) error {
+    rows, err := s.source.Rows(reportType)
+    if err != nil {
+        return fmt.Errorf("fetching report data: %w", err)
+    }
+    defer rows.Close()
+    return s.sender.Send(recipient, buildReport(rows))
+}
+
+// Fakes for tests — no infrastructure needed.
+type fakeSource struct{ rows *sql.Rows }
+
+func (f *fakeSource) Rows(reportType string) (*sql.Rows, error) { return f.rows, nil }
+
+type fakeSender struct{ sent []string }
+
+func (f *fakeSender) Send(recipient string, _ []byte) error {
+    f.sent = append(f.sent, recipient)
+    return nil
+}
+```
+
+`ReportService` now tests with two simple fakes. Adding a Slack sender is a new struct, not a new switch case. The `ReportSource` interface is narrow enough that a single `*sql.DB` query method satisfies it.
+
+ISP was implicit: `ReportSource` required exactly one method, so anything that can query can satisfy it. LSP is the silent constraint: if your `ReportSource.Rows` implementation sometimes returns a closed `*sql.Rows` without an error, every caller silently gets wrong results. The compiler doesn't catch this; behavioral contracts require documentation and tests.
+
+## Which principles bite hardest in Go
+
+**SRP, OCP, and ISP come nearly free.** Small focused packages are idiomatic. Interfaces are implicit and small by convention — `io.Reader`, `http.Handler`, `fmt.Stringer`. The standard library models OCP continuously: new `io.Reader` implementations can be added anywhere without touching `io`. Violating ISP takes deliberate effort; a five-method interface should make you pause.
+
+**DIP requires active discipline.** The proverb "accept interfaces, return structs" is DIP distilled, but the temptation is real: it's faster to type `*sql.DB` than to define a one-method `Querier` interface. Every concrete type imported deep in business logic is a dependency your tests must replicate. Define what your code *needs* as a narrow interface at the call site. Let `main()` wire the concrete types in.
+
+**LSP has no syntax.** The compiler verifies method *signatures*, not behavioral *contracts*. An `io.Reader` that returns `0, nil` (instead of `0, io.EOF`), a `net.Conn` that panics on `Write` after `Close`, a `context.Context` that never fires its `Done` channel — all compile, all violate LSP, all cause bugs that are hard to locate. The defense is interface documentation that specifies behavior, plus tests that verify the contract is honored, not just that the method exists.

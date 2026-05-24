@@ -5,6 +5,7 @@ intent: "Provide a way to access elements of a collection sequentially without e
 idiomSummary: "Go 1.23 range-over-func (iter.Seq[T]) as primary form; also channel-based and explicit iterator struct."
 relatedSlugs: ["composite", "visitor"]
 tags: [closures, interfaces]
+recognitionHook: "Callers need to traverse your collection but shouldn't depend on how it's stored internally."
 ---
 
 # Iterator

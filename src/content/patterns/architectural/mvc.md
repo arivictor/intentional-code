@@ -5,6 +5,7 @@ intent: "Separate presentation logic from business logic by dividing the UI laye
 idiomSummary: "In Go web services, Controller = HTTP handler; Model = service/domain layer; View = template or JSON serializer. The handler calls the service, formats the result, and writes the response — it never contains business logic."
 relatedSlugs: ["layered", "clean-architecture", "hexagonal"]
 tags: [interfaces, separation-of-concerns, testability, dependency-inversion]
+recognitionHook: "Your HTTP handler mixes routing, business logic, and response formatting in one function."
 ---
 
 # MVC / MVP / MVVM

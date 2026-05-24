@@ -5,6 +5,7 @@ intent: "Compose objects into tree structures so clients can treat individual ob
 idiomSummary: "One interface implemented by both leaf and composite types; tree of nodes; recursion."
 relatedSlugs: ["decorator", "iterator", "visitor"]
 tags: [interfaces, composition]
+recognitionHook: "Clients need uniform treatment of individual items and groups — they shouldn't care which they have."
 ---
 
 # Composite

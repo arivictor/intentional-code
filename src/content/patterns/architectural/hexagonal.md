@@ -6,6 +6,7 @@ idiomSummary: "Driving ports as use-case interfaces called by HTTP handlers; dri
 relatedSlugs: ["clean-architecture", "layered", "repository"]
 tags: [interfaces, dependency-inversion, testability, composition]
 isFeatured: true
+recognitionHook: "Business logic is entangled with HTTP or database concerns and tests require real infrastructure."
 ---
 
 # Hexagonal Architecture

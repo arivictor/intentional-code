@@ -5,6 +5,7 @@ intent: "Process data through a sequence of independent, composable transformati
 idiomSummary: "In Go: a pipeline of functions that each accept and return the same type, or a chain of io.Reader/io.Writer wrappers. Use channels for concurrent pipelines. Each filter is independently testable and reorderable."
 relatedSlugs: ["hexagonal", "event-driven", "layered"]
 tags: [interfaces, composition, concurrency, separation-of-concerns]
+recognitionHook: "You have a series of independent transformation steps where order matters but coupling shouldn't."
 ---
 
 # Pipe and Filter

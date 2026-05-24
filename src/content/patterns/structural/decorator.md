@@ -5,6 +5,7 @@ intent: "Attach additional behavior to an object dynamically by wrapping it in a
 idiomSummary: "Wrap an interface to add behavior; canonical Go example: http.Handler / RoundTripper middleware."
 relatedSlugs: ["adapter", "composite", "proxy", "chain-of-responsibility"]
 tags: [interfaces, closures, composition, testability]
+recognitionHook: "You want to add logging, caching, or auth to a handler without touching its implementation."
 ---
 
 # Decorator

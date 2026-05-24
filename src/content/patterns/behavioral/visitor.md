@@ -5,6 +5,7 @@ intent: "Separate an algorithm from the object structure it operates on by using
 idiomSummary: "Double dispatch via Accept(Visitor); be honest about verbosity and present type-switch as the Go alternative."
 relatedSlugs: ["composite", "iterator"]
 tags: [interfaces, composition]
+recognitionHook: "You need to add new operations to a type hierarchy without modifying each type."
 ---
 
 # Visitor

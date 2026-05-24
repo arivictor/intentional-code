@@ -5,11 +5,23 @@ intent: "Provide an interface whose methods each return related product interfac
 idiomSummary: "An interface whose methods each return related product interfaces; one struct per family."
 relatedSlugs: ["factory-method", "builder"]
 tags: [interfaces, composition, dependency-inversion, testability]
+recognitionHook: "You have multiple families of related objects and accidentally mix components from different families."
 ---
 
 # Abstract Factory
 
 Abstract Factory solves a specific problem: your system needs families of related objects that must be used together. A JSON encoder paired with a JSON decoder, not a JSON encoder with a CSV decoder. The entire family should be swappable as a unit.
+
+In Go, first-class functions mean you often don't need the full pattern. When you have one family and no plans to add more, a plain constructor function achieves the same guarantee with far less ceremony:
+
+```go
+// This is already "Abstract Factory" in spirit — one function, one matched pair.
+func newJSONPipeline() (Reader, Writer) {
+    return &jsonReader{}, &jsonWriter{}
+}
+```
+
+Reach for the full factory interface only when you have **two or more families** that must be swappable as units. That's when the interface pays off: the compiler enforces that `run(f FormatFactory)` can never accidentally receive a JSON reader with a CSV writer, regardless of which family `f` belongs to. With just one family, a function is simpler and equally correct.
 
 In Go, the pattern is an interface whose methods each return a product interface. One struct per family satisfies the factory interface, and the compiler enforces that code written against that interface can never accidentally mix families. This is the critical advantage over individual [Factory Methods](/go/patterns/creational/factory-method): a factory method prevents you from picking the wrong *type*, but it can't prevent you from picking types from different families.
 

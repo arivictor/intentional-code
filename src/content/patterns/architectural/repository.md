@@ -5,6 +5,7 @@ intent: "Isolate domain logic from data persistence by defining an interface for
 idiomSummary: "A small interface per aggregate (Save, FindByID, etc.); in-memory implementation for tests, sql.DB implementation for production."
 relatedSlugs: ["hexagonal", "layered", "domain-driven-design", "clean-architecture"]
 tags: [interfaces, dependency-inversion, testability]
+recognitionHook: "Database calls are scattered throughout business logic, making it untestable without a real DB."
 ---
 
 # Repository

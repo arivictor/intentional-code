@@ -5,6 +5,7 @@ intent: "Ensure a type has only one instance and provide a global point of acces
 idiomSummary: "Package-level value + sync.Once; then argue against it (testability) and show dependency injection."
 relatedSlugs: ["factory-method", "builder"]
 tags: [concurrency, state, testability, performance]
+recognitionHook: "You reached for a package-level var for a logger or client; tests can't swap it out."
 ---
 
 # Singleton

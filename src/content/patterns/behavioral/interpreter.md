@@ -5,6 +5,7 @@ intent: "Define a grammar for a language and provide an interpreter that process
 idiomSummary: "Interface-based expression tree; each grammar rule is a struct implementing Interpret(context). Combine with recursive descent parsing for real DSLs."
 relatedSlugs: ["composite", "visitor", "iterator"]
 tags: [interfaces, recursion, composition]
+recognitionHook: "You're building a rules engine, DSL, or expression evaluator over structured input."
 ---
 
 # Interpreter

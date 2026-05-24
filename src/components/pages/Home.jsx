@@ -299,6 +299,9 @@ export default function Home({
                         )}
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{pattern.intent}</div>
+                      {pattern.recognitionHook && (
+                        <div className="text-xs text-primary/70 mt-0.5 line-clamp-1 italic">{pattern.recognitionHook}</div>
+                      )}
                     </div>
                   </a>
                 ))}

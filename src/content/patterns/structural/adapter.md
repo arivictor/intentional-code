@@ -5,6 +5,7 @@ intent: "Convert the interface of an existing type into another interface client
 idiomSummary: "A wrapper struct that satisfies the target interface by delegating to the adaptee."
 relatedSlugs: ["bridge", "decorator", "facade", "proxy"]
 tags: [interfaces, composition, dependency-inversion]
+recognitionHook: "You have a useful type but it doesn't satisfy the interface your code expects."
 ---
 
 # Adapter

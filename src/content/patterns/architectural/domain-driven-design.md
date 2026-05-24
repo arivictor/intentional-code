@@ -5,6 +5,7 @@ intent: "Model software around the business domain using Entities, Value Objects
 idiomSummary: "Structs for entities and value objects; aggregate roots as the only entry point for mutations; domain events as plain structs dispatched after state changes."
 relatedSlugs: ["repository", "event-driven", "clean-architecture", "cqrs"]
 tags: [interfaces, state, events, composition, dependency-inversion]
+recognitionHook: "Your codebase has no shared vocabulary with the business team; every feature requires archaeology."
 ---
 
 # Domain-Driven Design

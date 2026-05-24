@@ -6,6 +6,7 @@ idiomSummary: "Pass context.Context as the first argument to any function that s
 relatedSlugs: ["pipeline", "worker-pool", "fan-out-fan-in", "timeout-select"]
 tags: [concurrency, channels, testability, state]
 isFeatured: false
+recognitionHook: "Your goroutines keep running after you've received the result you needed."
 ---
 
 # Done Channel
