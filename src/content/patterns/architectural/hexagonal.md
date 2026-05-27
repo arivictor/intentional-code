@@ -258,6 +258,29 @@ func TestTransfer(t *testing.T) {
 }
 ```
 
+## Folder Structure
+
+Ports and adapters map directly to packages:
+
+```
+myapp/
+├── cmd/
+│   └── server/
+│       └── main.go         # wires driving and driven adapters to the application core
+├── app/                    # Application core (the hexagon)
+│   ├── transfer.go         # TransferService and driven port interfaces
+│   └── transfer_test.go    # full-logic tests with no infrastructure
+└── adapter/
+    ├── http/
+    │   └── transfer.go     # driving adapter: HTTP requests → TransferService
+    ├── postgres/
+    │   └── account.go      # driven adapter: AccountRepository → PostgreSQL
+    └── memory/
+        └── account.go      # driven adapter: AccountRepository → in-memory (for tests)
+```
+
+`app` imports nothing outside the standard library. `adapter/http` and `adapter/postgres` import `app`. `cmd/server` imports both. The boundary is enforced by import direction — the application core is never aware of how it is driven or what drives its ports.
+
 ## When to Use
 
 - Your application needs to support multiple delivery mechanisms (HTTP, gRPC, CLI, event consumers) against the same business logic.

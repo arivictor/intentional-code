@@ -238,6 +238,27 @@ The PostgreSQL repository implementation would live in a separate package (requi
 // }
 ```
 
+## Folder Structure
+
+One way this maps to packages on disk:
+
+```
+myapp/
+├── cmd/
+│   └── server/
+│       └── main.go         # wires all layers together; the only file that imports from all four
+├── handler/                # Handler layer: request parsing, response encoding
+│   └── post.go
+├── service/                # Service layer: business rules and orchestration
+│   └── post.go
+├── repository/             # Repository layer: persistence interfaces
+│   └── post.go
+└── postgres/               # Infrastructure: SQL implementations of the repository interfaces
+    └── post.go
+```
+
+In package terms: `handler` imports `service`, `service` imports `repository` (the interface), `postgres` also imports `repository` (to implement it). `cmd/server` imports everything and wires it together. `postgres` never imports `handler` or `service` — the dependency rule holds by import direction alone.
+
 ## When to Use
 
 - You're building a web service or API and want a clear place for each concern.

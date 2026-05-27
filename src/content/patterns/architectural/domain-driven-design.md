@@ -390,6 +390,30 @@ func (s *PublishService) Publish(ctx context.Context, id ArticleID) error {
 }
 ```
 
+## Folder Structure
+
+Bounded context boundaries come first; tactical building blocks live inside them:
+
+```
+myapp/
+├── cmd/
+│   └── server/
+│       └── main.go
+├── article/                    # Bounded context: article publishing
+│   ├── article.go              # aggregate root, entity, domain events
+│   ├── value_objects.go        # ArticleID, Slug
+│   ├── repository.go           # persistence interface, owned by the domain
+│   ├── service.go              # domain service for cross-aggregate operations
+│   └── postgres/
+│       └── repository.go       # infrastructure implementation, kept inside the context
+├── billing/                    # Separate bounded context — its own Customer model
+│   └── ...
+└── acl/                        # Anti-corruption layer for upstream integrations
+    └── erp_translator.go
+```
+
+Avoid organising by layer across contexts (`entities/`, `repositories/`, `services/` at the top level) — it produces a folder structure that looks DDD but couples bounded contexts through shared packages. Keep each context self-contained: the aggregate, its value objects, its repository interface, its domain service, and its infrastructure implementation all live together. For a context with many aggregates, split into sub-packages per aggregate rather than per tactical concept.
+
 ## When to Use
 
 - The business domain is complex, with multiple interacting concepts, non-trivial rules, and frequent change driven by business requirements.

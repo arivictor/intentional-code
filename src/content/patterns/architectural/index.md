@@ -5,7 +5,7 @@ lede: Patterns for structuring entire applications and services, layering, bound
 
 The question architectural patterns answer: **how should the whole system be organised?**
 
-Software architecture is a series of choices you keep paying for. It isn't about having the "right" framework or the cleanest diagram. It's about deciding what needs to stay easy to change, then protecting that code from the churn around it. Split business rules from database details, for example, and future you has a much better chance.
+Software architecture is a series of choices you keep paying for — deciding what needs to stay easy to change, then protecting that code from the churn around it. Split business rules from database details, for example, and future you has a much better chance.
 
 ## What Is Software Architecture?
 
@@ -47,7 +47,7 @@ Skip architecture when:
 - **The project has a clear expiration date:** Scripts, one-time migrations, throwaway tools
 - **You don't understand the problem yet:** Premature architecture is waste
 
-The skill isn't knowing patterns. It's knowing when to apply them.
+Knowing the patterns is table stakes. The harder skill is knowing when.
 
 ## Essential Complexity vs Accidental Complexity
 
@@ -57,7 +57,7 @@ Not all complexity is equal. Some is inherent to the problem. Some you inflict o
 
 This is the difficulty built into the problem you're solving. Tax law is complex because taxes are complex. Flight scheduling across time zones with crew availability constraints is genuinely hard. Multi-currency accounting with historical exchange rates has intrinsic difficulty.
 
-Essential complexity can't be eliminated. It's the problem itself. Your job isn't to remove it; it's to organise it clearly so other people can reason about it without getting lost.
+Essential complexity can't be eliminated — it's the problem itself. Your job is to organise it clearly enough that others can reason about it without getting lost.
 
 ### Accidental complexity
 
@@ -127,7 +127,7 @@ Good architecture constrains. It says:
 - "Dependencies flow this direction, not that one"
 - "This layer can call that layer, but not the reverse"
 
-These constraints aren't restrictions. They're guidance. They remove whole categories of bad decisions and leave you with the choices that actually matter.
+They remove whole categories of bad decisions and leave you with the choices that actually matter.
 
 Think of it like a chess board. The rules limit where pieces can move, but those limits create the game. Without constraints, there's no strategy, just chaos.
 
@@ -162,7 +162,7 @@ Those are signals to improve. Not before. Not because a principle says you shoul
 
 ## The Spectrum: Quick Script to Well-Architected System
 
-Architecture isn't binary. It's a spectrum.
+Architecture exists on a spectrum.
 
 **Quick Script (minutes to hours):**
 - Single file, maybe 50 lines

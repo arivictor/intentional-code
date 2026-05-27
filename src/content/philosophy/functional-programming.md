@@ -7,7 +7,7 @@ description: Pure functions, immutability, and composability, and how these idea
 
 Go is not a functional language. It has mutable state, imperative loops, and no algebraic types. But many ideas from functional programming translate directly and improve Go code: pure functions are easier to test, immutable data prevents whole categories of bugs, and higher-order functions enable flexible composition without inheritance.
 
-You don't adopt FP as a religion. You adopt the ideas that pay off.
+Take the ideas that pay off and leave the rest.
 
 ---
 

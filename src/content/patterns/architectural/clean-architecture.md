@@ -203,6 +203,31 @@ func (r *NoteRepo) Save(ctx context.Context, n *domain.Note) error {
 }
 ```
 
+## Folder Structure
+
+Each ring maps to a package or package group:
+
+```
+myapp/
+├── cmd/
+│   └── server/
+│       └── main.go         # outermost: assembles all rings
+├── domain/                 # Entities ring: pure types, no project imports
+│   └── note.go
+├── usecase/                # Use Cases ring: application logic and port interfaces
+│   ├── save_note.go
+│   └── save_note_test.go   # tested without any infrastructure
+├── adapter/                # Interface Adapters ring: translates between rings
+│   ├── http/
+│   │   └── note.go         # HTTP → use case
+│   └── postgres/
+│       └── note.go         # use case port → PostgreSQL
+└── infrastructure/         # Frameworks & Drivers ring: sql.DB, server config
+    └── db.go
+```
+
+The Dependency Rule in package terms: `domain` imports nothing from this project. `usecase` imports `domain`. `adapter/*` imports `usecase`. `infrastructure` imports only third-party drivers. `cmd/server` imports everything and assembles the application. Any import that crosses inward-to-outward breaks the guarantee — a linter like `depguard` can catch it automatically.
+
 ## When to Use
 
 - You're building a long-lived service where domain rules are the core asset.

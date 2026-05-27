@@ -9,7 +9,7 @@ description: Build behaviour by combining small, focused pieces rather than buil
 
 Go made this decision for you: the language has no inheritance. No subclasses, no `extends`, no override. What Go gives you instead is embedding and interfaces, two mechanisms that let you compose behaviour from small, focused pieces without coupling types together through ancestry.
 
-This isn't a limitation. It's the right call. Inheritance hierarchies couple types through shared state and implementation in ways that are hard to reason about and harder to change. Composition keeps types independent: each piece does one thing, and you assemble them at the point of use.
+Inheritance hierarchies couple types through shared state and implementation in ways that are hard to reason about and harder to change. Go sidesteps that entirely: each piece does one thing, and you assemble them at the point of use.
 
 ---
 

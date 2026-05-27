@@ -163,7 +163,7 @@ func SendAll(notifiers []Notifier, recipient, msg string) error {
 
 *"Subtypes must be substitutable for their base types without altering correctness."*
 
-Go has no subclassing, so LSP isn't about inheritance hierarchies. It's about interface contracts. Any type that satisfies an interface must honor the behavioral expectations of that interface, not just the method signatures.
+Go has no subclassing, so LSP applies to interface contracts rather than inheritance hierarchies. Any type that satisfies an interface must honor the behavioral expectations of that interface, not just the method signatures.
 
 If your `io.Reader`'s `Read` method sometimes returns data without advancing, or your `http.Handler` panics instead of writing a response, you've violated LSP. The compiler won't catch this; tests and documentation must.
 
