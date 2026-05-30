@@ -1,0 +1,75 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import StepPage from '@/components/pages/StepPage';
+import { buildNavOrder, buildCourseNavOrder } from '@/lib/site-data';
+import { GO_SECTION } from '@/lib/section-config';
+
+export async function getStaticPaths() {
+  const [patterns, philosophy, categories, courses, courseChapters, courseSteps] = await Promise.all([
+    getCollection(GO_SECTION.collections.patterns),
+    getCollection(GO_SECTION.collections.philosophy),
+    getCollection(GO_SECTION.collections.categories),
+    getCollection(GO_SECTION.collections.courses),
+    getCollection(GO_SECTION.collections.courseChapters),
+    getCollection(GO_SECTION.collections.courseSteps),
+  ]);
+
+  const patternNavOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
+  const courseNavOrder = buildCourseNavOrder(courses, courseChapters, courseSteps, GO_SECTION);
+  const navOrder = [...patternNavOrder, ...courseNavOrder];
+
+  return courseSteps.map((entry) => {
+    const fullSlug = entry.id.replace(/\.md$/, '');
+    const parts = fullSlug.split('/');
+    const [courseSlug, chapterSlug, stepSlug] = parts;
+
+    return {
+      params: { course: courseSlug, chapter: chapterSlug, step: stepSlug },
+      props: {
+        step: {
+          title: entry.data.title,
+          description: entry.data.description ?? '',
+          storageKey: `${GO_SECTION.basePath}/courses/${fullSlug}`,
+          slug: fullSlug,
+        },
+        markdown: entry.body,
+        navOrder,
+      },
+    };
+  });
+}
+
+const { step, markdown, navOrder } = Astro.props;
+const pathname = `${GO_SECTION.basePath}/courses/${step.slug}`;
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'LearningResource',
+  name: step.title,
+  description: step.description,
+  url: `https://intentionalcode.com${pathname}`,
+  publisher: { '@type': 'Organization', name: 'Intentional Code' },
+};
+---
+
+<SiteLayout
+  title={step.title}
+  description={step.description}
+  jsonLd={jsonLd}
+  basePath={GO_SECTION.basePath}
+  sectionLabel={GO_SECTION.label}
+  themeStorageKey={GO_SECTION.themeStorageKey}
+  categoryOrder={GO_SECTION.categoryOrder}
+  philosophyOrder={GO_SECTION.philosophyOrder}
+  collections={GO_SECTION.collections}
+>
+  <StepPage
+    step={step}
+    markdown={markdown}
+    navOrder={navOrder}
+    pathname={pathname}
+    basePath={GO_SECTION.basePath}
+    client:load
+  />
+</SiteLayout>

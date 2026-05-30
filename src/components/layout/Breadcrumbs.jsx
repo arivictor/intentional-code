@@ -3,17 +3,10 @@ import { ChevronRight } from "lucide-react";
 
 const STATIC_TITLES = {
   go: "Go",
-  python: "Python",
-  terraform: "Terraform",
+  courses: "Courses",
   philosophy: "Philosophy",
   solid: "SOLID Principles",
   tdd: "Test-Driven Development",
-  'explicit-interfaces': 'Explicit Interfaces',
-  'state-first-design': 'State-First Design',
-  modules: "Module Patterns",
-  state: "State Patterns",
-  delivery: "Delivery Patterns",
-  architecture: "Platform Architecture Patterns",
   patterns: "Pattern Catalog",
   creational: "Creational",
   structural: "Structural",
@@ -27,7 +20,7 @@ export default function Breadcrumbs({ pathname = "", patternMap = {} }) {
   if (segments.length === 0) return null;
 
   const section = segments[0];
-  const SECTION_HOME_PATHS = { go: "/", python: "/python", terraform: "/terraform" };
+  const SECTION_HOME_PATHS = { go: "/" };
   const homePath = SECTION_HOME_PATHS[section] ?? `/${section}`;
   const crumbs = [{ label: "Home", path: homePath }];
   let currentPath = "";

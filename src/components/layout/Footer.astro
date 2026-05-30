@@ -2,11 +2,13 @@
 interface Props {
   basePath?: string;
   categoryOrder?: string[];
+  courses?: { slug: string; title: string }[];
 }
 
 const {
   basePath = '/go',
   categoryOrder = ['creational', 'structural', 'behavioral', 'architectural', 'concurrency'],
+  courses = [],
 } = Astro.props;
 
 const year = new Date().getFullYear();
@@ -15,6 +17,13 @@ const patternLinks = categoryOrder.map((cat) => ({
   label: cat.charAt(0).toUpperCase() + cat.slice(1),
   href: `${basePath}/patterns/${cat}`,
 }));
+
+const courseLinks = courses.length
+  ? [
+      { label: 'All Courses', href: `${basePath}/courses` },
+      ...courses.map((course) => ({ label: course.title, href: `${basePath}/courses/${course.slug}` })),
+    ]
+  : [];
 
 const exploreLinks = [
   { label: 'Philosophy', href: `${basePath}/philosophy` },
@@ -25,7 +34,7 @@ const exploreLinks = [
 
 <footer class="border-t border-border bg-background">
   <div class="max-w-screen-xl mx-auto px-6 py-10">
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-10">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10">
 
       <!-- Wordmark + description -->
       <div class="sm:col-span-1">
@@ -54,6 +63,25 @@ const exploreLinks = [
           ))}
         </ul>
       </div>
+
+      <!-- Courses links -->
+      {courseLinks.length > 0 && (
+        <div>
+          <h3 class="text-xs font-semibold text-foreground uppercase tracking-widest mb-4">Courses</h3>
+          <ul class="space-y-2.5">
+            {courseLinks.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  class="text-sm text-muted-foreground hover:text-primary transition-colors"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <!-- Explore links -->
       <div>

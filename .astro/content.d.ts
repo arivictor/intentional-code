@@ -120,7 +120,31 @@ declare module 'astro:content' {
 		: any;
 
 	type DataEntryMap = {
-		"pages": Record<string, {
+		"course-chapters": Record<string, {
+  id: string;
+  body?: string;
+  collection: "course-chapters";
+  data: InferEntrySchema<"course-chapters">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
+"course-steps": Record<string, {
+  id: string;
+  body?: string;
+  collection: "course-steps";
+  data: InferEntrySchema<"course-steps">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
+"courses": Record<string, {
+  id: string;
+  body?: string;
+  collection: "courses";
+  data: InferEntrySchema<"courses">;
+  rendered?: RenderedContent;
+  filePath?: string;
+}>;
+"pages": Record<string, {
   id: string;
   body?: string;
   collection: "pages";
@@ -149,70 +173,6 @@ declare module 'astro:content' {
   body?: string;
   collection: "philosophy";
   data: InferEntrySchema<"philosophy">;
-  rendered?: RenderedContent;
-  filePath?: string;
-}>;
-"python-pages": Record<string, {
-  id: string;
-  body?: string;
-  collection: "python-pages";
-  data: InferEntrySchema<"python-pages">;
-  rendered?: RenderedContent;
-  filePath?: string;
-}>;
-"python-pattern-categories": Record<string, {
-  id: string;
-  body?: string;
-  collection: "python-pattern-categories";
-  data: InferEntrySchema<"python-pattern-categories">;
-  rendered?: RenderedContent;
-  filePath?: string;
-}>;
-"python-patterns": Record<string, {
-  id: string;
-  body?: string;
-  collection: "python-patterns";
-  data: InferEntrySchema<"python-patterns">;
-  rendered?: RenderedContent;
-  filePath?: string;
-}>;
-"python-philosophy": Record<string, {
-  id: string;
-  body?: string;
-  collection: "python-philosophy";
-  data: InferEntrySchema<"python-philosophy">;
-  rendered?: RenderedContent;
-  filePath?: string;
-}>;
-"terraform-pages": Record<string, {
-  id: string;
-  body?: string;
-  collection: "terraform-pages";
-  data: InferEntrySchema<"terraform-pages">;
-  rendered?: RenderedContent;
-  filePath?: string;
-}>;
-"terraform-pattern-categories": Record<string, {
-  id: string;
-  body?: string;
-  collection: "terraform-pattern-categories";
-  data: InferEntrySchema<"terraform-pattern-categories">;
-  rendered?: RenderedContent;
-  filePath?: string;
-}>;
-"terraform-patterns": Record<string, {
-  id: string;
-  body?: string;
-  collection: "terraform-patterns";
-  data: InferEntrySchema<"terraform-patterns">;
-  rendered?: RenderedContent;
-  filePath?: string;
-}>;
-"terraform-philosophy": Record<string, {
-  id: string;
-  body?: string;
-  collection: "terraform-philosophy";
-  data: InferEntrySchema<"terraform-philosophy">;
   rendered?: RenderedContent;
   filePath?: string;
 }>;

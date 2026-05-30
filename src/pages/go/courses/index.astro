@@ -1,8 +1,8 @@
 ---
 import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
-import SavedPatterns from '@/components/pages/SavedPatterns';
-import { buildAllContent, buildCourseContent, buildNavOrder } from '@/lib/site-data';
+import CourseCatalog from '@/components/pages/CourseCatalog';
+import { buildNavOrder, buildCourseNavOrder } from '@/lib/site-data';
 import { GO_SECTION } from '@/lib/section-config';
 
 const [patterns, philosophy, categories, courses, courseChapters, courseSteps] = await Promise.all([
@@ -14,16 +14,23 @@ const [patterns, philosophy, categories, courses, courseChapters, courseSteps] =
   getCollection(GO_SECTION.collections.courseSteps),
 ]);
 
-const allContent = [
-  ...buildAllContent(patterns, philosophy, { basePath: GO_SECTION.basePath }),
-  ...buildCourseContent(courses, courseChapters, courseSteps, { basePath: GO_SECTION.basePath }),
+const navOrder = [
+  ...buildNavOrder(patterns, philosophy, categories, GO_SECTION),
+  ...buildCourseNavOrder(courses, courseChapters, courseSteps, GO_SECTION),
 ];
-const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
+
+const courseItems = courses.map((c) => ({
+  slug: c.id.replace(/\/index\.md$/, ''),
+  title: c.data.title,
+  description: c.data.description,
+  level: c.data.level,
+  tags: c.data.tags,
+}));
 ---
 
 <SiteLayout
-  title="Saved Content"
-  description="Your bookmarked pages and highlights."
+  title="Courses"
+  description="End-to-end project courses for Go — build something production-ready."
   basePath={GO_SECTION.basePath}
   sectionLabel={GO_SECTION.label}
   themeStorageKey={GO_SECTION.themeStorageKey}
@@ -31,10 +38,11 @@ const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
   philosophyOrder={GO_SECTION.philosophyOrder}
   collections={GO_SECTION.collections}
 >
-  <SavedPatterns
-    allContent={allContent}
+  <CourseCatalog
+    courses={courseItems}
     navOrder={navOrder}
-    pathname={`${GO_SECTION.basePath}/saved`}
+    pathname="/go/courses"
+    basePath={GO_SECTION.basePath}
     client:load
   />
 </SiteLayout>

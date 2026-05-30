@@ -125,3 +125,101 @@ export function buildSearchData(patterns, philosophy, categories, options = {}) 
 export function getPatternSummary(pattern) {
   return summaryForPattern(pattern);
 }
+
+function courseSlug(entry) {
+  return entry.id.replace(/\/index\.md$/, '');
+}
+
+function stepFullSlug(entry) {
+  return entry.id.replace(/\.md$/, '');
+}
+
+export function buildCourseNavData(courses, chapters, steps) {
+  return courses.map((course) => {
+    const cSlug = courseSlug(course);
+    const courseChapters = chapters
+      .filter((ch) => courseSlug(ch).startsWith(cSlug + '/'))
+      .sort((a, b) => a.data.order - b.data.order)
+      .map((ch) => {
+        const chSlug = courseSlug(ch);
+        const chapterSteps = steps
+          .filter((s) => stepFullSlug(s).startsWith(chSlug + '/'))
+          .sort((a, b) => a.data.order - b.data.order)
+          .map((s) => ({
+            slug: stepFullSlug(s),
+            title: s.data.title,
+          }));
+        return {
+          slug: chSlug,
+          title: ch.data.title,
+          steps: chapterSteps,
+        };
+      });
+    return {
+      slug: cSlug,
+      title: course.data.title,
+      chapters: courseChapters,
+    };
+  });
+}
+
+export function buildCourseNavOrder(courses, chapters, steps, { basePath = '/go' } = {}) {
+  const order = [{ path: `${basePath}/courses`, title: 'Courses' }];
+  const navData = buildCourseNavData(courses, chapters, steps);
+  for (const course of navData) {
+    order.push({ path: `${basePath}/courses/${course.slug}`, title: course.title });
+    for (const chapter of course.chapters) {
+      for (const step of chapter.steps) {
+        const [, , stepName] = step.slug.split('/');
+        order.push({ path: `${basePath}/courses/${step.slug}`, title: step.title });
+      }
+    }
+  }
+  return order;
+}
+
+// Rich course objects for the homepage: course metadata plus an ordered, flat
+// list of steps (each with the localStorage key used for read/bookmark state),
+// so the homepage can compute per-course progress and the next unread step.
+export function buildCoursesData(courses, chapters, steps, { basePath = '/go' } = {}) {
+  const stepDescBySlug = Object.fromEntries(steps.map((s) => [stepFullSlug(s), s.data.description ?? '']));
+  const metaBySlug = Object.fromEntries(courses.map((c) => [courseSlug(c), c.data]));
+
+  return buildCourseNavData(courses, chapters, steps).map((course) => {
+    const meta = metaBySlug[course.slug] ?? {};
+    const flatSteps = course.chapters.flatMap((chapter) =>
+      chapter.steps.map((step) => ({
+        slug: step.slug,
+        storageKey: `${basePath}/courses/${step.slug}`,
+        url: `${basePath}/courses/${step.slug}`,
+        title: step.title,
+        description: stepDescBySlug[step.slug] ?? '',
+      }))
+    );
+    return {
+      slug: course.slug,
+      title: course.title,
+      description: meta.description ?? '',
+      level: meta.level ?? 'intermediate',
+      tags: meta.tags ?? [],
+      isFeatured: meta.isFeatured ?? false,
+      url: `${basePath}/courses/${course.slug}`,
+      steps: flatSteps,
+    };
+  });
+}
+
+// Flat list of course steps shaped like buildAllContent items, so course steps
+// participate in saved-content lookups and the homepage read tracker.
+export function buildCourseContent(courses, chapters, steps, { basePath = '/go' } = {}) {
+  return buildCoursesData(courses, chapters, steps, { basePath }).flatMap((course) =>
+    course.steps.map((step) => ({
+      slug: step.slug,
+      storageKey: step.storageKey,
+      title: step.title,
+      description: step.description || course.title,
+      url: step.url,
+      type: 'course',
+    }))
+  );
+}

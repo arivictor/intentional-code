@@ -1,20 +1,33 @@
 import React, { useState, useEffect } from "react";
 import { ChevronDown, ChevronRight, Filter } from "lucide-react";
 
-function SidebarSection({ title, children, defaultOpen = false, forceOpen = false }) {
+function SidebarSection({ title, children, defaultOpen = false, forceOpen = false, depth = 0 }) {
   const [open, setOpen] = useState(defaultOpen);
   const isOpen = forceOpen || open;
+
+  // Depth-aware typography: a top-level section reads as an uppercase divider,
+  // while nested sections (course title, then chapters) step down in weight and
+  // drop the uppercase so the tree reads as a hierarchy, not a stack of headers.
+  const titleClass =
+    depth === 0
+      ? "uppercase tracking-wide text-xs font-bold text-foreground"
+      : depth === 1
+        ? "text-[13px] font-semibold text-foreground"
+        : "text-[13px] font-medium text-muted-foreground";
+
   return (
     <div className="mb-0.5">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 w-full px-2 py-1.5 text-[13px] font-bold text-foreground hover:text-primary transition-colors"
+        className="group flex items-center gap-1.5 w-full px-2 py-1.5 transition-colors"
         aria-expanded={isOpen}
       >
-        <span className="flex-1 text-left uppercase tracking-wide text-xs">{title}</span>
-        {isOpen ? <ChevronDown className="h-3 w-3 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 text-muted-foreground" />}
+        <span className={`flex-1 text-left transition-colors group-hover:text-primary ${titleClass}`}>{title}</span>
+        {isOpen ? <ChevronDown className="h-3 w-3 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-3 w-3 shrink-0 text-muted-foreground" />}
       </button>
-      {isOpen && <div>{children}</div>}
+      {isOpen && (
+        <div className={depth >= 1 ? "ml-2.5 border-l border-border pl-1.5" : ""}>{children}</div>
+      )}
     </div>
   );
 }
@@ -23,7 +36,7 @@ function SidebarLink({ href, children, active }) {
   return (
     <a
       href={href}
-      className={`block px-2 py-1 text-[13px] transition-colors truncate border-l-2 -ml-px pl-3 ${
+      className={`block px-2 py-1 text-[13px] leading-snug transition-colors border-l-2 -ml-px pl-3 ${
         active
           ? "border-primary text-primary font-medium bg-accent/60"
           : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
@@ -41,6 +54,7 @@ export default function Sidebar({
   homePath = basePath,
   sectionLabel = "Go",
   philosophyItems = [],
+  courseNavData = [],
 }) {
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState("");
@@ -99,6 +113,57 @@ export default function Sidebar({
         </SidebarSection>
       </div>
 
+      {courseNavData.length > 0 && (
+        <div className="px-3 py-3 border-b border-border">
+          <SidebarSection
+            title="Courses"
+            defaultOpen={pathname.startsWith(`${basePath}/courses`)}
+            forceOpen={!!filterLower}
+          >
+            {matchesFilter("All Courses") && (
+              <SidebarLink href={`${basePath}/courses`} active={pathname === `${basePath}/courses`}>All Courses</SidebarLink>
+            )}
+            {courseNavData.map((course) => {
+              const courseBase = `${basePath}/courses/${course.slug}`;
+              const isCourseActive = pathname.startsWith(courseBase);
+              const visibleChapters = course.chapters.filter(
+                (ch) => matchesFilter(course.title) || matchesFilter(ch.title) || ch.steps.some((s) => matchesFilter(s.title))
+              );
+              if (!matchesFilter(course.title) && visibleChapters.length === 0) return null;
+              return (
+                <SidebarSection
+                  key={course.slug}
+                  title={course.title}
+                  defaultOpen={isCourseActive}
+                  forceOpen={!!filterLower}
+                  depth={1}
+                >
+                  {visibleChapters.map((chapter) => (
+                    <SidebarSection
+                      key={chapter.slug}
+                      title={chapter.title}
+                      defaultOpen={chapter.steps.some((s) => pathname === `${basePath}/courses/${s.slug}`)}
+                      forceOpen={!!filterLower}
+                      depth={2}
+                    >
+                      {chapter.steps.filter((s) => matchesFilter(s.title)).map((step) => (
+                        <SidebarLink
+                          key={step.slug}
+                          href={`${basePath}/courses/${step.slug}`}
+                          active={pathname === `${basePath}/courses/${step.slug}`}
+                        >
+                          {step.title}
+                        </SidebarLink>
+                      ))}
+                    </SidebarSection>
+                  ))}
+                </SidebarSection>
+              );
+            })}
+          </SidebarSection>
+        </div>
+      )}
+
       <div className="px-3 py-3 space-y-1">
         {(navData ?? []).map((category) => {
           const isActive = pathname.includes(`${basePath}/patterns/${category.slug}`);
@@ -135,7 +200,7 @@ export default function Sidebar({
 
   return (
     <>
-      <aside className="hidden lg:flex flex-col w-60 shrink-0 border-r border-border bg-sidebar h-[calc(100vh-3rem)] sticky top-12 overflow-hidden">
+      <aside className="hidden lg:flex flex-col w-72 shrink-0 border-r border-border bg-sidebar h-[calc(100vh-3rem)] sticky top-12 overflow-hidden">
         {nav}
       </aside>
 

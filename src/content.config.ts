@@ -51,32 +51,58 @@ function createPagesCollection(base: string) {
 }
 
 const patterns = createPatternCollection('./src/content/patterns', ['creational', 'structural', 'behavioral', 'architectural', 'concurrency']);
-const pythonPatterns = createPatternCollection('./src/content/python/patterns', ['creational', 'structural', 'behavioral', 'architectural']);
-const terraformPatterns = createPatternCollection('./src/content/terraform/patterns', ['modules', 'state', 'delivery', 'architecture']);
 
 const philosophy = createPhilosophyCollection('./src/content/philosophy');
-const pythonPhilosophy = createPhilosophyCollection('./src/content/python/philosophy');
-const terraformPhilosophy = createPhilosophyCollection('./src/content/terraform/philosophy');
 
 const patternCategories = createCategoryCollection('./src/content/patterns');
-const pythonPatternCategories = createCategoryCollection('./src/content/python/patterns');
-const terraformPatternCategories = createCategoryCollection('./src/content/terraform/patterns');
+
+function createCourseCollection(base: string) {
+  return defineCollection({
+    loader: glob({ pattern: '*/index.md', base }),
+    schema: z.object({
+      title: z.string(),
+      description: z.string(),
+      level: z.enum(['beginner', 'intermediate', 'advanced']),
+      tags: z.array(z.string()).default([]),
+      isFeatured: z.boolean().default(false),
+    }),
+  });
+}
+
+function createChapterCollection(base: string) {
+  return defineCollection({
+    loader: glob({ pattern: '*/*/index.md', base }),
+    schema: z.object({
+      title: z.string(),
+      order: z.number(),
+      description: z.string().optional(),
+    }),
+  });
+}
+
+function createStepCollection(base: string) {
+  return defineCollection({
+    loader: glob({ pattern: ['**/*.md', '!**/index.md'], base }),
+    schema: z.object({
+      title: z.string(),
+      order: z.number(),
+      description: z.string().optional(),
+    }),
+  });
+}
 
 const pages = createPagesCollection('./src/content/pages');
-const pythonPages = createPagesCollection('./src/content/python/pages');
-const terraformPages = createPagesCollection('./src/content/terraform/pages');
+
+const courses = createCourseCollection('./src/content/courses');
+const courseChapters = createChapterCollection('./src/content/courses');
+const courseSteps = createStepCollection('./src/content/courses');
 
 export const collections = {
   patterns,
-  'python-patterns': pythonPatterns,
-  'terraform-patterns': terraformPatterns,
   philosophy,
-  'python-philosophy': pythonPhilosophy,
-  'terraform-philosophy': terraformPhilosophy,
   'pattern-categories': patternCategories,
-  'python-pattern-categories': pythonPatternCategories,
-  'terraform-pattern-categories': terraformPatternCategories,
   pages,
-  'python-pages': pythonPages,
-  'terraform-pages': terraformPages,
+  courses,
+  'course-chapters': courseChapters,
+  'course-steps': courseSteps,
 };

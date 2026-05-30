@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch, Shuffle } from "lucide-react";
+import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch, Shuffle, BookOpen } from "lucide-react";
 import { getReadPatterns } from "@/lib/readingProgress";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 
@@ -14,6 +14,13 @@ const CATEGORY_ICONS = {
   state: Database,
   delivery: GitBranch,
   architecture: Building2,
+};
+
+const LEVEL_LABEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
+const LEVEL_COLOR = {
+  beginner: "text-emerald-600 dark:text-emerald-400",
+  intermediate: "text-amber-600 dark:text-amber-400",
+  advanced: "text-red-600 dark:text-red-400",
 };
 
 function TagFilter({ allTags, activeTags, filteredCount, totalCount, onToggle, onClear }) {
@@ -62,6 +69,7 @@ export default function Home({
   categories,
   categoryOrder,
   patterns,
+  courses = [],
   philosophy,
   pathname,
   tagline,
@@ -82,10 +90,27 @@ export default function Home({
   const totalCount = allContent.length;
   const progressPct = totalCount > 0 ? Math.round((readCount / totalCount) * 100) : 0;
 
-  const recentlyRead = allContent.filter((content) => readSlugs.includes(content.storageKey)).slice(-3).reverse();
-  const nextUnread = allContent.find((content) => !readSlugs.includes(content.storageKey));
+  // "Continue reading" = the single most recently read item. read_patterns is
+  // append-ordered (re-marking moves an entry to the end), so we walk from the
+  // newest entry back to the first one that still maps to live content.
+  const contentByKey = Object.fromEntries(allContent.map((content) => [content.storageKey, content]));
+  let continueReading = null;
+  for (let i = readSlugs.length - 1; i >= 0; i--) {
+    if (contentByKey[readSlugs[i]]) { continueReading = contentByKey[readSlugs[i]]; break; }
+  }
+
+  // Per-course progress for any course the reader has started (>= 1 step read).
+  const trackedCourses = courses
+    .map((course) => {
+      const total = course.steps.length;
+      const done = course.steps.filter((step) => readSlugs.includes(step.storageKey)).length;
+      const firstUnread = course.steps.find((step) => !readSlugs.includes(step.storageKey)) ?? null;
+      return { ...course, total, done, pct: total > 0 ? Math.round((done / total) * 100) : 0, firstUnread };
+    })
+    .filter((course) => course.done > 0);
 
   const categoryMap = Object.fromEntries(categories.map((category) => [category.slug, category]));
+  const featuredCourses = courses.filter((course) => course.isFeatured);
   const featuredPatterns = patterns.filter((pattern) => pattern.isFeatured).slice(0, 3);
   const filteredPatterns = activeTags.length === 0
     ? patterns
@@ -156,47 +181,88 @@ export default function Home({
           <div className="w-full h-2 bg-secondary rounded-full overflow-hidden mb-5">
             <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${progressPct}%` }} />
           </div>
-          {nextUnread && (
-            <div className="mb-4">
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Up next</div>
+
+          {continueReading && (
+            <div className="mb-5">
+              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Continue reading</div>
               <a
-                href={nextUnread.url}
+                href={continueReading.url}
                 className="group flex items-center gap-3 p-3 rounded-md border border-border hover:border-primary/40 hover:bg-accent/40 transition-all"
               >
                 <div className="flex-1 min-w-0">
-                  <div className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{nextUnread.title}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{nextUnread.description}</div>
+                  <div className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{continueReading.title}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{continueReading.description}</div>
                 </div>
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
               </a>
             </div>
           )}
-          {recentlyRead.length > 0 && (
-            <div>
-              <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Recently read</div>
-              <div className="space-y-1">
-                {recentlyRead.map((item) => (
-                  <a
-                    key={item.storageKey}
-                    href={item.url}
-                    className="group flex items-center gap-2 px-3 py-1.5 rounded-md hover:bg-accent/50 transition-colors"
-                  >
-                    <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                    <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">{item.title}</span>
-                  </a>
-                ))}
+
+          {trackedCourses.map((course) => (
+            <div key={course.slug} className="mb-4 last:mb-0">
+              <div className="flex items-center justify-between mb-2 gap-3">
+                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider min-w-0 truncate">
+                  Continue with {course.title}
+                </div>
+                <span className="text-xs text-muted-foreground tabular-nums shrink-0">{course.done} / {course.total} steps</span>
               </div>
+              <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden mb-2.5">
+                <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${course.pct}%` }} />
+              </div>
+              <a
+                href={course.firstUnread ? course.firstUnread.url : course.url}
+                className="group flex items-center gap-3 p-3 rounded-md border border-border hover:border-primary/40 hover:bg-accent/40 transition-all"
+              >
+                <BookOpen className="h-4 w-4 text-primary shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-sm text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                    {course.firstUnread ? course.firstUnread.title : "Review the course"}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {course.firstUnread ? "Pick up where you left off" : "You've completed every step"}
+                  </div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary shrink-0 transition-colors" />
+              </a>
             </div>
-          )}
+          ))}
         </section>
       )}
 
-      {featuredPatterns.length > 0 && (
+      {(featuredCourses.length > 0 || featuredPatterns.length > 0) && (
         <section className="mb-12">
           <div className="flex items-center gap-2 mb-4">
             <Star className="h-4 w-4 text-primary" />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Featured</h2>
           </div>
+          {featuredCourses.length > 0 && (
+            <div className="grid gap-3 sm:grid-cols-2 mb-3">
+              {featuredCourses.map((course) => (
+                <a
+                  key={course.slug}
+                  href={course.url}
+                  className="group flex flex-col p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-all"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+                      <BookOpen className="h-3.5 w-3.5" /> Course
+                    </span>
+                    <span className={`text-xs font-medium ${LEVEL_COLOR[course.level] ?? ""}`}>
+                      {LEVEL_LABEL[course.level] ?? course.level}
+                    </span>
+                  </div>
+                  <span className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors mb-1">
+                    {course.title}
+                  </span>
+                  <p className="text-xs text-muted-foreground leading-relaxed flex-1 line-clamp-2">{course.description}</p>
+                  <div className="mt-3 flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    Start course <ArrowRight className="h-3 w-3" />
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+          {featuredPatterns.length > 0 && (
           <div className="grid gap-3 sm:grid-cols-3">
             {featuredPatterns.map((pattern) => (
               <a
@@ -219,6 +285,7 @@ export default function Home({
               </a>
             ))}
           </div>
+          )}
         </section>
       )}
 
