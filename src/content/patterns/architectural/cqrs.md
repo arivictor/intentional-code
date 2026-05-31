@@ -334,12 +334,16 @@ func (h *GetNoteHandler) HandleAtVersion(ctx context.Context, id string, minVers
 
 The version-aware approach requires the projection to store and expose a version number. It is the most consistent of the three strategies but adds complexity and a short blocking window. For most applications, optimistic UI is the right starting point; users already understand that submitted changes take a moment to appear.
 
+## The Decision
+
+The forcing function for CQRS is a model conflict: the aggregate that enforces your write invariants (rich, normalized, full of domain logic) is the wrong shape for your reads (flat, denormalized, optimized for display). When you force one model to serve both jobs, you either bloat the aggregate with query-specific projections or build anemic reads that leak internal structure. The split is the answer to that conflict — not a way to make code "more scalable."
+
 ## When to Use
 
-- Read and write workloads have different performance profiles, and queries need denormalized views or aggregations that don't fit the write model.
-- The domain is complex and the write side needs a rich model, but the read side only needs flat projections.
-- You want to scale reads and writes independently (read replicas, caching layers).
-- Different teams own the read path and the write path.
+- The model that enforces your write invariants (rich aggregate, domain validation) can't also serve your reads efficiently (flat projections, denormalized lists). Forcing one model to do both degrades each.
+- The domain is complex and the write side needs a rich aggregate model, but the read side only needs purpose-built DTOs that bypass domain logic entirely.
+- Reads and writes need to scale independently — read replicas and caching layers can serve the query side without touching the command side.
+- Different teams own the read path and the write path and need to evolve them independently.
 
 ## When Not to Use
 

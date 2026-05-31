@@ -281,12 +281,16 @@ myapp/
 
 `app` imports nothing outside the standard library. `adapter/http` and `adapter/postgres` import `app`. `cmd/server` imports both. The boundary is enforced by import direction — the application core is never aware of how it is driven or what drives its ports.
 
+## The Decision
+
+The question hexagonal architecture answers is: "why are my tests slow?" If testing a business rule requires a live database and a running HTTP server, the rule is coupled to its infrastructure. Ports and adapters break that coupling — the application defines what it needs (the port), and infrastructure satisfies it (the adapter). The in-memory adapter is what makes the domain testable in milliseconds. If fast domain tests aren't a priority, the port/adapter indirection is overhead you're paying without benefit.
+
 ## When to Use
 
-- Your application needs to support multiple delivery mechanisms (HTTP, gRPC, CLI, event consumers) against the same business logic.
-- You want to test the full application core, including orchestration, without any real infrastructure.
-- Infrastructure is likely to change (new message queue, different database).
-- You're building a long-lived service where the domain is the primary asset.
+- Testing business logic requires real infrastructure today, and that makes the test suite slow or flaky. The port/adapter model is the direct fix.
+- Your application needs to support multiple delivery mechanisms (HTTP, gRPC, CLI, event consumers) against the same business logic. Each delivery mechanism is a driving adapter; swapping or adding one doesn't touch the application core.
+- Infrastructure is likely to change (new message queue, different database). Driven adapters make that change local.
+- You're building a long-lived service where the domain rules are the primary asset and need to survive infrastructure choices.
 
 ## When Not to Use
 

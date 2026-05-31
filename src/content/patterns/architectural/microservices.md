@@ -196,12 +196,16 @@ type OrderPlacedEvent struct {
 }
 ```
 
+## The Decision
+
+The question to answer before choosing microservices: what specific coordination cost is this solving? "Team A deploys twenty times a day and Team B needs a two-week audit review, and they're blocked on each other" is a real forcing function. "We might need to scale later" or "microservices are the industry standard" are preferences. Distributed-systems complexity arrives on day one and stays permanently. The intent behind the decision needs to be concrete enough to justify that cost upfront.
+
 ## When to Use
 
-- Teams need to deploy independently, and a shared release pipeline creates real organizational bottlenecks.
-- One domain has radically different scaling requirements than others (a recommendation engine vs. a customer settings page).
-- Different parts of the system have different reliability, compliance, or security requirements.
-- The domain is well-understood and boundaries are stable; extracting a service before the domain is understood leads to wrong boundaries that are expensive to fix later.
+- Teams need to deploy independently, and a shared release pipeline creates real, measurable organizational bottlenecks today — not hypothetical ones.
+- One domain has radically different scaling requirements than others (a recommendation engine vs. a customer settings page), and scaling the whole application for one hot path wastes real resources.
+- Different parts of the system have different reliability, compliance, or security requirements that can't share an operational posture.
+- The domain is well-understood and boundaries are stable. Extracting a service before you know where the boundaries belong produces a distributed monolith: all the operational complexity, none of the isolation benefits.
 
 ## When Not to Use
 
