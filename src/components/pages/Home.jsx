@@ -133,9 +133,14 @@ export default function Home({
           <span className="text-primary">with {languageLabel}</span>
         </h1>
         {tagline && (
-          <p className="text-lg text-muted-foreground leading-relaxed max-w-xl mb-8">
+          <p className="text-lg text-muted-foreground leading-relaxed max-w-xl mb-4">
             {tagline}
           </p>
+        )}
+        {heroBody && (
+          <div className="text-sm text-muted-foreground leading-relaxed max-w-xl mb-8 space-y-3 [&_em]:text-foreground [&_em]:not-italic [&_em]:font-medium">
+            <ReactMarkdown>{heroBody}</ReactMarkdown>
+          </div>
         )}
         <div className="flex flex-wrap gap-3">
           <a

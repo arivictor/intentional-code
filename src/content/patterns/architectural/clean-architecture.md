@@ -228,12 +228,16 @@ myapp/
 
 The Dependency Rule in package terms: `domain` imports nothing from this project. `usecase` imports `domain`. `adapter/*` imports `usecase`. `infrastructure` imports only third-party drivers. `cmd/server` imports everything and assembles the application. Any import that crosses inward-to-outward breaks the guarantee — a linter like `depguard` can catch it automatically.
 
+## The Decision
+
+The inward dependency rule answers a specific question: "why can't my domain type import `database/sql`?" Because the domain is the core asset, and the infrastructure is the variable. Today it's PostgreSQL; tomorrow it might not be. The rule structurally prevents the infrastructure from becoming load-bearing — so you can change it without archaeology. If you're not protecting something that genuinely needs to outlast its infrastructure, the rings are overhead.
+
 ## When to Use
 
-- You're building a long-lived service where domain rules are the core asset.
-- You need to support multiple delivery mechanisms (HTTP, gRPC, CLI, background workers) against the same business logic.
-- The domain is complex enough to justify the structure (multiple aggregates, non-trivial rules, frequent change).
-- You want to test use cases without starting any infrastructure.
+- You're building a long-lived service where the domain rules are the core asset and need to outlast infrastructure choices.
+- Your delivery mechanism is a variable, not a constant — adding gRPC, a CLI, or a background worker shouldn't require touching domain rules. The inward dependency rule structurally enforces that independence.
+- The domain is complex enough to justify the structure: multiple aggregates, non-trivial invariants, rules that change independently of infrastructure.
+- You need to test use cases without starting any infrastructure, and that testability is a real requirement not a nice-to-have.
 
 ## When Not to Use
 

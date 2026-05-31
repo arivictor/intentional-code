@@ -367,12 +367,16 @@ func (r *OutboxRelay) publishPending(ctx context.Context) {
 
 At-least-once delivery is preserved: if the relay crashes after publishing but before updating `published_at`, the event is re-published on restart. Consumers must be idempotent. For production use, consider a CDC (change data capture) tool like Debezium that reads the Postgres write-ahead log directly, avoiding the polling overhead.
 
+## The Decision
+
+The forcing function for events is one of two problems: either downstream failures are cascading back to the producer (a broken indexer failing an upload), or adding a new consumer requires changing the producer. If neither is true, direct calls are simpler. Events buy decoupling and fault isolation; they cost eventual consistency and operational overhead. Know which side of that trade you need before committing.
+
 ## When to Use
 
-- Services or components need to react to the same event independently without a central orchestrator knowing about all of them.
-- You want producers to remain stable as new consumers are added, which is a nice practical use of open/closed.
-- Downstream failures should not fail the producer. A broken indexer shouldn't block file uploads.
-- Workloads are naturally async: emails, search indexing, analytics, audit logs.
+- Downstream failures are rolling back the producer's work. A broken notification service failing an upload is the canonical forcing function — events let the upload complete regardless of what consumers do.
+- Multiple consumers react to the same fact and the producer shouldn't know who they are. Adding a consumer means subscribing, not modifying the producer.
+- Workloads are naturally async: emails, search indexing, analytics, audit logs. None of these need to complete before the user's operation returns.
+- You need the producer to remain stable as new consumers are added — events make this open/closed by default.
 
 ## When Not to Use
 

@@ -259,12 +259,16 @@ myapp/
 
 In package terms: `handler` imports `service`, `service` imports `repository` (the interface), `postgres` also imports `repository` (to implement it). `cmd/server` imports everything and wires it together. `postgres` never imports `handler` or `service` — the dependency rule holds by import direction alone.
 
+## The Decision
+
+When someone asks "why did you split into folders?"—the answer should be specific. You split because you need to test business rules without a running database, and because you need to swap the storage backend without touching business logic. The folder structure enforces the rule; the rule exists to serve those two needs. If neither pressure is real for your project, the folders are ceremony you're paying for in advance.
+
 ## When to Use
 
-- You're building a web service or API and want a clear place for each concern.
-- Teams are divided by layer (frontend/backend, DB specialists) and need clear boundaries.
-- You want business logic to be testable without HTTP or database infrastructure.
-- You need to swap a layer (for example, replace PostgreSQL with a different store) without touching other layers.
+- You need to test business rules without running HTTP or database infrastructure. That testability requirement is the justification for the boundary.
+- You need to swap a storage backend (for example, replace PostgreSQL with a different store) without touching business logic. That swap-ability requirement justifies isolating infrastructure behind the repository interface.
+- Teams own distinct layers and need explicit handoff contracts. The interface at each boundary makes that ownership concrete.
+- The application is growing and "where does this code live?" is becoming expensive to answer consistently. A clear layer structure settles that question once.
 
 ## When Not to Use
 
