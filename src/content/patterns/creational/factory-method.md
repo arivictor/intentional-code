@@ -10,9 +10,9 @@ isFeatured: true
 
 # Factory Method
 
-In class-based languages, Factory Method is an abstract class with an overridable creation method. In Go, it's a function that returns an interface. The entire pattern reduces to that. The "factory" is the constructor; the "method" is its return type.
+The Factory Method pattern defines an interface for creating an object, but lets the calling code decide which concrete type to instantiate. In Go, this is simply a constructor function that returns an interface. The "factory" is the constructor; the "method" is its return type. The pattern is useful when you have a growing switch statement that selects which type to create based on a runtime value. By moving that selection logic into a constructor function, you can add new implementations without modifying existing code, adhering to the Open/Closed Principle.
 
-The pattern earns its keep when you find yourself extending a switch statement every time you add a new type. That switch is a signal: move the selection logic into one place, hide it behind a constructor, and let new implementations register without touching existing code. This is the [Open/Closed Principle](/go/philosophy/solid) in practice: open for extension, closed for modification.
+This is the [Open/Closed Principle](/go/philosophy/solid) in practice.
 
 ## Scenario
 
@@ -142,9 +142,9 @@ level=info msg="server started"
 - The concrete type matters to the caller: they need access to type-specific methods beyond the interface. In that case, return the concrete type.
 - The factory adds indirection without benefit. Don't add a factory "just in case"; add it when you feel the switch-statement pain.
 
-## Tradeoffs
+## The Decision
 
-The map-of-constructors approach pays for itself quickly: new formats require zero changes to existing code, and each formatter is isolated so a bug in JSON can't break text. The cost is indirection. You must look up the registry to find the concrete type, and unknown format names become runtime errors rather than compile-time ones. The registry is also package-level mutable state, which can cause test flakiness if tests register formats and don't clean up. For small, stable sets of types (say, two formats you're never changing), a plain switch or direct construction is clearer. The factory only earns its overhead when the set of implementations is open-ended or needs to be extended from outside the package.
+The map-of-constructors style works well because adding a new format does not require changing existing code. Each formatter is also isolated, so a bug in JSON formatting does not directly break text formatting. The tradeoff is indirection. To understand what concrete type is created, you have to follow a registry lookup, and unknown format names fail at runtime instead of being caught at compile time. The registry is also mutable package-level state, which can make tests flaky when they register custom formats and forget to clean up. For a small and stable set of options, such as two formats that almost never change, a plain switch or direct constructor is easier to read. The factory approach is worth it when implementations are open-ended or must be extended from outside the package.
 
 ## Related Patterns
 

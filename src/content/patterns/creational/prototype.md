@@ -9,7 +9,7 @@ tags: [state, composition]
 
 # Prototype
 
-Go's struct assignment copies by value: clean for `string` and `int` fields, but silently dangerous for `[]string`, `map[string]string`, and pointer fields, which share the same underlying memory with the original. The value of Prototype in Go is not performance (avoiding expensive constructors) but correctness. A `Clone()` method makes deep-copy semantics explicit and localised, so reference types are never accidentally shared between what you thought were independent copies.
+The Prototype pattern creates new objects by cloning an existing instance, avoiding the cost of building from scratch and decoupling code from concrete types. In Go, this is typically implemented with a `Clone()` method that returns a copy of the object. The key value of Prototype in Go is correctness: Go's struct assignment does a shallow copy, which can lead to shared mutable state if your struct contains reference types (maps, slices, pointers). A `Clone()` method makes the deep-copy semantics explicit and localised, so you can ensure that each copy is truly independent.
 
 ## Scenario
 
@@ -130,7 +130,7 @@ users tags:      [v1 users]
 - Deep copying is too expensive for your use case. Consider immutable shared state ([Flyweight](/go/patterns/structural/flyweight)) instead.
 - You only need a few variations. A constructor with parameters is simpler than cloning and modifying.
 
-## Tradeoffs
+## The Decision
 
 The `Clone()` method is the right tool when correctness requires truly independent copies of reference types, but it has to be maintained manually. Every time you add a slice, map, or pointer field to a struct, you must also update `Clone()` or you silently introduce a sharing bug. The Go compiler gives you no help here: a forgotten field passes all type checks and only fails at runtime when a mutation bleeds through.
 

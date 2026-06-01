@@ -185,7 +185,7 @@ For I/O-bound work, consider a [Worker Pool](/go/patterns/concurrency/worker-poo
 - The work is cheap enough that channel overhead exceeds the benefit of parallelism. Measure first.
 - You need a fixed upper bound on goroutines regardless of input size. Use a [Worker Pool](/go/patterns/concurrency/worker-pool).
 
-## Tradeoffs
+## The Decision
 
 Fan-out does not preserve input order in the output. If order matters, you need to tag each item with its index and reorder at the fan-in, or use a worker pool with an ordered results channel. The number of goroutines scales with the `workers` parameter, not with input size, so fan-out is safe for large input streams.
 

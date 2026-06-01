@@ -9,7 +9,7 @@ tags: [interfaces, state, performance, testability, concurrency]
 
 # Proxy
 
-Proxy wraps an object with the same interface to control access to it. The wrapper can add lazy initialization, access control, caching, or logging, all without the client knowing it's not talking to the real object.
+The Proxy pattern provides a surrogate or placeholder for another object to control access to it. The proxy implements the same interface as the real object, allowing clients to interact with it transparently. The proxy can add lazy initialization, access control, logging, caching, or other cross-cutting concerns without modifying the real object's code.
 
 In Go, Proxy and Decorator look structurally identical (both wrap an interface). The distinction is intent: Decorator adds new behavior; Proxy controls access to existing behavior.
 
@@ -144,9 +144,9 @@ Output:
 - Access control belongs at a higher level (HTTP middleware, gateway) rather than at the object level.
 - You're adding behavior without restricting access: that's [Decorator](/go/patterns/structural/decorator), not Proxy.
 
-## Tradeoffs
+## The Decision
 
-`sync.Once` makes lazy initialization goroutine-safe with no lock contention after the first call: it's the right tool here. The proxy is otherwise transparent; callers use the same interface and never know whether they're talking to the real object or the proxy.
+`sync.Once` makes lazy initialisation goroutine-safe with no lock contention after the first call: it's the right tool here. The proxy is otherwise transparent; callers use the same interface and never know whether they're talking to the real object or the proxy.
 
 The cost is that the proxy must stay in sync with the real interface. Add a method to `Image` and every proxy in the codebase must implement it too. The compiler enforces this, which is actually a feature, not a burden. The harder problem is debuggability: when a call goes wrong, the stack trace shows the proxy method, not the real one, and the first-call latency from lazy loading can surface as intermittent slowness in the caller rather than a consistent cost at construction time.
 

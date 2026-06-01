@@ -9,9 +9,7 @@ tags: [closures, state, events]
 
 # Command
 
-In Go, the simplest command is a function value: `queue := []func(){}`. You don't need a struct unless you need `Undo()` or command metadata. When you do, Command encapsulates each operation as a struct that captures everything required to reverse it: the target object, the position, the data that was there before.
-
-The pattern earns its full weight in text editors, transaction systems, and task queues where operations must be reversible, loggable, or replayable.
+The Command pattern is a behavioural design pattern that encapsulates a request as an object. This allows you parameterise clients with different requests, queue or log requests, and support undoable operations. In Go, the simplest form of a command is a function value (`func()`) that captures the necessary state in its closure. For more complex scenarios, a struct with `Execute()` and `Undo()` methods can be used to represent commands as first-class objects.
 
 ## Scenario
 
@@ -45,11 +43,20 @@ Each operation knows how to do its work but not how to undo it. The editor becom
 Define a `Command` interface with `Execute()` and `Undo()`. Each operation is a struct that captures everything needed to reverse it. A history stack manages undo.
 
 ```
-Command interface          Editor
-├── InsertCmd ─────────► content string
-└── DeleteCmd
+UI / Caller
+		│
+		│ Run(cmd)
+		▼
+	History ----------------------------┐
+		├─ call cmd.Execute()           │
+		└─ push cmd onto stack          │
+									    ▼
+	Command interface               Editor
+		├─ InsertCommand  ─────────►  Content string
+		└─ DeleteCommand
 
-History: [cmd1, cmd2, cmd3] ← Undo pops and calls Undo()
+Undo flow:
+History.Undo() -> pop last command -> call last.Undo() -> Editor restored
 ```
 
 ```go
@@ -159,9 +166,9 @@ After undo:   Hello World
 - The operations are fire-and-forget with no need for undo, queuing, or logging. A function call is simpler.
 - In Go, if your "command" has no state and no undo, a `func()` is the command. Don't wrap it in a struct.
 
-## Tradeoffs
+## The Decision
 
-The function-value form costs nothing and is completely idiomatic. If you just need to queue work, use `[]func()`. The struct form earns its weight only when you need undo: each command must capture a complete snapshot of what it changed, which is easy for simple mutations (a position and a string) but gets expensive fast for operations on large data structures.
+The function-value form costs nothing and is completely idiomatic. If you just need to queue work, use `[]func()`. The struct form makes sense only when you need undo: each command must capture a complete snapshot of what it changed, which is easy for simple mutations (a position and a string) but gets expensive fast for operations on large data structures.
 
 Undo logic is also where bugs hide. The `Execute` path gets tested constantly, but `Undo` only runs when the user hits Ctrl-Z, so subtle state corruption can go unnoticed for a long time. The history stack has no built-in redo: if you undo and then run a new command, the redo branch is silently discarded unless you explicitly track it.
 

@@ -9,7 +9,7 @@ tags: [interfaces, composition]
 
 # Composite
 
-Composite's identifying signal is a tree structure where clients should treat leaves and branches the same way. You call `Size()` and it doesn't matter whether you're calling it on a single file or a directory containing thousands. In Go, this is one interface implemented by both leaf and composite types; the composite holds a `[]InterfaceType` and recursion falls out naturally from each node calling the same method on its children.
+The Composite pattern composes objects into tree structures so clients can treat individual objects and compositions uniformly through a single interface. In Go, this is one interface implemented by both leaf and composite types; the composite holds a `[]InterfaceType` and recursion falls out naturally from each node calling the same method on its children.
 
 The canonical example is a file system: both files and directories satisfy the same interface, and a directory simply delegates its operations to its entries.
 

@@ -9,9 +9,11 @@ tags: [interfaces, closures, composition, testability]
 
 # Decorator
 
-Decorator wraps an object to add behavior, keeping the same interface. In Go, this pattern is everywhere: it's how HTTP middleware works. Any function that takes an interface and returns the same interface, adding behavior in between, is a decorator.
+The Decorator pattern wraps an object to add behavior, keeping the same interface. In Go, this pattern is everywhere: it's how HTTP middleware works. Any function that takes an interface and returns the same interface, adding behavior in between, is a decorator.
 
-The canonical Go example is `http.Handler` middleware: a function that takes a handler, returns a new handler that logs, authenticates, compresses, or rate-limits, and then calls the original. It's the [Open/Closed Principle](/go/philosophy/solid) made concrete: each concern is added without touching the code it wraps.
+The canonical Go example is `http.Handler` middleware: a function that takes a handler, returns a new handler that logs, authenticates, compresses, or rate-limits, and then calls the original. 
+
+It's the [Open/Closed Principle](/go/philosophy/solid).
 
 ## Scenario
 
@@ -150,7 +152,7 @@ Output:
 - Deep decorator stacks (5+ layers) make debugging difficult. Consider whether a [Chain of Responsibility](/go/patterns/behavioral/chain-of-responsibility) would be clearer.
 - You only ever need one fixed combination. Direct composition in a single handler might be simpler.
 
-## Tradeoffs
+## The Decision
 
 The function-wrapper form is idiomatic Go: returning `http.HandlerFunc(func(...) {...})` adds almost no boilerplate and every Go developer recognizes it instantly. The cost that accumulates is order sensitivity. `Logging(Auth(handler))` logs all requests including rejected ones; `Auth(Logging(handler))` only logs authenticated traffic. Small difference, large operational impact, and the compiler won't warn you either way.
 

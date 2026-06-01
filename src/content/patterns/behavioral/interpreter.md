@@ -9,9 +9,32 @@ tags: [interfaces, recursion, composition]
 
 # Interpreter
 
-Interpreter defines a grammar as a set of types (one type per grammar rule) and evaluates a sentence by walking the resulting tree. Every node implements a shared interface with a single method (`Interpret`, `Eval`, or `Execute`). Composite nodes (binary operations, sequences) hold child nodes and delegate to them recursively; terminal nodes (literals, variables) return a value directly.
+The Interpreter pattern is a way to execute a small language by turning its rules into code.
 
-The pattern is a natural fit for small, domain-specific languages: filter expressions, arithmetic evaluators, rule engines, and template renderers. For large or performance-critical grammars, a dedicated parser generator or bytecode VM will outperform a hand-rolled tree, but for a DSL that fits in a hundred rules, Interpreter keeps the grammar visible and testable.
+Think of it as three steps:
+
+1. You receive text, for example: `age > 30 AND status == "active"`.
+2. You parse that text into a tree of expression objects.
+3. You evaluate that tree against input data.
+
+In code, each grammar rule is usually a type that implements one shared method such as `Interpret`, `Eval`, or `Execute`.
+
+- Terminal nodes return a value directly.
+	Example: `CompareExpr{Field:"age", Op:">", Value:30}`.
+- Composite nodes combine child nodes.
+	Example: `AndExpr{Left: ..., Right: ...}`.
+
+So the expression:
+
+`age > 30 AND status == "active"`
+
+becomes roughly:
+
+`AndExpr( CompareExpr(age > 30), CompareExpr(status == "active") )`
+
+At runtime, evaluation is recursive: `AndExpr` asks its left and right children for results, then combines those results with `&&`.
+
+This pattern is a good fit for small domain-specific languages (DSLs): filters, arithmetic formulas, small rule engines, and template expressions. For large grammars or high-performance workloads, parser generators and bytecode/compiled approaches are usually better. But for compact DSLs, Interpreter keeps the grammar visible in code and easy to test rule by rule.
 
 ## Scenario
 
@@ -156,7 +179,7 @@ Adding a new operator (`>=`) means adding one case to `CompareExpr.Interpret`. A
 - You need good error messages from a parser, line numbers, and recovery. A proper parser generator (ANTLR, PEG, etc.) does this far better.
 - Performance is critical. A bytecode VM or compiled approach will outperform a recursive tree walk by an order of magnitude.
 
-## Tradeoffs
+## The Decision
 
 Each grammar rule is isolated and testable: you can unit test `AndExpr` without a parser by constructing the tree directly. Adding a new rule is additive, not a modification. The downside is that a deep or wide tree introduces significant allocation and indirection. For long-lived filter expressions evaluated millions of times per second, compile the expression to a closure or bytecode rather than walking the tree on every call.
 

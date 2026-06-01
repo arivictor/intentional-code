@@ -13,6 +13,8 @@ In a system where every peer knows about every other peer, adding one participan
 
 In Go, the mediator is a struct that holds references to the participants. The participants' own types stay small and contain no cross-references to each other.
 
+The Mediator pattern is also commonly known as a "message bus" or "event bus" in Go backends: a shared dependency that handlers use to send messages without importing each other. This is the same O(n) decoupling the chat room example demonstrates, applied to request dispatching instead of peer messaging.
+
 ## Scenario
 
 You're building a chat room. Without a mediator, each user must hold a reference to every other user and send messages directly. Adding or removing users means updating everyone's contact list.
@@ -210,9 +212,9 @@ The HTTP adapter imports `bus` and the command struct, but not the handler packa
 - The mediator becomes a god object that knows too much about its participants.
 - The communication pattern is simple and unlikely to change.
 
-## Tradeoffs
+## The Decision
 
-The main gain is that participants stay small: they only know about the mediator, not about each other. Adding a new participant becomes a local change (register with the room and you're done). The cost is that the mediator absorbs all the routing complexity, and as you add features (private messages, topic filtering, muting) it becomes the place where everything hard lives.
+The main gain is that participants stay small: they only know about the mediator, not about each other. Adding a new participant becomes a local change (register with the room and you're done). The cost is that the mediator absorbs all the routing complexity, and as you add features (private messages, topic filtering, muting) it becomes the place where everything lives.
 
 A mediator that reaches into participant internals to implement its logic has quietly become a god object that violates the encapsulation it was meant to protect. In practice, keep the mediator's interface narrow (it should route, not orchestrate) and split it before it grows beyond one responsibility.
 

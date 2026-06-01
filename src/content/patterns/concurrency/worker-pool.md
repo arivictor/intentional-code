@@ -214,7 +214,7 @@ go func() {
 
 **Pool size equal to job count.** `workers = len(jobs)` recreates the unbounded goroutine problem. The pool's value is a *fixed* ceiling. Set it from system constraints (CPU count for CPU-bound work, connection pool size for I/O-bound work), not from how many jobs happen to exist right now.
 
-## Tradeoffs
+## The Decision
 
 **Worker pool vs. goroutine per request.**
 Go's `net/http` doesn't use a worker pool; it spawns `go serve(conn)` for every incoming request. That's the right model when each connection is long-lived, independent, and exits naturally when the client disconnects — the goroutine *is* the job, and the runtime's scheduler handles the rest. A worker pool adds complexity that `net/http` doesn't need.

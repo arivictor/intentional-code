@@ -10,9 +10,9 @@ isFeatured: false
 
 # Semaphore
 
-A semaphore limits concurrent access to a resource. In Go, a buffered channel of empty structs is the idiomatic semaphore: the channel's capacity is the limit, sending to it acquires a slot, and receiving from it releases one. When the channel is full, any goroutine that tries to send blocks until another goroutine releases a slot.
+A semaphore limits how many goroutines can use a resource at the same time. In Go, the usual way to build one is a buffered channel of empty structs. The channel capacity is the limit. Sending into the channel means "take one slot," and receiving from the channel means "free one slot." If the channel is full, the next send blocks until some goroutine releases a slot.
 
-The semaphore sits between two extremes: a mutex (only one goroutine at a time) and no limit (unlimited concurrency). Use it when you know how many concurrent operations a downstream system can handle and want to enforce that ceiling without managing a persistent goroutine pool.
+Think of a semaphore as the middle ground between two extremes: a mutex (only one goroutine allowed) and no limit at all (everyone runs at once). Use it when you know the safe concurrency limit of a downstream system and want to enforce that limit directly, without building and managing a long-lived worker pool.
 
 ## Scenario
 
@@ -167,7 +167,7 @@ If jobs arrive continuously over time, a [Worker Pool](/go/patterns/concurrency/
 - You need to cancel individual jobs. A semaphore has no per-job handle; use a worker pool with context-per-job.
 - You need to drain the queue on shutdown in a specific order.
 
-## Tradeoffs
+## The Decision
 
 The buffered-channel semaphore is simple but has one edge case: the acquire (`sem <- struct{}{}`) happens in the calling goroutine before the worker goroutine is spawned. If the context is cancelled while the caller is blocked on the acquire, the cancellation is detected only if you select on `ctx.Done()`. A plain `sem <- struct{}{}` will block forever. The `x/sync/semaphore` package handles this correctly with `Acquire(ctx, n)`.
 

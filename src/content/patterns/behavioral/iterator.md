@@ -9,9 +9,11 @@ tags: [closures, interfaces]
 
 # Iterator
 
-Go 1.23 made Iterator a first-class language feature: `iter.Seq[T]` (a function of the form `func(yield func(T) bool)`) integrates directly with for-range, replacing the channel-based and explicit `Next()`/`Value()` struct approaches that preceded it. Write the traversal once; every consumer gets a plain `for v := range collection.InOrder()` loop.
+The Iterator pattern provides a way to access elements of a collection sequentially without exposing its underlying representation. In simple terms what that means is "give me a way to loop over the elements of this collection without knowing how it's implemented". For example, if you have a binary tree, you might want to iterate over its values in order, but you don't want to expose the tree structure or write the traversal logic every time.
 
-This is one of the patterns most changed by Go's evolution. If you're on 1.23+, external iterator structs are rarely worth reaching for.
+In Go, the most modern and idiomatic form of an iterator is the range-over-function approach introduced in Go 1.23: `iter.Seq[T]` is a function that takes a `yield func(T) bool` and produces values lazily. This integrates directly with for-range loops, allowing consumers to iterate over collections without needing explicit iterator structs or channels.
+
+Go 1.23 made Iterator a first-class language feature: `iter.Seq[T]` (a function of the form `func(yield func(T) bool)`) integrates directly with for-range, replacing the channel-based and explicit `Next()`/`Value()` struct approaches that preceded it. Write the traversal once; every consumer gets a plain `for v := range collection.InOrder()` loop.
 
 ## Scenario
 
@@ -166,7 +168,7 @@ First 3: 1 2 3
 - The collection is small and fits in memory. Just return a slice from a method.
 - You need bidirectional iteration (prev/next). `iter.Seq` doesn't support this naturally.
 
-## Tradeoffs
+## The Decision
 
 The range-over-func form integrates cleanly with Go's syntax and handles early termination via `break` naturally; the `yield` return value propagates the stop signal up the call stack. The main cost is that recursive iterators (like tree traversal) carry goroutine-free stack frames for each level of nesting, which adds overhead compared to a plain recursive function materializing a slice.
 

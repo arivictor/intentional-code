@@ -193,7 +193,7 @@ func parseRecords(ctx context.Context, files <-chan []byte) <-chan result {
 - Stages are so fast that channel overhead dominates. Benchmark before adding goroutines to a tight loop.
 - You need all results before any downstream processing can start. A pipeline won't help you there.
 
-## Tradeoffs
+## The Decision
 
 The pipeline's strength (stages overlap) is also its diagnostic challenge. When something goes wrong, the error is in one goroutine and the symptom may appear in another. Each stage must propagate errors correctly or they silently disappear. Buffered channels between stages can improve throughput by reducing stage synchronisation, but they also mask backpressure: a fast upstream will outrun a slow downstream if you buffer too aggressively. Start with unbuffered channels and add buffering only when you have measured the bottleneck.
 

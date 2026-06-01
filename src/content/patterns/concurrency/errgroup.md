@@ -180,7 +180,7 @@ return g.Wait()
 - Goroutines should continue despite individual failures (processing 1,000 items and logging failures without stopping, for instance). Use a worker pool that writes errors to a results channel.
 - You don't need cancellation. A bare `sync.WaitGroup` is simpler and has no dependency.
 
-## Tradeoffs
+## The Decision
 
 `errgroup`'s cancellation is cooperative. The derived context is cancelled, but goroutines only stop when they check `ctx.Done()`. A goroutine that ignores context (a CPU-bound loop, a blocking syscall) will keep running until it finishes naturally. This means `g.Wait()` can block longer than expected after the first failure if goroutines aren't context-aware. The fix is to make all blocking operations select on `ctx.Done()`, which is good practice regardless of `errgroup`.
 

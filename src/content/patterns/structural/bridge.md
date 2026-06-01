@@ -9,7 +9,7 @@ tags: [interfaces, composition, dependency-inversion]
 
 # Bridge
 
-Bridge's identifying signal is a type hierarchy growing in two independent directions at once. Left unchecked, this produces a cartesian explosion: 3 formats × 3 outputs = 9 types; add a format and you add 3 types; add an output and you add 3 more. Bridge collapses this to 3 + 3 = 6 by splitting the two dimensions into two interfaces that compose via struct field, not inheritance.
+The Bridge pattern splits a large type into two separate hierarchies — abstraction and implementation — that can vary independently. In Go, this is typically implemented with two interfaces and a struct that composes them. The abstraction holds a reference to the implementation and delegates calls to it. The key value of Bridge is preventing a cartesian explosion of types when you have two or more independent dimensions of variation. By separating them into two hierarchies, you can add new values to one dimension without multiplying the number of types in the other.
 
 The key question before reaching for Bridge: are these two dimensions truly independent? If they always change together, Bridge adds interfaces for no gain. If adding to one dimension never requires touching the other, Bridge is the right structure.
 
@@ -144,11 +144,11 @@ Report: sales up 12%
 - The two dimensions are tightly coupled and always change together: separation adds complexity without benefit.
 - Your type hierarchy is small and unlikely to grow. Two or three concrete types are fine.
 
-## Tradeoffs
+## The Decision
 
-Bridge prevents an N×M type explosion by decomposing it into N+M: a real win once you have three or more values on each axis. Before that point, the two interfaces and the composition struct feel like overhead for no reason. The abstraction/implementation split is also non-obvious; teams frequently argue about which side a new feature belongs on, and getting it wrong means refactoring later.
+Bridge avoids the N×M type explosion by turning it into N+M. That becomes a clear win when each axis has three or more options. Before you reach that size, though, two interfaces plus a composition struct can feel like extra structure with little payoff. The abstraction-versus-implementation split is also not always obvious. Teams often debate where a new feature belongs, and a bad choice can force refactoring later.
 
-In Go, Bridge can look identical to Strategy at a glance. The difference is that Strategy varies one algorithm while Bridge explicitly holds two dimensions in a stable, composed relationship. If you have one axis, use Strategy; if you have two, Bridge earns its structure.
+In Go, Bridge can look very similar to Strategy at first. The key difference is scope: Strategy varies one algorithm, while Bridge models two independent axes that stay connected through composition. If your design has only one axis of variation, Strategy is usually the simpler choice. If it has two independent axes, Bridge usually justifies the extra structure.
 
 ## Related Patterns
 

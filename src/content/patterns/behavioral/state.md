@@ -9,6 +9,8 @@ tags: [interfaces, state]
 
 # State
 
+The State pattern models an object that changes its behavior based on its internal state. Instead of using conditionals to check the current state and decide what to do, you define a `State` interface and create separate types for each state. The context object holds a reference to the current state and delegates method calls to it. When a state transition occurs, the current state returns the next state, which the context then adopts.
+
 The telltale sign you need this pattern is a type with switch statements in every method, all checking the same state field. Adding a new state means adding a case to every switch across the entire type. State replaces those switches with one interface and one struct per state: each state's behavior is isolated, and transitions are explicit field assignments on the context.
 
 In Go, the context struct holds a `State` interface value and delegates method calls to it. Transition logic lives inside the state that initiates the change, not scattered across the context's methods.
@@ -97,31 +99,56 @@ func (s *DisconnectedState) Connect(c *Connection) {
 	fmt.Println("Dialing...")
 	c.SetState(&ConnectingState{})
 }
-func (s *DisconnectedState) Send(c *Connection, data string) { fmt.Println("Cannot send: not connected.") }
-func (s *DisconnectedState) Disconnect(c *Connection)        { fmt.Println("Already disconnected.") }
-func (s *DisconnectedState) String() string                  { return "disconnected" }
+
+func (s *DisconnectedState) Send(c *Connection, data string) {
+	fmt.Println("Cannot send: not connected.")
+}
+
+func (s *DisconnectedState) Disconnect(c *Connection) {
+	fmt.Println("Already disconnected.")
+}
+
+func (s *DisconnectedState) String() string {
+	return "disconnected"
+}
 
 type ConnectingState struct{}
 
-func (s *ConnectingState) Connect(c *Connection)          { fmt.Println("Already connecting.") }
-func (s *ConnectingState) Send(c *Connection, data string) { fmt.Println("Cannot send: still connecting.") }
+func (s *ConnectingState) Connect(c *Connection) {
+	fmt.Println("Already connecting.")
+}
+
+func (s *ConnectingState) Send(c *Connection, data string) {
+	fmt.Println("Cannot send: still connecting.")
+}
+
 func (s *ConnectingState) Disconnect(c *Connection) {
 	fmt.Println("Aborting connection.")
 	c.SetState(&DisconnectedState{})
 }
-func (s *ConnectingState) String() string { return "connecting" }
+
+func (s *ConnectingState) String() string {
+	return "connecting"
+}
 
 type ConnectedState struct{}
 
-func (s *ConnectedState) Connect(c *Connection) { fmt.Println("Already connected.") }
+func (s *ConnectedState) Connect(c *Connection) {
+	fmt.Println("Already connected.")
+}
+
 func (s *ConnectedState) Send(c *Connection, data string) {
 	fmt.Printf("Sending: %q\n", data)
 }
+
 func (s *ConnectedState) Disconnect(c *Connection) {
 	fmt.Println("Closing connection.")
 	c.SetState(&DisconnectedState{})
 }
-func (s *ConnectedState) String() string { return "connected" }
+
+func (s *ConnectedState) String() string {
+	return "connected"
+}
 
 func main() {
 	c := NewConnection()
@@ -167,7 +194,7 @@ Cannot send: not connected.
 - There are only two or three states with trivial behavior differences. A boolean or enum is simpler.
 - The state machine is better expressed as a state-transition table (a map of state × event → next state).
 
-## Tradeoffs
+## The Decision
 
 Each state's behavior is isolated in its own type, which makes adding a new state cheap. You write one new struct and don't touch any existing state. The cost is type proliferation: a machine with seven states produces seven structs plus the interface, which can feel heavy for a relatively simple machine.
 

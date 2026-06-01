@@ -134,7 +134,7 @@ func main() {
 - There's only one algorithm and no expectation of alternatives. Just call the function directly.
 - The algorithms are trivially different. Abstracting them adds ceremony without value.
 
-## Tradeoffs
+## The Decision
 
 The function-type form costs almost nothing in Go. Passing a `func` is idiomatic and adds no boilerplate. The interface form adds a little more structure but buys you config state and the ability to introspect the strategy (for example, a `Name()` method for logging).
 

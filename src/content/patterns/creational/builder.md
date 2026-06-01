@@ -9,9 +9,7 @@ tags: [closures, composition, dependency-inversion]
 
 # Builder
 
-Long parameter lists cause two problems: callers must fill every position even for optional fields, and zero values become ambiguous (`timeout=0` could mean "no timeout" or "instant timeout"). In Go, the functional options pattern solves both. A variadic list of option functions lets callers specify only what they need, defaults are centralised in the constructor, and adding new options never breaks existing call sites.
-
-The classic chained builder also works in Go and is preferable when construction has a meaningful order or when you want to reuse a partially configured builder across multiple similar objects.
+The Builder pattern constructs complex objects step by step, separating the construction process from the final representation. This allows you to create different representations of an object using the same construction process. In Go, the functional options pattern is a common way to implement Builder: you define a set of option functions that modify a configuration struct, and a constructor that applies those options to build the final object. The classic chained builder pattern can also be used when construction has a meaningful order or when you want to reuse a partially configured builder across multiple similar objects.
 
 ## Scenario
 
@@ -144,7 +142,7 @@ Client{url=https://api.example.com, timeout=30s, retries=5, ua=myapp/2.0}
 - Construction has a meaningful sequence of steps that must be followed in order. Use a chained builder or a step-interface builder instead.
 - You need to reuse a partially configured builder to stamp out similar objects. The functional options pattern creates a new config each time.
 
-## Tradeoffs
+## The Decision
 
 The functional options pattern costs almost nothing at the call site: callers only name what they care about, and adding a new option never breaks existing code. The cost is one extra function per option, which adds up in large APIs. A twenty-option type means twenty small functions to write and test. Option validation happens at runtime inside the constructor, not at compile time, so an invalid combination (mutually exclusive options, out-of-range values) won't be caught until the constructor runs. The pattern also doesn't compose naturally when you want to reuse a partially built object: each `NewClient` call starts fresh from defaults, so you can't cheaply stamp out five clients that share most settings without building a preset slice of options yourself.
 

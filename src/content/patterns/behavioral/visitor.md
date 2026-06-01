@@ -152,11 +152,11 @@ Result:     14
 - You have few operations. A type switch is simpler and more Go-idiomatic.
 - The double dispatch ceremony (Accept/Visit) feels disproportionate to the problem.
 
-## Tradeoffs
+## The Decision
 
-The open/closed guarantee runs in one direction only: adding a new operation is cheap (one new struct, zero changes to existing code), but adding a new node type forces you to update every existing visitor. The axes are exactly swapped compared to the type switch.
+The open/closed benefit only works in one direction. Adding a new operation is usually cheap: you add one new visitor struct and leave existing node code alone. But adding a new node type is expensive, because every existing visitor must now learn that new type. This is the exact opposite tradeoff of a type switch.
 
-The `interface{}` return type in the example is the main roughness in Go's Visitor implementation. It loses type safety on every `Accept` call and requires type assertions that panic at runtime if you get them wrong. Go generics can help here but add complexity. The verbosity is real and unavoidable: for an expression tree with five node types and ten operations, you're writing fifty methods. The pattern pays for itself only when operations genuinely outnumber types and are added more frequently.
+In this example, the `any` return type is the roughest part of Visitor in Go. You lose compile-time type safety at each `Accept` call and depend on type assertions, which can panic at runtime if they are wrong. Generics can reduce that risk, but they also make the design harder to read and maintain. The boilerplate is real: with five node types and ten operations, you end up writing fifty visit methods. Visitor is worth it only when new operations are added often and the set of node types stays mostly stable.
 
 ## Related Patterns
 

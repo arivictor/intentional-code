@@ -9,9 +9,9 @@ tags: [concurrency, state, testability, performance]
 
 # Singleton
 
-In most Go codebases, Singleton is an anti-pattern. Not because the idea is wrong, but because global mutable state hides dependencies, makes tests unreliable, and forces every part of your application to use one specific concrete type that you can't swap out. The standard implementation using `sync.Once` initializes the value exactly once, safely across goroutines. It's correct. Correct isn't the same as advisable.
+The Singleton pattern ensures a type has only one instance and provides a global point of access to it. In Go, the standard implementation uses `sync.Once` to initialize a package-level variable safely across goroutines. However, this approach is often an anti-pattern in Go because it introduces global mutable state, which hides dependencies, makes tests unreliable, and forces every part of your application to use one specific concrete type that you can't swap out. Instead of using Singleton for shared resources like loggers and HTTP clients, it's usually better to pass the instance through constructors and let `main()` enforce uniqueness.
 
-The pattern has legitimate uses: hardware drivers, license managers, or immutable package-level values compiled at startup (a compiled regex, a frozen lookup table). For shared resources like loggers and HTTP clients, pass the instance through constructors and let `main()` enforce uniqueness.
+However, the pattern has legitimate uses: hardware drivers, license managers, or immutable package-level values compiled at startup (a compiled regex, a frozen lookup table). For shared resources like loggers and HTTP clients, pass the instance through constructors and let `main()` enforce uniqueness.
 
 ## Scenario
 
@@ -141,7 +141,7 @@ In tests, pass `log.New(io.Discard, "", 0)` to silence the logger entirely: no g
 - You're using Singleton because "there should only be one." That's an application constraint, not a reason to bake it into the type. Let `main()` enforce uniqueness by creating one and passing it around.
 - You need different instances in tests. Singleton makes this painful.
 
-## Tradeoffs
+## The Decision
 
 `sync.Once` is genuinely correct: zero-cost after the first call, safe across goroutines, and no more fragile than a plain global var. The problem isn't the mechanism; it's what it produces. Any function that calls `GetLogger()` implicitly depends on the global, but that dependency doesn't show up in the function's signature, so callers can't see it, tests can't replace it, and linters can't enforce it. The moment you need two loggers (one for the app, one for a library) or a silent logger in tests, the global becomes a liability.
 

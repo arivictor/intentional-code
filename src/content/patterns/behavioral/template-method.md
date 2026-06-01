@@ -119,10 +119,12 @@ Output:
   Bob
   Charlie
 ==============
+
 row
 Alice
 Bob
 Charlie
+
 | row |
 |-----|
 | Alice |
@@ -142,7 +144,7 @@ Charlie
 - Most or all steps vary. You don't have a fixed skeleton; you have a completely different algorithm. Use [Strategy](/go/patterns/behavioral/strategy) instead.
 - The skeleton is trivial (2-3 lines). Just inline it.
 
-## Tradeoffs
+## The Decision
 
 Function injection is lightweight in Go. No new types required, and the variable steps are explicit in the function signature.
 

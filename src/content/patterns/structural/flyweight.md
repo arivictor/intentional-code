@@ -9,9 +9,7 @@ tags: [state, performance, concurrency]
 
 # Flyweight
 
-Flyweight is a memory optimization: when you have thousands of similar objects, most of their data is identical. Instead of each object storing its own copy of that shared data, they all point to one shared instance. In Go this is usually a cache keyed on the shared value. The first time you need a particular entry you create it and store it; every subsequent request returns the same pointer. The data that never changes (a font, a colour, a locale) lives in the shared instance; the data that varies per object (a position, a timestamp, a count) stays on each individual instance.
-
-`sync.Pool` is a related but different tool: it recycles mutable temporary objects to reduce GC pressure, whereas Flyweight shares immutable permanent state.
+The Flyweight pattern is a structural design pattern that minimises memory usage by sharing as much data as possible between similar objects. It separates intrinsic state (shared, immutable data) from extrinsic state (unique, mutable data). In Go, this is typically implemented with a cache or registry that interns the shared state: when you request an object with certain intrinsic properties, the cache returns the existing instance if it exists, or creates and stores a new one if it doesn't. The key value of Flyweight is memory efficiency: when you have thousands of similar objects, sharing the common data can save significant memory.
 
 ## Scenario
 
@@ -149,7 +147,7 @@ Unique styles: 2 (shared across 5 characters)
 - The shared state is mutable: concurrent mutation of shared state creates race conditions.
 - The distinction between intrinsic and extrinsic state is unclear or unstable.
 
-## Tradeoffs
+## The Decision
 
 The memory savings are real and dramatic when the sharing ratio is high: two style objects serving ten thousand characters is the intended use. The cost is that the intern cache is package-level mutable state. In concurrent code you need a `sync.RWMutex` around reads and writes, and the cache itself never shrinks. An intern cache that grows without bound can leak memory if new keys arrive continuously (per-request keys built from user input, for example).
 

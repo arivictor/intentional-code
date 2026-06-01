@@ -10,7 +10,7 @@ isFeatured: false
 
 # Done Channel
 
-A goroutine that nobody can stop is a goroutine leak. It keeps stack memory alive, may hold file descriptors or database connections, and can block other goroutines waiting on its output. The done channel pattern gives every goroutine a way to stop, either by closing a dedicated `done` channel or (the modern form) by cancelling a `context.Context`.
+The done channel pattern gives goroutines a way to stop when their work is no longer needed. A goroutine that outlives its caller is a goroutine leak: it holds memory, may hold resources, and can block other goroutines waiting on its output. The done channel pattern signals goroutines to exit by closing a shared `done` channel or (the modern form) by cancelling a `context.Context`.
 
 Apply this to any goroutine that isn't guaranteed to terminate on its own.
 
@@ -195,7 +195,7 @@ func TestWorker(t *testing.T) {
 
 - Short-lived goroutines that terminate immediately after doing a single piece of work with no blocking operations. The overhead of context plumbing is rarely worth it for `go func() { wg.Done() }()` style goroutines.
 
-## Tradeoffs
+## The Decision
 
 The cost is verbosity: every blocking operation needs a `select` with `ctx.Done()`. Miss one and you've introduced a goroutine leak that may not show up until production. In return, cancellation stays explicit, composable, and testable. `context.WithTimeout` and `context.WithDeadline` give you time-based cancellation on top of the same mechanism.
 

@@ -10,7 +10,7 @@ isFeatured: true
 
 # Facade
 
-Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch job all repeat the same multi-step sequence (validate, process, notify, log), that sequence belongs in one struct, not scattered across entry points. In Go, a facade struct accepts its subsystems as interfaces (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.
+The Facade pattern is a structural design pattern that provides a simple, unified interface to a complex subsystem, shielding clients from internal complexity. In Go, this is typically implemented as a struct that composes several subsystem interfaces and exposes a small API that orchestrates calls to them. The facade simplifies the client's interaction with the subsystem by hiding the details of how the subsystem's components work together.
 
 ## Scenario
 
@@ -165,7 +165,7 @@ converted person.yaml → person.json
 - Different callers need different orchestration sequences. The facade becomes a god object with many methods.
 - You're hiding complexity that callers actually need to understand and control.
 
-## Tradeoffs
+## The Decision
 
 The benefit is clear when the same sequence appears in three or more places: one change propagates everywhere. The risk is that the facade becomes a magnet for new concerns. Someone adds compression, then encryption, then metrics, and the facade accumulates a dozen dependencies and a `Convert` method with a dozen steps. At that point it's a god object, not a simplification.
 

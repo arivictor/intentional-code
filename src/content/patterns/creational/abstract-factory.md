@@ -170,7 +170,7 @@ Output:
 - The products in each family are trivially different. The abstraction overhead isn't justified.
 - You don't actually need family consistency. If mixing is fine, individual factory functions are simpler.
 
-## Tradeoffs
+## The Decision
 
 Abstract Factory provides the strongest consistency guarantee in Go's creational toolkit: the compiler makes it impossible to pair a JSON reader with a CSV writer. That guarantee comes at a real cost. Adding a new product type (say, a `Compressor`) requires changing the factory interface and every implementation that satisfies it. Three families plus one new method means touching four files. In Go, where implicit interfaces already give you most of the decoupling benefit, this can feel like a lot of ceremony for small programs. The pattern pays off when you have two or more product types that genuinely must stay in sync across multiple families. If you only ever need to swap one object type, [Factory Method](/go/patterns/creational/factory-method) is simpler.
 

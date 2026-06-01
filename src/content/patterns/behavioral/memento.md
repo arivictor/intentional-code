@@ -9,9 +9,17 @@ tags: [state]
 
 # Memento
 
-Go's package system gives Memento a cleaner implementation than most languages can offer. A type's unexported fields are accessible only within its own package, so the originator (in the same package as the memento) can save and restore state through a `*Memento` that external code can hold and pass around but cannot read or modify. Encapsulation enforced by the compiler, not convention.
+The Memento pattern lets an object save a snapshot of its internal state and restore it later, without exposing that internal state to the rest of the program.
 
-The pattern is the encapsulated complement to [Prototype](/go/patterns/creational/prototype): Prototype clones state for independent use; Memento snapshots state for guarded restoration.
+In plain English: "save state now, restore it later, and do not let outside code peek inside the snapshot."
+
+This is useful for undo, checkpoints, and rollback behavior.
+
+The important rule is that the snapshot (the memento) is opaque. The originator, the object that created the snapshot, is the only code that can read or change it.
+
+Go makes this pattern clean because of package visibility. If `Memento` has unexported fields and lives in the same package as the originator, outside packages can hold `*Memento` values and pass them around, but cannot read or modify snapshot contents. That means encapsulation is enforced by the compiler, not by team convention.
+
+You can think of Memento as the encapsulated complement to [Prototype](/go/patterns/creational/prototype): Prototype copies state so you can branch and continue independently; Memento captures state so you can safely return to it later.
 
 ## Scenario
 
@@ -40,7 +48,7 @@ With public fields, nothing prevents external code from modifying saved state. T
 Create a memento type with unexported fields in the same package as the originator. External packages can hold a `*Memento` but can't read or modify its contents.
 
 ```
-┌──────────────┐  Save()  ┌──────────────┐
+┌──────────────┐  Save() ┌──────────────┐
 │   Editor     │────────►│   Memento    │
 │ (originator) │         │ (opaque)     │
 │              │◄────────│ unexported   │
@@ -132,7 +140,7 @@ Undo again: "Hello" (cursor=5)
 - Snapshots would consume too much memory (large or frequent states).
 - You only need undo for individual operations. Command with `Undo()` is lighter.
 
-## Tradeoffs
+## The Decision
 
 Go's unexported fields make the opaqueness genuinely compile-time-enforced. The caretaker literally cannot read or modify snapshot contents, which is a stronger guarantee than most patterns achieve.
 

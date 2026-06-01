@@ -9,7 +9,7 @@ tags: [interfaces, composition, dependency-inversion]
 
 # Adapter
 
-Any wrapper struct in Go that makes one package's type compatible with another's interface is an Adapter: one of the most common patterns in the language, frequently written without being recognised as one. The formal structure is a struct that holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
+The Adapter pattern converts the interface of an existing type into another interface clients expect, letting incompatible types work together. In Go, any wrapper struct that makes one package's type compatible with another's interface is an Adapter: one of the most common patterns in the language, frequently written without being recognised as one. The formal structure is a struct that holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
 
 The pattern is especially common when integrating third-party packages. You can't modify the package, and you don't want to modify your domain interface everywhere it's used, so you build a thin wrapper that translates between them once, in one place.
 
@@ -113,7 +113,7 @@ func main() {
 - The adaptation is trivial (just renaming a method). Go's implicit interface satisfaction might mean you don't need a wrapper at all.
 - You're adapting for hypothetical future flexibility. Only adapt when the mismatch is real.
 
-## Tradeoffs
+## The Decision
 
 The benefit is concentrated: translation logic lives in one place, not scattered across every call site. Swapping the adapted library requires updating one struct rather than dozens of callers. The cost is a layer of indirection: one more file to open when tracing a call.
 
