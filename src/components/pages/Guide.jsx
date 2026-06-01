@@ -49,20 +49,39 @@ function ItineraryCard({ title, blurb, steps, basePath }) {
       <h3 className="font-semibold text-foreground mb-1">{title}</h3>
       <p className="text-sm text-muted-foreground leading-relaxed mb-4">{blurb}</p>
       <ol className="space-y-2">
-        {steps.map((step, i) => (
-          <li key={step.label}>
-            <a
-              href={`${basePath}${step.path}`}
-              className="group flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
-            >
-              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[11px] font-semibold tabular-nums shrink-0">
-                {i + 1}
-              </span>
-              <span className="flex-1">{step.label}</span>
-              <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
-            </a>
-          </li>
-        ))}
+        {steps.map((step, i) => {
+          const marker = (
+            <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[11px] font-semibold tabular-nums shrink-0">
+              {i + 1}
+            </span>
+          );
+
+          // Some steps have no single destination — they depend on what the
+          // finder recommends or which course you pick. Rather than link them to
+          // an arbitrary page (which makes the click feel broken), render them as
+          // plain steps so the label always matches what happens.
+          if (!step.path) {
+            return (
+              <li key={step.label} className="flex items-center gap-2 text-sm text-muted-foreground">
+                {marker}
+                <span className="flex-1">{step.label}</span>
+              </li>
+            );
+          }
+
+          return (
+            <li key={step.label}>
+              <a
+                href={`${basePath}${step.path}`}
+                className="group flex items-center gap-2 text-sm text-foreground hover:text-primary transition-colors"
+              >
+                {marker}
+                <span className="flex-1">{step.label}</span>
+                <ArrowRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+              </a>
+            </li>
+          );
+        })}
       </ol>
     </div>
   );
@@ -75,8 +94,8 @@ export default function Guide({ basePath = "/go" }) {
       blurb: "Build the vocabulary and the judgement before the catalog. Start with the reasoning, then see it applied.",
       steps: [
         { label: "Read the philosophy overview", path: "/philosophy" },
-        { label: "Start with Gall's Law and KISS", path: "/philosophy/galls-law" },
-        { label: "Skim one pattern category end to end", path: "/patterns/creational" },
+        { label: "Start with Gall's Law", path: "/philosophy/galls-law" },
+        { label: "Skim the Creational patterns", path: "/patterns/creational" },
         { label: "Try the finder on a problem you have", path: "/finder" },
       ],
     },
@@ -85,7 +104,8 @@ export default function Guide({ basePath = "/go" }) {
       blurb: "You know what you're trying to build and just need the right tool. Go straight to the decision step.",
       steps: [
         { label: "Describe it in the finder", path: "/finder" },
-        { label: "Read the recommended pattern", path: "/patterns/behavioral" },
+        // No link: the destination is whatever the finder recommends.
+        { label: "Read the pattern it recommends" },
         { label: "Check the principle behind it", path: "/philosophy" },
       ],
     },
@@ -94,8 +114,10 @@ export default function Guide({ basePath = "/go" }) {
       blurb: "Learn by shipping. Apply the patterns and principles in a real, end-to-end project.",
       steps: [
         { label: "Open the course catalog", path: "/courses" },
-        { label: "Work through it step by step", path: "/courses" },
-        { label: "Look up patterns as they come up", path: "/patterns/architectural" },
+        // No link: depends on which course and how far you've got.
+        { label: "Work through it step by step" },
+        // No link: you look these up as they come up, not all at once.
+        { label: "Look up patterns as they come up" },
       ],
     },
   ];
