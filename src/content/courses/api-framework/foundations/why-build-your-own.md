@@ -4,13 +4,13 @@ order: 1
 description: "Why you build your own HTTP framework — to understand the one you'll run in production, and to own the thin layer every team ends up writing."
 ---
 
-## The Real Reason to Build Your Own
+## Why Build Your Own Framework?
 
-Go has Gin, Echo, Chi, Fiber, and a standard library `net/http` that, since Go 1.22, routes by method and path on its own. So why build your own? Not to beat Gin at being Gin — the reason is narrower and more useful:
+When you use a third-party framework, it is a dependency you don't understand. It's a black box that turns your handlers into something that runs on the network, and you have no idea how. So when something breaks in production, you're diving into GitHub issues instead of reading your own code. More often than not you'll find yourself bending to the opinion of the frameworks authors or trying to bend the framework to your will.
 
-**You build your own framework to understand the one you'll actually use in production, and to own the thin layer where every team's API conventions diverge from the defaults.**
+Build it yourself and the black box becomes glass. You understand every line, so you change it whenever you want — add what your use case needs, delete what it doesn't. And you come out knowing how HTTP and a Go web server actually work, not just how to configure someone else's.
 
-Every company that runs Go services at scale ends up with an internal `httpx` or `server` package. It is rarely a full framework. It is the standard library plus a handful of decisions like how errors become JSON, how requests get an ID, how the server shuts down, made *once* so that two hundred handlers don't each make them differently. That thin layer is what we are building — and by the end you'll understand exactly what Gin does for you, because you'll have built the heart of it yourself.
+Building your own also kills a myth: that the framework's way is the only way. There's nothing sacred about another team's opinions — you can build one that fits yours. By the end of this course you'll have a working HTTP framework you wrote yourself, and a real feel for the conventions every team eventually reinvents. From there you can extend it however you like, or, at worst, walk away with a sharper appreciation for whichever framework you choose.
 
 ## What Building It Gives You
 
@@ -30,7 +30,7 @@ A focused, production-grade layer on top of `net/http` that gives you:
 
 We will only use the standard library. No third-party dependencies. By the final chapter you'll have a single package you can copy into a real service and a `main.go` that runs.
 
-## The One Design Decision That Drives Everything
+## Getting Started
 
 Here is the seed the whole framework grows from. The standard library's handler looks like this:
 

@@ -6,7 +6,7 @@ description: "The Link type and the one decision the whole course rests on: sepa
 
 ## Three Jobs, Not One
 
-The toy from the last step does three different jobs in two functions: it *generates* a code, it *stores* a mapping, and it *speaks HTTP*. Those three jobs change for completely different reasons.
+The example from the last step does three different jobs in two functions: it *generates* a code, it *stores* a mapping, and it *speaks HTTP*. Those three jobs change for completely different reasons.
 
 - You'll change **code generation** when sequential IDs leak your growth rate and you switch to random codes.
 - You'll change **storage** when an in-memory map loses everything on restart and you move it into a database.
