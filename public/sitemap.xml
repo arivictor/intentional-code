@@ -15,6 +15,21 @@
   <url><loc>https://intentionalcode.com/go/courses/api-framework/requests-responses/error-handling</loc><lastmod>2026-06-01</lastmod></url>
   <url><loc>https://intentionalcode.com/go/courses/api-framework/routing/define-routes</loc><lastmod>2026-06-01</lastmod></url>
   <url><loc>https://intentionalcode.com/go/courses/api-framework/routing/radix-tree-router</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/foundations/design-the-core</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/foundations/why-build-a-url-shortener</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/generating-short-codes/base62-encoding</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/generating-short-codes/pluggable-generators</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/hardening/click-analytics</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/hardening/rate-limiting</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/production/configuration-and-shutdown</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/production/putting-it-together</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/storage/caching-decorator</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/storage/durable-persistence</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/storage/the-repository</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/the-http-api/shorten-and-redirect</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/courses/url-shortener/the-http-api/validation-and-errors</loc><lastmod>2026-06-01</lastmod></url>
+  <url><loc>https://intentionalcode.com/go/drills</loc><lastmod>2026-06-01</lastmod></url>
   <url><loc>https://intentionalcode.com/go/finder</loc><lastmod>2026-06-01</lastmod></url>
   <url><loc>https://intentionalcode.com/go/patterns/architectural</loc><lastmod>2026-06-01</lastmod></url>
   <url><loc>https://intentionalcode.com/go/patterns/architectural/circuit-breaker</loc><lastmod>2026-06-01</lastmod></url>
