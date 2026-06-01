@@ -48,9 +48,11 @@ export default function TopBar({
             >
               <Menu className="h-5 w-5" />
             </button>
-            <a href={homePath} className="flex items-center shrink-0 select-none gap-1">
-              <span className="font-bold text-sm tracking-tight text-foreground">Intentional Code</span>
-              <span className="text-primary font-bold text-sm">_</span>
+            <a href={homePath} className="flex items-center shrink-0 select-none gap-2">
+              <img src="/favicon-32x32.png" alt="" className="h-5 w-5 rounded-sm" />
+              <span className="flex items-center gap-1">
+                <span className="font-bold text-sm tracking-tight text-foreground">Intentional Code</span>
+              </span>
             </a>
           </div>
 

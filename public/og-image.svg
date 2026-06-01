@@ -1,144 +1,59 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
     <pattern id="dotGrid" x="0" y="0" width="24" height="24" patternUnits="userSpaceOnUse">
-      <circle cx="12" cy="12" r="0.5" fill="#000000" opacity="0.04"/>
+      <circle cx="12" cy="12" r="0.5" fill="#000000" opacity="0.05"/>
     </pattern>
-    <filter id="blob1" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="60"/>
+    <!-- Soft blur for the brand-color halo behind the logo -->
+    <filter id="soft" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="90"/>
     </filter>
-    <filter id="blob2" x="-60%" y="-60%" width="220%" height="220%">
-      <feGaussianBlur stdDeviation="75"/>
+    <!-- Drop shadow that lifts the logo tile off the page -->
+    <filter id="tileShadow" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="18" stdDeviation="26" flood-color="#000000" flood-opacity="0.20"/>
     </filter>
-    <!-- Fades gradient away from text -->
-    <linearGradient id="fadeLeft" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%"   stop-color="#ffffff" stop-opacity="1"/>
-      <stop offset="38%"  stop-color="#ffffff" stop-opacity="1"/>
-      <stop offset="62%"  stop-color="#ffffff" stop-opacity="0.1"/>
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
-    <linearGradient id="fadeTop" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%"  stop-color="#ffffff" stop-opacity="1"/>
-      <stop offset="35%" stop-color="#ffffff" stop-opacity="0"/>
-    </linearGradient>
   </defs>
 
   <!-- ── BACKGROUND ── -->
   <rect width="1200" height="630" fill="#ffffff"/>
   <rect width="1200" height="630" fill="url(#dotGrid)"/>
 
-  <!-- ── COLOR GRADIENT (upper-right) ── -->
-  <ellipse cx="960" cy="360" rx="360" ry="290" fill="#00d4aa" opacity="0.55" filter="url(#blob1)"/>
-  <ellipse cx="1100" cy="100" rx="270" ry="220" fill="#ff4444" opacity="0.62" filter="url(#blob1)"/>
-  <ellipse cx="1020" cy="220" rx="220" ry="175" fill="#ff8800" opacity="0.45" filter="url(#blob2)"/>
-  <ellipse cx="860"  cy="500" rx="210" ry="165" fill="#0fd4bf" opacity="0.35" filter="url(#blob2)"/>
-
-  <!-- ── FADE OVERLAYS ── -->
-  <rect width="1200" height="630" fill="url(#fadeLeft)"/>
-  <rect width="1200" height="160" fill="url(#fadeTop)"/>
+  <!-- ── BRAND-COLOR HALO (glows around the logo) ── -->
+  <g filter="url(#soft)" opacity="0.45">
+    <ellipse cx="528" cy="190" rx="150" ry="130" fill="#00d4aa"/>
+    <ellipse cx="676" cy="196" rx="150" ry="130" fill="#ff8800"/>
+    <ellipse cx="604" cy="312" rx="160" ry="120" fill="#ff4444"/>
+  </g>
 
   <!-- ── CORNER CROSSHAIRS ── -->
-  <line x1="18" y1="30" x2="42" y2="30" stroke="#d4d4d4" stroke-width="1"/>
-  <line x1="30" y1="18" x2="30" y2="42" stroke="#d4d4d4" stroke-width="1"/>
-  <line x1="1158" y1="30" x2="1182" y2="30" stroke="#d4d4d4" stroke-width="1"/>
-  <line x1="1170" y1="18" x2="1170" y2="42" stroke="#d4d4d4" stroke-width="1"/>
+  <line x1="18"   y1="30"  x2="42"   y2="30"  stroke="#d4d4d4" stroke-width="1"/>
+  <line x1="30"   y1="18"  x2="30"   y2="42"  stroke="#d4d4d4" stroke-width="1"/>
+  <line x1="1158" y1="30"  x2="1182" y2="30"  stroke="#d4d4d4" stroke-width="1"/>
+  <line x1="1170" y1="18"  x2="1170" y2="42"  stroke="#d4d4d4" stroke-width="1"/>
   <line x1="18"   y1="600" x2="42"   y2="600" stroke="#d4d4d4" stroke-width="1"/>
   <line x1="30"   y1="588" x2="30"   y2="612" stroke="#d4d4d4" stroke-width="1"/>
   <line x1="1158" y1="600" x2="1182" y2="600" stroke="#d4d4d4" stroke-width="1"/>
   <line x1="1170" y1="588" x2="1170" y2="612" stroke="#d4d4d4" stroke-width="1"/>
 
-  <!-- ── BRAND MARK ── -->
-  <!-- <text x="80" y="86"
+  <!-- ── LOGO MARK — the ">" in a rounded square ── -->
+  <g filter="url(#tileShadow)">
+    <rect x="500" y="140" width="200" height="200" rx="46" fill="#0a0a0a"/>
+  </g>
+  <polyline points="576,192 632,240 576,288"
+            fill="none" stroke="#ffffff" stroke-width="22"
+            stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- ── WORDMARK ── -->
+  <text x="600" y="462" text-anchor="middle"
         font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif"
-        font-size="14" font-weight="600" letter-spacing="-0.2" fill="#000000">Intentional Code</text>
-  <text x="219" y="86"
+        font-size="70" font-weight="800" letter-spacing="-3" fill="#0a0a0a">Intentional Code<tspan font-family="'Courier New', Courier, monospace" font-weight="700" fill="#0a0a0a">_</tspan></text>
+
+  <!-- ── TAGLINE ── -->
+  <text x="600" y="516" text-anchor="middle"
+        font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif"
+        font-size="27" font-weight="500" letter-spacing="-0.3" fill="#525252">Patterns &amp; principles for writing intentional Go.</text>
+
+  <!-- ── DOMAIN ── -->
+  <text x="600" y="586" text-anchor="middle"
         font-family="'Courier New', Courier, monospace"
-        font-size="14" font-weight="700" fill="#000000">_</text> -->
-
-  <!-- ── MAIN HEADLINE ── -->
-  <text x="80" y="270"
-        font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif"
-        font-size="104" font-weight="800" letter-spacing="-5"
-        fill="#000000">Intentional</text>
-  <text x="80" y="382"
-        font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif"
-        font-size="104" font-weight="800" letter-spacing="-5"
-        fill="#000000">Code.</text>
-
-  <!-- ── CODE PANEL — zoomed in, bleeds past right + bottom edges ── -->
-  <!-- Panel extends to x=1380 and y=750; SVG viewBox clips it naturally -->
-  <rect x="648" y="22" width="732" height="750" rx="12" fill="#fafafa" stroke="#e5e5e5" stroke-width="1"/>
-
-  <!-- Header bar -->
-  <rect x="648" y="22"  width="732" height="44" rx="12" fill="#f0f0f0"/>
-  <rect x="648" y="54"  width="732" height="12"  fill="#f0f0f0"/>
-  <rect x="648" y="65"  width="732" height="1"   fill="#e5e5e5"/>
-
-  <!-- Window dots -->
-  <circle cx="674" cy="44" r="5.5" fill="#d4d4d4"/>
-  <circle cx="693" cy="44" r="5.5" fill="#d4d4d4"/>
-  <circle cx="712" cy="44" r="5.5" fill="#d4d4d4"/>
-
-  <!-- File tab -->
-  <rect x="736" y="28" width="110" height="26" rx="4" fill="#fafafa" stroke="#e5e5e5" stroke-width="1"/>
-  <text x="791" y="45" font-family="'Courier New', Courier, monospace" font-size="11" fill="#a3a3a3" text-anchor="middle">observer.go</text>
-
-  <!-- ── CODE LINES ── 18px font, 30px line-height, baseline y=100
-       line-num: right-aligned at x=680   code: x=698
-       keywords #7c3aed  types #1d4ed8  funcs #059669  comments #9ca3af  default #1a1a1a  nums #d8d8d8 -->
-
-  <text x="680" y="100" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">01</text>
-  <text x="698" y="100" font-family="'Courier New',monospace" font-size="18"><tspan fill="#7c3aed">type </tspan><tspan fill="#1d4ed8">Observer </tspan><tspan fill="#7c3aed">interface </tspan><tspan fill="#1a1a1a">{</tspan></text>
-
-  <text x="680" y="130" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">02</text>
-  <text x="698" y="130" font-family="'Courier New',monospace" font-size="18"><tspan fill="#059669">    Update</tspan><tspan fill="#1a1a1a">(event </tspan><tspan fill="#1d4ed8">Event</tspan><tspan fill="#1a1a1a">)</tspan></text>
-
-  <text x="680" y="160" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">03</text>
-  <text x="698" y="160" font-family="'Courier New',monospace" font-size="18" fill="#1a1a1a">}</text>
-
-  <text x="680" y="190" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">04</text>
-
-  <text x="680" y="220" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">05</text>
-  <text x="698" y="220" font-family="'Courier New',monospace" font-size="18"><tspan fill="#7c3aed">type </tspan><tspan fill="#1d4ed8">EventBus </tspan><tspan fill="#7c3aed">struct </tspan><tspan fill="#1a1a1a">{</tspan></text>
-
-  <text x="680" y="250" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">06</text>
-  <text x="698" y="250" font-family="'Courier New',monospace" font-size="18"><tspan fill="#1a1a1a">    mu          </tspan><tspan fill="#1d4ed8">sync.RWMutex</tspan></text>
-
-  <text x="680" y="280" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">07</text>
-  <text x="698" y="280" font-family="'Courier New',monospace" font-size="18"><tspan fill="#1a1a1a">    observers   []</tspan><tspan fill="#1d4ed8">Observer</tspan></text>
-
-  <text x="680" y="310" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">08</text>
-  <text x="698" y="310" font-family="'Courier New',monospace" font-size="18"><tspan fill="#1a1a1a">    middlewares []</tspan><tspan fill="#1d4ed8">MiddlewareFn</tspan></text>
-
-  <text x="680" y="340" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">09</text>
-  <text x="698" y="340" font-family="'Courier New',monospace" font-size="18" fill="#1a1a1a">}</text>
-
-  <text x="680" y="370" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">10</text>
-
-  <text x="680" y="400" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">11</text>
-  <text x="698" y="400" font-family="'Courier New',monospace" font-size="18"><tspan fill="#7c3aed">func </tspan><tspan fill="#1a1a1a">(b *</tspan><tspan fill="#1d4ed8">EventBus</tspan><tspan fill="#1a1a1a">) </tspan><tspan fill="#059669">Publish</tspan><tspan fill="#1a1a1a">(event </tspan><tspan fill="#1d4ed8">Event</tspan><tspan fill="#1a1a1a">, opts ...</tspan><tspan fill="#1d4ed8">Option</tspan><tspan fill="#1a1a1a">) {</tspan></text>
-
-  <text x="680" y="430" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">12</text>
-  <text x="698" y="430" font-family="'Courier New',monospace" font-size="18"><tspan fill="#1a1a1a">    b.mu.</tspan><tspan fill="#059669">RLock</tspan><tspan fill="#1a1a1a">()</tspan></text>
-
-  <text x="680" y="460" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">13</text>
-  <text x="698" y="460" font-family="'Courier New',monospace" font-size="18"><tspan fill="#7c3aed">    defer </tspan><tspan fill="#1a1a1a">b.mu.</tspan><tspan fill="#059669">RUnlock</tspan><tspan fill="#1a1a1a">()</tspan></text>
-
-  <text x="680" y="490" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">14</text>
-  <text x="698" y="490" font-family="'Courier New',monospace" font-size="18"><tspan fill="#7c3aed">    for </tspan><tspan fill="#1a1a1a">_, observer := </tspan><tspan fill="#7c3aed">range </tspan><tspan fill="#1a1a1a">b.observers {</tspan></text>
-
-  <!-- Active line highlight -->
-  <rect x="648" y="499" width="732" height="30" fill="#000000" fill-opacity="0.03"/>
-
-  <text x="680" y="520" font-family="'Courier New',monospace" font-size="13" fill="#c4c4c4" text-anchor="end">15</text>
-  <text x="698" y="520" font-family="'Courier New',monospace" font-size="18"><tspan fill="#1a1a1a">        observer.</tspan><tspan fill="#059669">Update</tspan><tspan fill="#1a1a1a">(event)</tspan></text>
-
-  <text x="680" y="550" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">16</text>
-  <text x="698" y="550" font-family="'Courier New',monospace" font-size="18" fill="#1a1a1a">    }</text>
-
-  <text x="680" y="580" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">17</text>
-  <text x="698" y="580" font-family="'Courier New',monospace" font-size="18" fill="#1a1a1a">}</text>
-
-  <text x="680" y="610" font-family="'Courier New',monospace" font-size="13" fill="#d8d8d8" text-anchor="end">18</text>
-  <!-- Line 18 starts near bottom — partially visible, bleeds off -->
-  <text x="698" y="610" font-family="'Courier New',monospace" font-size="18"><tspan fill="#7c3aed">func </tspan><tspan fill="#1a1a1a">(b *</tspan><tspan fill="#1d4ed8">EventBus</tspan><tspan fill="#1a1a1a">) </tspan><tspan fill="#059669">Subscribe</tspan><tspan fill="#1a1a1a">(observer </tspan><tspan fill="#1d4ed8">Observer</tspan><tspan fill="#1a1a1a">) {</tspan></text>
+        font-size="19" font-weight="400" letter-spacing="1.5" fill="#a3a3a3">intentionalcode.com</text>
 </svg>
