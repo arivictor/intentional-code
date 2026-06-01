@@ -3,7 +3,7 @@ import { ChevronRight } from "lucide-react";
 
 const STATIC_TITLES = {
   go: "Go",
-  courses: "Courses",
+  courses: "Practice",
   philosophy: "Philosophy",
   solid: "SOLID Principles",
   tdd: "Test-Driven Development",

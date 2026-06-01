@@ -11,7 +11,7 @@ const LEVEL_COLOR = {
   advanced: "text-red-600 dark:text-red-400",
 };
 
-export default function CourseLanding({ course, navOrder = [], pathname = "", basePath = "/go" }) {
+export default function CourseLanding({ course, navOrder = [], pathname = "", basePath = "/go", homePath = basePath }) {
   const [stepsDone, setStepsDone] = useState({});
 
   useEffect(() => {
@@ -34,9 +34,9 @@ export default function CourseLanding({ course, navOrder = [], pathname = "", ba
       <ReadingProgressBar />
       <div className="max-w-3xl mx-auto px-6 py-12">
         <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm text-muted-foreground mb-6">
-          <a href={basePath} className="hover:text-foreground transition-colors">Home</a>
+          <a href={homePath} className="hover:text-foreground transition-colors">Home</a>
           <ChevronRight className="h-3 w-3 shrink-0" />
-          <a href={`${basePath}/courses`} className="hover:text-foreground transition-colors">Courses</a>
+          <a href={`${basePath}/courses`} className="hover:text-foreground transition-colors">Practice</a>
           <ChevronRight className="h-3 w-3 shrink-0" />
           <span className="text-foreground font-medium">{course.title}</span>
         </nav>

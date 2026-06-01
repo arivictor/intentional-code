@@ -119,12 +119,12 @@ export default function Sidebar({
       {courseNavData.length > 0 && (
         <div className="px-3 py-3 border-b border-border">
           <SidebarSection
-            title="Courses"
+            title="Practice"
             defaultOpen={pathname.startsWith(`${basePath}/courses`)}
             forceOpen={!!filterLower}
           >
-            {matchesFilter("All Courses") && (
-              <SidebarLink href={`${basePath}/courses`} active={pathname === `${basePath}/courses`}>All Courses</SidebarLink>
+            {matchesFilter("All courses") && (
+              <SidebarLink href={`${basePath}/courses`} active={pathname === `${basePath}/courses`}>All courses</SidebarLink>
             )}
             {courseNavData.map((course) => {
               const courseBase = `${basePath}/courses/${course.slug}`;
