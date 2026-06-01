@@ -5,8 +5,8 @@ export const GO_SECTION = {
   label: 'Go',
   themeStorageKey: 'go-patterns-theme',
   summaryLabel: 'Go Idiom',
-  homeTitle: 'Design Patterns in Go',
-  homeDescription: 'Design patterns and SOLID principles, implemented in idiomatic Go — with examples, tradeoffs, and cross-references.',
+  homeTitle: 'Intentional Code with Go',
+  homeDescription: 'A field guide for writing Go that\'s easier to read, test, and change. Start with the principles, find the right pattern, learn the idiomatic implementation, then build.',
   philosophyDescription: 'The principles that make Go design patterns work: SOLID and Test-Driven Development.',
   categoryOrder: ['creational', 'structural', 'behavioral', 'architectural', 'concurrency'],
   philosophyOrder: [

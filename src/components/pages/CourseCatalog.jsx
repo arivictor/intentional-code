@@ -16,9 +16,15 @@ export default function CourseCatalog({ courses = [], navOrder = [], pathname = 
       <ReadingProgressBar />
       <div className="max-w-4xl mx-auto px-6 py-12">
         <div className="mb-10">
-          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-3">Courses</h1>
+          <span className="inline-block text-xs font-semibold text-primary uppercase tracking-wider mb-2">The apply step</span>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-3">Practice</h1>
           <p className="text-base text-muted-foreground leading-relaxed max-w-2xl">
-            End-to-end project courses. Each course walks you through building something real — designed to ship.
+            Principles and patterns only stick once you build with them. Each course is an end-to-end project
+            where the ideas come together into something real and shippable — look up{" "}
+            <a href={`${basePath}/patterns/creational`} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary">patterns</a>
+            {" "}and{" "}
+            <a href={`${basePath}/philosophy`} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary">principles</a>
+            {" "}as they come up.
           </p>
         </div>
 
