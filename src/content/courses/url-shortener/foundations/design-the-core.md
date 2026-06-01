@@ -127,9 +127,9 @@ func (s *Service) Resolve(code string) (Link, error) {
 
 Read `Shorten` and notice it mentions neither base62 nor files nor HTTP. It's pure orchestration. The collision retry lives here — not in the generator (which shouldn't know about storage) and not in the store (which shouldn't know about generation strategies). It belongs to the coordinator, because collision handling is a fact about *combining* the two, and the coordinator is the only thing that sees both.
 
-## Why This Is Worth the Ceremony
+## Why These Boundaries Pay Off
 
-It's fair to ask whether three types are overkill for "a map and two handlers." For the toy, yes. For what we're building, the boundaries pay for themselves almost immediately:
+Three types for "a map and two handlers" earns its keep almost immediately — every change the rest of the course makes lands in exactly one of them:
 
 - In Chapter 2 we write three `Generator` implementations. `Service` doesn't change.
 - In Chapter 3 we swap `MemoryStore` for `FileStore`, then wrap it in a cache. `Service` doesn't change, and neither do the handlers.
@@ -137,9 +137,9 @@ It's fair to ask whether three types are overkill for "a map and two handlers." 
 
 Each later change lands in exactly one place. That's the dividend Separation of Concerns pays: not fewer lines today, but *isolated* changes tomorrow.
 
-## When This Is a Mistake
+## Why We Draw the Lines Here
 
-The same honesty from the last step applies to architecture. Three interfaces for a script you'll throw away after one run is [over-engineering](/go/philosophy/yagni) — the toy map is correct for a toy. The boundaries earn their keep only when a component genuinely has more than one implementation or genuinely needs to be tested in isolation. We're confident here because we've already named the second and third implementations of each interface; we're not speculating that we *might* need them. Add a boundary when you can name what's on the other side of it, not before.
+These boundaries aren't speculative — and that's what makes them right. We wrap `Generator` and `Store` in interfaces because we can already name the second and third implementation of each: three code strategies in the next chapter; a `MemoryStore`, a `FileStore`, and a caching wrapper in the one after. The interface exists to hold implementations we *know are coming*, so it earns its keep the moment we write them. That's the discipline [Separation of Concerns](/go/philosophy/separation-of-concerns) asks for — draw the boundary exactly where you can name what lives on both sides of it.
 
 ## What's Next
 

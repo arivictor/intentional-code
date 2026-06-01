@@ -5,7 +5,6 @@ intent: "Coordinate a multi-step distributed transaction as a sequence of local 
 idiomSummary: "Two styles: choreography (each service listens for events and reacts) and orchestration (a saga coordinator struct drives the workflow). Compensating transactions must be idempotent and always succeed."
 relatedSlugs: ["event-driven", "event-sourcing", "cqrs"]
 tags: [distributed, events, interfaces, concurrency]
-recognitionHook: "A multi-step operation across services fails halfway and you need compensating actions to undo completed steps."
 ---
 
 # Saga

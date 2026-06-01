@@ -5,7 +5,6 @@ intent: "Encapsulate a request as an object (or function value), letting you par
 idiomSummary: "A function value, or a struct with Execute(); queue/undo via a stack of commands."
 relatedSlugs: ["chain-of-responsibility", "memento", "strategy"]
 tags: [closures, state, events]
-recognitionHook: "You need undo, queuing, or audit logging of operations — not just executing them."
 ---
 
 # Command

@@ -10,7 +10,6 @@ function createPatternCollection(base: string, categories: [string, ...string[]]
       intent: z.string(),
       goIdiomSummary: z.string().optional(),
       idiomSummary: z.string().optional(),
-      recognitionHook: z.string().optional(),
       relatedSlugs: z.array(z.string()).default([]),
       tags: z.array(z.string()).default([]),
       isFeatured: z.boolean().default(false),

@@ -5,7 +5,6 @@ intent: "Organise code into horizontal layers, Handler, Service, Repository, Inf
 idiomSummary: "Separate packages per layer; interfaces at each boundary so layers can be tested and swapped independently."
 relatedSlugs: ["repository", "clean-architecture", "hexagonal"]
 tags: [interfaces, dependency-inversion, testability, composition]
-recognitionHook: "Code at any layer imports code from any other layer and dependency direction is hard to trace."
 ---
 
 # Layered Architecture

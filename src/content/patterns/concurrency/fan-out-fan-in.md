@@ -6,7 +6,6 @@ idiomSummary: "Fan out with a loop spawning goroutines each reading the same inp
 relatedSlugs: ["pipeline", "worker-pool", "done-channel", "errgroup"]
 tags: [concurrency, channels, performance, distributed]
 isFeatured: false
-recognitionHook: "One stage in your pipeline is CPU-bound and everything else is waiting on it."
 ---
 
 # Fan-out / Fan-in

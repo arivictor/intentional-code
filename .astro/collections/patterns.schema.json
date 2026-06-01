@@ -24,9 +24,6 @@
     "idiomSummary": {
       "type": "string"
     },
-    "recognitionHook": {
-      "type": "string"
-    },
     "relatedSlugs": {
       "default": [],
       "type": "array",

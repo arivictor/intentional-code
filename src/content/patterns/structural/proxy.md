@@ -5,7 +5,6 @@ intent: "Provide a surrogate or placeholder for another object to control access
 idiomSummary: "Same-interface wrapper for lazy init, access control, logging, caching; contrast with Decorator."
 relatedSlugs: ["adapter", "decorator"]
 tags: [interfaces, state, performance, testability, concurrency]
-recognitionHook: "You need lazy initialization, caching, or access control in front of an expensive resource."
 ---
 
 # Proxy

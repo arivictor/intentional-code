@@ -1,7 +1,7 @@
 ---
 title: "Why Build a URL Shortener?"
 order: 1
-description: "The honest case for and against building your own — and why it's the ideal first production service to learn on."
+description: "Why a URL shortener is the ideal first production service to build — and what 'production-ready' really means."
 ---
 
 ## A Suspiciously Simple Problem
@@ -29,17 +29,15 @@ This works on your laptop, for one user, until you restart the process and every
 
 That gap between the toy and the real thing is exactly why this is the best first production service to build. The problem is small enough to hold in your head, but every layer you add is a layer you'll add in *every* backend you ever write.
 
-## When You Should Just Use a Service
+## Why This Is the Project to Learn On
 
-Intellectual honesty first: most of the time, you should **not** build this. If you need short links for a marketing campaign, Bitly, a cloud provider's redirect service, or a five-line Cloudflare Worker will outlast and outperform anything you stand up yourself. They handle abuse, analytics, custom domains, and 99.99% uptime as someone else's problem.
+A URL shortener is the best first backend you can build, and its small surface area is exactly why. Three things line up:
 
-This is [YAGNI](/go/philosophy/yagni) talking: *you aren't gonna need* a bespoke shortener for a bespoke shortener's sake. Build your own when one of these is actually true:
+- **It's small enough to finish.** The whole product is "store a mapping, redirect on lookup." You can hold it in your head, which means your attention goes to *how* you build each layer — not to keeping a sprawling spec straight.
+- **Every layer generalises.** Unguessable IDs, durable storage, a read cache, rate limiting, background work, graceful shutdown — you will add every one of these to *every* backend you ever write. Here they arrive one at a time, in isolation, where you can actually watch each pattern do its job.
+- **The standard library forces understanding.** You can't `go get` your way past the interesting parts, so you build them — and discover the cache is a Decorator, the code generator is a Strategy, the analytics path is a Worker Pool. The patterns stop being vocabulary and become tools you've used.
 
-- **The links can't leave your network.** Internal tools, healthcare, finance — the long URLs are sensitive and can't be handed to a third party.
-- **You need it embedded.** The shortener is a feature *inside* a product you already run (a paste service, a link-in-bio app), not a standalone tool.
-- **You're learning.** You want to understand storage, caching, and concurrency by building them, not by reading a vendor's docs.
-
-This course is mostly the third reason, honestly held. We're going to build the real thing — abuse handling and all — because the *building* is the lesson. Just don't mistake "I built a URL shortener" for "I should run a URL shortener."
+Build it end to end and you don't just have a URL shortener — you have a working model of how a production Go service fits together, with every layer anchored to a pattern you can reach for anywhere.
 
 ## What "Production-Ready" Actually Means
 

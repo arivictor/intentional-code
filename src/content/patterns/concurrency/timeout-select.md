@@ -6,7 +6,6 @@ idiomSummary: "select multiplexes channel operations; context.WithTimeout is the
 relatedSlugs: ["done-channel", "pipeline", "worker-pool", "errgroup"]
 tags: [concurrency, channels, state, performance]
 isFeatured: false
-recognitionHook: "A goroutine can block indefinitely waiting on a channel with no way to cancel it."
 ---
 
 # Timeout and Select

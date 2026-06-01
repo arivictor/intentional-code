@@ -5,7 +5,6 @@ intent: "Capture and externalize an object's internal state so it can be restore
 idiomSummary: "Capture/restore via an opaque type with unexported fields; originator owns save/restore."
 relatedSlugs: ["command", "prototype"]
 tags: [state]
-recognitionHook: "You need point-in-time snapshots of state to support undo/redo or an audit trail."
 ---
 
 # Memento

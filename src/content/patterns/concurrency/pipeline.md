@@ -6,7 +6,6 @@ idiomSummary: "Each stage is a function that receives an input channel and retur
 relatedSlugs: ["fan-out-fan-in", "worker-pool", "done-channel"]
 tags: [concurrency, channels, performance, composition]
 isFeatured: false
-recognitionHook: "You do read → transform → write sequentially but each step could overlap the next."
 ---
 
 # Pipeline

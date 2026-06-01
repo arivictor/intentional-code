@@ -5,7 +5,6 @@ intent: "Provide an interface whose methods each return related product interfac
 idiomSummary: "An interface whose methods each return related product interfaces; one struct per family."
 relatedSlugs: ["factory-method", "builder"]
 tags: [interfaces, composition, dependency-inversion, testability]
-recognitionHook: "You have multiple families of related objects and accidentally mix components from different families."
 ---
 
 # Abstract Factory

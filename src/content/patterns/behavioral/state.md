@@ -5,7 +5,6 @@ intent: "Let an object alter its behavior when its internal state changes, appea
 idiomSummary: "A State interface; context holds current state and delegates, transitions return the next state."
 relatedSlugs: ["strategy", "command"]
 tags: [interfaces, state]
-recognitionHook: "You have a status field with an expanding switch that controls every method's behavior."
 ---
 
 # State

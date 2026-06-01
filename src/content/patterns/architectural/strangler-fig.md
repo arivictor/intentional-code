@@ -5,7 +5,6 @@ intent: "Incrementally replace a legacy system by routing some traffic to a new 
 idiomSummary: "A routing layer (reverse proxy, HTTP middleware, or feature flag) intercepts calls. New paths go to the new implementation; unimplemented paths fall through to the legacy system. Remove the legacy once coverage is complete."
 relatedSlugs: ["microservices", "hexagonal", "layered"]
 tags: [interfaces, dependency-inversion, migration]
-recognitionHook: "You need to replace a legacy system incrementally without a big-bang rewrite."
 ---
 
 # Strangler Fig

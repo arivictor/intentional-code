@@ -5,7 +5,6 @@ intent: "Store state as an append-only log of domain events, and derive current 
 idiomSummary: "Append-only event store (Postgres table or EventStoreDB); aggregate loads by replaying its event slice; periodic snapshots cap replay cost."
 relatedSlugs: ["cqrs", "event-driven", "domain-driven-design"]
 tags: [events, distributed, interfaces, dependency-inversion]
-recognitionHook: "You need a full audit log of what happened, not just the current state of the row."
 ---
 
 # Event Sourcing

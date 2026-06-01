@@ -6,7 +6,6 @@ idiomSummary: "A buffered channel of empty structs acts as a counting semaphore:
 relatedSlugs: ["worker-pool", "done-channel", "fan-out-fan-in"]
 tags: [concurrency, channels, performance, state]
 isFeatured: false
-recognitionHook: "You're making N simultaneous calls to a rate-limited API and getting 429 errors."
 ---
 
 # Semaphore

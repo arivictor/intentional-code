@@ -5,7 +5,6 @@ intent: "Minimize memory usage by sharing as much data as possible between simil
 idiomSummary: "Share immutable intrinsic state via interning and lookup map; mention sync.Pool as a related but different reuse tool."
 relatedSlugs: ["composite", "singleton"]
 tags: [state, performance, concurrency]
-recognitionHook: "You're allocating thousands of objects with mostly shared data and memory pressure is visible."
 ---
 
 # Flyweight

@@ -5,7 +5,6 @@ intent: "Split a large type into two separate hierarchies — abstraction and im
 idiomSummary: "Split abstraction and implementation into two interfaces composed by struct fields."
 relatedSlugs: ["adapter", "strategy"]
 tags: [interfaces, composition, dependency-inversion]
-recognitionHook: "You have N implementations of M abstractions and the combination count is exploding."
 ---
 
 # Bridge

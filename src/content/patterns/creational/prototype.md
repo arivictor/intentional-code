@@ -5,7 +5,6 @@ intent: "Create new objects by cloning an existing instance, avoiding the cost o
 idiomSummary: "A Clone() method; be explicit about shallow vs deep copy with pointers, slices, maps."
 relatedSlugs: ["factory-method", "memento"]
 tags: [state, composition]
-recognitionHook: "Creating an object from scratch is expensive; cloning a pre-configured template is cheaper."
 ---
 
 # Prototype

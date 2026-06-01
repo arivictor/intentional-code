@@ -5,7 +5,6 @@ intent: "Structure code in concentric rings, Entities, Use Cases, Interface Adap
 idiomSummary: "Domain types and use-case interfaces in an inner package; HTTP handlers and DB adapters in outer packages that import inward, never the reverse."
 relatedSlugs: ["hexagonal", "layered", "repository", "domain-driven-design"]
 tags: [interfaces, dependency-inversion, testability, composition]
-recognitionHook: "Your HTTP handlers import your database package and you can't test business logic without a real DB."
 ---
 
 # Clean Architecture

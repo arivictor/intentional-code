@@ -129,12 +129,6 @@ export default function Home({
           >
             Find a pattern →
           </a>
-          <a
-            href={`${basePath}/drills`}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Test your eye →
-          </a>
         </div>
 
       </div>

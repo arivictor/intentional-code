@@ -149,13 +149,13 @@ Output:
 
 `/users/42` captured `id=42` via the param child. `/users/me` matched the static child even though `/users/:id` also exists, because we try static first. `/nope` has no child and returns 404. The matcher does exactly what the API promised in the previous step.
 
-## When Not to Reach for This
+## Where This Router Stops
 
-A hand-written tree is the right teaching tool and fine for most services, but be honest about the edges:
+Our tree handles static segments and named params — which covers the overwhelming majority of real APIs. Three things sit deliberately outside its scope. Knowing where the line is means you'll recognise the moment a route needs more than we've built:
 
-- **You need full regex constraints on segments** (`/users/:id(\d+)`). That's a different matcher; bolting regex onto each node erodes the O(depth) guarantee. Reach for a router that's designed for it.
-- **You need catch-all/wildcard tails** (`/files/*path`). Our tree doesn't handle them yet — it's a focused extension (a `wildcardChild` that consumes the rest), but if you need it on day one, a mature router like Chi already has it.
-- **Memory is tight and you have tens of thousands of routes.** Production routers compress single-child chains (the actual "radix" optimization) to save nodes. Our segment trie has identical match complexity but uses more nodes. Rarely worth the added code unless you've measured a problem — [premature optimization is its own trap](/go/philosophy/kiss).
+- **Regex constraints on segments** (`/users/:id(\d+)`). That's a genuinely different matcher; bolting regex onto each node would erode the O(depth) guarantee. It's a separate design, not an extension of this one.
+- **Catch-all/wildcard tails** (`/files/*path`). A focused extension — a `wildcardChild` that consumes the rest of the path — that we don't build here. Slot it in when a route needs it.
+- **Tens of thousands of routes under tight memory.** The real "radix" optimization compresses single-child chains to save nodes. Our segment trie has identical match complexity and is simpler to read; reach for compression only once a profiler says the node count actually hurts ([premature optimization is its own trap](/go/philosophy/kiss)).
 
 ## What's Next
 

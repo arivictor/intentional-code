@@ -5,7 +5,6 @@ intent: "Separate the model used for writing state (Commands) from the model use
 idiomSummary: "Command handler functions that accept a command struct and return an error; query functions that accept filter params and return read-model DTOs."
 relatedSlugs: ["event-driven", "domain-driven-design", "repository"]
 tags: [interfaces, dependency-inversion, distributed, events]
-recognitionHook: "Reads are complex aggregations over many entities but writes are simple; the same model can't serve both well."
 ---
 
 # CQRS

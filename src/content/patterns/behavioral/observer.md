@@ -5,7 +5,6 @@ intent: "Define a one-to-many dependency between objects so that when one change
 idiomSummary: "Subscriber interface slice or channels; cover unsubscribe and goroutine/lifecycle concerns."
 relatedSlugs: ["mediator", "command"]
 tags: [interfaces, closures, concurrency, events, testability]
-recognitionHook: "Multiple parts of your system react when something changes, but the producer shouldn't know who's listening."
 ---
 
 # Observer

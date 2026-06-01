@@ -5,7 +5,6 @@ intent: "Construct complex objects step by step, separating construction from re
 idiomSummary: "Prefer the functional options pattern (func WithTimeout(d) Option); also show classic chained builder."
 relatedSlugs: ["factory-method", "abstract-factory"]
 tags: [closures, composition, dependency-inversion]
-recognitionHook: "Your constructor has more than four parameters and callers can't remember the order."
 ---
 
 # Builder

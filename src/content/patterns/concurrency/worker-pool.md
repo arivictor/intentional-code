@@ -6,7 +6,6 @@ idiomSummary: "A buffered jobs channel distributes work; N worker goroutines eac
 relatedSlugs: ["fan-out-fan-in", "pipeline", "done-channel", "semaphore"]
 tags: [concurrency, channels, performance, distributed]
 isFeatured: true
-recognitionHook: "You're spawning goroutines in a loop and the loop bound is user-controlled."
 ---
 
 # Worker Pool

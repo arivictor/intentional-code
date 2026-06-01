@@ -5,7 +5,6 @@ intent: "Define an object that encapsulates how a set of objects interact, promo
 idiomSummary: "A coordinator struct that colleagues call instead of each other."
 relatedSlugs: ["facade", "observer"]
 tags: [interfaces, dependency-inversion, events]
-recognitionHook: "Components are tangled in mutual references; changing one requires updating several others."
 ---
 
 # Mediator
