@@ -9,11 +9,11 @@ tags: [interfaces, concurrency, events, distributed, testability]
 
 # Event-Driven Architecture
 
-Event-Driven Architecture solves the cascading failure problem of synchronous service calls: when service A calls B and C directly, a failure in C also fails A. With events, A publishes a fact and returns, then B and C subscribe and react independently. A failed notification service can't block a file upload completing successfully.
+Event-Driven Architecture helps you avoid chain-reaction failures from direct service calls. In a synchronous flow, if service `A` calls `B` and `C`, a failure in `C` can make `A` fail too. With events, `A` publishes a fact (for example, `FileUploaded`) and returns. `B` and `C` handle that event on their own. If notifications fail, the upload can still succeed.
 
-The pattern spans both in-process (Go channels, event bus struct) and cross-service (Kafka, NATS, SQS) contexts. Hiding the difference behind a `Publisher` interface lets you start with an in-process bus and graduate to a broker when the system demands it.
+This pattern works in both small and large systems. Inside one service, you can use Go channels or a simple event bus struct. Across services, you can use Kafka, NATS, or SQS. A `Publisher` interface hides those transport details, so you can start with an in-process bus and move to a broker later without rewriting your core business logic.
 
-## Problem
+## Scenario
 
 A file-processing service calls the notification service, the search indexer, and the audit logger directly when a file is uploaded. Every new downstream concern means a new import and a new call site in the upload service. If the notification service is down, the upload fails. Testing the upload service requires all downstream services to be running.
 
@@ -40,15 +40,15 @@ The upload service emits a `FileUploaded` event. Notifications, indexing, and au
 
 ```
 Producer                     Event Bus / Queue                Consumers
-┌──────────────┐             ┌──────────────────┐            ┌──────────────────┐
-│ UploadService│──FileUploaded►                  ├───────────►│ NotifierService  │
-└──────────────┘             │  (channel / NATS  │            └──────────────────┘
-                             │   / Kafka / SQS)  ├───────────►┌──────────────────┐
-                             │                   │            │  IndexerService  │
-                             └──────────────────┘            └──────────────────┘
-                                                  ───────────►┌──────────────────┐
-                                                              │  AuditService    │
-                                                              └──────────────────┘
+┌──────────────┐           ┌───────────────────┐       ┌──────────────────┐
+│ UploadService│──Event───►│                   ├──────►│ NotifierService  │
+└──────────────┘           │  (channel / NATS  │       └──────────────────┘
+                           │   / Kafka / SQS)  ├──────►┌──────────────────┐
+                           │                   │       │  IndexerService  │
+                           └───────────────────┘       └──────────────────┘
+                                                ──────►┌──────────────────┐
+                                                       │  AuditService    │
+                                                       └──────────────────┘
 ```
 
 **In-process event bus:** zero dependencies, good for a single service with internal decoupling:
@@ -366,10 +366,6 @@ func (r *OutboxRelay) publishPending(ctx context.Context) {
 
 At-least-once delivery is preserved: if the relay crashes after publishing but before updating `published_at`, the event is re-published on restart. Consumers must be idempotent. For production use, consider a CDC (change data capture) tool like Debezium that reads the Postgres write-ahead log directly, avoiding the polling overhead.
 
-## The Decision
-
-The forcing function for events is one of two problems: either downstream failures are cascading back to the producer (a broken indexer failing an upload), or adding a new consumer requires changing the producer. If neither is true, direct calls are simpler. Events buy decoupling and fault isolation; they cost eventual consistency and operational overhead. Know which side of that trade you need before committing.
-
 ## When to Use
 
 - Downstream failures are rolling back the producer's work. A broken notification service failing an upload is the canonical forcing function — events let the upload complete regardless of what consumers do.
@@ -384,16 +380,18 @@ The forcing function for events is one of two problems: either downstream failur
 - Operational overhead of a message broker (Kafka, NATS) isn't justified. In-process channels or direct calls are enough.
 - Debugging and tracing distributed events is more than the team can manage.
 
-## Tradeoffs
+## The Decision
 
-The main benefit is isolation: producers stay stable as new consumers are added, and a failing consumer can't roll back the producer's work. The main cost is eventual consistency. Consumers may lag behind the producer, so the indexer may not see a newly uploaded file immediately. This surprises users who expect their own write to be reflected right away. At-least-once delivery means every consumer must be idempotent, which isn't hard to implement but is easy to forget when adding a new handler.
+Events are usually worth it for one of two reasons: downstream failures are breaking the producer (for example, a broken indexer causes upload to fail), or adding a new consumer forces you to edit producer code. If neither problem exists, direct calls are usually simpler. Events give you decoupling and fault isolation, but you pay with eventual consistency and more operational work. Make sure you need that trade before adopting the pattern.
 
-Schema coupling is the subtler ongoing cost: event schemas need to stay backward compatible or consumers break silently, requiring deliberate versioning discipline that pure function call contracts don't. The rules: add new fields additively and never remove or rename existing ones; use pointer types (`*string`, `*int`) for optional new fields so producers that omit the field produce valid JSON that older consumers can still decode; use a `Version` field to dispatch consumers to different deserialization paths when a structural change is unavoidable. Go's `json.Unmarshal` ignores unknown fields by default, which means producers can add fields without coordinating consumer deploys, as long as you never remove fields that consumers already depend on.
+The biggest benefit is isolation. Producers can stay unchanged while you add consumers, and one bad consumer does not undo producer work. The biggest cost is eventual consistency. Consumers can run behind, so a just-uploaded file may not appear in search immediately. Users often notice this because they expect read-after-write behavior. Also, broker delivery is often at-least-once, so every consumer must be idempotent. That is straightforward to build, but easy to forget when adding new handlers.
+
+Another ongoing cost is schema compatibility. Event schemas must stay backward compatible, or consumers can break without obvious errors. The safe rules are: only add fields, do not remove or rename existing fields, and treat structural changes as versioned changes. For optional new fields, use pointer types such as `*string` or `*int`, so older producers can omit them and consumers can still decode valid JSON. When you need a structural change, add a `Version` field and route to different decode paths. Go helps here because `json.Unmarshal` ignores unknown fields by default, so producers can add fields without coordinating deploys, as long as you do not remove fields consumers already use.
 
 ## Related Patterns
 
 - **Domain-Driven Design:** Domain Events are a natural producer for an event-driven system. Aggregates record events as facts during state transitions, and the application layer dispatches them after the transaction commits.
-- **CQRS:** Commands produce events, and read-side projections consume those events to build denormalized views. Together they give you a full write and read model with a useful audit history.
+- **CQRS:** Commands produce events, and read-side projections consume those events to build denormalised views. Together they give you a full write and read model with a useful audit history.
 - **Circuit Breaker:** Wrap message broker publish calls in a circuit breaker. If the broker is unavailable, fail fast and route events to a dead-letter queue instead of blocking the producer.
 - **Hexagonal Architecture:** The message broker is a driven adapter implementing a `Publisher` port, and the event handler function is another driven port implemented by the infrastructure layer.
 - **Observer:** Event-Driven Architecture is the distributed, cross-process form of the Observer pattern. Observer is in-process with direct method calls; Event-Driven adds a broker, serialization, and at-least-once delivery semantics.

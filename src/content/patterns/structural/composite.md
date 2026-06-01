@@ -13,7 +13,7 @@ Composite's identifying signal is a tree structure where clients should treat le
 
 The canonical example is a file system: both files and directories satisfy the same interface, and a directory simply delegates its operations to its entries.
 
-## Problem
+## Scenario
 
 You're tracking disk usage. Files have a size. Directories contain files and other directories. You need to calculate the total size of any entry, but the code treats files and directories differently, with type checks everywhere.
 

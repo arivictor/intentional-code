@@ -14,7 +14,7 @@ Fan-out distributes work from a single source channel to multiple goroutines pro
 
 The pattern addresses a specific bottleneck: a pipeline stage that is slower than its upstream and downstream. Rather than replacing the slow stage, you run N copies of it simultaneously.
 
-## Problem
+## Scenario
 
 An image processing pipeline fetches images from a channel, runs a CPU-intensive resize operation on each one, and emits the result. The resize step is the bottleneck: it's CPU-bound and takes 100ms per image. The upstream can produce images faster than a single goroutine can resize them.
 
@@ -113,7 +113,7 @@ func main() {
 	close(in)
 
 	for img := range processImages(in) {
-		fmt.Printf("resized %s → %dx%d\n", img.Name, img.Width, img.Height)
+		fmt.Printf("resised %s → %dx%d\n", img.Name, img.Width, img.Height)
 	}
 }
 ```

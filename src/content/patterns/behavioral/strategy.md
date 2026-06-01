@@ -13,7 +13,7 @@ Strategy defines a family of algorithms and makes them interchangeable. In Go, t
 
 This is the [Open/Closed Principle](/go/philosophy/solid) applied to algorithms. The context is open to new behaviours without modifying existing code. It's also one of the patterns that becomes nearly invisible in Go. When someone passes a `func` to a constructor or a `sort.Slice` call, they're using Strategy without naming it.
 
-## Problem
+## Scenario
 
 You need to send notifications through different channels. The current approach switches on a channel name inside the sending function. Every new channel means editing that function, and you can't test one channel's logic without compiling in all the others.
 

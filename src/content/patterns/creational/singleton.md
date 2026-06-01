@@ -13,9 +13,9 @@ In most Go codebases, Singleton is an anti-pattern. Not because the idea is wron
 
 The pattern has legitimate uses: hardware drivers, license managers, or immutable package-level values compiled at startup (a compiled regex, a frozen lookup table). For shared resources like loggers and HTTP clients, pass the instance through constructors and let `main()` enforce uniqueness.
 
-## Problem
+## Scenario
 
-Your application needs a logger. Creating multiple loggers with different state (different output files, different prefixes) produces inconsistent output and wastes resources. You want exactly one logger shared across the entire application. The naive approach uses a global variable initialized at package load time, but package init order is fragile, and there's no way to configure the logger differently for tests.
+Your application needs a logger. Creating multiple loggers with different state (different output files, different prefixes) produces inconsistent output and wastes resources. You want exactly one logger shared across the entire application. The naive approach uses a global variable initialised at package load time, but package init order is fragile, and there's no way to configure the logger differently for tests.
 
 ```go
 // log_global.go
@@ -23,7 +23,7 @@ package applog
 
 import "log"
 
-// Global state, initialized at import time.
+// Global state, initialised at import time.
 // Problems:
 // 1. Can't configure differently for tests
 // 2. Package init order may not have config ready yet

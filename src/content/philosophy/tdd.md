@@ -12,7 +12,7 @@ Write a failing test. Make it pass. Refactor. Go's tooling makes this loop faste
 TDD is not "write tests." It's a design discipline with three steps, always in order:
 
 - **Red:** Write a test for behavior that doesn't exist yet. Run it. Watch it fail. This proves the test is meaningful; it actually checks something.
-- **Green:** Write the smallest amount of production code that makes the test pass. Don't optimize, don't generalize. Just make the red go green.
+- **Green:** Write the smallest amount of production code that makes the test pass. Don't optimise, don't generalize. Just make the red go green.
 - **Refactor:** Now that you have a green test as a safety net, clean up. Extract functions, rename, remove duplication. The test tells you immediately if you break anything.
 
 The discipline is in the order. You never write production code without a failing test first. You never refactor without green tests. This prevents both over-engineering ("I might need this") and under-testing ("I'll add tests later").
@@ -65,7 +65,7 @@ func TestParseAmount(t *testing.T) {
 
 ### Subtests and t.Parallel()
 
-`t.Run` creates named subtests that can be filtered with `-run` and parallelized with `t.Parallel()`. This encourages granular test cases without function-per-case sprawl.
+`t.Run` creates named subtests that can be filtered with `-run` and parallelised with `t.Parallel()`. This encourages granular test cases without function-per-case sprawl.
 
 ### Interfaces as natural test seams
 
@@ -116,7 +116,7 @@ func TestAlertService(t *testing.T) {
 
 ### Fuzzing
 
-Go 1.18 added native fuzzing. Write a `Fuzz` function, seed it with a few cases, and Go generates randomized inputs looking for panics, crashes, or assertion failures. Particularly valuable for parsers and serializers.
+Go 1.18 added native fuzzing. Write a `Fuzz` function, seed it with a few cases, and Go generates randomised inputs looking for panics, crashes, or assertion failures. Particularly valuable for parsers and serializers.
 
 ## Worked example: TDD driving out a Strategy pattern
 

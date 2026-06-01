@@ -10,11 +10,13 @@ isFeatured: true
 
 # Hexagonal Architecture
 
-Hexagonal Architecture solves a testability and flexibility problem: when HTTP handlers, SQL queries, and SMTP calls are mixed into business logic, testing requires live infrastructure. Hexagonal draws a boundary. Everything inside is pure application logic, and everything outside (HTTP, databases, queues, email) is an adapter that plugs in through a defined port (interface).
+Hexagonal Architecture fixes a common problem with testability and change. When HTTP handlers, SQL code, and SMTP calls are mixed into business logic, even simple tests need real infrastructure running. Hexagonal creates a clear boundary: business logic stays inside, and infrastructure stays outside. HTTP, databases, queues, and email are all treated as adapters that connect through ports (interfaces).
 
-The core vocabulary matters here: **driving adapters** (HTTP handlers, CLI, tests) call **driving ports** (the application's API), while the application calls **driven ports** (repository, notifier interfaces) implemented by **driven adapters** (Postgres, SMTP, in-memory fakes). The application never imports the adapters directly.
+The terminology is important. **Driving adapters** (HTTP handlers, CLI commands, tests) call **driving ports** (the application's use-case API). The application then calls **driven ports** (for example repository and notifier interfaces), which are implemented by **driven adapters** (Postgres, SMTP, in-memory fakes). In short: adapters depend on the application; the application does not depend on adapters.
 
-## Problem
+If you read the Clean Architecture pattern, you may be asking: "isn't this the same thing?" Essentially, yes. Both patterns enforce the same dependency rule: the application core cannot depend on infrastructure. Both use ports and adapters to achieve that goal. The difference is mostly in vocabulary and structure. Clean Architecture uses the mental model of concentric rings to enforce the inward dependency rule, while Hexagonal uses symmetric ports and adapters. Both achieve the same end of isolating the application core from infrastructure, so use whichever model your team finds easier to understand and enforce. Its common to see both patterns in the same codebase, with Clean Architecture's rings describing the overall structure and Hexagonal's ports and adapters describing the application core.
+
+## Scenario
 
 Your service has an HTTP handler that calls a service that calls `sql.DB` directly. Adding a CLI interface means duplicating the service call setup. Testing requires a live HTTP server and a live database. Switching the message queue means touching business logic. The application has no stable center, so it grows in all directions at once.
 
@@ -280,10 +282,6 @@ myapp/
 
 `app` imports nothing outside the standard library. `adapter/http` and `adapter/postgres` import `app`. `cmd/server` imports both. The boundary is enforced by import direction — the application core is never aware of how it is driven or what drives its ports.
 
-## The Decision
-
-The question hexagonal architecture answers is: "why are my tests slow?" If testing a business rule requires a live database and a running HTTP server, the rule is coupled to its infrastructure. Ports and adapters break that coupling — the application defines what it needs (the port), and infrastructure satisfies it (the adapter). The in-memory adapter is what makes the domain testable in milliseconds. If fast domain tests aren't a priority, the port/adapter indirection is overhead you're paying without benefit.
-
 ## When to Use
 
 - Testing business logic requires real infrastructure today, and that makes the test suite slow or flaky. The port/adapter model is the direct fix.
@@ -296,14 +294,16 @@ The question hexagonal architecture answers is: "why are my tests slow?" If test
 - Simple CRUD with no real domain logic. The port/adapter indirection adds overhead with no return.
 - Small services where one HTTP handler → one SQL query is the entire pattern. Don't pre-optimise for a complexity that may never arrive.
 
-## Tradeoffs
+## The Decision
 
-The core benefit is that the application is fully testable without infrastructure: swap any driven adapter for an in-memory fake and run the full application logic with no network or database. This advantage is real but only pays back if you actually write those tests. The structure alone doesn't guarantee test coverage. Port proliferation is the main ongoing cost: many small interfaces per aggregate can become verbose, especially when every aggregate needs a distinct repository port. Mapping between adapter types and application types (protobuf structs to domain structs, SQL rows to domain structs) is mechanical but necessary, and it compounds as the model grows. New team members need to learn the port/adapter mental model before they can navigate the codebase efficiently.
+The main question Hexagonal Architecture answers is: "why are my tests slow and hard to run?" If you need a live database and a running HTTP server just to test one business rule, your rule is tied to infrastructure. Ports and adapters remove that tie. The application says what it needs through a port (interface), and infrastructure provides it through an adapter. An in-memory adapter is what lets you run domain tests in milliseconds. If fast, isolated domain tests are not important for your team, this extra port/adapter layer may be overhead without much return.
+
+The biggest benefit is simple: you can test full application logic without real infrastructure. Replace a driven adapter with an in-memory fake and run tests with no network, no database, and no external services. But the payoff only comes if you actually write those tests. The architecture by itself does not create test coverage. The main ongoing cost is interface growth: many small ports per aggregate can become noisy, especially when each aggregate gets its own repository port. Data mapping also adds steady work, for example converting protobuf payloads to domain types or SQL rows to domain objects. That mapping is necessary, but it grows with the model. New team members also need time to learn the port/adapter model before they can move quickly in the codebase.
 
 ## Related Patterns
 
 - **Clean Architecture:** Same goals, different vocabulary. It uses "concentric rings" where Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule most clearly. They compose more often than they compete.
 - **Adapter (structural):** The GoF Adapter pattern is the mechanism that makes Hexagonal work. Each infrastructure adapter wraps a third-party client (a `*sql.DB`, a NATS connection) and exposes the interface the application defined. Hexagonal is the architecture; Adapter is the implementation technique.
-- **Layered Architecture:** Layered organizes by tier (Handler, Service, Repository, Infrastructure). Hexagonal replaces strict downward layering with symmetric ports that treat HTTP and databases as equally swappable adapters.
+- **Layered Architecture:** Layered organises by tier (Handler, Service, Repository, Infrastructure). Hexagonal replaces strict downward layering with symmetric ports that treat HTTP and databases as equally swappable adapters.
 - **Repository:** The canonical driven port. It's a persistence interface the application defines, implemented by a database adapter that the application never imports directly.
 - **Domain-Driven Design:** DDD's aggregate roots become the application core that hexagonal protects. DDD tells you what should live inside the hexagon; Hexagonal gives you the structural rule for keeping infrastructure out.

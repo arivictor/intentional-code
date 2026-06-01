@@ -24,7 +24,7 @@ Reach for the full factory interface only when you have **two or more families**
 
 In Go, the pattern is an interface whose methods each return a product interface. One struct per family satisfies the factory interface, and the compiler enforces that code written against that interface can never accidentally mix families. This is the critical advantage over individual [Factory Methods](/go/patterns/creational/factory-method): a factory method prevents you from picking the wrong *type*, but it can't prevent you from picking types from different families.
 
-## Problem
+## Scenario
 
 You're building a data pipeline that reads records and writes them out in some format. You need to support both JSON and CSV. The naive approach instantiates readers and writers separately, with nothing stopping a caller from pairing a JSON reader with a CSV writer.
 

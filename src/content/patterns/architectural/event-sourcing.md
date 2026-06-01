@@ -9,13 +9,13 @@ tags: [events, distributed, interfaces, dependency-inversion]
 
 # Event Sourcing
 
-Most systems store the current state of an entity. Event Sourcing stores the history of what happened to it instead, and derives current state by replaying that history. Instead of a row that says `balance = 420`, the account aggregate has an event log: `AccountOpened`, `MoneyDeposited(500)`, `MoneyWithdrawn(80)`. The balance is the sum of those events.
+Most systems store only the latest state of an entity. Event Sourcing stores the full history of changes, then rebuilds the current state by replaying that history. Instead of one row that says `balance = 420`, an account has an event stream like `AccountOpened`, `MoneyDeposited(500)`, `MoneyWithdrawn(80)`. The current balance is calculated from those events.
 
-The audit log is free. Time-travel debugging is built in. You can replay events through a new projection to answer questions you didn't think to ask when the system was built. These benefits come with real costs: queries are harder (read models need projections), replaying long histories is slow without snapshots, and schema evolution for events requires careful versioning.
+This gives you an audit trail by default. It also gives you built-in time-travel debugging, because you can rebuild state as it looked at an earlier point in time. You can also replay old events into a new projection to answer questions you did not plan for when the system was first designed. But there are real costs: reads are more complex (you usually need projection tables), replay can be slow for long streams unless you use snapshots, and event schema changes need careful versioning.
 
-Event Sourcing pairs naturally with [CQRS](/go/patterns/architectural/cqrs): the command side appends events, and the query side subscribes to the event log to build denormalized read models.
+Event Sourcing fits naturally with [CQRS](/go/patterns/architectural/cqrs): commands append events to the stream, and the query side consumes that stream to build denormalized read models.
 
-## Problem
+## Scenario
 
 A bank account stores only its current balance. When a dispute arises, there's no record of how that balance was reached. Adding an audit log after the fact is a separate system to maintain. Replaying "what would the balance have been at 3pm on Tuesday?" requires either expensive queries across an audit table or simply isn't possible.
 
@@ -48,12 +48,11 @@ Define domain events as immutable value types. The aggregate applies events to u
 Command           Aggregate              Event Store
    │                  │                      │
 Deposit(100)──────►Apply──────AppendEvent──►[AccountOpened]
-                    │                        [MoneyDeposited(500)]
-                    │                        [MoneyWithdrawn(80)]
-                    │                        [MoneyDeposited(100)]
+                    │                       [MoneyDeposited(500)]
+                    │                       [MoneyWithdrawn(80)]
+                    │                       [MoneyDeposited(100)]
                     │
-                  State:
-                  balance=520
+                  State: balance=520
 ```
 
 Define the events and the aggregate:
@@ -305,12 +304,14 @@ Optimistic locking works well when conflicts are rare. A deposit and a withdrawa
 - The aggregate's event history grows unboundedly fast (millions of events per aggregate per day); snapshots alone won't save you.
 - You need simple point-in-time queries and a soft-delete column would do the job.
 
-## Tradeoffs
+## The Decision
 
-The audit log falls out of the storage strategy, so you can't accidentally skip it. Time-travel and projection rebuilding are useful for debugging and analytics. The costs are real: loading an aggregate requires a database query and a replay loop instead of a single row fetch (mitigated by snapshots), read models are eventually consistent (a projection may lag the event log by milliseconds to seconds), and event schemas must be backward-compatible forever because you can't change historical events. Schema evolution strategies like upcasting old events at read time or using versioned event types add operational discipline that current-state storage doesn't require.
+The biggest advantage is that audit history is built in. You do not need a separate logging system, and you cannot accidentally forget to record important changes. Time-travel debugging is also practical, and you can rebuild projections for new reporting or analytics needs.
+
+The costs are also real. To load one aggregate, you usually run a query and replay events, not just fetch one current-state row (snapshots help reduce this replay cost). Read models are eventually consistent, so a projection can lag behind the event stream by milliseconds or seconds. Event schemas must stay backward compatible for a long time, because past events are part of your source of truth and cannot be edited. Evolving schemas with techniques like upcasting old events at read time, or introducing explicit event versions, adds operational discipline that current-state storage often does not require.
 
 ## Related Patterns
 
-- **CQRS:** The natural partner. Commands produce events appended to the store; read-side projections consume those events to build query-optimized views. Event Sourcing gives CQRS its event log.
+- **CQRS:** The natural partner. Commands produce events appended to the store; read-side projections consume those events to build query-optimised views. Event Sourcing gives CQRS its event log.
 - **Event-Driven Architecture:** Event Sourcing focuses on aggregate state inside a bounded context; Event-Driven Architecture focuses on asynchronous communication between services. The two are complementary: an aggregate's persisted events can also be published to a broker for cross-service consumption.
 - **Domain-Driven Design:** Domain Events in DDD are the events in Event Sourcing. Aggregates emit events during state transitions; the application layer persists and dispatches them.

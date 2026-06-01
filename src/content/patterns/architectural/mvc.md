@@ -9,17 +9,19 @@ tags: [interfaces, separation-of-concerns, testability, dependency-inversion]
 
 # MVC / MVP / MVVM
 
-MVC, MVP, and MVVM are three variations on the same core idea: business logic should not live inside the code that renders the UI. They differ in how tightly the view and the mediator are coupled, and who initiates the update cycle. In a Go HTTP service, the distinction between the three collapses somewhat. HTTP handlers are stateless, there's no persistent view object, and no data-binding framework. What remains is the essential principle: handlers coordinate, domain packages decide, templates or serializers render.
+MVC, MVP, and MVVM are all ways to keep presentation code separate from business logic. That matters in Go too, but usually in a translated form. Most Go developers do not describe their services as strict MVC apps. They talk about handlers, services, domain packages, templates, and response DTOs. Still, the underlying idea is the same: request handling should coordinate, business logic should decide, and rendering should stay separate.
+
+For a Go web service, MVC is the most natural fit of the three. MVP is useful in CLI or terminal-style applications where the view is an interface you control. MVVM is the least direct fit for Go backends, because it depends on data-binding concepts that most Go server code does not use. What *is* useful in Go is the ViewModel idea: shape data for the view instead of exposing domain types directly.
 
 ## The Three Variants
 
-**MVC (Model-View-Controller):** The Controller receives input, calls the Model (service/domain), and passes data to the View (template or JSON). The View has a reference back to the Model in classic GUI MVC, but in HTTP-based Go this reference disappears. The handler renders the response and the connection closes.
+**MVC (Model-View-Controller):** The Controller receives input, calls the Model (usually a service or domain package), and passes data to the View (template or JSON response). In a Go HTTP service, the Controller is usually the handler. Classic GUI MVC has a longer-lived relationship between View and Model, but that usually disappears in request/response server code. The handler runs, renders the response, and the request ends.
 
-**MVP (Model-View-Presenter):** The Presenter owns all display logic; the View is a dumb interface with no knowledge of the Model. The View calls the Presenter on user events; the Presenter calls the Model and then calls View methods to update the display. This form is most useful in Go when the "View" is an interface you control: a terminal UI, a test double, or a CLI output writer.
+**MVP (Model-View-Presenter):** The Presenter owns presentation logic, and the View is a simple interface with no business knowledge. The View forwards user actions to the Presenter. The Presenter calls the Model, then tells the View what to display. In Go, this is most useful when the view is something you control directly: a CLI, terminal UI, or a test double that captures output.
 
-**MVVM (Model-View-ViewModel):** The ViewModel exposes observable properties that the View binds to automatically. Popular in frontend frameworks (React, SwiftUI, Kotlin Compose). In Go backend services, this is rarely applicable directly, but the ViewModel concept (a struct shaped specifically for the view's needs, not the domain's) is useful for keeping domain types out of JSON responses.
+**MVVM (Model-View-ViewModel):** The ViewModel exposes view-shaped data, often with observable properties for automatic UI updates. This pattern is common in desktop and frontend frameworks with data binding. In Go backend services, that full pattern rarely applies directly. The useful part is narrower: a ViewModel can be a response struct shaped for JSON or templates, so your domain model does not leak straight into the API surface.
 
-## Problem
+## Scenario
 
 Business logic leaks into HTTP handlers. The handler queries the database directly, applies discount rules, formats output, and returns JSON, all in one function. Adding a CLI client means duplicating the discount logic. Testing the discount logic requires an HTTP test server.
 
@@ -212,18 +214,18 @@ func (v *captureView) ShowError(msg string)       { v.errMsg = msg }
 
 ## When to Use
 
-- **MVC** fits any HTTP service where you want handlers to be thin coordinators and domain logic to be independently testable.
-- **MVP** works well when the view is controlled through an interface (CLI, terminal UI, test double) and you need complete isolation of display logic.
-- **MVVM** is most relevant when your view layer supports data binding (frontend frameworks, desktop UI); less common in Go backends, but the ViewModel concept (a response DTO shaped for the view) applies everywhere.
+- **MVC** fits Go HTTP services where you want handlers to stay thin and business logic to remain independently testable.
+- **MVP** works well when the view is controlled through an interface, such as a CLI, terminal UI, or test double, and you want presentation logic isolated from I/O.
+- **MVVM** is mainly relevant when the view layer supports data binding, which is uncommon in Go backend work. In Go services, the useful part is usually just the ViewModel idea: shape response data for the view instead of returning domain types directly.
 
 ## When Not to Use
 
 - A simple CRUD endpoint with no business logic: splitting three layers for a thin wrapper adds indirection without benefit.
 - A script or one-shot tool where UI and logic are naturally one function.
 
-## Tradeoffs
+## The Decision
 
-The separation makes the service layer independently testable, reusable across delivery mechanisms (HTTP, gRPC, CLI), and easier to reason about. The cost is indirection: more files, more types, more wiring. The ViewModel/response DTO type (the `OrderResponse` above) is often dismissed as boilerplate, but it serves a real purpose. Domain types leak internal structure into the API surface unless something explicitly shapes the output. Avoid "view-aware" leakage in both directions: don't let `http.Request` reach the service layer, and don't let domain types reach the JSON serializer.
+The separation makes the service layer independently testable, reusable across delivery mechanisms such as HTTP, gRPC, or CLI, and easier to reason about. The cost is indirection: more files, more types, and more wiring. The ViewModel or response DTO type (the `OrderResponse` above) often looks like boilerplate, but it solves a real problem. Without it, domain types tend to leak internal structure into the API. Avoid leakage in both directions: do not let `http.Request` reach the service layer, and do not let raw domain types fall straight through to the JSON serializer unless that is an intentional API design choice.
 
 ## Related Patterns
 

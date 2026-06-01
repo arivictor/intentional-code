@@ -12,7 +12,7 @@ isFeatured: true
 
 Facade is the pattern for orchestration code that gets duplicated. When an HTTP handler, a CLI tool, and a batch job all repeat the same multi-step sequence (validate, process, notify, log), that sequence belongs in one struct, not scattered across entry points. In Go, a facade struct accepts its subsystems as interfaces (making them testable and swappable) and exposes one or a few high-level methods that cover the common case.
 
-## Problem
+## Scenario
 
 You're building a file conversion tool. The process involves validating the file, converting the format, writing the result, and logging what happened. Each step has its own package. Orchestrating all of them in every place that needs "convert a file" is verbose and error-prone.
 

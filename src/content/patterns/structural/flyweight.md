@@ -1,7 +1,7 @@
 ---
 title: "Flyweight"
 category: structural
-intent: "Minimize memory usage by sharing as much data as possible between similar objects, separating intrinsic from extrinsic state."
+intent: "Minimise memory usage by sharing as much data as possible between similar objects, separating intrinsic from extrinsic state."
 idiomSummary: "Share immutable intrinsic state via interning and lookup map; mention sync.Pool as a related but different reuse tool."
 relatedSlugs: ["composite", "singleton"]
 tags: [state, performance, concurrency]
@@ -13,7 +13,7 @@ Flyweight is a memory optimization: when you have thousands of similar objects, 
 
 `sync.Pool` is a related but different tool: it recycles mutable temporary objects to reduce GC pressure, whereas Flyweight shares immutable permanent state.
 
-## Problem
+## Scenario
 
 You're rendering a text editor with thousands of characters on screen. Each character has a glyph style (font name, size, bold, italic: large, repeated data) and a position (small, unique data). Storing the full style on every character wastes memory.
 

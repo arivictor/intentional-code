@@ -9,9 +9,31 @@ tags: [interfaces, dependency-inversion, testability, composition]
 
 # Clean Architecture
 
-Clean Architecture organizes code in concentric rings (Entities, Use Cases, Interface Adapters, Frameworks and Drivers) with one strict rule: source-code dependencies may only point inward. The innermost rings know nothing about HTTP, databases, or frameworks. Everything outside exists to serve the domain.
+Popularised by Robert C. Martin ("Uncle Bob"), Clean Architecture is a software design pattern designed to separate your core business logic from your technical framework, database, and user interface. The ultimate goal is Separation of Concerns so that your application is easy to test, maintain, and change over time. Clean Architecture is imagined as concentric layers of code. It is as much a philosophy as it is a pattern. The pattern hinges around one rule, which is that each source code layer can only point inward. By "point inward" we mean the outer most layer can import inner layers, but inner layers cannot import outer layers. 
 
-## Problem
+The innermost ring contains the Entities, which are pure domain types with no imports beyond the standard library. The next ring contains Use Cases, which define application-specific business rules and interfaces (ports) for everything they need, but implement nothing that belongs in an outer ring. The next ring contains Interface Adapters, which implement the ports defined by the use cases to translate between the domain's pure types and the infrastructure's impure ones. The outermost ring contains Frameworks and Drivers, which are things like HTTP handlers, frameworks, database clients, and CLI commands that depend on third-party libraries but know nothing about the domain.
+
+```Clean
+┌───────────────────────────────────────────┐
+│          Frameworks & Drivers             │  HTTP handlers, sql.DB,
+│     (outermost, nothing imports this)     │  SMTP clients, CLI
+│  ┌─────────────────────────────────────┐  │
+│  │       Interface Adapters            │  │  Controllers, Presenters,
+│  │  (converts between rings)           │  │  Repository implementations
+│  │  ┌───────────────────────────────┐  │  │
+│  │  │        Use Cases              │  │  │  Application business rules
+│  │  │  (application logic)          │  │  │  orchestrate entities
+│  │  │  ┌─────────────────────────┐  │  │  │
+│  │  │  │       Entities          │  │  │  │  Enterprise business rules
+│  │  │  │  (domain types & rules) │  │  │  │  pure Go, zero imports
+│  │  │  └─────────────────────────┘  │  │  │
+│  │  └───────────────────────────────┘  │  │
+│  └─────────────────────────────────────┘  │
+└───────────────────────────────────────────┘
+            ← dependencies point inward
+```
+
+## Scenario
 
 You're three years into a project. Switching databases requires touching service logic. Adding a gRPC endpoint means duplicating validation that lives in the HTTP handler. Your domain types import `database/sql`. The framework has become load-bearing, and you can't reason about business logic without understanding the infrastructure first.
 
@@ -38,27 +60,9 @@ func CreateNote(db *sql.DB, w http.ResponseWriter, r *http.Request) {
 
 Enforce the Dependency Rule: source code in an inner ring never names, imports, or knows about anything in an outer ring.
 
-```
-┌───────────────────────────────────────────┐
-│          Frameworks & Drivers             │  HTTP handlers, sql.DB,
-│     (outermost, nothing imports this)    │  SMTP clients, CLI
-│  ┌─────────────────────────────────────┐  │
-│  │       Interface Adapters            │  │  Controllers, Presenters,
-│  │  (converts between rings)           │  │  Repository implementations
-│  │  ┌───────────────────────────────┐  │  │
-│  │  │        Use Cases              │  │  │  Application business rules
-│  │  │  (application logic)          │  │  │  orchestrate entities
-│  │  │  ┌─────────────────────────┐  │  │  │
-│  │  │  │       Entities          │  │  │  │  Enterprise business rules
-│  │  │  │  (domain types & rules) │  │  │  │  pure Go, zero imports
-│  │  │  └─────────────────────────┘  │  │  │
-│  │  └───────────────────────────────┘  │  │
-│  └─────────────────────────────────────┘  │
-└───────────────────────────────────────────┘
-            ← dependencies point inward
-```
 
-**Entities:** pure domain types, no imports beyond the standard library:
+
+**Entities:** pure domain types, no imports beyond the standard library. This ensures that the core business logic is independent of any framework, database, or delivery mechanism. The domain is the core asset, and the infrastructure is the variable.
 
 ```go
 // domain/note.go
@@ -93,7 +97,7 @@ func (n *Note) UpdateBody(body string) {
 }
 ```
 
-**Use Cases:** define interfaces for everything they need, implement nothing:
+**Use Cases:** define the intent of the user. They reference interfaces (ports) for everything they need, but implement nothing that belongs in an outer ring. This allows you to test use cases without starting any infrastructure, and to change the delivery mechanism without touching the application logic.
 
 ```go
 // usecase/save_note.go
@@ -144,7 +148,7 @@ func (uc *SaveNoteUseCase) Execute(ctx context.Context, in SaveNoteInput) (SaveN
 }
 ```
 
-**Interface Adapters:** convert between the use-case world and the infrastructure world:
+**Interface Adapters:** implement the previously defined ports to translate between the domain's pure types and the infrastructure's impure ones. For example, the HTTP handler converts from JSON to the use case's input struct, and the repository implementation converts from domain types to SQL rows. This ensures that the domain knows nothing about HTTP, databases, or frameworks, so you can change those things without touching the core business logic.
 
 ```go
 // adapter/http/note_handler.go
@@ -225,11 +229,9 @@ myapp/
     └── db.go
 ```
 
-The Dependency Rule in package terms: `domain` imports nothing from this project. `usecase` imports `domain`. `adapter/*` imports `usecase`. `infrastructure` imports only third-party drivers. `cmd/server` imports everything and assembles the application. Any import that crosses inward-to-outward breaks the guarantee — a linter like `depguard` can catch it automatically.
+The Dependency Rule in package terms: `domain` imports nothing from this project. `usecase` imports `domain`. `adapter/*` imports `usecase` ports. `infrastructure` imports only third-party drivers. `cmd/server` imports everything and assembles the application. Any import that crosses inward-to-outward breaks the guarantee.
 
-## The Decision
-
-The inward dependency rule answers a specific question: "why can't my domain type import `database/sql`?" Because the domain is the core asset, and the infrastructure is the variable. Today it's PostgreSQL; tomorrow it might not be. The rule structurally prevents the infrastructure from becoming load-bearing — so you can change it without archaeology. If you're not protecting something that genuinely needs to outlast its infrastructure, the rings are overhead.
+The inward dependency rule answers a specific question: "why can't my domain type import `database/sql`?" Because the domain is the core asset, and the infrastructure is the variable. Today it's PostgreSQL but 12 months from now it might not be. The rule structurally prevents the infrastructure from becoming load-bearing — so you can change it without breaking the domain. If you're not protecting something that genuinely needs to outlast its infrastructure, the rings are overhead.
 
 ## When to Use
 
@@ -242,11 +244,13 @@ The inward dependency rule answers a specific question: "why can't my domain typ
 
 - Simple CRUD services with little or no domain logic. The layers add ceremony without payoff.
 - Rapid prototypes where the cost of structure outweighs the benefit of isolation.
-- Small tools or scripts. Clean Architecture is optimized for change over time, so it's overkill for throwaway code.
+- Small tools or scripts. Clean Architecture is optimised for change over time, so it's overkill for throwaway code.
 
-## Tradeoffs
+## The Decision
 
-The inward dependency rule is the entire mechanism, and it only holds if the team enforces it. A single `import "database/sql"` in a use case package silently breaks the guarantee, and Go's toolchain won't catch it without a lint rule like `depguard`. Data mapping between rings is mechanical but unavoidable: domain types need to be converted to DTOs for the HTTP response, to row types for the database, and back again, which adds boilerplate even for small features. In older Go codebases without generics, many small interfaces and converter functions compound this cost. The payoff arrives when you add a second delivery mechanism (gRPC, a worker, a CLI) without touching any domain code, or when you swap a database by replacing one adapter package. If you never do either of those things, the structure was overhead.
+The inward dependency rule is the entire point, and the architecture only works if the team enforces it. A single `import "database/sql"` in a use case package silently breaks the concept, and Go's toolchain won't catch it. Data mapping between rings is mechanical but unavoidable: domain types need to be converted to DTOs for the HTTP response, to row types for the database, and back again, which adds boilerplate even for small features. 
+
+In older Go codebases without generics, many small interfaces and converter functions compound this cost. The payoff arrives when you add a second delivery mechanism (gRPC, a worker, a CLI) without touching any domain code, or when you swap a database by replacing one adapter package. If you never do either of those things, the pattern is overhead.
 
 ## Related Patterns
 

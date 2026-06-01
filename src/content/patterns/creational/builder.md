@@ -9,11 +9,11 @@ tags: [closures, composition, dependency-inversion]
 
 # Builder
 
-Long parameter lists cause two problems: callers must fill every position even for optional fields, and zero values become ambiguous (`timeout=0` could mean "no timeout" or "instant timeout"). In Go, the functional options pattern solves both. A variadic list of option functions lets callers specify only what they need, defaults are centralized in the constructor, and adding new options never breaks existing call sites.
+Long parameter lists cause two problems: callers must fill every position even for optional fields, and zero values become ambiguous (`timeout=0` could mean "no timeout" or "instant timeout"). In Go, the functional options pattern solves both. A variadic list of option functions lets callers specify only what they need, defaults are centralised in the constructor, and adding new options never breaks existing call sites.
 
 The classic chained builder also works in Go and is preferable when construction has a meaningful order or when you want to reuse a partially configured builder across multiple similar objects.
 
-## Problem
+## Scenario
 
 You're building an HTTP client with many optional configuration parameters: timeouts, retry count, a base URL, and custom headers. A constructor with many parameters is unreadable. A config struct helps, but requires the caller to know which zero values are meaningful and which mean "use the default."
 

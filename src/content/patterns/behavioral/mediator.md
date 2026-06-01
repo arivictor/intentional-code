@@ -13,7 +13,7 @@ In a system where every peer knows about every other peer, adding one participan
 
 In Go, the mediator is a struct that holds references to the participants. The participants' own types stay small and contain no cross-references to each other.
 
-## Problem
+## Scenario
 
 You're building a chat room. Without a mediator, each user must hold a reference to every other user and send messages directly. Adding or removing users means updating everyone's contact list.
 

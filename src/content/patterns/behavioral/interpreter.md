@@ -13,7 +13,7 @@ Interpreter defines a grammar as a set of types (one type per grammar rule) and 
 
 The pattern is a natural fit for small, domain-specific languages: filter expressions, arithmetic evaluators, rule engines, and template renderers. For large or performance-critical grammars, a dedicated parser generator or bytecode VM will outperform a hand-rolled tree, but for a DSL that fits in a hundred rules, Interpreter keeps the grammar visible and testable.
 
-## Problem
+## Scenario
 
 You need to evaluate boolean filter expressions like `age > 30 AND status == "active"` over a record. Adding new comparison operators or logical connectives means modifying a giant switch statement or, worse, embedding the logic inside the parser. The grammar and the evaluation logic are tangled.
 
@@ -165,5 +165,5 @@ The context map (`map[string]any`) is convenient but loses type safety. Typed co
 ## Related Patterns
 
 - **Composite:** Interpreter's composite expressions are a direct application of Composite: each expression is either a leaf (terminal) or a container of child expressions (non-terminal). Interpreter gives Composite a purpose; Composite provides the structural foundation.
-- **Visitor:** Use Visitor alongside Interpreter when you need multiple operations over the same expression tree (evaluate, pretty-print, type-check, optimize) without adding methods to each node type.
+- **Visitor:** Use Visitor alongside Interpreter when you need multiple operations over the same expression tree (evaluate, pretty-print, type-check, optimise) without adding methods to each node type.
 - **Iterator:** When evaluating an Interpreter tree over a sequence of records, an Iterator provides the traversal over the record set while the Interpreter handles the predicate logic.

@@ -13,7 +13,7 @@ Chain of Responsibility passes a request along a sequence of handlers. Each hand
 
 The Go idiom favors a slice of handler functions over linked-list objects: simpler to construct, reorder, and test in isolation.
 
-## Problem
+## Scenario
 
 You're building a request processing pipeline. Incoming requests need validation, rate limiting, authentication, and finally handling. The logic for all of this is tangled into a single function with nested conditionals.
 
@@ -27,7 +27,7 @@ func processRequest(req Request) Response {
         return Response{Status: 429, Body: "too many requests"}
     }
     if !isAuthenticated(req.Token) {
-        return Response{Status: 401, Body: "unauthorized"}
+        return Response{Status: 401, Body: "unauthorised"}
     }
     return Response{Status: 200, Body: "ok: " + req.Body}
 }
@@ -91,7 +91,7 @@ func RateLimit(req Request) (Response, bool) {
 
 func RequireAuth(req Request) (Response, bool) {
 	if req.Token == "" {
-		return Response{Status: 401, Body: "unauthorized"}, false
+		return Response{Status: 401, Body: "unauthorised"}, false
 	}
 	return Response{}, true
 }
@@ -121,7 +121,7 @@ Output:
 
 ```
 [200] ok: hello
-[401] unauthorized
+[401] unauthorised
 [429] rate limited
 [400] empty body
 ```

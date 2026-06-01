@@ -9,9 +9,11 @@ tags: [interfaces, dependency-inversion, testability, composition]
 
 # Layered Architecture
 
-The warning sign that you need Layered Architecture is an HTTP handler that imports `database/sql`. Go encourages small, composable packages, which means a growing service will naturally tangle HTTP, business rules, and SQL if you don't deliberately separate them. Layered Architecture is usually the first fix: four horizontal tiers (Handler, Service, Repository, Infrastructure) where each layer depends only on the layer below it. Go's implicit interfaces do most of the boundary enforcement for free.
+Layered architecture organises code into horizontal layers, where each layer has a single responsibility and depends only on the layer below it. A common layering is Handler (HTTP, gRPC, CLI), Service (business rules, orchestration), Repository (data access abstraction), and Infrastructure (SQL drivers, third-party SDKs). Each layer defines interfaces for the layer above it to depend on, which allows for test doubles and swapping implementations without changing business logic.
 
-## Problem
+This differs from Clean Architecture, which enforces the same separation of concerns but with a stronger inward dependency rule: inner layers cannot import from outer layers at all, so the domain layer cannot even import an interface from the repository layer. Layered architecture is more flexible and less strict, so it's a good starting point for teams new to architectural patterns or when you don't need the stronger isolation guarantees of Clean Architecture.
+
+## Scenario
 
 A growing codebase has no clear structure. HTTP handlers call SQL queries directly. Business rules live in middleware. Email sending is triggered from a database callback. There is no obvious place to add new behaviour, and changing the database means searching the entire codebase.
 
@@ -258,10 +260,6 @@ myapp/
 
 In package terms: `handler` imports `service`, `service` imports `repository` (the interface), `postgres` also imports `repository` (to implement it). `cmd/server` imports everything and wires it together. `postgres` never imports `handler` or `service` — the dependency rule holds by import direction alone.
 
-## The Decision
-
-When someone asks "why did you split into folders?"—the answer should be specific. You split because you need to test business rules without a running database, and because you need to swap the storage backend without touching business logic. The folder structure enforces the rule; the rule exists to serve those two needs. If neither pressure is real for your project, the folders are ceremony you're paying for in advance.
-
 ## When to Use
 
 - You need to test business rules without running HTTP or database infrastructure. That testability requirement is the justification for the boundary.
@@ -273,11 +271,13 @@ When someone asks "why did you split into folders?"—the answer should be speci
 
 - Very simple applications. Three packages calling each other is already a layered architecture, so don't add ceremony before you feel the pain.
 - The domain is so thin that the service layer just passes data through. If service methods are one-liners, the layer is adding noise.
-- When you need to optimize differently per operation, consider CQRS instead, which allows asymmetric read and write models.
+- When you need to optimise differently per operation, consider CQRS instead, which allows asymmetric read and write models.
 
-## Tradeoffs
+## The Decision
 
-The clear separation of concerns is the main benefit: business logic sits in the service layer with no SQL or HTTP, and testing that logic requires only an in-memory repository and a fake mailer. The recurring failure mode is "lasagne code": layers that do nothing but pass data through, adding indirection without capturing any real decision or invariant. Feature changes often touch every layer, so a simple addition like adding a new field to a post means updating the handler, the service, the domain type, and the SQL query, which makes the structure feel heavy for small changes. Strict downward layering also makes it awkward to optimize queries: the service layer can't reach into the database layer without going through the repository interface, which sometimes means the repository interface grows with filter, sort, and pagination parameters.
+If someone asks, "why did you split this into folders?", the answer should be concrete. You did it because you want to test business rules without a running database, and because you want to change the storage backend without rewriting business logic. The folder structure is there to enforce that rule. The rule exists to serve those needs. If your project does not have either of those pressures, then the folders may just be extra ceremony.
+
+The main benefit is clear separation of concerns. Business logic lives in the service layer, without SQL or HTTP code mixed into it. That makes it possible to test the logic with an in-memory repository and a fake mailer. The common failure mode is "lasagne code": layers that only pass data from one place to another, without making any real decision or protecting any invariant. Small feature changes can also feel heavy, because even a simple change, like adding one field to a post, may require updates in the handler, service, domain type, and SQL query. Strict downward layers can also make query optimization awkward. The service layer cannot reach directly into the database layer, so everything has to go through the repository interface. Over time, that interface can grow to include filter, sort, and pagination options that are really query concerns.
 
 ## Related Patterns
 

@@ -85,7 +85,7 @@ func newID() string {
 }
 ```
 
-The unexported `ctxKey` type is deliberate: using a custom type (not a bare string) as the context key prevents collisions with keys set by other packages. It's a small idiom with an outsized payoff in a large codebase.
+The unexported `ctxKey` type is deliberate: using a custom type (not a bare string) as the context key prevents collisions with keys set by other packages. It's a small idiom with an outsised payoff in a large codebase.
 
 ## Structured Logging
 

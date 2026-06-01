@@ -13,7 +13,7 @@ In Go, the simplest command is a function value: `queue := []func(){}`. You don'
 
 The pattern earns its full weight in text editors, transaction systems, and task queues where operations must be reversible, loggable, or replayable.
 
-## Problem
+## Scenario
 
 You're building a text editor with undo support. Operations like insert and delete need to be recorded so they can be reversed. Without Command, the undo logic is tangled with the editing logic.
 

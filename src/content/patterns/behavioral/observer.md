@@ -13,7 +13,7 @@ In Go, Observer gives you three subscriber mechanisms: interface values (classic
 
 The pattern's core guarantee: when the subject's state changes, it doesn't know or care who reacts. Registered observers are notified; the subject imports nothing from observer packages. This is the [Open/Closed Principle](/go/philosophy/solid) applied to event notification. You add new reactions without touching the thing that changed.
 
-## Problem
+## Scenario
 
 You're building a config loader. When the config reloads, the logger needs to update its log level, the HTTP server needs to update its timeout, and a metrics counter needs to increment. Hardcoding all three reactions inside the reload function means every new listener requires modifying core config logic.
 

@@ -13,7 +13,7 @@ Proxy wraps an object with the same interface to control access to it. The wrapp
 
 In Go, Proxy and Decorator look structurally identical (both wrap an interface). The distinction is intent: Decorator adds new behavior; Proxy controls access to existing behavior.
 
-## Problem
+## Scenario
 
 You have an image loader that reads files from disk: expensive on first access. Some callers also shouldn't see certain images. You want to defer loading until the image is actually displayed and enforce visibility rules, but you don't want to modify the loader or check permissions at every call site.
 

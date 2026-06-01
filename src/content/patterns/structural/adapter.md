@@ -9,11 +9,11 @@ tags: [interfaces, composition, dependency-inversion]
 
 # Adapter
 
-Any wrapper struct in Go that makes one package's type compatible with another's interface is an Adapter: one of the most common patterns in the language, frequently written without being recognized as one. The formal structure is a struct that holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
+Any wrapper struct in Go that makes one package's type compatible with another's interface is an Adapter: one of the most common patterns in the language, frequently written without being recognised as one. The formal structure is a struct that holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
 
 The pattern is especially common when integrating third-party packages. You can't modify the package, and you don't want to modify your domain interface everywhere it's used, so you build a thin wrapper that translates between them once, in one place.
 
-## Problem
+## Scenario
 
 Your application writes log lines through a `Logger` interface. A third-party structured logging library is available, but it has a completely different method signature: it takes key-value pairs rather than a formatted string. You can't modify the library, and you don't want to change your `Logger` interface everywhere it's used.
 

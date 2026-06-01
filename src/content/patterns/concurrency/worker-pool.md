@@ -14,7 +14,7 @@ A worker pool processes a queue of jobs using a fixed number of goroutines. Rath
 
 This is the most common concurrency pattern in production Go code.
 
-## Problem
+## Scenario
 
 You need to process 10,000 incoming HTTP webhooks concurrently. The naive approach spawns one goroutine per webhook, which means up to 10,000 goroutines simultaneously, each consuming stack memory and holding a database connection. Under burst traffic, this exhausts resources.
 

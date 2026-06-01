@@ -14,7 +14,7 @@ In class-based languages, Factory Method is an abstract class with an overridabl
 
 The pattern earns its keep when you find yourself extending a switch statement every time you add a new type. That switch is a signal: move the selection logic into one place, hide it behind a constructor, and let new implementations register without touching existing code. This is the [Open/Closed Principle](/go/philosophy/solid) in practice: open for extension, closed for modification.
 
-## Problem
+## Scenario
 
 You're building a logging library. Initially you only write plain text logs, so you hardcode a text formatter. Then you need JSON for structured logging. Then logfmt for log aggregators. Every new format means editing the same function, retesting everything, and risking breakage in formats that were already working.
 

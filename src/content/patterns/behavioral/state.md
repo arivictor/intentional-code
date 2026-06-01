@@ -13,7 +13,7 @@ The telltale sign you need this pattern is a type with switch statements in ever
 
 In Go, the context struct holds a `State` interface value and delegates method calls to it. Transition logic lives inside the state that initiates the change, not scattered across the context's methods.
 
-## Problem
+## Scenario
 
 You're modeling a network connection. Its behavior depends on whether it's disconnected, connecting, or connected. A single type with string-based state and switch statements at every method becomes unmanageable.
 

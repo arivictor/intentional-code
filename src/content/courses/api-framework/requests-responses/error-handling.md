@@ -29,7 +29,7 @@ import "net/http"
 // from a handler or middleware lets the central handler set the right
 // status and a consistent JSON body.
 type HTTPError struct {
-	Status  int    `json:"-"`       // HTTP status; not serialized into the body
+	Status  int    `json:"-"`       // HTTP status; not serialised into the body
 	Code    string `json:"code"`    // stable machine-readable code, e.g. "not_found"
 	Message string `json:"message"` // human-readable detail
 }
@@ -45,8 +45,8 @@ func BadRequest(msg string) *HTTPError {
 	return &HTTPError{Status: http.StatusBadRequest, Code: "bad_request", Message: msg}
 }
 
-func Unauthorized(msg string) *HTTPError {
-	return &HTTPError{Status: http.StatusUnauthorized, Code: "unauthorized", Message: msg}
+func Unauthorised(msg string) *HTTPError {
+	return &HTTPError{Status: http.StatusUnauthorised, Code: "unauthorised", Message: msg}
 }
 
 func Internal(msg string) *HTTPError {
@@ -164,7 +164,7 @@ A found user, a handler-level `404`, and a routing-level `404` — all three res
 
 ## Tradeoffs
 
-Centralized error rendering is a clear win, but two honest caveats:
+Centralised error rendering is a clear win, but two honest caveats:
 
 - **Don't over-model errors.** Four or five constructors cover almost everything. A bespoke error type per endpoint is the kind of [premature structure](/go/philosophy/yagni) that adds files without adding value. Add a new one when a real status needs a stable code, not speculatively.
 - **Log unclassified errors at the boundary.** `writeError` hides the internal message from the client — correct for security — but that means *something* must log the real error, or you'll get opaque `500`s with no trail. Our [Logger middleware](/go/courses/api-framework/middleware/essential-middleware) already records the returned error, which is exactly why it sits in the stack.

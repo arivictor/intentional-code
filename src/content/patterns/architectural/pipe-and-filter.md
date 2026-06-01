@@ -15,7 +15,7 @@ This is the shell pipeline model (`cat file | grep pattern | sort | uniq`) appli
 
 The pattern appears under different names: data pipeline, processing pipeline, ETL pipeline. The core property is the same in all of them: independent stages, composable in any order, each testable in isolation.
 
-## Problem
+## Scenario
 
 An ETL job reads log records, filters out bot traffic, enriches each record with geo data, applies rate limits, and writes to a data warehouse. All five steps are written as one function. Adding a new transformation step requires modifying and retesting the whole function. Steps can't be reordered or reused elsewhere.
 
@@ -248,11 +248,11 @@ func TestRemoveBots(t *testing.T) {
 - The pipeline has only one or two steps and the abstraction adds more indirection than it removes.
 - Error handling across stages is complex. A filter that fails mid-stream needs careful shutdown signaling to avoid goroutine leaks in the channel-based form.
 
-## Tradeoffs
+## The Decision
 
 Each filter is testable with a single function call and a slice of test records. Reordering the pipeline is a one-line change. Adding a new step is additive. The channel-based form enables true concurrency: the geo lookup filter and the rate limit filter run simultaneously on different records, which matters when individual filters are I/O-bound.
 
-The cost is operational. When a channel-based pipeline stalls, diagnosing which stage is blocked requires understanding the whole goroutine graph. Error propagation is non-obvious: a filter goroutine that panics or blocks without draining its input channel will block all upstream goroutines indefinitely. Always drain the input channel or use `context.Context` cancellation to unblock. For the simpler sequential form, the main cost is memory: each stage may allocate a new slice, increasing GC pressure for large record sets.
+However, the cost is operational. When a channel-based pipeline stalls, diagnosing which stage is blocked requires understanding the whole goroutine graph. Error propagation is non-obvious: a filter goroutine that panics or blocks without draining its input channel will block all upstream goroutines indefinitely. Always drain the input channel or use `context.Context` cancellation to unblock. For the simpler sequential form, the main cost is memory: each stage may allocate a new slice, increasing GC pressure for large record sets.
 
 ## Related Patterns
 

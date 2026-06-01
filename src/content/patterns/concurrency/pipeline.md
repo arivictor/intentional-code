@@ -14,7 +14,7 @@ A pipeline is a series of stages connected by channels. Each stage consumes valu
 
 The pattern composes well. Stages are functions with a consistent signature, and you chain them by passing the output of one as the input to the next.
 
-## Problem
+## Scenario
 
 You need to read files from disk, parse their contents, and write results to a database. The naive approach is sequential: read all files, then parse all files, then write all results. This is slow and holds everything in memory. You want the three stages to overlap.
 

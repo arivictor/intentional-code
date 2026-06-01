@@ -150,7 +150,7 @@ Maximum DC current for isolator and cable sizing per AS/NZS 5033: 1.25 × Isc (t
 Input: inverter AC output rating, switchboard rating, supply type.
 Output: AC circuit sizing, protective device, compliance flags.
 
-The inverter circuit must be sized to carry the maximum AC output current with margin. The protective device coordinates with the inverter's internal protection. The total inverter capacity per phase is subject to DNSP limits — in Victoria, single phase inverter limits vary by DNSP (typically 5kW or 10kW depending on the network). Multi-phase systems must be balanced within DNSP requirements.
+The inverter circuit must be sised to carry the maximum AC output current with margin. The protective device coordinates with the inverter's internal protection. The total inverter capacity per phase is subject to DNSP limits — in Victoria, single phase inverter limits vary by DNSP (typically 5kW or 10kW depending on the network). Multi-phase systems must be balanced within DNSP requirements.
 
 Implement the DNSP limits as a configurable data table — they change frequently.
 

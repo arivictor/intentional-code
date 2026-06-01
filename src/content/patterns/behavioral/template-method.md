@@ -13,7 +13,7 @@ Template Method defines the skeleton of an algorithm in a base class, letting su
 
 The Go solution: pass the variable steps as function values or interfaces via composition. Same result, without fighting the language.
 
-## Problem
+## Scenario
 
 You're generating reports in different formats: plain text, CSV, and JSON. The overall process is identical (write a header, write each row, write a footer) but the formatting step differs. The skeleton is duplicated for each format.
 

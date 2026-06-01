@@ -13,7 +13,7 @@ Go 1.23 made Iterator a first-class language feature: `iter.Seq[T]` (a function 
 
 This is one of the patterns most changed by Go's evolution. If you're on 1.23+, external iterator structs are rarely worth reaching for.
 
-## Problem
+## Scenario
 
 You have a binary tree and need to traverse it in multiple ways. Without an iterator abstraction, the traversal logic gets embedded in every function that processes the tree. Search, print, collect, and filter all duplicate the same recursive walk.
 

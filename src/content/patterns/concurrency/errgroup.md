@@ -14,7 +14,7 @@ isFeatured: false
 
 This is the right tool for the pattern that looks like: "start N concurrent operations, wait for all to complete or any to fail, stop everything on the first failure."
 
-## Problem
+## Scenario
 
 You need to fetch data from three services in parallel. If any fetch fails, you want to cancel the others and return immediately rather than waiting for the slow ones to time out.
 

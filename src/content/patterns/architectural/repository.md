@@ -9,11 +9,13 @@ tags: [interfaces, dependency-inversion, testability]
 
 # Repository
 
-The most immediate sign you need Repository is a service function that takes `*sql.DB` as a parameter. That signature tells you something uncomfortable: you can't test this business rule without a running database. Repository replaces the concrete dependency with an interface defined in the domain package. Go's implicit interface satisfaction means the domain never imports the infrastructure package, and any struct with the right methods becomes a valid backend, including the in-memory fake that keeps unit tests fast.
+The Repository pattern defines a persistence contract as an interface that the domain logic depends on, and provides concrete implementations for different storage backends. This decouples business rules from database code, making the domain easier to test and more flexible to future changes in storage technology.
 
-This is the [Dependency Inversion Principle](/go/philosophy/solid) applied to persistence: the domain defines what it needs, and infrastructure satisfies it, not the other way around.
+One of the clearest signs you need a Repository is a service function that takes `*sql.DB` directly. That usually means you cannot test the business rule without a real database running. The Repository pattern fixes that by replacing the concrete database dependency with an interface defined near the domain logic. In Go, implicit interface satisfaction makes this natural: the domain does not need to import the infrastructure package, and any type with the right methods can satisfy the interface, including an in-memory fake used in fast tests.
 
-## Problem
+This is the [Dependency Inversion Principle](/go/philosophy/solid) applied to persistence. The domain says what storage behavior it needs, and infrastructure provides an implementation of that contract.
+
+## Scenario
 
 Your post-publishing logic is scattered with direct database calls. Every function that needs a post calls `sql.DB` directly. Tests require a live database. Switching from PostgreSQL to a different store means hunting through business logic.
 
@@ -212,11 +214,11 @@ The PostgreSQL implementation would live in a separate package (needs a real DB 
 - The application is a thin data service. Adding a repository interface just to have one adds ceremony without value.
 - Your query needs are so varied (complex filters, reporting) that a single interface becomes a leaky abstraction. In that case, a query builder or direct SQL for reads is usually cleaner.
 
-## Tradeoffs
+## The Decision
 
-The primary benefit is testability: the in-memory implementation lets you test all domain logic with no database process and no slow I/O. The interface also documents exactly what persistence operations the domain actually needs, which makes it obvious when a feature is adding an unusual query.
+The main benefit is testability. An in-memory implementation lets you test domain logic without a database process and without slow I/O. The repository interface also makes the persistence contract explicit. You can see exactly what storage operations the domain really needs, which makes unusual or overly specific queries easier to notice.
 
-The costs are proportional to the number of aggregates. One interface per aggregate grows into many small interfaces, each requiring both a production implementation and an in-memory fake that must stay in sync, or tests give false confidence. Complex read requirements (pagination, filtering, sorting, joins) tend to leak through the interface as method parameters, gradually making the interface harder to satisfy and harder to fake accurately.
+The cost grows with the number of aggregates. One repository interface per aggregate can turn into many small interfaces, and each one usually needs both a production implementation and an in-memory fake. If those implementations drift apart, tests can give false confidence. Complex read requirements also put pressure on the pattern. Pagination, filtering, sorting, and joins often start leaking into the interface as more parameters and more specialized methods. Over time, that can make the repository harder to implement and harder to fake accurately.
 
 ## Related Patterns
 

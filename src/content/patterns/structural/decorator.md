@@ -13,7 +13,7 @@ Decorator wraps an object to add behavior, keeping the same interface. In Go, th
 
 The canonical Go example is `http.Handler` middleware: a function that takes a handler, returns a new handler that logs, authenticates, compresses, or rate-limits, and then calls the original. It's the [Open/Closed Principle](/go/philosophy/solid) made concrete: each concern is added without touching the code it wraps.
 
-## Problem
+## Scenario
 
 You have an HTTP handler that serves an API. You need to add logging. Then authentication. Then CORS headers. Each concern is independent, but you don't want to stuff all of them into one giant handler. And you want to compose them differently for different routes.
 
@@ -31,7 +31,7 @@ func handleItems(w http.ResponseWriter, r *http.Request) {
     // Authentication check (shouldn't be here)
     token := r.Header.Get("Authorization")
     if token == "" {
-        http.Error(w, "unauthorized", 401)
+        http.Error(w, "unauthorised", 401)
         return
     }
 
@@ -86,7 +86,7 @@ func Logging(next http.Handler) http.Handler {
 func Auth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") == "" {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			http.Error(w, "unauthorised", http.StatusUnauthorised)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -132,7 +132,7 @@ Output:
 
 ```
 /items 200 items: []
-/items 401 unauthorized
+/items 401 unauthorised
 
 /health 200 ok
 ```

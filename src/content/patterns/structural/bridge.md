@@ -13,7 +13,7 @@ Bridge's identifying signal is a type hierarchy growing in two independent direc
 
 The key question before reaching for Bridge: are these two dimensions truly independent? If they always change together, Bridge adds interfaces for no gain. If adding to one dimension never requires touching the other, Bridge is the right structure.
 
-## Problem
+## Scenario
 
 You're building a report generator that produces reports in different formats (plain text, JSON) and writes them to different outputs (console, file). Without Bridge, you'd need `PlainTextConsoleReport`, `PlainTextFileReport`, `JSONConsoleReport`, `JSONFileReport`: four types, growing quadratically.
 

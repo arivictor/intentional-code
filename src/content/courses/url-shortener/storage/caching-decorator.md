@@ -6,16 +6,16 @@ description: "Add an LRU cache as a Store that wraps a Store — the Decorator p
 
 ## A Store That Wraps a Store
 
-Reads already hit memory, so why cache? Because the in-memory index won't stay in memory forever. At millions of links, holding every record in a map is wasteful, and a production store would keep most links on disk and load them on demand. The moment reads can be *slow*, you want a small, bounded cache of the **hot** links — the handful that get hammered — sitting in front of the slower store.
+Reads now hit the database. Every redirect is a `Find`, and every `Find` is a SQL query that crosses into SQLite and back — fast, but not free, and the redirect path is the hottest in the whole service. So we put a small, bounded cache of the **hot** links — the handful that get hammered — in front of the store, so the busiest codes answer straight from memory and never touch the database at all.
 
-Here's the elegant part. We won't bolt caching *into* a store. We'll write a new `Store` whose entire job is to wrap another `Store` and add caching — and because it satisfies the same interface, it can wrap `MemoryStore`, `FileStore`, or anything we build later. A component that wraps another component of the same type to add behaviour is the [Decorator pattern](/go/patterns/structural/decorator), and a cache is its perfect illustration.
+Here's the elegant part. We won't bolt caching *into* a store. We'll write a new `Store` whose entire job is to wrap another `Store` and add caching — and because it satisfies the same interface, it can wrap `MemoryStore`, `SQLiteStore`, or anything we build later. A component that wraps another component of the same type to add behaviour is the [Decorator pattern](/go/patterns/structural/decorator), and a cache is its perfect illustration.
 
 ```
-Service ──► CachedStore ──► FileStore ──► disk
+Service ──► CachedStore ──► SQLiteStore ──► disk
             (adds caching)  (adds durability)
 ```
 
-`Service` thinks it's holding a `Store`. It is — it just happens to be a cache wrapped around a file wrapped around a disk. Each layer adds one concern and preserves the interface.
+`Service` thinks it's holding a `Store`. It is — it just happens to be a cache wrapped around a database wrapped around a disk. Each layer adds one concern and preserves the interface.
 
 ## Building a Bounded LRU
 
@@ -143,11 +143,11 @@ Read `Find` and notice the discipline. A hit returns without disturbing `inner`.
 Because every layer is a `Store`, you compose them like function calls — and `Service` is identical no matter how deep the stack:
 
 ```go
-file, err := shortener.OpenFileStore("links.log")
+db, err := shortener.OpenSQLiteStore("links.db")
 if err != nil {
 	log.Fatal(err)
 }
-store := shortener.NewCachedStore(file, 1024) // hot links cached; everything durable
+store := shortener.NewCachedStore(db, 1024) // hot links cached; everything durable
 
 svc := shortener.NewService(store, gen) // Service has no idea it's two layers
 ```
@@ -162,4 +162,4 @@ The instant that assumption breaks, this code becomes a bug. Add an "edit destin
 
 ## What's Next
 
-Storage is done: a Repository with three faces — fast in `MemoryStore`, durable in `FileStore`, hot-fast in `CachedStore` — all the same interface, all composable. The engine runs; nothing can talk to it yet. The next chapter opens the doors: an HTTP API that turns `POST /shorten` and `GET /{code}` into calls on the `Service` we've quietly been building this whole time.
+Storage is done: a Repository with three faces — fast in `MemoryStore`, durable in `SQLiteStore`, hot-fast in `CachedStore` — all the same interface, all composable. The engine runs; nothing can talk to it yet. The next chapter opens the doors: an HTTP API that turns `POST /shorten` and `GET /{code}` into calls on the `Service` we've quietly been building this whole time.

@@ -139,4 +139,4 @@ What in-memory *can't* do is survive a restart. Kill the process and every link 
 
 ## What's Next
 
-We have a correct, concurrent, lock-savvy Repository that forgets everything on exit. Next we make storage durable: an append-only log on disk that we replay on startup to rebuild exactly this in-memory index — keeping the fast reads, adding the persistence, and still satisfying the same three-method `Store` interface.
+We have a correct, concurrent, lock-savvy Repository that forgets everything on exit. Next we make storage durable — and instead of hand-rolling a file format, we hand persistence to SQLite behind the very same three-method `Store` interface. Watch what happens to the locking: the database enforces uniqueness itself, so the mutex and the check-then-insert dance both disappear. Reads, though, now cross into a real database — which is exactly what makes the cache in the chapter after it earn its keep.

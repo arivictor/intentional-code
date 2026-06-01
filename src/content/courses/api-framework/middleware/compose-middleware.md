@@ -69,7 +69,7 @@ func RequireAPIKey(valid string) Middleware {
 		return func(c *Context) error {
 			key := strings.TrimPrefix(c.Request.Header.Get("Authorization"), "Bearer ")
 			if key != valid {
-				return Unauthorized("invalid or missing API key") // short-circuit
+				return Unauthorised("invalid or missing API key") // short-circuit
 			}
 			return next(c) // pass it down the chain
 		}
@@ -77,7 +77,7 @@ func RequireAPIKey(valid string) Middleware {
 }
 ```
 
-`Unauthorized` is the structured error we build in Chapter 4. The point here is the control flow: returning *before* `next(c)` ends the chain. Because our handlers return errors, short-circuiting is just an early `return` — no awkward "did the middleware write a response already?" guessing that plagues the `http.Handler` style.
+`Unauthorised` is the structured error we build in Chapter 4. The point here is the control flow: returning *before* `next(c)` ends the chain. Because our handlers return errors, short-circuiting is just an early `return` — no awkward "did the middleware write a response already?" guessing that plagues the `http.Handler` style.
 
 ## Returning Errors Up the Chain
 

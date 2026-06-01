@@ -9,21 +9,36 @@ tags: [interfaces, state, events, composition, dependency-inversion]
 
 # Domain-Driven Design
 
-The problem DDD solves is logic that leaks. Business rules like "a post can't be published without a title" get written into one service function, forgotten in another, and enforced inconsistently across the codebase. Your domain types become plain data structs, and the rules that govern them float free. DDD puts that logic back inside the type, where the compiler helps you keep callers honest.
+Domain-Driven Design (DDD) fixes a common problem where business rules end up scattered across many places. For example, a rule like *"a post must have a title before publish"* might be checked in one function but missed in another. That causes bugs.
 
-The tactical building blocks are **Entities** (identity-based, stateful), **Value Objects** (equality-based, immutable), **Aggregates** (consistency boundaries mutated only through the root), **Repositories** (persistence interfaces defined by the domain), **Domain Events** (facts that have occurred), and **Domain Services** (operations spanning multiple aggregates). The unifying constraint: the code should speak the language of the business.
+Over time, domain types become simple data holders, while the real rules live outside them (This is known as an anemic domain model). DDD puts the rules back inside the domain type, so there is one clear place to enforce them and it is harder for callers to break them.
+
+The building blocks of DDD are: 
+
+* **Entities** (identity-based, stateful), 
+* **Value Objects** (equality-based, immutable), 
+* **Aggregates** (consistency boundaries mutated only through the root), 
+* **Repositories** (persistence interfaces defined by the domain), 
+* **Domain Events** (facts that have occurred), and 
+* **Domain Services** (operations spanning multiple aggregates). 
+
+Domain Driven Design also emphases a unified language between developers and domain experts, called the ubiquitous language, which should be reflected in the code's package names, type names, and method names. If your business analyst says "we don't 'process' orders, we 'fulfil' them," then the code should say `FulfillOrder`, not `ProcessOrder`.
 
 ## Strategic vs Tactical
 
-DDD operates at two levels. **Tactical DDD** is the building-block vocabulary: Entities, Value Objects, Aggregates, Repositories, Domain Events, and Domain Services. These clarify a single bounded context.
+DDD has two parts, and both matter.
 
-**Strategic DDD** is the higher-level discipline: how you carve a large domain into coherent sub-domains, draw explicit boundaries between them, and manage the relationships across those boundaries. Most DDD failures stem from applying tactical patterns without the strategic foundation. You end up with rich aggregates that still create a tightly coupled system because context boundaries were never drawn.
+**Tactical DDD** is the hands-on part. It gives you the core building blocks: Entities, Value Objects, Aggregates, Repositories, Domain Events, and Domain Services. These patterns help you model one bounded context clearly and keep business rules in the right place.
+
+**Strategic DDD** is the big-picture part. It is about splitting a large business domain into smaller, clear sub-domains, defining the boundaries between them, and deciding how those parts talk to each other. Many teams fail with DDD because they use the tactical patterns but skip this strategic work. They create rich aggregates, but the system is still tightly coupled because the context boundaries were never defined.
+
+Imagine a online store, its core domain is delivering products to the customer, but it has other domains like recommendations, search, billing, and shipping. Each of those is a sub-domain with its own model and rules. Strategic DDD helps you define clear boundaries between those sub-domains (bounded contexts) and decide how they integrate (context maps). For example, the recommendation system might be a separate bounded context that consumes events from the core service but has its own model of users and songs.
 
 ## Bounded Contexts
 
-A bounded context is an explicit boundary within which a particular domain model applies. Inside the boundary, terms, models, and rules are consistent. Outside it, the same words may mean something entirely different.
+A bounded context is an explicit boundary within which a particular domain language applies. Inside the boundary, terms, models, and rules are consistent. Outside it, the same words may mean something entirely different.
 
-The word "Customer" appears across the entire e-commerce domain, but means something different to each team:
+The word "Customer" appears across the entire strategic domain, but means something different to each team's bounded context:
 
 ```
 ┌────────────────────────┐    ┌────────────────────────┐
@@ -79,7 +94,7 @@ A context map documents the relationships between bounded contexts. The four mos
 **Open Host Service:** The upstream publishes a stable, versioned API for any consumer, rather than negotiating separately with each one.
 
 ```
-┌─────────────────────┐      ACL      ┌─────────────────────┐
+┌─────────────────────┐      ACL     ┌─────────────────────┐
 │  Legacy ERP System  │ ──────────── │   Order Context     │
 │  (Upstream)         │              │   (Downstream)      │
 │  LegacyOrder{...}   │              │   Order{...}        │
@@ -134,56 +149,57 @@ The order domain never sees `LegacyOrder` or its bitmask flags. The ACL absorbs 
 
 A ubiquitous language is a shared vocabulary built with domain experts that appears consistently in conversation, documentation, and code. It eliminates the translation tax that developers pay every time they convert business concepts into technical terms.
 
-Building the language is a collaborative process: sit with domain experts, model out loud, and let their corrections shape the vocabulary. When a domain expert says "we don't 'process' orders, we 'fulfil' them," update the code immediately.
+Building the language is a collaborative process: sit with domain experts, model out loud, and let their corrections shape the vocabulary. When a domain expert starts saying something that doesn't match the code, it's a sign the language has drifted. For example, if they say "we don't suggest products, we recommend them" then the code should say `RecommendProduct`, not `SuggestProduct`. When the code reads like the domain expert's sentences, you've arrived at a ubiquitous language.
 
 ```go
-// Before: technical vocabulary that doesn't match how the business talks.
-type UserRecord struct {
+// Before: technical naming that does not match business language.
+type ProductSuggestionRecord struct {
     ID        string
     CreatedAt time.Time
 }
 
-func processUserRecord(db *sql.DB, r *UserRecord) error { ... }
+func saveProductSuggestion(db *sql.DB, r *ProductSuggestionRecord) error { ... }
 
-// After: ubiquitous language — code reads like the domain expert's sentences.
-type Customer struct {
-    ID           CustomerID
-    RegisteredAt time.Time
+// After: business language used in type and method names.
+type ProductRecommendation struct {
+    RecommendationID string
+    CustomerID       CustomerID
+    ProductID        ProductID
+    RecommendedAt    time.Time
 }
 
-func (c *Customer) PlaceOrder(items []OrderItem) (*Order, error) { ... }
+func (c *Customer) RecommendProduct(productID ProductID) (*ProductRecommendation, error) { ... }
 ```
 
-The language flows through package names (`package billing`, not `package billingservice`), type names (`Customer`, `Order`, `Shipment`), and method names (`PlaceOrder`, `FulfillShipment`, `IssueRefund`). When code reads like the domain expert's sentences, you've arrived.
+The language flows through package names (`product_recommendation`), type names (`ProductRecommendation`, `Customer`, `Product`), and method names (`RecommendProduct`). The domain model becomes a living document of the business, and the business conversation becomes more precise because everyone is using the same words.
 
-## Problem
+## Scenario
 
-A content platform has an `Article` struct carrying 20 fields. It's updated from 8 different places. Some mutations are only valid in certain states. Bugs appear because invariants like "a draft can't be published without a title" are enforced in some callers but forgotten in others. The model is an anemic data bag, not a reflection of the business.
+A growing online store has an `Order` struct with many fields. It is updated by checkout, admin tools, support scripts, and background jobs. Some mutations are only valid in certain states. Bugs appear because invariants like "an order cannot ship before payment" are enforced in some places but skipped in others. The model is an anemic data bag, not a reflection of the business.
 
 ```go
 // Anemic domain model — data bag, no behavior, invariants scattered
-type Article struct {
-    ID        string
-    AuthorID  string
-    Title     string
-    Body      string
-    Status    string // "draft", "published", "archived"
-    PublishedAt *time.Time
+type Order struct {
+    ID             string
+    CustomerID     string
+    PaymentStatus  string // "pending", "paid"
+    ShippingStatus string // "pending", "shipped", "cancelled"
+    ShippedAt      *time.Time
 }
 
 // Invariant lives in service code, duplicated and inconsistently enforced
-func PublishArticle(db *sql.DB, id string) error {
-    var a Article
-    db.QueryRow("SELECT * FROM articles WHERE id = $1", id).Scan(&a)
-    if a.Title == "" {
-        return errors.New("no title")  // enforced here...
+func ShipOrder(db *sql.DB, id string) error {
+    var o Order
+    db.QueryRow("SELECT * FROM orders WHERE id = $1", id).Scan(&o)
+    if o.PaymentStatus != "paid" {
+        return errors.New("cannot ship unpaid order") // enforced here...
     }
-    db.Exec("UPDATE articles SET status = 'published' WHERE id = $1", id)
+    db.Exec("UPDATE orders SET shipping_status = 'shipped' WHERE id = $1", id)
     return nil
 }
 
-func AdminPublish(a *Article) {
-    a.Status = "published"  // ...but bypassed here
+func AdminForceShip(o *Order) {
+    o.ShippingStatus = "shipped" // ...but bypassed here
 }
 ```
 
@@ -194,140 +210,165 @@ Model the domain explicitly. Each building block has a specific role.
 ```
 ┌─────────────────────────────────────────────┐
 │               Aggregate Root                │
-│             Article (Entity)                │
+│              Order (Entity)                 │
 │  ┌──────────────────┐  ┌──────────────────┐ │
-│  │  ArticleID       │  │  Slug            │ │
+│  │  OrderID         │  │  Money           │ │
 │  │  (Value Obj.)    │  │  (Value Obj.)    │ │
 │  └──────────────────┘  └──────────────────┘ │
 │                                             │
 │  Rules enforced inside, no bypass possible │
 └───────────────────┬─────────────────────────┘
-                    │ persisted via
-             ArticleRepository (interface)
-                    │ emits
-              ArticlePublished (Domain Event)
+                    │ persisted via OrderRepository (interface)
+                    │ emits OrderShipped (Domain Event)
 ```
 
 **Value Objects:** immutable, compared by value:
 
 ```go
-// domain/article/value_objects.go
-package article
+// domain/order/value_objects.go
+package order
 
 import (
     "fmt"
-    "strings"
 )
 
-type ArticleID string
+type OrderID string
 
-type Slug string
+type ProductID string
 
-func NewSlug(title string) (Slug, error) {
-    s := strings.ToLower(strings.ReplaceAll(strings.TrimSpace(title), " ", "-"))
-    if s == "" {
-        return "", fmt.Errorf("slug cannot be empty")
+type Money struct {
+    Cents int64
+}
+
+func NewMoney(cents int64) (Money, error) {
+    if cents < 0 {
+        return Money{}, fmt.Errorf("money cannot be negative")
     }
-    return Slug(s), nil
+    return Money{Cents: cents}, nil
 }
 ```
 
 **Entity and Aggregate Root:** identity, state, and invariants enforced together:
 
 ```go
-// domain/article/article.go
-package article
+// domain/order/order.go
+package order
 
 import (
     "fmt"
     "time"
 )
 
-type Status string
+type PaymentStatus string
+type ShippingStatus string
 
 const (
-    StatusDraft     Status = "draft"
-    StatusPublished Status = "published"
-    StatusArchived  Status = "archived"
+    PaymentPending PaymentStatus = "pending"
+    PaymentPaid    PaymentStatus = "paid"
+
+    ShippingPending   ShippingStatus = "pending"
+    ShippingShipped   ShippingStatus = "shipped"
+    ShippingCancelled ShippingStatus = "cancelled"
 )
 
 // Domain Event — a fact that occurred inside the aggregate.
-type PublishedEvent struct {
-    ArticleID   ArticleID
-    Slug        Slug
-    OccurredAt  time.Time
+type ShippedEvent struct {
+    OrderID    OrderID
+    OccurredAt time.Time
 }
 
-// Article is the aggregate root — the only entry point for mutations.
-type Article struct {
-    id       ArticleID
-    authorID string
-    title    string
-    body     string
-    slug     Slug
-    status   Status
+type LineItem struct {
+    ProductID ProductID
+    Qty       int
+}
+
+// Order is the aggregate root — the only entry point for mutations.
+type Order struct {
+    id             OrderID
+    customerID     string
+    paymentStatus  PaymentStatus
+    shippingStatus ShippingStatus
+    items          []LineItem
+    total          Money
 
     events []interface{} // uncommitted domain events
 }
 
-func New(id ArticleID, authorID, title, body string) (*Article, error) {
-    if title == "" {
-        return nil, fmt.Errorf("title is required")
+func New(id OrderID, customerID string, items []LineItem, total Money) (*Order, error) {
+    if len(items) == 0 {
+        return nil, fmt.Errorf("order must contain at least one item")
     }
-    slug, err := NewSlug(title)
-    if err != nil {
-        return nil, err
+    if total.Cents <= 0 {
+        return nil, fmt.Errorf("order total must be greater than zero")
     }
-    return &Article{
-        id:       id,
-        authorID: authorID,
-        title:    title,
-        body:     body,
-        slug:     slug,
-        status:   StatusDraft,
+    copiedItems := make([]LineItem, len(items))
+    copy(copiedItems, items)
+    return &Order{
+        id:             id,
+        customerID:     customerID,
+        paymentStatus:  PaymentPending,
+        shippingStatus: ShippingPending,
+        items:          copiedItems,
+        total:          total,
     }, nil
 }
 
-func (a *Article) ID() ArticleID { return a.id }
-func (a *Article) Status() Status { return a.status }
-func (a *Article) Slug() Slug     { return a.slug }
+func (o *Order) ID() OrderID                { return o.id }
+func (o *Order) PaymentStatus() PaymentStatus  { return o.paymentStatus }
+func (o *Order) ShippingStatus() ShippingStatus { return o.shippingStatus }
 
-func (a *Article) UpdateBody(body string) {
-    a.body = body
+func (o *Order) MarkPaid() error {
+    if o.shippingStatus == ShippingCancelled {
+        return fmt.Errorf("cannot pay a cancelled order")
+    }
+    if o.paymentStatus == PaymentPaid {
+        return nil
+    }
+    o.paymentStatus = PaymentPaid
+    return nil
 }
 
-// Publish enforces the invariant — callers can't bypass it.
-func (a *Article) Publish() error {
-    if a.title == "" {
-        return fmt.Errorf("cannot publish: title is required")
+// Ship enforces the invariant — callers cannot ship unpaid orders.
+func (o *Order) Ship() error {
+    if o.paymentStatus != PaymentPaid {
+        return fmt.Errorf("cannot ship unpaid order")
     }
-    if a.status == StatusArchived {
-        return fmt.Errorf("cannot publish an archived article")
+    if o.shippingStatus == ShippingCancelled {
+        return fmt.Errorf("cannot ship cancelled order")
     }
-    if a.status == StatusPublished {
+    if o.shippingStatus == ShippingShipped {
         return nil // idempotent
     }
-    a.status = StatusPublished
-    a.events = append(a.events, PublishedEvent{
-        ArticleID:  a.id,
-        Slug:       a.slug,
+    o.shippingStatus = ShippingShipped
+    o.events = append(o.events, ShippedEvent{
+        OrderID:    o.id,
         OccurredAt: time.Now(),
     })
     return nil
 }
 
-func (a *Article) Archive() error {
-    if a.status == StatusArchived {
+func (o *Order) Cancel() error {
+    if o.shippingStatus == ShippingShipped {
+        return fmt.Errorf("cannot cancel shipped order")
+    }
+    if o.shippingStatus == ShippingCancelled {
         return nil
     }
-    a.status = StatusArchived
+    o.shippingStatus = ShippingCancelled
     return nil
 }
 
+// Items returns a copy so callers cannot mutate order internals.
+func (o *Order) Items() []LineItem {
+    copied := make([]LineItem, len(o.items))
+    copy(copied, o.items)
+    return copied
+}
+
 // PopEvents returns and clears uncommitted domain events.
-func (a *Article) PopEvents() []interface{} {
-    evts := a.events
-    a.events = nil
+func (o *Order) PopEvents() []interface{} {
+    evts := o.events
+    o.events = nil
     return evts
 }
 ```
@@ -335,57 +376,59 @@ func (a *Article) PopEvents() []interface{} {
 **Repository interface:** defined by the domain, implemented by infrastructure:
 
 ```go
-// domain/article/repository.go
-package article
+// domain/order/repository.go
+package order
 
 import "context"
 
 type Repository interface {
-    FindByID(ctx context.Context, id ArticleID) (*Article, error)
-    Save(ctx context.Context, a *Article) error
+    FindByID(ctx context.Context, id OrderID) (*Order, error)
+    Save(ctx context.Context, o *Order) error
 }
 ```
 
-**Domain Service:** operations that span the aggregate boundary, like checking for slug uniqueness across all articles:
+**Domain Service:** operations that span the aggregate boundary, like checking inventory in another context before shipping:
 
 ```go
-// domain/article/service.go
-package article
+// domain/order/service.go
+package order
 
 import (
     "context"
     "fmt"
 )
 
-type SlugChecker interface {
-    SlugExists(ctx context.Context, slug Slug) (bool, error)
+type InventoryChecker interface {
+    CanFulfill(ctx context.Context, productID ProductID, qty int) (bool, error)
 }
 
-type PublishService struct {
-    repo    Repository
-    slugs   SlugChecker
+type ShipService struct {
+    repo      Repository
+    inventory InventoryChecker
 }
 
-func NewPublishService(repo Repository, slugs SlugChecker) *PublishService {
-    return &PublishService{repo: repo, slugs: slugs}
+func NewShipService(repo Repository, inventory InventoryChecker) *ShipService {
+    return &ShipService{repo: repo, inventory: inventory}
 }
 
-func (s *PublishService) Publish(ctx context.Context, id ArticleID) error {
-    a, err := s.repo.FindByID(ctx, id)
+func (s *ShipService) Ship(ctx context.Context, id OrderID) error {
+    o, err := s.repo.FindByID(ctx, id)
     if err != nil {
-        return fmt.Errorf("finding article: %w", err)
+        return fmt.Errorf("finding order: %w", err)
     }
-    exists, err := s.slugs.SlugExists(ctx, a.Slug())
-    if err != nil {
-        return fmt.Errorf("checking slug: %w", err)
+    for _, it := range o.Items() {
+        ok, err := s.inventory.CanFulfill(ctx, it.ProductID, it.Qty)
+        if err != nil {
+            return fmt.Errorf("checking inventory: %w", err)
+        }
+        if !ok {
+            return fmt.Errorf("insufficient inventory for product %q", it.ProductID)
+        }
     }
-    if exists {
-        return fmt.Errorf("slug %q is already in use", a.Slug())
-    }
-    if err := a.Publish(); err != nil {
+    if err := o.Ship(); err != nil {
         return err
     }
-    return s.repo.Save(ctx, a)
+    return s.repo.Save(ctx, o)
 }
 ```
 
@@ -398,20 +441,22 @@ myapp/
 ├── cmd/
 │   └── server/
 │       └── main.go
-├── article/                    # Bounded context: article publishing
-│   ├── article.go              # aggregate root, entity, domain events
-│   ├── value_objects.go        # ArticleID, Slug
+├── order/                      # Bounded context: ordering
+│   ├── order.go                # aggregate root, entity, domain events
+│   ├── value_objects.go        # OrderID, Money
 │   ├── repository.go           # persistence interface, owned by the domain
-│   ├── service.go              # domain service for cross-aggregate operations
+│   ├── service.go              # domain service for cross-context operations
 │   └── postgres/
 │       └── repository.go       # infrastructure implementation, kept inside the context
-├── billing/                    # Separate bounded context — its own Customer model
+├── billing/                    # Separate bounded context — payment model
+│   └── ...
+├── inventory/                  # Separate bounded context — stock model
 │   └── ...
 └── acl/                        # Anti-corruption layer for upstream integrations
     └── erp_translator.go
 ```
 
-Avoid organising by layer across contexts (`entities/`, `repositories/`, `services/` at the top level) — it produces a folder structure that looks DDD but couples bounded contexts through shared packages. Keep each context self-contained: the aggregate, its value objects, its repository interface, its domain service, and its infrastructure implementation all live together. For a context with many aggregates, split into sub-packages per aggregate rather than per tactical concept.
+Avoid organising by layer across contexts (`entities/`, `repositories/`, `services/` at the top level) as it produces a folder structure that looks DDD but couples bounded contexts through shared packages. Keep each context self-contained: the aggregate, its value objects, its repository interface, its domain service, and its infrastructure implementation all live together. For a context with many aggregates, split into sub-packages per aggregate rather than per tactical concept.
 
 ## When to Use
 
@@ -426,11 +471,11 @@ Avoid organising by layer across contexts (`entities/`, `repositories/`, `servic
 - The team doesn't have access to domain experts. DDD's value compounds with tight collaboration.
 - You're in early exploration. Build a working version first; apply DDD when the domain stabilises.
 
-## Tradeoffs
+## The Decision
 
-The payoff is concentrated: aggregates enforce invariants in one place so callers can't accidentally bypass them, and the ubiquitous language keeps code and business conversation in sync. The cost is upfront and ongoing. Getting aggregate boundaries wrong is expensive to fix. Split them too fine and you get coordination overhead across transactions; merge them too broadly and you get a 40-field struct that every feature touches. Persistence mapping between rich domain types and flat database rows is mechanical work that compounds with every aggregate. Applying DDD to a simple reporting or admin tool is over-engineering; not every problem benefits from a rich domain model.
+The main benefit is clear: aggregates keep important business rules in one place, so callers cannot quietly skip them, and the ubiquitous language keeps code and business conversations aligned. The cost is real and ongoing. If you draw aggregate boundaries badly, fixing them later is expensive. If you split too much, you create too much cross-transaction coordination. If you group too much, you end up with giant structs that every feature touches. Mapping rich domain objects to flat database tables is also repetitive work that grows with each aggregate. For simple admin or reporting systems, DDD is often more structure than you need.
 
-A few heuristics for aggregate boundaries: an aggregate root should enforce consistency within a single database transaction. If doing so requires loading many other entities, the aggregate is too large. Reference other aggregates by ID rather than by pointer; this forces cross-aggregate coordination through an explicit service or domain event, making the boundary visible in the code. Use domain events for cross-aggregate operations. When an `Order` is placed, publish an `OrderPlaced` event that the `Inventory` aggregate handles independently, rather than having `Order.Place()` reach into `Inventory` directly. If you always load two aggregates together, they may belong in one; if enforcing an invariant on one requires reading another, the boundary is likely wrong.
+Some practical rules help. An aggregate root should protect consistency that must hold in one database transaction. If you must load many other entities to enforce that consistency, the aggregate is probably too big. Refer to other aggregates by ID, not by direct pointer, so cross-aggregate work is explicit through a domain service or domain event. Use domain events for cross-aggregate behavior. For example, when an order is placed, emit an `OrderPlaced` event and let Inventory handle it separately, instead of calling Inventory directly from Order. If two aggregates are always loaded together, they may be one aggregate. If enforcing a rule in one aggregate always needs data from another, your boundary is probably wrong.
 
 ## Related Patterns
 

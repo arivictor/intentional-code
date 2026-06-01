@@ -136,4 +136,4 @@ Most services don't. They speak JSON and only JSON, and a configurable encoder i
 
 ## What's Next
 
-`Bind`, `BindValid`, and our handlers all return errors like `BadRequest(...)` and `Unauthorized(...)` that don't exist yet. The next step builds the `HTTPError` type behind them and the one piece of middleware that turns any returned error into a consistent JSON response — finally replacing that placeholder 500 from Chapter 1.
+`Bind`, `BindValid`, and our handlers all return errors like `BadRequest(...)` and `Unauthorised(...)` that don't exist yet. The next step builds the `HTTPError` type behind them and the one piece of middleware that turns any returned error into a consistent JSON response — finally replacing that placeholder 500 from Chapter 1.

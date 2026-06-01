@@ -14,7 +14,7 @@ A semaphore limits concurrent access to a resource. In Go, a buffered channel of
 
 The semaphore sits between two extremes: a mutex (only one goroutine at a time) and no limit (unlimited concurrency). Use it when you know how many concurrent operations a downstream system can handle and want to enforce that ceiling without managing a persistent goroutine pool.
 
-## Problem
+## Scenario
 
 You need to make 500 outbound HTTP requests to a third-party API. Spawning 500 goroutines simultaneously would exceed the API's rate limit and likely trigger a 429. You need to cap concurrency at 20 while still doing work in parallel.
 

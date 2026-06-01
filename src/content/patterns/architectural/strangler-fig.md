@@ -9,13 +9,13 @@ tags: [interfaces, dependency-inversion, migration]
 
 # Strangler Fig
 
-The Strangler Fig pattern is named after the tropical vine that grows around a host tree, eventually replacing it entirely. You build a new system around the edges of the old one, routing some calls to the new implementation, until the old system handles nothing and can be removed.
+The Strangler Fig pattern gets its name from a vine that grows around a tree and slowly replaces it. The software version works the same way. You build a new system around the edges of the old one, send some requests to the new code, and leave the rest on the legacy system. Over time, the new system handles more and more, until the old system handles nothing and can be removed.
 
-The key property: the old and new systems run simultaneously for an extended period. Traffic is divided at a routing layer that neither system knows about. The new implementation grows to cover more paths; the legacy shrinks. At completion, the routing layer becomes a direct pass-through to the new system, and the old one is deleted.
+The important property is that the old and new systems run side by side for a long time. A routing layer sits in front of them and decides where each request goes. Neither system needs to know about that routing decision. As the migration moves forward, the new system covers more paths and the legacy system covers fewer. At the end, the routing layer becomes a simple pass-through to the new system, and the old system is deleted.
 
-This is the practical alternative to a big-bang rewrite, which historically fails because the system being replaced is too large, too poorly understood, and too actively changing to replace all at once.
+This is the practical alternative to a big-bang rewrite. Big-bang rewrites usually fail because the system is too large, too poorly understood, and still changing while you are trying to replace it.
 
-## Problem
+## Scenario
 
 A monolithic Go application handles orders, inventory, and customer accounts in one binary. The team wants to extract the inventory subsystem into a separate service. A full rewrite is too risky: thousands of call sites, no comprehensive test coverage, and the monolith is still receiving feature work.
 
@@ -160,9 +160,9 @@ func (s *stranglerInventory) Available(ctx context.Context, itemID string) (int,
 
 ## Tradeoffs
 
-The main benefit is risk reduction: if the new service has a bug, you flip a flag and legacy handles the traffic again. You can verify each subsystem in production before expanding coverage.
+The biggest benefit is lower risk. If the new service has a bug, you can switch traffic back and let the legacy system handle the request again. You can also verify each subsystem in production before giving it more traffic.
 
-The costs are real. You maintain two implementations simultaneously; data consistency across old and new is a genuine engineering challenge (writes to the old system must propagate to the new, or vice versa); and the migration extends over months, so the routing layer becomes long-lived infrastructure that teams sometimes forget to remove. Set a firm deadline for each phase. Shadow mode is invaluable for catching behavioral differences before cutover, but it doubles the load on both systems during validation.
+The costs are real. For a while, you are maintaining two implementations at the same time. Keeping data consistent between the old and new systems is a real engineering problem: writes to one side often need to be copied to the other, or the two systems drift apart. The migration also lasts for months, which means the routing layer can quietly become permanent infrastructure if the team does not remove it on purpose. Set a clear deadline for each migration phase. Shadow mode is extremely useful for finding behavior differences before cutover, but it also doubles the load on both systems during that validation period.
 
 ## Related Patterns
 

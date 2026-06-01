@@ -9,11 +9,11 @@ tags: [interfaces, dependency-inversion, distributed, events]
 
 # CQRS
 
-CQRS (Command Query Responsibility Segregation) separates every operation into one of two kinds: commands (mutate state, return nothing or an error) and queries (read state, return data, change nothing). The core insight is that read and write models want different shapes. Commands need rich domain validation, while queries usually want flat, denormalized views. Force one model to serve both jobs and you'll usually end up with either an anemic domain or bloated query results.
+CQRS (Command Query Responsibility Segregation) separates every operation into one of two kinds: commands (mutate state, return nothing or an error) and queries (read state, return data, change nothing). The main reason is that read and write models want different shapes. Commands need rich domain validation, while queries usually want flat, denormalised views. Force one model to serve both jobs and you'll usually end up with either an anemic domain or bloated query results.
 
 Each command and query gets its own handler type, its own input struct, and sometimes its own data store when the workloads diverge far enough.
 
-## Problem
+## Scenario
 
 A single `NoteService` handles both writes and reads. The `GetNote` method returns the full domain struct, which exposes internal state. The `CreateNote` and `GetNoteSummary` methods share the same repository, so optimising the read path requires touching the write path too. Every new read shape requires a new method on the same service.
 
@@ -46,17 +46,17 @@ Separate every operation into a command or a query. Commands mutate; queries rea
 └─────────┬──────────────────────────┬────────────────────┘
           │ Commands                 │ Queries
           ▼                          ▼
-┌──────────────────┐      ┌───────────────────────────┐
+┌──────────────────┐      ┌────────────────────────────┐
 │  Command Handler │      │      Query Handler         │
 │  (mutate, err)   │      │  (read, return DTO)        │
 └────────┬─────────┘      └────────────┬───────────────┘
          │                             │
          ▼                             ▼
-┌──────────────────┐      ┌───────────────────────────┐
-│   Write Store    │      │       Read Store           │
-│  (normalised DB) │      │  (same DB or read replica, │
+┌──────────────────┐      ┌─────────────────────────────┐
+│   Write Store    │      │       Read Store            │
+│  (normalised DB) │      │  (same DB or read replica,  │
 │                  │      │   denormalised views, etc.) │
-└──────────────────┘      └───────────────────────────┘
+└──────────────────┘      └─────────────────────────────┘
 ```
 
 Define commands and queries as plain structs:
@@ -159,7 +159,7 @@ package query
 
 import "context"
 
-// NoteView is a read-optimized projection, not the domain type.
+// NoteView is a read-optimised projection, not the domain type.
 type NoteView struct {
     ID        string
     Title     string
@@ -333,13 +333,9 @@ func (h *GetNoteHandler) HandleAtVersion(ctx context.Context, id string, minVers
 
 The version-aware approach requires the projection to store and expose a version number. It is the most consistent of the three strategies but adds complexity and a short blocking window. For most applications, optimistic UI is the right starting point; users already understand that submitted changes take a moment to appear.
 
-## The Decision
-
-The forcing function for CQRS is a model conflict: the aggregate that enforces your write invariants (rich, normalized, full of domain logic) is the wrong shape for your reads (flat, denormalized, optimized for display). When you force one model to serve both jobs, you either bloat the aggregate with query-specific projections or build anemic reads that leak internal structure. The split is the answer to that conflict — not a way to make code "more scalable."
-
 ## When to Use
 
-- The model that enforces your write invariants (rich aggregate, domain validation) can't also serve your reads efficiently (flat projections, denormalized lists). Forcing one model to do both degrades each.
+- The model that enforces your write invariants (rich aggregate, domain validation) can't also serve your reads efficiently (flat projections, denormalised lists). Forcing one model to do both degrades each.
 - The domain is complex and the write side needs a rich aggregate model, but the read side only needs purpose-built DTOs that bypass domain logic entirely.
 - Reads and writes need to scale independently — read replicas and caching layers can serve the query side without touching the command side.
 - Different teams own the read path and the write path and need to evolve them independently.
@@ -350,9 +346,17 @@ The forcing function for CQRS is a model conflict: the aggregate that enforces y
 - The read and write models are identical, so there are no distinct query shapes or read optimizations to justify the split.
 - The team is small and the added structure costs more than it returns.
 
-## Tradeoffs
+## The Decision
 
-The most immediate cost is volume: each operation gets its own struct and handler, so a ten-operation service becomes closer to twenty files. The split pays back through independent evolution. You can add a new query shape or optimize a read projection without touching the write model, but that dividend arrives only with enough operations to make the separation feel natural rather than forced. Eventual consistency is the non-obvious danger: if the read store is a separate projection updated asynchronously, queries may return stale data until it catches up, and this surprises users who expect to see their own write immediately. Even with a shared database, the separation doubles the integration test surface because both command handlers and query handlers need coverage.
+CQRS is useful when your write model and read model need different shapes. Your write side needs strict rules and full business logic. Your read side usually needs simple, flattened data for screens and lists.
+
+If you use one model for both, you get problems:
+- the write model becomes messy with read-only fields, or
+- the read side exposes internal domain details.
+
+So CQRS splits them on purpose. It is mainly about solving this model mismatch, not about making the system “more scalable.” but the most immediate cost is volume: each operation gets its own struct and handler, so a ten-operation service becomes closer to twenty files. The split pays back through independent evolution. You can add a new query shape or optimise a read projection without touching the write model, but that dividend arrives only with enough operations to make the separation feel natural rather than forced. 
+
+Eventual consistency is the non-obvious danger: if the read store is a separate projection updated asynchronously, queries may return stale data until it catches up, and this surprises users who expect to see their own write immediately. Even with a shared database, the separation doubles the integration test surface because both command handlers and query handlers need coverage.
 
 ## Related Patterns
 

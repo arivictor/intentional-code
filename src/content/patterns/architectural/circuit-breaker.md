@@ -11,9 +11,9 @@ tags: [state, concurrency, distributed, performance]
 
 The Circuit Breaker protects a service from cascading failures when a dependency is slow or unavailable. It wraps calls to the dependency in a state machine: **Closed** (calls pass through normally), **Open** (calls fail immediately without hitting the dependency), and **Half-Open** (a probe request tests whether the dependency has recovered). When failures exceed a threshold, the breaker opens and fast-fails all calls until a cooldown period expires.
 
-## Problem
+## Scenario
 
-Your service calls an external API to fetch weather data. The API starts timing out. Every request to your service now blocks for 30 seconds waiting for the timeout. Your goroutine pool fills up. Your service becomes unresponsive. Not because of a bug in your code, but because a downstream dependency is slow. The failure cascades up.
+Your service calls an external API to fetch weather data. The API starts timing out. Every request to your service now blocks for 30 seconds waiting for the timeout. Your goroutine pool fills up. Your service becomes unresponsive. Not because of a bug in your code, but because a downstream dependency is slow and causing the failure to cascade up.
 
 ```go
 // Direct call — a slow dependency blocks the caller
@@ -34,17 +34,17 @@ Wrap the call in a circuit breaker. The breaker tracks failures and opens after 
             │                                                          │
   Request ──►  State?  ──Closed──► call dependency ──success──► return │
             │    │                        │                            │
-            │    │                        └──failure count++──────────►│
+            │    │                        └──failure (count++)────────►│
             │    │                           (threshold exceeded)      │
             │    ├──Open──► return ErrCircuitOpen (fast fail)          │
             │    │          (after cooldown → HalfOpen)                │
-            │    │                                                      │
+            │    │                                                     │
             │    └──HalfOpen──► one probe call ──success──► Closed     │
             │                                   └──failure──► Open     │
             └──────────────────────────────────────────────────────────┘
 ```
 
-A minimal circuit breaker and weather service, merged into a single runnable file:
+A minimal circuit breaker and weather service, merged into a single runnable file to demonstrate the pattern:
 
 ```go
 package main
@@ -238,7 +238,9 @@ cb := gobreaker.NewCircuitBreaker(gobreaker.Settings{
 
 ## Tradeoffs
 
-The breaker adds complexity to what would otherwise be a direct function call, so only apply it at actual network boundaries. Threshold tuning is the persistent pain point: too sensitive and the breaker opens on normal jitter and starts degrading a healthy system; too lenient and it opens too late to stop the goroutine pile-up you were trying to prevent. The half-open state means some requests still fail during recovery, so every caller must handle `ErrCircuitOpen` explicitly. This error path is the one code reviews most often skip. In multi-instance deployments, each instance carries its own breaker state with no shared coordination, so the same upstream can appear "open" to some instances and "closed" to others. When consistent circuit state across all instances is required, consider a Redis-backed shared breaker (store failure counts and state in Redis with atomic increments) or delegate circuit breaking entirely to a service mesh (Istio, Linkerd) that applies it at the network layer, outside your application code, consistent across all pods without any application-level coordination.
+Circuit breakers add complexity to what would otherwise be a direct call, so use them only at real network boundaries. Tuning is the hardest part: set the threshold too low and normal jitter trips the breaker; set it too high and it opens too late to prevent goroutine pile-ups.
+
+Half-open recovery also has a cost: some requests will still fail, so callers must handle `ErrCircuitOpen` explicitly. When you are running multiple instances of the same sysem, the breaker state is local to each instance, so one instance may be open while another is closed. If you need consistent state across instances, use a shared store (for example Redis with atomic counters) or move circuit breaking to a service mesh such as Istio or Linkerd.
 
 ## Related Patterns
 

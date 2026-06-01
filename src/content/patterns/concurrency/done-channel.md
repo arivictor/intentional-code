@@ -14,7 +14,7 @@ A goroutine that nobody can stop is a goroutine leak. It keeps stack memory aliv
 
 Apply this to any goroutine that isn't guaranteed to terminate on its own.
 
-## Problem
+## Scenario
 
 A goroutine ranges over a channel, does work, and sends results. If the caller abandons the operation because of a timeout, an error, or a user cancellation, the goroutine keeps running. It still holds memory. It may still hold a database connection. It can block forever trying to send on a results channel that nobody is reading.
 

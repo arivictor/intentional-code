@@ -1,149 +1,177 @@
 ---
 title: "Durable Persistence"
 order: 2
-description: "Survive a restart with an append-only log: write each link to disk, replay the file on startup, and keep the fast in-memory index — no database driver required."
+description: "Hand durable storage to SQLite behind the same Store interface: a parameterised INSERT, a PRIMARY KEY that makes collisions impossible, and a restart that just works — the one dependency this course takes on purpose."
 ---
 
-## No Database, On Purpose
+## Where We Stop Building
 
-The obvious next move is "add Postgres." We're not going to — and not only because a driver is a third-party dependency we've sworn off. Reaching for a database here would skip the lesson. Durability isn't magic the database sprinkles on; it's a specific, simple technique: **write every change to an append-only log, and replay the log on startup.** That's the core of how databases themselves stay durable, and you can build the essential version in about forty lines of standard library.
+Everything else in this course we build by hand, on purpose — the encoder, the Repository, the cache that's coming next, the rate limiter, the worker pool. We build them because *building them is the lesson*: each one turns out to be a pattern, and you only really learn the pattern by writing it.
 
-The design keeps everything good about `MemoryStore` and adds persistence around it:
+Durable storage is the one place we draw the line the other way. Crash-safety, concurrent writers, indexed lookups, a file that doesn't grow forever — those are **commodity problems**, solved better by a battle-tested embedded database than by anything we'd hand-roll in an afternoon. Reinventing them would teach you file plumbing, not design. So here we reach for a dependency, deliberately, and the skill on display is knowing *where that line sits*: build the parts that make you understand the system; buy the parts that are someone else's solved problem.
 
-- **Reads** stay in memory — a redirect never touches the disk.
-- **Writes** append one line to a file, then update the in-memory index.
-- **Startup** replays the file to rebuild the index exactly as it was.
+The tool is **SQLite** — a full relational database that lives in a single file, with no server to run. And we reach for it without disturbing anything upstream, because storage already hides behind the `Store` interface. Swap the implementation, and `Service` and the handlers never notice:
 
-The file is the source of truth; the map is a fast in-memory projection of it. (If that phrasing rings a bell, it's the same instinct behind [Event Sourcing](/go/patterns/architectural/event-sourcing) — the log of what happened is canonical, and current state is derived by replaying it.)
+- **Reads** become a `SELECT` against an indexed primary key.
+- **Writes** become an `INSERT` the database commits durably.
+- **Startup** opens a file SQLite already knows how to recover.
 
-## The Record Format: JSON Lines
+The interface is the whole reason this is a drop-in. Pick the database, satisfy the same three methods, and the decision stays reversible.
 
-Each link becomes one JSON object on its own line. JSON Lines is the pragmatic choice: human-readable for debugging, trivially appendable, and `encoding/json` is in the standard library. One link, one line.
+## One Dependency, Chosen Deliberately
+
+Go's standard library gives us `database/sql` — the generic interface to *any* SQL database — but not a driver for a specific one. The driver is the dependency, and we choose it on purpose:
+
+```go
+import (
+	"database/sql"
+
+	_ "modernc.org/sqlite" // registers the "sqlite" driver
+)
+```
+
+We use **`modernc.org/sqlite`**: a pure-Go SQLite, no cgo. That choice is load-bearing. Because it needs no C compiler, the service still builds with `CGO_ENABLED=0` into a single static binary on a distroless image — the deployment story we keep in the final chapter survives intact. (The classic alternative, `mattn/go-sqlite3`, is faster but uses cgo, which forfeits the static binary.) The blank import runs the driver's `init`, which registers it under the name `"sqlite"`; from then on the code talks only to `database/sql`, and the driver could be swapped for Postgres with a different import and DSN.
+
+## The Schema
+
+One table, and the design hangs on one column:
+
+```sql
+CREATE TABLE IF NOT EXISTS links (
+	code       TEXT    PRIMARY KEY,
+	url        TEXT    NOT NULL,
+	created_at INTEGER NOT NULL  -- unix seconds
+);
+```
+
+`code` is the **PRIMARY KEY**, and that single word does two jobs the in-memory store needed hand-written code for. It builds the index that makes `Find` fast, and it makes "two links can never share a code" a *database invariant* — enforced atomically on every insert, with no application-level lock in sight. Hold that thought; it's about to delete a whole section of the last chapter. `created_at` is stored as a Unix timestamp (a plain integer) rather than a formatted string — smaller, unambiguous, and trivial to convert back to a `time.Time`.
+
+## Opening the Store
+
+Opening means connecting, ensuring the schema exists, and restoring the sequence counter:
 
 ```go
 package shortener
 
 import (
-	"bufio"
-	"encoding/json"
-	"fmt"
-	"io"
-	"os"
-	"sync"
+	"database/sql"
+	"sync/atomic"
+
+	_ "modernc.org/sqlite"
 )
 
-// FileStore is a durable Repository. Links are appended to a JSON-lines
-// log for durability and mirrored in an in-memory index for fast reads.
-// The log is canonical; the index is rebuilt from it on startup.
-type FileStore struct {
-	mu  sync.Mutex
-	f   *os.File
-	mem *MemoryStore // the in-memory projection, reused wholesale
+// SQLiteStore is a durable Repository backed by a single SQLite file.
+// *sql.DB is a concurrency-safe connection pool, so no mutex is needed.
+type SQLiteStore struct {
+	db  *sql.DB
+	seq atomic.Uint64
 }
 
-var _ Store = (*FileStore)(nil)
-```
+var _ Store = (*SQLiteStore)(nil)
 
-Notice `FileStore` *embeds the work of* `MemoryStore` by holding one. We don't reimplement the concurrent map — we reuse the Repository we already trust for the read path and the sequence counter, and add only the durability concern on top. Composition over reinvention.
-
-## Opening and Replaying
-
-Opening a `FileStore` means opening the file and replaying every record into a fresh index:
-
-```go
-// OpenFileStore opens (or creates) the log at path and rebuilds the index.
-func OpenFileStore(path string) (*FileStore, error) {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o644)
+// OpenSQLiteStore opens (or creates) the database at path and prepares it.
+func OpenSQLiteStore(path string) (*SQLiteStore, error) {
+	// WAL lets readers and a writer proceed at once; busy_timeout makes a
+	// contended writer wait briefly instead of failing "database is locked".
+	dsn := "file:" + path + "?_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)"
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, err
 	}
-	s := &FileStore{f: f, mem: NewMemoryStore()}
-	if err := s.replay(); err != nil {
-		f.Close()
-		return nil, fmt.Errorf("replay %s: %w", path, err)
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS links (
+		code       TEXT    PRIMARY KEY,
+		url        TEXT    NOT NULL,
+		created_at INTEGER NOT NULL
+	)`); err != nil {
+		db.Close()
+		return nil, err
+	}
+	s := &SQLiteStore{db: db}
+	if err := s.loadSeq(); err != nil {
+		db.Close()
+		return nil, err
 	}
 	return s, nil
 }
 
-// replay reads the whole log from the top, rebuilding the index and
-// restoring the sequence counter so codes keep climbing after a restart.
-func (s *FileStore) replay() error {
-	if _, err := s.f.Seek(0, io.SeekStart); err != nil {
-		return err
-	}
-	sc := bufio.NewScanner(s.f)
-	sc.Buffer(make([]byte, 0, 64*1024), 1024*1024) // allow long URLs
+// loadSeq restores the counter so codes keep climbing after a restart.
+func (s *SQLiteStore) loadSeq() error {
 	var count uint64
-	for sc.Scan() {
-		var link Link
-		if err := json.Unmarshal(sc.Bytes(), &link); err != nil {
-			return fmt.Errorf("corrupt record: %w", err)
-		}
-		s.mem.links[link.Code] = link // single-threaded at startup; no lock needed
-		count++
-	}
-	if err := sc.Err(); err != nil {
+	if err := s.db.QueryRow(`SELECT COUNT(*) FROM links`).Scan(&count); err != nil {
 		return err
 	}
-	s.mem.seq.Store(count) // resume the sequence where the log left off
-	_, err := s.f.Seek(0, io.SeekEnd) // append after the existing records
-	return err
+	s.seq.Store(count)
+	return nil
 }
 
-func (s *FileStore) Close() error { return s.f.Close() }
+func (s *SQLiteStore) Close() error { return s.db.Close() }
 ```
 
-Two details that separate a toy from a real one. The scanner's buffer is raised to 1 MB because the default caps a line at 64 KB and URLs can be long — hit that limit and replay silently stops mid-file. And restoring `seq` matters: without `s.mem.seq.Store(count)`, a restart would reset the counter to zero and the [sequential generator](/go/patterns/behavioral/strategy) would start re-issuing codes it already gave out. (This restore assumes links are never deleted, so the record count equals the high-water sequence number — true for our append-only design, and a constraint worth stating out loud.)
+Two details separate a toy from a real one — the same kind of details the in-memory store needed, just moved into SQL. The **pragmas** matter: `journal_mode(WAL)` switches SQLite to a write-ahead log so a redirect reading the database isn't blocked by a write, and `busy_timeout(5000)` tells a writer that hits contention to wait up to five seconds rather than immediately return `SQLITE_BUSY`. Skip them and a concurrent shortener will, under load, start failing reads and writes that should simply have waited.
 
-## Writing Durably
+And restoring `seq` matters for the same reason it did before: without it, a restart resets the counter to zero and the [sequential generator](/go/patterns/behavioral/strategy) re-issues codes it already handed out. Counting the rows works because we never delete — the row count equals the high-water sequence number. That's the one constraint worth stating out loud; the day a delete feature lands, this becomes a `MAX(seq)` over a dedicated column instead.
 
-`Save` is where durability is actually earned, and the *order of operations* is the whole ballgame:
+## Saving Without a Race
+
+Here's where the PRIMARY KEY earns its keep. The in-memory store needed a write lock around a check-then-insert, precisely to stop two goroutines from claiming the same code in the gap between "is it free?" and "take it." SQLite makes that gap impossible:
 
 ```go
-func (s *FileStore) Save(link Link) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if _, err := s.mem.Find(link.Code); err == nil {
-		return ErrCodeExists // reject duplicates before touching the disk
-	}
-	if err := s.appendRecord(link); err != nil {
-		return err // disk write failed: index stays clean, caller sees the error
-	}
-	return s.mem.Save(link) // durable on disk first, then visible in memory
-}
-
-// appendRecord writes one JSON line and flushes it to the physical disk.
-func (s *FileStore) appendRecord(link Link) error {
-	line, err := json.Marshal(link)
+func (s *SQLiteStore) Save(link Link) error {
+	res, err := s.db.Exec(
+		`INSERT INTO links (code, url, created_at) VALUES (?, ?, ?)
+		 ON CONFLICT(code) DO NOTHING`,
+		link.Code, link.URL, link.CreatedAt.Unix(),
+	)
 	if err != nil {
 		return err
 	}
-	if _, err := s.f.Write(append(line, '\n')); err != nil {
-		return err
+	if n, _ := res.RowsAffected(); n == 0 {
+		return ErrCodeExists // the PRIMARY KEY rejected a duplicate code
 	}
-	return s.f.Sync() // fsync: without this, a crash can lose "written" data
+	return nil
 }
 ```
 
-We append to the log **before** updating the index. If the disk write fails, the in-memory map never learns about a link the disk doesn't have — memory and disk can't disagree in the dangerous direction. And `s.f.Sync()` is the line that makes "durable" true: a plain `Write` only hands bytes to the operating system's page cache, which may sit in RAM for seconds before reaching the platter. `Sync` forces them down. Skip it and a power cut between write and flush loses links the user was told were saved — the exact failure durability exists to prevent.
+`ON CONFLICT(code) DO NOTHING` makes the insert atomic: either the row is new and gets written, or the code already exists and nothing happens — and `RowsAffected() == 0` is how we tell which, mapping a collision back to the `ErrCodeExists` the `Service` already knows how to retry on. No mutex, no time-of-check-to-time-of-use window, because the *database* serialises the decision. The whole "claim it under one lock" section from the in-memory chapter is gone, replaced by a constraint the database enforces for us.
 
-Reads and the counter just delegate to the in-memory projection — no disk access, same speed as `MemoryStore`:
+The `?` placeholders are not a style choice. They are **parameterised queries**: the values travel to the driver separately from the SQL text, so a URL containing `'); DROP TABLE links;--` is stored as data, never executed as SQL. Building queries with string concatenation is how injection bugs are born; with `database/sql` the safe path is also the easy one.
+
+## Reading
+
+`Find` is a single indexed lookup, and the only subtlety is translating SQL's "no rows" into our sentinel error:
 
 ```go
-func (s *FileStore) Find(code string) (Link, error) { return s.mem.Find(code) }
-func (s *FileStore) Next() uint64                    { return s.mem.Next() }
+func (s *SQLiteStore) Find(code string) (Link, error) {
+	var (
+		url     string
+		created int64
+	)
+	err := s.db.
+		QueryRow(`SELECT url, created_at FROM links WHERE code = ?`, code).
+		Scan(&url, &created)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Link{}, ErrNotFound // not "an error" to the caller — just a miss
+	}
+	if err != nil {
+		return Link{}, err
+	}
+	return Link{Code: code, URL: url, CreatedAt: time.Unix(created, 0)}, nil
+}
+
+func (s *SQLiteStore) Next() uint64 { return s.seq.Add(1) }
 ```
+
+`QueryRow(...).Scan(...)` returns `sql.ErrNoRows` when nothing matched; we map it to `ErrNotFound` so callers branch on *our* contract, not the driver's. `Next` stays exactly what it was in memory — a lock-free atomic increment — because handing out sequence numbers never needed the database.
 
 ## Proving It Survives
 
-The test that matters writes, closes, reopens, and checks the link is still there — simulating a restart:
+The test that mattered before still matters, and it reads identically — write, close, reopen, find — because the *interface* didn't change. Only now it passes because SQLite persisted the row, not because we replayed a log by hand:
 
 ```go
-func TestFileStoreSurvivesRestart(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "links.log")
+func TestSQLiteStoreSurvivesRestart(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "links.db")
 
-	s1, err := OpenFileStore(path)
+	s1, err := OpenSQLiteStore(path)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +180,7 @@ func TestFileStoreSurvivesRestart(t *testing.T) {
 	}
 	s1.Close() // simulate shutdown
 
-	s2, err := OpenFileStore(path) // "restart"
+	s2, err := OpenSQLiteStore(path) // "restart"
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,18 +192,26 @@ func TestFileStoreSurvivesRestart(t *testing.T) {
 }
 ```
 
-`t.TempDir()` gives a directory the test framework cleans up automatically — no stray files, no manual teardown.
+`t.TempDir()` gives a directory the test framework cleans up automatically — database file, WAL sidecars, and all.
 
-## Tradeoffs: What a Real Database Would Add
+## What We Bought, and What We Didn't
 
-This is honest, durable storage — and it has real limits we should name rather than hide:
+Reaching for SQLite is a trade, and it's worth naming both sides honestly.
 
-- **The log only grows.** Every `Save` appends; nothing is reclaimed. A long-running service needs **compaction** — periodically rewriting the log with only the live records. With no deletes, ours grows slowly, but "grows forever" is a property to design away before production, not after.
-- **`fsync` on every write is slow.** Forcing a flush per `Save` caps write throughput at the disk's sync rate. Fine for a shortener (writes are rare); fatal for a write-heavy service, which would batch many records per flush and accept a tiny durability window.
-- **One file, one process.** No replication, no concurrent writers from another process, no point-in-time recovery. This is single-node durability — it survives a *restart*, not a *disk failure*.
+What we **bought**, none of which we'd want to hand-write:
 
-These aren't reasons the approach is wrong; they're the precise list of things a database buys you, now understandable because you've built the layer underneath. [Keep it simple](/go/philosophy/kiss) until one of those limits actually bites — and when one does, you'll know exactly which feature you're paying a dependency for.
+- **Crash recovery.** WAL plus atomic commits mean a power cut mid-write leaves a consistent database — the exact failure the hand-rolled `fsync` dance existed to fight, now handled by code that has been tested by millions of deployments.
+- **Concurrency for free.** `*sql.DB` is a connection pool and the PRIMARY KEY is an atomic guard, so the mutex *and* the check-then-insert race from the in-memory store both vanished.
+- **No unbounded growth.** SQLite manages its own file and reclaims space with `VACUUM`; the "the log only grows forever, you'll need compaction" caveat from a hand-rolled file is simply not ours to carry.
+- **Indexed reads and real queries.** Lookups hit a B-tree, and "most-clicked links this week" is a `SELECT` away when we want analytics — not a full scan of a map.
+
+What it **cost**:
+
+- **One dependency.** It lands in `go.mod`, it's a thing to keep patched — the real price of not reinventing a database. We paid it deliberately, and we chose the pure-Go driver so the static-binary build still holds.
+- **Still one node.** SQLite is a file on one disk. It survives a *restart* and you can back it up, but it isn't replicated across machines. When one node genuinely isn't enough, the same `Store` interface accepts a networked database — point a Postgres implementation at it and nothing above storage changes. That's the next rung, reached only when you can name why you need it ([YAGNI](/go/philosophy/yagni)).
+
+This is the build-versus-buy judgment in miniature: we built everything the patterns live inside, and bought the one layer where a dependency is plainly the right answer. [Keep it simple](/go/philosophy/kiss) cuts both ways — sometimes the simple thing is to stop building.
 
 ## What's Next
 
-Storage is durable, and reads are already fast because they hit the in-memory index. But there's a subtler performance story coming: when we have *millions* of links, holding every one in memory is wasteful, and we'll want a bounded cache of just the hot ones in front of a leaner store. That cache is a `Store` that wraps a `Store` — the [Decorator pattern](/go/patterns/structural/decorator) — and it's next.
+Storage is durable, but the trade has a tail: every `Find` is now a query that crosses into the database, where the in-memory map answered from RAM. For the redirect path — the hottest path in the whole service — that's exactly the moment a small, bounded cache of the *hot* links earns its place out front. That cache is a `Store` that wraps a `Store` — the [Decorator pattern](/go/patterns/structural/decorator) — and it's next.

@@ -13,7 +13,7 @@ Go's package system gives Memento a cleaner implementation than most languages c
 
 The pattern is the encapsulated complement to [Prototype](/go/patterns/creational/prototype): Prototype clones state for independent use; Memento snapshots state for guarded restoration.
 
-## Problem
+## Scenario
 
 You're building a text editor with an undo history. The editor's state (text content and cursor position) needs to be snapshotted and restored. Exposing that state publicly means any code in the program can tamper with a saved snapshot.
 

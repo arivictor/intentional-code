@@ -11,11 +11,11 @@ tags: [distributed, interfaces, separation-of-concerns, dependency-inversion]
 
 Microservices is an architectural style in which an application is built as a collection of small, independently deployable services. Each service owns a single bounded domain, runs as a separate process, manages its own data store, and communicates with other services over a network API. Services are deployed, scaled, and failed independently.
 
-The promise of microservices is organizational as much as technical: teams can own, release, and scale their service without coordinating with other teams. The cost is the distributed systems tax. Network calls fail, services become unavailable, data is eventually consistent across service boundaries, and debugging a request that spans five services requires distributed tracing infrastructure.
+The promise of microservices is organisational as much as technical: teams can own, release, and scale their service without coordinating with other teams. The cost is the distributed systems tax. Network calls fail, services become unavailable, data is eventually consistent across service boundaries, and debugging a request that spans five services requires distributed tracing infrastructure.
 
 **Start with a monolith.** Extract services when independent scaling or deployment becomes a real constraint, not a hypothetical one. A monolith built with clean internal boundaries (hexagonal architecture, domain packages) is much easier to decompose than one that isn't.
 
-## Problem
+## Scenario
 
 A growing e-commerce application lives in one binary. The checkout service is CPU-intensive during flash sales, but scaling the whole binary for one hot path means scaling the unrelated inventory and customer services too. The mobile team deploys 20 times per day; the payments team needs a two-week audit review before any release. In a monolith, the mobile team's rapid deploys and the payments team's review cycle must use the same release pipeline.
 
@@ -195,13 +195,9 @@ type OrderPlacedEvent struct {
 }
 ```
 
-## The Decision
-
-The question to answer before choosing microservices: what specific coordination cost is this solving? "Team A deploys twenty times a day and Team B needs a two-week audit review, and they're blocked on each other" is a real forcing function. "We might need to scale later" or "microservices are the industry standard" are preferences. Distributed-systems complexity arrives on day one and stays permanently. The intent behind the decision needs to be concrete enough to justify that cost upfront.
-
 ## When to Use
 
-- Teams need to deploy independently, and a shared release pipeline creates real, measurable organizational bottlenecks today — not hypothetical ones.
+- Teams need to deploy independently, and a shared release pipeline creates real, measurable organisational bottlenecks today — not hypothetical ones.
 - One domain has radically different scaling requirements than others (a recommendation engine vs. a customer settings page), and scaling the whole application for one hot path wastes real resources.
 - Different parts of the system have different reliability, compliance, or security requirements that can't share an operational posture.
 - The domain is well-understood and boundaries are stable. Extracting a service before you know where the boundaries belong produces a distributed monolith: all the operational complexity, none of the isolation benefits.
@@ -210,12 +206,16 @@ The question to answer before choosing microservices: what specific coordination
 
 - The team is small (fewer than ~8 people). Conway's Law works against microservices at small team sizes; a monolith with clean internal structure will outperform it.
 - The domain is not yet well-understood. Wrong service boundaries are nearly as expensive as a distributed monolith.
-- You don't have the infrastructure for distributed tracing, centralized logging, and service discovery. Without these, debugging becomes guesswork.
+- You don't have the infrastructure for distributed tracing, centralised logging, and service discovery. Without these, debugging becomes guesswork.
 - The application is simple. Microservices add a distributed systems tax upfront; if the application doesn't need it, you're paying the tax for nothing.
 
-## Tradeoffs
+## The Decision
 
-Independent deployment and scaling are genuine advantages. Teams that own a service end-to-end (design, build, operate) move faster than teams that share a monolith with complex coordination overhead. The distributed systems tax is real: every network call can fail, timeout, or return stale data; services need circuit breakers; cross-service operations need sagas instead of transactions; data consistency is eventual across service boundaries. The operational floor is higher: you need container orchestration, service discovery, distributed tracing, centralized logging, and health-check infrastructure from day one. These tools are mature now (Kubernetes, Jaeger, OpenTelemetry), but they add cognitive load. Teams that succeed with microservices usually have strong platform engineering support; teams without it often end up with a distributed monolith, all the complexity of microservices with none of the isolation benefits.
+Before choosing microservices, ask one direct question: what specific coordination problem is this solving? "Team A deploys twenty times a day, Team B needs a two-week audit review, and both teams block each other" is a real reason. "We may need to scale later" or "microservices are the standard now", "I saw Spotify do it" are not good enough reasons on their own. Distributed-systems complexity starts on day one and does not go away. The reason for the move needs to be concrete enough to justify paying that cost immediately.
+
+Independent deployment and independent scaling are real benefits. Teams that own one service end to end, design, build, and operate it, usually move faster than teams sharing one large monolith with heavy release coordination. But the distributed-systems tax is also real. Every network call can fail, time out, or return stale data. Services need circuit breakers. Work that crosses service boundaries needs sagas instead of normal database transactions. Data consistency becomes eventual across those boundaries. 
+
+The operational baseline is also much higher: from the beginning, you need container orchestration, service discovery, distributed tracing, centralised logging, and health checks. The tooling is mature now, Kubernetes, Jaeger, and OpenTelemetry are all strong examples, but it still adds real cognitive load. Teams that do well with microservices usually have strong platform engineering support. Teams without that support often build a distributed monolith instead: they pay most of the complexity cost, but get little of the isolation benefit.
 
 ## Related Patterns
 

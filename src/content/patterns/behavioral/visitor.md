@@ -13,7 +13,7 @@ Visitor separates an operation from the types it operates on. Instead of adding 
 
 Here's the honest truth: Visitor is verbose in Go and often not the right choice. The Go alternative (a type switch) is simpler and covers most use cases. Use Visitor when you need the open/closed principle for operations, meaning you want to add new operations without modifying element types. Use a type switch when you need simplicity and your element types are stable.
 
-## Problem
+## Scenario
 
 You have a small expression tree: numbers, addition, multiplication. You need to evaluate it, print it, and eventually type-check it. Without Visitor, each new operation adds a method to every node type.
 
@@ -27,7 +27,7 @@ type Node interface {
     Eval() float64
     Print() string
     // Adding TypeCheck() means modifying every implementation.
-    // Adding Optimize() means modifying every implementation again.
+    // Adding Optimise() means modifying every implementation again.
 }
 
 type Number struct{ Value float64 }

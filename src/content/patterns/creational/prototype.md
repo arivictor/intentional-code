@@ -9,9 +9,9 @@ tags: [state, composition]
 
 # Prototype
 
-Go's struct assignment copies by value: clean for `string` and `int` fields, but silently dangerous for `[]string`, `map[string]string`, and pointer fields, which share the same underlying memory with the original. The value of Prototype in Go is not performance (avoiding expensive constructors) but correctness. A `Clone()` method makes deep-copy semantics explicit and localized, so reference types are never accidentally shared between what you thought were independent copies.
+Go's struct assignment copies by value: clean for `string` and `int` fields, but silently dangerous for `[]string`, `map[string]string`, and pointer fields, which share the same underlying memory with the original. The value of Prototype in Go is not performance (avoiding expensive constructors) but correctness. A `Clone()` method makes deep-copy semantics explicit and localised, so reference types are never accidentally shared between what you thought were independent copies.
 
-## Problem
+## Scenario
 
 You have an HTTP request template: a base request with preset headers and query parameters that many parts of the code build on. The template has nested structures (a header map, a slice of query parameters). You need independent copies per request, but Go's assignment operator only does a shallow copy. Modifying the "copy" mutates the template.
 

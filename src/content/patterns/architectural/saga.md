@@ -9,15 +9,17 @@ tags: [distributed, events, interfaces, concurrency]
 
 # Saga
 
-A distributed system can't use a database transaction to span multiple services. The Saga pattern solves this by breaking a cross-service operation into a sequence of local transactions. Each step in the sequence succeeds independently; if any step fails, previously completed steps are reversed by compensating transactions.
+The Saga pattern coordinates a multi-step operation across multiple services by breaking it into a sequence of local transactions. Each step succeeds in its own service and then triggers the next step by sending a message or publishing an event. If one step fails, earlier completed steps are undone with compensating transactions.
+
+This is needed because a distributed system usually cannot use one database transaction across multiple services. Instead of one big transaction, a saga runs several smaller ones and defines how to recover when something in the middle fails.
 
 There are two coordination styles:
 
-**Choreography:** Each service publishes an event on success. Other services subscribe to that event and execute their own step. No central coordinator; the workflow emerges from the event flow. Simple to implement, but harder to reason about as the number of steps grows.
+**Choreography:** Each service publishes an event when its step succeeds. Other services listen for that event and run their own step. There is no central coordinator. The workflow emerges from the event flow. This is simple to start with, but it gets harder to understand as the number of steps and services grows.
 
-**Orchestration:** A saga coordinator (a struct or a service) drives the workflow explicitly. Call step 1, wait for result, call step 2, and so on. Easier to reason about and monitor; the coordinator is a single point of failure and complexity.
+**Orchestration:** A saga coordinator, either a struct in your code or a separate service, drives the workflow explicitly. It calls step 1, waits for the result, then calls step 2, and so on. This is easier to reason about and monitor, but it puts more responsibility and complexity into the coordinator.
 
-## Problem
+## Scenario
 
 Placing an order requires three steps across three services: reserve inventory, charge the customer, and schedule shipping. If the charge fails after inventory is reserved, the inventory reservation must be released. A database transaction can't span these three services.
 
@@ -305,7 +307,7 @@ Each service call should carry an idempotency key (typically the saga ID plus th
 - Compensation is not possible or meaningful (you can't "unsend" an email; use the outbox pattern or accept it).
 - The workflow is so short-lived that eventual consistency and compensations are overkill.
 
-## Tradeoffs
+## The Decision
 
 The orchestration style puts the workflow in one place: easy to read, trace, and modify. The coordinator is a dependency for every step and a complexity concentration point. Choreography distributes workflow across services with no single point of failure, but the sequence is implicit in the event flow, which makes it harder to trace ("which service handles `inventory.reserve.failed`?").
 

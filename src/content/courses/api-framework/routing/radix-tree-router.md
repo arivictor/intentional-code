@@ -1,7 +1,7 @@
 ---
 title: "A Real Router: The Radix Tree"
 order: 2
-description: "Replace the stub with a working tree that matches static and parameterized paths in time proportional to path length, capturing :params as it walks."
+description: "Replace the stub with a working tree that matches static and parameterised paths in time proportional to path length, capturing :params as it walks."
 ---
 
 ## Why Not Just a Map?
@@ -159,4 +159,4 @@ Our tree handles static segments and named params — which covers the overwhelm
 
 ## What's Next
 
-The router is real now: registration, method dispatch, parameterized matching, and `Context` population all work together. But every handler still gets a raw 500 on error, and we have no logging, recovery, or request IDs. The next chapter builds the middleware system — and shows that the middleware chain is two design patterns you already know.
+The router is real now: registration, method dispatch, parameterised matching, and `Context` population all work together. But every handler still gets a raw 500 on error, and we have no logging, recovery, or request IDs. The next chapter builds the middleware system — and shows that the middleware chain is two design patterns you already know.
