@@ -164,7 +164,7 @@ export function buildCourseNavData(courses, chapters, steps) {
 }
 
 export function buildCourseNavOrder(courses, chapters, steps, { basePath = '/go' } = {}) {
-  const order = [{ path: `${basePath}/courses`, title: 'Courses' }];
+  const order = [{ path: `${basePath}/courses`, title: 'Practice' }];
   const navData = buildCourseNavData(courses, chapters, steps);
   for (const course of navData) {
     order.push({ path: `${basePath}/courses/${course.slug}`, title: course.title });

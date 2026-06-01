@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch, Shuffle, BookOpen } from "lucide-react";
+import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch, Shuffle, BookOpen, Compass } from "lucide-react";
 import { getReadPatterns } from "@/lib/readingProgress";
 import PrevNextNav from "@/components/layout/PrevNextNav";
 
@@ -120,6 +120,43 @@ export default function Home({
     current.includes(tag) ? current.filter((value) => value !== tag) : [...current, tag]
   ));
 
+  // The spine of the guide: the four steps from reasoning to shipping. The home
+  // page leads with this so a reader has a path, not just a catalog to browse.
+  const PATH = [
+    {
+      kicker: "Why",
+      title: "Principles",
+      icon: Scale,
+      href: `${basePath}/philosophy`,
+      body: "Start with the reasoning. The principles — SOLID, KISS, YAGNI, Gall's Law and more — that decide whether a design holds up. Lenses, not rules.",
+      cta: "Read the philosophy",
+    },
+    {
+      kicker: "Which",
+      title: "Find a pattern",
+      icon: Compass,
+      href: `${basePath}/finder`,
+      body: "Have a real problem? Answer two or three questions and get pointed at the pattern that fits — along with the reason it fits.",
+      cta: "Open the finder",
+    },
+    {
+      kicker: "What",
+      title: "Patterns",
+      icon: Puzzle,
+      href: "#patterns",
+      body: `${patterns.length} patterns in idiomatic ${languageLabel}. Each names the problem it solves, weighs the tradeoffs, and links to the patterns it works with.`,
+      cta: "Browse the catalog",
+    },
+    {
+      kicker: "Apply",
+      title: "Practice",
+      icon: BookOpen,
+      href: `${basePath}/courses`,
+      body: "Put it together. Build something real, end to end — where the principles and patterns stop being theory.",
+      cta: "Start a course",
+    },
+  ];
+
   return (
     <div className="max-w-4xl mx-auto px-6 py-10">
 
@@ -137,29 +174,30 @@ export default function Home({
             {tagline}
           </p>
         )}
-        {heroBody && (
-          <div className="text-sm text-muted-foreground leading-relaxed max-w-xl mb-8 space-y-3 [&_em]:text-foreground [&_em]:not-italic [&_em]:font-medium">
-            <ReactMarkdown>{heroBody}</ReactMarkdown>
-          </div>
-        )}
+        <p className="text-sm text-muted-foreground leading-relaxed max-w-xl mb-8">
+          A field guide to writing {languageLabel} that's easier to read, test, and change — built on one habit:
+          always answer <em className="not-italic font-medium text-foreground">why</em> before
+          {" "}<em className="not-italic font-medium text-foreground">how</em>. Follow the four steps below,
+          or jump straight to the catalog.
+        </p>
         <div className="flex flex-wrap gap-3">
           <a
-            href="#patterns"
+            href={`${basePath}/guide`}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-semibold hover:bg-primary/90 transition-colors"
           >
-            Browse patterns <ArrowRight className="h-4 w-4" />
+            Start here <ArrowRight className="h-4 w-4" />
+          </a>
+          <a
+            href="#patterns"
+            className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors"
+          >
+            Browse the catalog
           </a>
           <a
             href={`${basePath}/finder`}
-            className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors"
-          >
-            Find a pattern
-          </a>
-          <a
-            href={`${basePath}/philosophy`}
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
           >
-            Read the philosophy →
+            Find a pattern →
           </a>
         </div>
 
@@ -176,6 +214,58 @@ export default function Home({
           <span>TDD</span>
         </div>
       </div>
+
+      {/* ── The path: the spine that turns a catalog into a guide ── */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold text-foreground mb-1">How to use this guide</h2>
+        <p className="text-sm text-muted-foreground mb-5 max-w-2xl">
+          Four steps, from the reasoning behind a design to shipping it. Read them in order, or jump to the
+          one you need — the{" "}
+          <a href={`${basePath}/guide`} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary">
+            full walkthrough
+          </a>{" "}
+          suggests where to start.
+        </p>
+        <ol className="grid gap-3 sm:grid-cols-2">
+          {PATH.map((step, i) => {
+            const Icon = step.icon;
+            return (
+              <li key={step.title}>
+                <a
+                  href={step.href}
+                  className="group h-full flex flex-col p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-all"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold tabular-nums">
+                      {i + 1}
+                    </span>
+                    <Icon className="h-4 w-4 text-primary shrink-0" />
+                    <span className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                      {step.title}
+                    </span>
+                    <span className="ml-auto text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      {step.kicker}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed flex-1">{step.body}</p>
+                  <span className="mt-3 inline-flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    {step.cta} <ArrowRight className="h-3 w-3" />
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      {heroBody && (
+        <section className="mb-12 p-5 rounded-lg border border-border bg-card">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Why "intentional"?</h2>
+          <div className="text-sm text-muted-foreground leading-relaxed space-y-3 max-w-2xl [&_em]:text-foreground [&_em]:not-italic [&_em]:font-medium">
+            <ReactMarkdown>{heroBody}</ReactMarkdown>
+          </div>
+        </section>
+      )}
 
       {readCount > 0 && (
         <section className="mb-12 p-5 rounded-lg border border-border bg-card">
@@ -295,7 +385,14 @@ export default function Home({
       )}
 
       <section id="patterns" className="mb-12">
-        <h2 className="text-2xl font-semibold mb-4 text-foreground">{catalogHeading ?? "Pattern catalog"}</h2>
+        <h2 className="text-2xl font-semibold mb-1 text-foreground">{catalogHeading ?? "Pattern catalog"}</h2>
+        <p className="text-sm text-muted-foreground mb-5 max-w-2xl">
+          The full reference — every pattern, grouped by category. Filter by tag, or use the{" "}
+          <a href={`${basePath}/finder`} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary">
+            finder
+          </a>{" "}
+          if you're not sure what you need.
+        </p>
 
         <TagFilter
           allTags={allTags}

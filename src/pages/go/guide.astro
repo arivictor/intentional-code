@@ -1,0 +1,19 @@
+---
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import Guide from '@/components/pages/Guide';
+import { GO_SECTION } from '@/lib/section-config';
+---
+
+<SiteLayout
+  title="Start here"
+  description="How to use Intentional Code — a field guide for writing Go that's easier to read, test, and change. Start with the why, find the right pattern, learn the how, then build."
+  basePath={GO_SECTION.basePath}
+  homePath={GO_SECTION.homePath}
+  sectionLabel={GO_SECTION.label}
+  themeStorageKey={GO_SECTION.themeStorageKey}
+  categoryOrder={GO_SECTION.categoryOrder}
+  philosophyOrder={GO_SECTION.philosophyOrder}
+  collections={GO_SECTION.collections}
+>
+  <Guide basePath={GO_SECTION.basePath} homePath={GO_SECTION.homePath} client:load />
+</SiteLayout>

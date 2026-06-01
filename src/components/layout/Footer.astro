@@ -20,7 +20,7 @@ const patternLinks = categoryOrder.map((cat) => ({
 
 const courseLinks = courses.length
   ? [
-      { label: 'All Courses', href: `${basePath}/courses` },
+      { label: 'All courses', href: `${basePath}/courses` },
       ...courses.map((course) => ({ label: course.title, href: `${basePath}/courses/${course.slug}` })),
     ]
   : [];
@@ -67,7 +67,7 @@ const exploreLinks = [
       <!-- Courses links -->
       {courseLinks.length > 0 && (
         <div>
-          <h3 class="text-xs font-semibold text-foreground uppercase tracking-widest mb-4">Courses</h3>
+          <h3 class="text-xs font-semibold text-foreground uppercase tracking-widest mb-4">Practice</h3>
           <ul class="space-y-2.5">
             {courseLinks.map((link) => (
               <li>
