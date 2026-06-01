@@ -1,0 +1,41 @@
+---
+import { getCollection } from 'astro:content';
+import SiteLayout from '@/layouts/SiteLayout.astro';
+import PatternDrills from '@/components/pages/PatternDrills';
+import { GO_SECTION } from '@/lib/section-config';
+
+const patterns = await getCollection(GO_SECTION.collections.patterns);
+
+const bank = patterns
+  .filter((p) => p.data.recognitionHook)
+  .map((p) => {
+    const slug = p.id.split('/')[1];
+    return {
+      slug,
+      title: p.data.title,
+      category: p.data.category,
+      intent: p.data.intent,
+      hook: p.data.recognitionHook,
+      path: `${GO_SECTION.basePath}/patterns/${p.data.category}/${slug}`,
+    };
+  });
+---
+
+<SiteLayout
+  title="Spot the Pattern — Recognition Drills"
+  description="A real-world symptom, four patterns, one right answer. Build the instinct to recognise the right Go pattern on sight."
+  basePath={GO_SECTION.basePath}
+  sectionLabel={GO_SECTION.label}
+  themeStorageKey={GO_SECTION.themeStorageKey}
+  categoryOrder={GO_SECTION.categoryOrder}
+  philosophyOrder={GO_SECTION.philosophyOrder}
+  collections={GO_SECTION.collections}
+>
+  <PatternDrills
+    bank={bank}
+    categoryOrder={GO_SECTION.categoryOrder}
+    basePath={GO_SECTION.basePath}
+    pathname={`${GO_SECTION.basePath}/drills`}
+    client:load
+  />
+</SiteLayout>
