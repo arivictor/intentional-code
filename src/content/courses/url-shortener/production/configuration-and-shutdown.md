@@ -37,7 +37,7 @@ func LoadConfig() Config {
 	return Config{
 		Addr:             getenv("ADDR", ":8080"),
 		BaseURL:          getenv("BASE_URL", "http://localhost:8080"),
-		DataFile:         getenv("DATA_FILE", "links.log"),
+		DataFile:         getenv("DATA_FILE", "links.db"),
 		CacheSize:        getenvInt("CACHE_SIZE", 1024),
 		RatePerSec:       getenvFloat("RATE_PER_SEC", 5),
 		RateBurst:        getenvFloat("RATE_BURST", 10),
@@ -118,7 +118,7 @@ import (
 )
 
 func run(cfg Config) error {
-	// ...assembly (next step) produces: srv, analytics, fileStore...
+	// ...assembly (next step) produces: srv, analytics, db...
 
 	// ctx is cancelled when SIGINT or SIGTERM arrives.
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -140,7 +140,7 @@ func run(cfg Config) error {
 		log.Println("shutdown signal received, draining...")
 	}
 
-	return drain(srv, analytics, fileStore)
+	return drain(srv, analytics, db)
 }
 ```
 
@@ -151,7 +151,7 @@ The `errors.Is(err, http.ErrServerClosed)` check matters: a *graceful* shutdown 
 Shutdown order is not arbitrary — get it wrong and you either drop work or panic. The sequence mirrors the dependency chain in reverse:
 
 ```go
-func drain(srv *http.Server, analytics *shortener.Analytics, fileStore *shortener.FileStore) error {
+func drain(srv *http.Server, analytics *shortener.Analytics, db *shortener.SQLiteStore) error {
 	// 1. Stop accepting new requests; wait up to 15s for in-flight handlers.
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
@@ -163,8 +163,8 @@ func drain(srv *http.Server, analytics *shortener.Analytics, fileStore *shortene
 	//    close the analytics channel and let the workers drain the backlog.
 	analytics.Close()
 
-	// 3. Finally close the file store, flushing anything outstanding to disk.
-	if err := fileStore.Close(); err != nil {
+	// 3. Finally close the database, flushing the WAL and releasing the file.
+	if err := db.Close(); err != nil {
 		return fmt.Errorf("store close: %w", err)
 	}
 

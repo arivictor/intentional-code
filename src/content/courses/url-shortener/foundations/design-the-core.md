@@ -9,7 +9,7 @@ description: "The Link type and the one decision the whole course rests on: sepa
 The toy from the last step does three different jobs in two functions: it *generates* a code, it *stores* a mapping, and it *speaks HTTP*. Those three jobs change for completely different reasons.
 
 - You'll change **code generation** when sequential IDs leak your growth rate and you switch to random codes.
-- You'll change **storage** when an in-memory map loses everything on restart and you move to a file.
+- You'll change **storage** when an in-memory map loses everything on restart and you move it into a database.
 - You'll change **transport** when you add JSON error envelopes or a second route.
 
 When three things that change independently live in one function, every change risks breaking the other two. The fix is the oldest idea in software design: [Separation of Concerns](/go/philosophy/separation-of-concerns). Give each job its own boundary, and let a thin coordinator wire them together.
@@ -70,7 +70,7 @@ var ErrCodeExists = errors.New("shortener: code already exists")
 
 // Store persists links and retrieves them by code. It is the Repository:
 // the rest of the system asks for links by their domain identity (the
-// code) and never knows whether they live in a map, a file, or a cache.
+// code) and never knows whether they live in a map, a database, or a cache.
 type Store interface {
 	Save(link Link) error          // ErrCodeExists if the code is taken
 	Find(code string) (Link, error) // ErrNotFound if it isn't there
@@ -78,7 +78,7 @@ type Store interface {
 }
 ```
 
-That `Store` interface is the [Repository pattern](/go/patterns/architectural/repository) in three methods. The two sentinel errors are part of the contract: callers branch on `ErrNotFound` without caring whether the miss came from a map or a missing file. We'll build a `MemoryStore`, then a `FileStore`, then a caching wrapper — all satisfying this one interface.
+That `Store` interface is the [Repository pattern](/go/patterns/architectural/repository) in three methods. The two sentinel errors are part of the contract: callers branch on `ErrNotFound` without caring whether the miss came from a map or a missing database row. We'll build a `MemoryStore`, then a `SQLiteStore`, then a caching wrapper — all satisfying this one interface.
 
 ## The Coordinator
 
@@ -132,14 +132,14 @@ Read `Shorten` and notice it mentions neither base62 nor files nor HTTP. It's pu
 Three types for "a map and two handlers" earns its keep almost immediately — every change the rest of the course makes lands in exactly one of them:
 
 - In Chapter 2 we write three `Generator` implementations. `Service` doesn't change.
-- In Chapter 3 we swap `MemoryStore` for `FileStore`, then wrap it in a cache. `Service` doesn't change, and neither do the handlers.
+- In Chapter 3 we swap `MemoryStore` for `SQLiteStore`, then wrap it in a cache. `Service` doesn't change, and neither do the handlers.
 - In Chapter 4 we add HTTP handlers that call `Shorten` and `Resolve`. They never touch a code or a map.
 
 Each later change lands in exactly one place. That's the dividend Separation of Concerns pays: not fewer lines today, but *isolated* changes tomorrow.
 
 ## Why We Draw the Lines Here
 
-These boundaries aren't speculative — and that's what makes them right. We wrap `Generator` and `Store` in interfaces because we can already name the second and third implementation of each: three code strategies in the next chapter; a `MemoryStore`, a `FileStore`, and a caching wrapper in the one after. The interface exists to hold implementations we *know are coming*, so it earns its keep the moment we write them. That's the discipline [Separation of Concerns](/go/philosophy/separation-of-concerns) asks for — draw the boundary exactly where you can name what lives on both sides of it.
+These boundaries aren't speculative — and that's what makes them right. We wrap `Generator` and `Store` in interfaces because we can already name the second and third implementation of each: three code strategies in the next chapter; a `MemoryStore`, a `SQLiteStore`, and a caching wrapper in the one after. The interface exists to hold implementations we *know are coming*, so it earns its keep the moment we write them. That's the discipline [Separation of Concerns](/go/philosophy/separation-of-concerns) asks for — draw the boundary exactly where you can name what lives on both sides of it.
 
 ## What's Next
 

@@ -6,7 +6,7 @@ description: "Assemble every layer behind a small Facade, expose metrics with ex
 
 ## One Front Door Over Six Subsystems
 
-Look at everything we've built: a storage stack (file plus cache), a generator strategy, a coordinating service, a background analytics pool, a rate limiter, and an HTTP layer. Wiring those together correctly — in the right order, with the right dependencies — is itself a job. If `main` does it inline, `main` becomes a tangle, and nothing else can construct the app the same way (your tests, especially).
+Look at everything we've built: a storage stack (SQLite plus cache), a generator strategy, a coordinating service, a background analytics pool, a rate limiter, and an HTTP layer. Wiring those together correctly — in the right order, with the right dependencies — is itself a job. If `main` does it inline, `main` becomes a tangle, and nothing else can construct the app the same way (your tests, especially).
 
 The [Facade pattern](/go/patterns/structural/facade) is the fix: one type that hides the assembly and exposes only what a caller needs. We call it `App`. It knows how all six subsystems fit; everyone else just asks it for an `http.Handler` and a way to shut down.
 
@@ -26,16 +26,16 @@ import (
 type App struct {
 	handler   http.Handler
 	analytics *shortener.Analytics
-	fileStore *shortener.FileStore
+	db        *shortener.SQLiteStore
 }
 
 func NewApp(cfg Config) (*App, error) {
-	// Storage: a durable append-only file, fronted by an LRU cache (Decorator).
-	fileStore, err := shortener.OpenFileStore(cfg.DataFile)
+	// Storage: a durable SQLite store, fronted by an LRU cache (Decorator).
+	db, err := shortener.OpenSQLiteStore(cfg.DataFile)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
 	}
-	store := shortener.NewCachedStore(fileStore, cfg.CacheSize)
+	store := shortener.NewCachedStore(db, cfg.CacheSize)
 
 	// Code generation: the random strategy (Strategy).
 	gen := shortener.NewRandomGenerator(shortener.WithLength(7))
@@ -53,7 +53,7 @@ func NewApp(cfg Config) (*App, error) {
 	return &App{
 		handler:   withMetrics(server.Routes(limiter)),
 		analytics: analytics,
-		fileStore: fileStore,
+		db:        db,
 	}, nil
 }
 
@@ -161,7 +161,7 @@ func (a *App) Shutdown(srv *http.Server) error {
 		return fmt.Errorf("http shutdown: %w", err)
 	}
 	a.analytics.Close()              // 2. drain the click backlog
-	if err := a.fileStore.Close(); err != nil { // 3. flush the store
+	if err := a.db.Close(); err != nil { // 3. flush the store
 		return fmt.Errorf("store close: %w", err)
 	}
 	log.Println("clean shutdown complete")
@@ -171,11 +171,12 @@ func (a *App) Shutdown(srv *http.Server) error {
 
 ## The Whole Thing on Disk
 
-Every file we wrote, and nothing else — no vendored dependencies, because there are none:
+Every file we wrote — plus the one dependency we chose on purpose, the pure-Go SQLite driver:
 
 ```
 urlshortener/
 ├── go.mod                  # module example/urlshortener; go 1.22
+├── go.sum                  # checksums for the one dep: modernc.org/sqlite
 ├── main.go                 # run(): serve + signal + drain
 ├── config.go               # Config + LoadConfig from the environment
 ├── app.go                  # App facade: NewApp, Handler, Shutdown, metrics
@@ -186,7 +187,7 @@ urlshortener/
     ├── generator.go        # Sequential / Random / Hash      (Strategy)
     ├── service.go          # Service.Shorten / Resolve + validateURL
     ├── store_memory.go     # MemoryStore                      (Repository)
-    ├── store_file.go       # FileStore                        (durable)
+    ├── store_sqlite.go     # SQLiteStore                      (durable)
     ├── store_cache.go      # CachedStore + lru                (Decorator)
     ├── server.go           # router, handlers, error envelope
     ├── ratelimit.go        # token bucket + RateLimit         (Strategy + Decorator)
@@ -197,7 +198,8 @@ urlshortener/
 
 ```
 $ go mod init example/urlshortener   # once
-$ go build ./...                     # compiles clean — stdlib only
+$ go mod tidy                        # fetch the one dep: modernc.org/sqlite
+$ go build ./...                     # static, cgo-free binary
 $ go run .
 2026/06/01 12:00:00 listening on :8080
 ```
@@ -217,7 +219,7 @@ Location: https://go.dev/blog/
 $ curl -s localhost:8080/debug/vars | python3 -c 'import sys,json; print(json.load(sys.stdin)["analytics_dropped"])'
 0
 
-# Restart (Ctrl-C, then run again) — the link survives, from links.log
+# Restart (Ctrl-C, then run again) — the link survives, from links.db
 ^C
 2026/06/01 12:00:30 shutdown signal received, draining...
 2026/06/01 12:00:30 clean shutdown complete
@@ -228,7 +230,7 @@ Location: https://go.dev/blog/
 
 ## Shipping It
 
-A standard-library Go service compiles to a single static binary, which makes the container almost insultingly small — no runtime, no libc, no dependencies to patch:
+Even with the SQLite driver the service is pure Go, so it still compiles to a single static binary — which makes the container almost insultingly small: no runtime, no libc, nothing dynamic to patch:
 
 ```dockerfile
 # Build a static binary, then ship it on a minimal base image.
@@ -244,7 +246,7 @@ EXPOSE 8080
 ENTRYPOINT ["/urlshortener"]
 ```
 
-One deployment note that follows directly from our design: the `FileStore` writes links to `DATA_FILE`, so a container needs a **mounted volume** for that path — otherwise the log lives in the container's ephemeral filesystem and a redeploy wipes every link. The durability we built in Chapter 3 is only as durable as the disk you point it at.
+One deployment note that follows directly from our design: the `SQLiteStore` keeps its database at `DATA_FILE`, so a container needs a **mounted volume** for that path — otherwise the database lives in the container's ephemeral filesystem and a redeploy wipes every link. The durability SQLite gives us is only as durable as the disk you point it at.
 
 ## What You Built, and the Patterns That Built It
 
@@ -253,21 +255,21 @@ Six chapters ago this was a map and two handlers. It's now a service with all si
 | Layer | Pattern | What it bought |
 |---|---|---|
 | Code generation | [Strategy](/go/patterns/behavioral/strategy) | Swap sequential / random / hash at startup |
-| Storage | [Repository](/go/patterns/architectural/repository) | Memory, file, or cache behind one interface |
+| Storage | [Repository](/go/patterns/architectural/repository) | Memory, SQLite, or cache behind one interface |
 | Caching | [Decorator](/go/patterns/structural/decorator) | Speed added by wrapping, not rewriting |
 | Rate limiting | Strategy + Decorator | Pluggable limit as drop-in middleware |
 | Analytics | [Worker Pool](/go/patterns/concurrency/worker-pool) | Counting that never slows a redirect |
 | Assembly | [Facade](/go/patterns/structural/facade) | Six subsystems behind one `App` |
 
-That's the real lesson of building stdlib-only: the patterns weren't decoration applied afterward. Each one was the *answer* to a concrete problem the constraint forced you to solve yourself — and now you'd recognise the shape of that problem anywhere.
+That's the real lesson of building it yourself: the patterns weren't decoration applied afterward. Each one was the *answer* to a concrete problem you solved by hand instead of importing — and now you'd recognise the shape of that problem anywhere.
 
 ## Where to Go Next
 
 The honest backlog, every item a known limit we named along the way:
 
 - **URL dedup** — make the hash strategy return the existing link instead of erroring (Chapter 2's caveat).
-- **Persistent click counts** — flush the analytics map to an append-only log so counts survive restarts (Chapter 5).
-- **Log compaction** — rewrite `links.log` periodically so it stops growing forever (Chapter 3).
+- **Persistent click counts** — write the analytics map to a counts table so they survive restarts (Chapter 5).
+- **Swap SQLite for Postgres** — when one node isn't enough, the same `Store` interface accepts a networked database (Chapter 3).
 - **Distributed rate limiting** — shared counters across replicas when one box becomes three (Chapter 5).
 - **Open-redirect defence** — a domain allowlist or interstitial page (Chapter 4).
 

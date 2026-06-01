@@ -1,8 +1,8 @@
 ---
 title: "Build a URL Shortener in Go"
-description: "Build a URL shortener you can actually deploy — from nothing, using only the Go standard library, with every layer anchored to a design pattern."
+description: "Build a URL shortener you can actually deploy — from nothing, building every layer by hand in the Go standard library, with SQLite for storage and each layer anchored to a design pattern."
 level: beginner
-tags: ["go", "http", "url-shortener", "stdlib", "production"]
+tags: ["go", "http", "url-shortener", "stdlib", "sqlite", "production"]
 isFeatured: true
 ---
 
@@ -18,9 +18,11 @@ By the end you'll have a single Go binary that:
 - caches hot links, rate-limits abusers, and counts clicks without slowing redirects
 - reads its config from the environment and shuts down cleanly under load
 
-## The constraint: standard library only
+## The constraint: build it yourself
 
-No web framework. No database driver. No Redis client. No third-party router. **Everything is `net/http`, `database/sql`-free, pure Go.**
+No web framework. No Redis client. No third-party router. You build the router, the cache, the rate limiter, the worker pool, the encoder — **every layer where building it is the lesson** — with nothing but `net/http` and the rest of the standard library.
+
+The one deliberate exception is persistence. Durable storage is solved, commodity infrastructure, so we lean on **SQLite** (through the standard `database/sql` interface) rather than hand-roll a database badly — and knowing *where* to draw that build-versus-buy line is itself part of the craft.
 
 This isn't nostalgia. The constraint forces you to *build* each capability instead of importing it — and building it is where the design patterns earn their keep. You can't `go get` a cache, so you'll write one and discover it's the [Decorator pattern](/go/patterns/structural/decorator). You can't import a rate limiter, so you'll write a token bucket and recognise [Strategy](/go/patterns/behavioral/strategy). The patterns stop being vocabulary and become tools.
 

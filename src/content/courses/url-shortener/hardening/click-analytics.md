@@ -142,7 +142,7 @@ Closing the channel makes every worker's `range` loop terminate *after* it has c
 This is deliberately a best-effort, single-node analytics pipeline. The honest limits:
 
 - **Drops under extreme load.** By design — see the `default` branch. Size the buffer and worker count for your peak, and watch `Dropped()`; a non-zero value is your signal to tune.
-- **Counts vanish on restart.** They live in memory. Persisting them (periodically flushing the map to the same kind of append-only log we built for links) is a natural extension, left out to keep the pool the focus.
+- **Counts vanish on restart.** They live in memory. Persisting them (writing the counts to a table in the same SQLite database we use for links) is a natural extension, left out to keep the pool the focus.
 - **No exactly-once.** A dropped event is simply uncounted. For billing you'd need durability and acknowledgement; for "roughly how popular is this link," approximate is fine, and approximate is what we built.
 
 The pattern underneath — *push slow or bursty work onto a bounded background pool and return the fast path immediately* — is one you'll reuse far beyond click counting: sending emails, writing audit logs, warming caches. Anything that doesn't have to finish before you answer the user.

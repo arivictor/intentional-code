@@ -35,7 +35,7 @@ A URL shortener is the best first backend you can build, and its small surface a
 
 - **It's small enough to finish.** The whole product is "store a mapping, redirect on lookup." You can hold it in your head, which means your attention goes to *how* you build each layer — not to keeping a sprawling spec straight.
 - **Every layer generalises.** Unguessable IDs, durable storage, a read cache, rate limiting, background work, graceful shutdown — you will add every one of these to *every* backend you ever write. Here they arrive one at a time, in isolation, where you can actually watch each pattern do its job.
-- **The standard library forces understanding.** You can't `go get` your way past the interesting parts, so you build them — and discover the cache is a Decorator, the code generator is a Strategy, the analytics path is a Worker Pool. The patterns stop being vocabulary and become tools you've used.
+- **Building it yourself forces understanding.** You can't `go get` your way past the interesting parts, so you build them — and discover the cache is a Decorator, the code generator is a Strategy, the analytics path is a Worker Pool. The patterns stop being vocabulary and become tools you've used.
 
 Build it end to end and you don't just have a URL shortener — you have a working model of how a production Go service fits together, with every layer anchored to a pattern you can reach for anywhere.
 
@@ -54,11 +54,13 @@ The toy version breaks the moment anything goes wrong: a restart, a second user,
 
 What's *not* on the list: custom domains, a web UI, user accounts, QR codes. Those are real features — they just make it a *product*, not a working service. We draw the line deliberately ([KISS](/go/philosophy/kiss)): the smallest system that has all six properties, and nothing past it. Build it and you can deploy it.
 
-## Why Standard-Library-Only
+## Why Build It Yourself
 
-Every line of this service is the Go standard library. No router, no ORM, no cache library, no rate-limiter package. That's a teaching choice, and worth defending.
+Almost every line of this service is the Go standard library. No router, no ORM, no cache library, no rate-limiter package — you build those, because building them is where the learning lives. That's a teaching choice, and worth defending.
 
-When you `go get` a rate limiter, you get a working rate limiter and *zero understanding* of how it works. When you're forced to write one with nothing but `time` and a mutex, you discover it's a token bucket, you discover why the bucket needs a maximum, and you discover that the shape of the problem — "swap the limiting algorithm without touching the middleware" — is the [Strategy pattern](/go/patterns/behavioral/strategy). The constraint manufactures the lessons.
+When you `go get` a rate limiter, you get a working rate limiter and *zero understanding* of how it works. When you're forced to write one with nothing but `time` and a mutex, you discover it's a token bucket, you discover why the bucket needs a maximum, and you discover that the shape of the problem — "swap the limiting algorithm without touching the middleware" — is the [Strategy pattern](/go/patterns/behavioral/strategy). Building it manufactures the lessons.
+
+The exception proves the rule: for durable storage we reach for **SQLite** instead of hand-rolling one, because a database is commodity infrastructure a dependency does better than you would — and recognising *which* problems are worth solving yourself and which to offload is exactly the judgment a senior engineer is paid for. Build the parts that teach you something; buy the parts that don't.
 
 It also happens to be honest about Go's strengths. The standard library's `net/http` is a complete, production-grade HTTP server. `crypto/rand` gives you unguessable codes. `expvar` exposes metrics. Goroutines and channels give you a worker pool. Go ships with most of a backend in the box — and a URL shortener is the perfect size to prove it.
 
