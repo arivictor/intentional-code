@@ -87,9 +87,6 @@ export default function Sidebar({
         {matchesFilter("Home") && (
           <SidebarLink href={homePath} active={pathname === homePath}>Home</SidebarLink>
         )}
-        {matchesFilter("Start here") && (
-          <SidebarLink href={`${basePath}/guide`} active={pathname === `${basePath}/guide`}>Start here</SidebarLink>
-        )}
         {matchesFilter("Saved") && (
           <SidebarLink href={`${basePath}/saved`} active={pathname === `${basePath}/saved`}>Saved Content</SidebarLink>
         )}

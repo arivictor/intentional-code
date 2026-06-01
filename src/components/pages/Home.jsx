@@ -1,20 +1,8 @@
 import React, { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
-import { ArrowRight, Box, Puzzle, Workflow, CheckCircle, Building2, Scale, Star, Database, GitBranch, Shuffle, BookOpen, Compass } from "lucide-react";
+import { ArrowRight, Puzzle, CheckCircle, Scale, Star, BookOpen, Compass } from "lucide-react";
 import { getReadPatterns } from "@/lib/readingProgress";
 import PrevNextNav from "@/components/layout/PrevNextNav";
-
-const CATEGORY_ICONS = {
-  creational: Box,
-  structural: Puzzle,
-  behavioral: Workflow,
-  architectural: Building2,
-  concurrency: Shuffle,
-  modules: Box,
-  state: Database,
-  delivery: GitBranch,
-  architecture: Building2,
-};
 
 const LEVEL_LABEL = { beginner: "Beginner", intermediate: "Intermediate", advanced: "Advanced" };
 const LEVEL_COLOR = {
@@ -23,64 +11,20 @@ const LEVEL_COLOR = {
   advanced: "text-red-600 dark:text-red-400",
 };
 
-function TagFilter({ allTags, activeTags, filteredCount, totalCount, onToggle, onClear }) {
-  if (!allTags || allTags.length === 0) return null;
-
-  return (
-    <div className="mb-6">
-      <div className="flex flex-wrap gap-2 items-center">
-        {allTags.map((tag) => {
-          const active = activeTags.includes(tag);
-          return (
-            <button
-              key={tag}
-              onClick={() => onToggle(tag)}
-              className={`px-3 py-1 text-xs rounded-full border transition-colors font-medium ${
-                active
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-background text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
-              }`}
-            >
-              {tag}
-            </button>
-          );
-        })}
-        {activeTags.length > 0 && (
-          <button
-            onClick={onClear}
-            className="px-3 py-1 text-xs rounded-full border border-border text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-      {activeTags.length > 0 && (
-        <p className="text-xs text-muted-foreground mt-2">
-          {filteredCount} of {totalCount} patterns match
-        </p>
-      )}
-    </div>
-  );
-}
 
 export default function Home({
   allContent,
   navOrder,
   categories,
-  categoryOrder,
   patterns,
   courses = [],
-  philosophy,
   pathname,
   tagline,
   heroBody,
-  catalogHeading,
-  allTags,
   basePath = "/go",
   languageLabel = "Go",
 }) {
   const [readSlugs, setReadSlugs] = useState([]);
-  const [activeTags, setActiveTags] = useState([]);
 
   useEffect(() => {
     setReadSlugs(getReadPatterns());
@@ -109,16 +53,8 @@ export default function Home({
     })
     .filter((course) => course.done > 0);
 
-  const categoryMap = Object.fromEntries(categories.map((category) => [category.slug, category]));
   const featuredCourses = courses.filter((course) => course.isFeatured);
   const featuredPatterns = patterns.filter((pattern) => pattern.isFeatured).slice(0, 3);
-  const filteredPatterns = activeTags.length === 0
-    ? patterns
-    : patterns.filter((pattern) => pattern.tags && pattern.tags.some((tag) => activeTags.includes(tag)));
-
-  const toggleTag = (tag) => setActiveTags((current) => (
-    current.includes(tag) ? current.filter((value) => value !== tag) : [...current, tag]
-  ));
 
   // The spine of the guide: the four steps from reasoning to shipping. The home
   // page leads with this so a reader has a path, not just a catalog to browse.
@@ -143,7 +79,7 @@ export default function Home({
       kicker: "What",
       title: "Patterns",
       icon: Puzzle,
-      href: "#patterns",
+      href: `${basePath}/patterns/creational`,
       body: `${patterns.length} patterns in idiomatic ${languageLabel}. Each names the problem it solves, weighs the tradeoffs, and links to the patterns it works with.`,
       cta: "Browse the catalog",
     },
@@ -182,16 +118,10 @@ export default function Home({
         </p>
         <div className="flex flex-wrap gap-3">
           <a
-            href={`${basePath}/guide`}
+            href={`${basePath}/patterns/creational`}
             className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-semibold hover:bg-primary/90 transition-colors"
           >
-            Start here <ArrowRight className="h-4 w-4" />
-          </a>
-          <a
-            href="#patterns"
-            className="inline-flex items-center gap-2 px-4 py-2 border border-border rounded-md text-sm font-medium text-foreground hover:bg-accent transition-colors"
-          >
-            Browse the catalog
+            Browse the catalog <ArrowRight className="h-4 w-4" />
           </a>
           <a
             href={`${basePath}/finder`}
@@ -201,71 +131,7 @@ export default function Home({
           </a>
         </div>
 
-        {/* Stats row */}
-        <div className="flex flex-wrap gap-x-5 gap-y-1.5 items-center text-sm text-muted-foreground border-t border-border mt-8 pt-5">
-          <span><span className="font-semibold text-foreground tabular-nums">{patterns.length}</span> patterns</span>
-          <span aria-hidden>·</span>
-          <span><span className="font-semibold text-foreground tabular-nums">{categories.length}</span> categories</span>
-          <span aria-hidden>·</span>
-          <span>Gang of Four</span>
-          <span aria-hidden>·</span>
-          <span>SOLID</span>
-          <span aria-hidden>·</span>
-          <span>TDD</span>
-        </div>
       </div>
-
-      {/* ── The path: the spine that turns a catalog into a guide ── */}
-      <section className="mb-12">
-        <h2 className="text-2xl font-semibold text-foreground mb-1">How to use this guide</h2>
-        <p className="text-sm text-muted-foreground mb-5 max-w-2xl">
-          Four steps, from the reasoning behind a design to shipping it. Read them in order, or jump to the
-          one you need — the{" "}
-          <a href={`${basePath}/guide`} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary">
-            full walkthrough
-          </a>{" "}
-          suggests where to start.
-        </p>
-        <ol className="grid gap-3 sm:grid-cols-2">
-          {PATH.map((step, i) => {
-            const Icon = step.icon;
-            return (
-              <li key={step.title}>
-                <a
-                  href={step.href}
-                  className="group h-full flex flex-col p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-all"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold tabular-nums">
-                      {i + 1}
-                    </span>
-                    <Icon className="h-4 w-4 text-primary shrink-0" />
-                    <span className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
-                      {step.title}
-                    </span>
-                    <span className="ml-auto text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-                      {step.kicker}
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed flex-1">{step.body}</p>
-                  <span className="mt-3 inline-flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                    {step.cta} <ArrowRight className="h-3 w-3" />
-                  </span>
-                </a>
-              </li>
-            );
-          })}
-        </ol>
-      </section>
-
-      {heroBody && (
-        <section className="mb-12 p-5 rounded-lg border border-border bg-card">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Why "intentional"?</h2>
-          <div className="text-sm text-muted-foreground leading-relaxed space-y-3 max-w-2xl [&_em]:text-foreground [&_em]:not-italic [&_em]:font-medium">
-            <ReactMarkdown>{heroBody}</ReactMarkdown>
-          </div>
-        </section>
-      )}
 
       {readCount > 0 && (
         <section className="mb-12 p-5 rounded-lg border border-border bg-card">
@@ -321,6 +187,53 @@ export default function Home({
               </a>
             </div>
           ))}
+        </section>
+      )}
+
+      {/* ── The path: the spine that turns a catalog into a guide ── */}
+      <section className="mb-12">
+        <h2 className="text-2xl font-semibold text-foreground mb-1">How to use this guide</h2>
+        <p className="text-sm text-muted-foreground mb-5 max-w-2xl">
+          Four steps, from the reasoning behind a design to shipping it. Read them in order, or jump to the one you need.
+        </p>
+        <ol className="grid gap-3 sm:grid-cols-2">
+          {PATH.map((step, i) => {
+            const Icon = step.icon;
+            return (
+              <li key={step.title}>
+                <a
+                  href={step.href}
+                  className="group h-full flex flex-col p-4 rounded-lg border border-border hover:border-primary/40 hover:bg-accent/40 transition-all"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-semibold tabular-nums">
+                      {i + 1}
+                    </span>
+                    <Icon className="h-4 w-4 text-primary shrink-0" />
+                    <span className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                      {step.title}
+                    </span>
+                    <span className="ml-auto text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      {step.kicker}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed flex-1">{step.body}</p>
+                  <span className="mt-3 inline-flex items-center gap-1 text-xs text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+                    {step.cta} <ArrowRight className="h-3 w-3" />
+                  </span>
+                </a>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
+      {heroBody && (
+        <section className="mb-12 p-5 rounded-lg border border-border bg-card">
+          <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground mb-3">Why "intentional"?</h2>
+          <div className="text-sm text-muted-foreground leading-relaxed space-y-3 max-w-2xl [&_em]:text-foreground [&_em]:not-italic [&_em]:font-medium">
+            <ReactMarkdown>{heroBody}</ReactMarkdown>
+          </div>
         </section>
       )}
 
@@ -383,102 +296,6 @@ export default function Home({
           )}
         </section>
       )}
-
-      <section id="patterns" className="mb-12">
-        <h2 className="text-2xl font-semibold mb-1 text-foreground">{catalogHeading ?? "Pattern catalog"}</h2>
-        <p className="text-sm text-muted-foreground mb-5 max-w-2xl">
-          The full reference — every pattern, grouped by category. Filter by tag, or use the{" "}
-          <a href={`${basePath}/finder`} className="text-primary underline underline-offset-2 decoration-primary/40 hover:decoration-primary">
-            finder
-          </a>{" "}
-          if you're not sure what you need.
-        </p>
-
-        <TagFilter
-          allTags={allTags}
-          activeTags={activeTags}
-          filteredCount={filteredPatterns.length}
-          totalCount={patterns.length}
-          onToggle={toggleTag}
-          onClear={() => setActiveTags([])}
-        />
-
-        {activeTags.length === 0 && (
-          <div className="mb-8">
-            <a
-              href={`${basePath}/philosophy`}
-              className="flex items-center gap-2 mb-3 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <Scale className="h-4 w-4" />
-              <h3 className="font-semibold text-sm uppercase tracking-wider">Design Philosophy</h3>
-            </a>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {philosophy.map((item) => (
-                <a
-                  key={item.storageKey ?? item.slug}
-                  href={item.url}
-                  className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
-                        {item.title}
-                      </span>
-                      {item.storageKey && readSlugs.includes(item.storageKey) && (
-                        <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                      )}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.description}</div>
-                  </div>
-                </a>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {categoryOrder.map((catKey) => {
-          const category = categoryMap[catKey];
-          const categoryPatterns = filteredPatterns.filter((pattern) => pattern.category === catKey);
-          if (activeTags.length > 0 && categoryPatterns.length === 0) return null;
-          const Icon = CATEGORY_ICONS[catKey];
-
-          return (
-            <div key={catKey} className="mb-8">
-              <a
-                href={`${basePath}/patterns/${catKey}`}
-                className="flex items-center gap-2 mb-3 text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <Icon className="h-4 w-4" />
-                <h3 className="font-semibold text-sm uppercase tracking-wider">{category.title}</h3>
-              </a>
-              <div className="grid gap-2 sm:grid-cols-2">
-                {categoryPatterns.map((pattern) => (
-                  <a
-                    key={pattern.slug}
-                    href={`${basePath}/patterns/${pattern.category}/${pattern.slug}`}
-                    className="group flex items-start gap-3 p-3 rounded-md hover:bg-accent/50 transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">
-                          {pattern.title}
-                        </span>
-                        {readSlugs.includes(pattern.storageKey) && (
-                          <CheckCircle className="h-3.5 w-3.5 text-primary shrink-0" />
-                        )}
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{pattern.intent}</div>
-                      {pattern.recognitionHook && (
-                        <div className="text-xs text-primary/70 mt-0.5 line-clamp-1 italic">{pattern.recognitionHook}</div>
-                      )}
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </section>
 
       <PrevNextNav navOrder={navOrder} pathname={pathname} />
     </div>
