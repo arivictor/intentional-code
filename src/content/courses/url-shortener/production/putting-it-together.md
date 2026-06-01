@@ -271,6 +271,6 @@ The honest backlog, every item a known limit we named along the way:
 - **Distributed rate limiting** — shared counters across replicas when one box becomes three (Chapter 5).
 - **Open-redirect defence** — a domain allowlist or interstitial page (Chapter 4).
 
-Pick one when you actually need it — and notice that each slots into exactly one of the boundaries you built, without disturbing the others. That, more than any single feature, is what "production-ready" was really about.
+Pick one when you actually need it — and notice that each slots into exactly one of the boundaries you built, without disturbing the others. That, more than any single feature, is what the careful boundaries bought you.
 
 You've finished the course. If you haven't yet, the [API Framework course](/go/courses/api-framework) builds the handler layer underneath all this from first principles — a natural next stop.

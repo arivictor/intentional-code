@@ -1,6 +1,6 @@
 ---
 title: "Build a URL Shortener in Go"
-description: "Build a production-ready URL shortener from nothing — using only the Go standard library, with every layer anchored to a design pattern."
+description: "Build a URL shortener you can actually deploy — from nothing, using only the Go standard library, with every layer anchored to a design pattern."
 level: beginner
 tags: ["go", "http", "url-shortener", "stdlib", "production"]
 isFeatured: true

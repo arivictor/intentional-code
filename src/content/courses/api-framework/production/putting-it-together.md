@@ -262,7 +262,7 @@ $ docker run -p 8080:8080 \
     myservice
 ```
 
-The same binary that ran on your laptop now runs in the container, configured entirely by environment variables, shutting down gracefully when the orchestrator sends `SIGTERM`. That is "production-ready" in the literal sense: you can deploy this.
+The same binary that ran on your laptop now runs in the container, configured entirely by environment variables, shutting down gracefully when the orchestrator sends `SIGTERM`. You can deploy this.
 
 ## Where to Go Next
 

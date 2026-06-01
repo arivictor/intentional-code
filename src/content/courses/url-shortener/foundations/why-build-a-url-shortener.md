@@ -1,7 +1,7 @@
 ---
 title: "Why Build a URL Shortener?"
 order: 1
-description: "Why a URL shortener is the ideal first production service to build — and what 'production-ready' really means."
+description: "Why a URL shortener is the ideal first backend to build — and the six properties that separate the real thing from the toy."
 ---
 
 ## A Suspiciously Simple Problem
@@ -39,9 +39,9 @@ A URL shortener is the best first backend you can build, and its small surface a
 
 Build it end to end and you don't just have a URL shortener — you have a working model of how a production Go service fits together, with every layer anchored to a pattern you can reach for anywhere.
 
-## What "Production-Ready" Actually Means
+## What Separates the Real Thing from the Toy
 
-We'll use the phrase a lot, so let's pin it down. A production-ready service isn't one with the most features — it's one that behaves predictably when things go wrong. For our shortener that means six concrete properties, and each one is a chapter:
+The toy version breaks the moment anything goes wrong: a restart, a second user, a bored abuser. The version we build holds up — and "holds up" comes down to six concrete properties. Each one is a chapter:
 
 | Property | What it rules out | Where we build it |
 |---|---|---|
@@ -52,7 +52,7 @@ We'll use the phrase a lot, so let's pin it down. A production-ready service isn
 | **Non-blocking analytics** | Click-counting slowing the redirect | Hardening (worker pool) |
 | **Clean lifecycle** | Dropped requests on deploy | Production (graceful shutdown) |
 
-Notice what's *not* on the list: custom domains, a web UI, user accounts, QR codes. Those are real features, but they're not what makes a service production-ready — they're what makes it a product. We're drawing the line deliberately ([KISS](/go/philosophy/kiss)): the smallest system that has all six properties, and nothing past it.
+What's *not* on the list: custom domains, a web UI, user accounts, QR codes. Those are real features — they just make it a *product*, not a working service. We draw the line deliberately ([KISS](/go/philosophy/kiss)): the smallest system that has all six properties, and nothing past it. Build it and you can deploy it.
 
 ## Why Standard-Library-Only
 

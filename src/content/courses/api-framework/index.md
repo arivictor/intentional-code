@@ -1,6 +1,6 @@
 ---
 title: "Build an API Framework in Go"
-description: "Build a production-ready HTTP API framework from scratch in Go — covering routing, middleware, error handling, and deployment. You will ship something real."
+description: "Build an HTTP API framework from scratch in Go — covering routing, middleware, error handling, and deployment. By the end you'll have something you can deploy."
 level: intermediate
 tags: ["go", "http", "api", "framework", "production"]
 isFeatured: true
