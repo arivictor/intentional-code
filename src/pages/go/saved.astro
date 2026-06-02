@@ -2,21 +2,17 @@
 import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import SavedPatterns from '@/components/pages/SavedPatterns';
-import { buildAllContent, buildCourseContent, buildNavOrder } from '@/lib/site-data';
+import { buildAllContent, buildNavOrder } from '@/lib/site-data';
 import { GO_SECTION } from '@/lib/section-config';
 
-const [patterns, philosophy, categories, courses, courseChapters, courseSteps] = await Promise.all([
+const [patterns, philosophy, categories] = await Promise.all([
   getCollection(GO_SECTION.collections.patterns),
   getCollection(GO_SECTION.collections.philosophy),
   getCollection(GO_SECTION.collections.categories),
-  getCollection(GO_SECTION.collections.courses),
-  getCollection(GO_SECTION.collections.courseChapters),
-  getCollection(GO_SECTION.collections.courseSteps),
 ]);
 
 const allContent = [
   ...buildAllContent(patterns, philosophy, { basePath: GO_SECTION.basePath }),
-  ...buildCourseContent(courses, courseChapters, courseSteps, { basePath: GO_SECTION.basePath }),
 ];
 const navOrder = buildNavOrder(patterns, philosophy, categories, GO_SECTION);
 ---

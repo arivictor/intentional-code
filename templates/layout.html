@@ -1,0 +1,30 @@
+{{define "layout"}}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Title}}</title>
+  <style>
+    body { font-family: sans-serif; margin: 0; background: #f5f7fb; color: #1b2330; }
+    header, footer { background: #0f172a; color: #fff; padding: 14px 20px; }
+    nav a { color: #93c5fd; text-decoration: none; margin-right: 12px; }
+    nav a:hover { text-decoration: underline; }
+    main { max-width: 900px; margin: 28px auto; background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+    .muted { color: #475569; }
+  </style>
+</head>
+<body>
+  <header>
+    <strong>Intentional API Demo</strong>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/about">About</a>
+      <a href="/health">Health JSON</a>
+    </nav>
+  </header>
+  <main>{{block "content" .}}{{end}}</main>
+  <footer>Rendered at {{.Time}}</footer>
+</body>
+</html>
+{{end}}

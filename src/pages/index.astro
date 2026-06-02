@@ -2,25 +2,20 @@
 import { getCollection } from 'astro:content';
 import SiteLayout from '@/layouts/SiteLayout.astro';
 import Home from '@/components/pages/Home';
-import { buildAllContent, buildCourseContent, buildCoursesData, buildNavOrder, getPatternSummary } from '@/lib/site-data';
+import { buildAllContent, buildNavOrder, getPatternSummary } from '@/lib/site-data';
 import { GO_SECTION } from '@/lib/section-config';
 
-const [patterns, philosophy, categories, sitePages, courses, courseChapters, courseSteps] = await Promise.all([
+const [patterns, philosophy, categories, sitePages] = await Promise.all([
   getCollection(GO_SECTION.collections.patterns),
   getCollection(GO_SECTION.collections.philosophy),
   getCollection(GO_SECTION.collections.categories),
   getCollection(GO_SECTION.collections.pages),
-  getCollection(GO_SECTION.collections.courses),
-  getCollection(GO_SECTION.collections.courseChapters),
-  getCollection(GO_SECTION.collections.courseSteps),
 ]);
 
 const homePage = sitePages.find((entry) => entry.id === 'home');
 
-const coursesData = buildCoursesData(courses, courseChapters, courseSteps, { basePath: GO_SECTION.basePath });
 const allContent = [
   ...buildAllContent(patterns, philosophy, { basePath: GO_SECTION.basePath }),
-  ...buildCourseContent(courses, courseChapters, courseSteps, { basePath: GO_SECTION.basePath }),
 ];
 const navOrder = buildNavOrder(patterns, philosophy, categories, {
   basePath: GO_SECTION.basePath,
@@ -79,7 +74,6 @@ const philosophyData = philosophy.map((entry) => {
     categories={categoriesData}
     categoryOrder={GO_SECTION.categoryOrder}
     patterns={patternsData}
-    courses={coursesData}
     philosophy={philosophyData}
     pathname={GO_SECTION.homePath}
     tagline={homePage?.data.tagline}

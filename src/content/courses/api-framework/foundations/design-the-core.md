@@ -4,18 +4,44 @@ order: 2
 description: "Define the two types the whole framework hangs off of — a handler that returns an error and a request context — and adapt them to net/http."
 ---
 
-## Two Types, One Framework
+## Let's Get Started
 
-A framework's API is mostly two decisions: *what is a handler* and *what does a handler receive*. Get these right and routing, middleware, and error handling become natural. Get them wrong and you fight your own abstraction forever.
+An API framework starts with two decisions: *what is a handler* and *what does a handler receive*. If these choices are clean, routing, middleware, and error handling stay clean too.
 
-We made the first decision in the previous step: a handler returns an `error`. Now we design the value it receives — the `Context` — and connect both to the standard library.
+A handler is a unit of work. It is the function that does the thing you want to do when a request comes in. It is the function that gets called when a request matches a route. It is the function that gets wrapped by middleware. It is the function that returns an error if something goes wrong.
+
+Here is the interface that the whole framework grows from. The standard library's handler looks like this:
+
+```go
+type Handler interface {
+	ServeHTTP(http.ResponseWriter, *http.Request)
+}
+```
+
+Notice that there is **no return value**. If the handler hits a database error during a handling a request, it must decide right there how to respond: set status, write body, log, and return. You end up copy-pasting that error handling into every handler. That is a smell.
+
+**Let's write our first bit of code**
+
+We can write out own Handler signature that returns an error. This is the core of our framework: a handler that returns an error. But there is one issue: this is not compatible with `net/http`. We will adapt it later to the standard library so we can run it directly.
+
+```go
+// main.go
+
+package main
+
+type Handler func(*Context) error
+```
+
+Next, we'll design the missing `Context` and show how it all still plugs into `net/http` directly.
 
 ## The Context
 
-The standard library hands a handler two arguments: an `http.ResponseWriter` and an `*http.Request`. That's enough, but it's bare. Every real handler immediately needs path parameters, a way to read the request body as JSON, and a way to write a JSON response. Rather than make each handler re-derive those, we bundle them.
+The context is the second core type. It is what a handler receives as an argument. It carries everything a handler needs for one request. It wraps the standard writer/request pair and adds per-request state like path parameters plus helpers for the common cases.
+
+The standard library gives its handler two arguments: `http.ResponseWriter` and `*http.Request`. That works, but it is minimal. Real handlers also need path params, JSON input, and JSON output. We bundle those in one place with the `Context` type.
 
 ```go
-package framework
+package main
 
 import (
 	"encoding/json"
@@ -28,7 +54,6 @@ import (
 type Context struct {
 	Writer  http.ResponseWriter
 	Request *http.Request
-
 	params map[string]string
 }
 
@@ -52,33 +77,27 @@ func (c *Context) JSON(status int, v any) error {
 	c.Writer.WriteHeader(status)
 	return json.NewEncoder(c.Writer).Encode(v)
 }
+
+// ...other code ...
 ```
 
-`Context` is deliberately a concrete struct, not an interface. Frameworks that make the context an interface (so it can be "mocked") usually regret it — there is exactly one real implementation and the interface just adds indirection. This is [YAGNI](/go/philosophy/yagni) in practice: don't add a seam until something needs to vary.
-
-## The Handler
-
-```go
-package framework
-
-// Handler is the unit of work. Returning an error — rather than
-// writing the failure response inline — is what lets a single place
-// decide how errors become HTTP responses.
-type Handler func(*Context) error
-```
-
-That's the whole contract. A handler reads from the `Context`, does its work, and either returns `nil` (it wrote a response) or returns an error (something went wrong; let the framework deal with it).
+`Context` is a concrete struct, not an interface. There is one real implementation, so an interface here only adds indirection. This is [YAGNI](/go/philosophy/yagni).
 
 ## Adapting to net/http
 
-Here is the crucial constraint: `net/http` knows nothing about our `Handler`. `http.ListenAndServe` and every piece of middleware in the ecosystem speak `http.Handler`. If our framework can't become an `http.Handler`, it can't run.
+Here is the key constraint: `net/http` does not know our new `Handler` type. It only knows `http.Handler`. We won't be able to use it in its current state. But we have some architecural decisions to now make. We could:
 
-This is the [Adapter pattern](/go/patterns/structural/adapter) exactly: two interfaces that should work together but have mismatched shapes. The adapter is a small function that satisfies `http.Handler` and, inside, calls our `Handler`.
+- Change our `Handler` signature to match `http.Handler` and give up the error return.
+- Write an adapter that converts our `Handler` to `http.Handler` and keeps the error return.
+
+Let's use the [Adapter pattern](/go/patterns/structural/adapter). It is a single function that converts our `Handler` to `http.HandlerFunc`. It is the only place in the codebase that knows about both types. It is the only place we have to change if we want to swap out one of the types later.
 
 ```go
-package framework
+package main
 
 import "net/http"
+
+// ... other code ...
 
 // toHTTPHandler adapts our error-returning Handler to the standard
 // http.Handler interface. This is the Adapter pattern: it bridges
@@ -96,11 +115,32 @@ func toHTTPHandler(h Handler, params map[string]string) http.HandlerFunc {
 }
 ```
 
-Notice the adapter is also where the `error` return finally gets *handled*. Right now it's a crude 500, but the seam is in place: when we build structured errors in Chapter 4, this is the only spot that changes. Every handler in the entire application gets better error handling by editing six lines here. That is the payoff of the [Decorator-style](/go/patterns/structural/decorator) single-responsibility design — concerns live in one place, not scattered across handlers.
+This works with the native `http.Handler` interface because the return function signature of our `toHTTPHandler` adapter conforms to `ServeHTTP`. This closure is where all the logic for handling request now lives. It is also the function we will later wrap with middleware.
+
+The adapter is also where returned errors are handled. For now, it returns a basic 500. In Chapter 4, we will upgrade error handling by editing this one location.
+
+Let's add a public wrapper around the `toHTTPHandler` adapter so application code can use it:
+
+```go
+package framework
+
+import "net/http"
+
+// Adapt exposes the internal adapter with no route params.
+func Adapt(h Handler) http.HandlerFunc {
+	return toHTTPHandler(h, nil)
+}
+```
+
+## What You Have So Far
+
+```go
+
+```
 
 ## Proving It Runs
 
-Let's wire a handler through the adapter and serve it with the standard library — no router yet, just to prove the core types work end to end.
+Now wire one handler through the adapter and run it with the standard library.
 
 ```go
 package main
@@ -122,7 +162,7 @@ func main() {
 
 	// Adapt it and serve through the standard library's test server.
 	mux := http.NewServeMux()
-	mux.Handle("/greet", framework.Adapt(greet)) // exported wrapper around toHTTPHandler
+	mux.Handle("/greet", framework.Adapt(greet))
 
 	srv := httptest.NewServer(mux)
 	defer srv.Close()
@@ -142,10 +182,10 @@ Output:
 200 hello
 ```
 
-(`Adapt` is just an exported `func(h Handler) http.HandlerFunc { return toHTTPHandler(h, nil) }` — we'll fold parameter passing into the router in the next chapter.)
+`Adapt` is intentionally small. In the next chapter, the router will pass params into `toHTTPHandler`.
 
 ## What We Have
 
-Two types and an adapter — under fifty lines — and we can already serve JSON through `net/http` with an error-returning handler signature. Everything from here is filling in the pieces: a real router to populate those `params`, middleware to wrap the `Handler`, and a proper error handler to replace that placeholder 500.
+With two types and one adapter, we can already serve JSON through `net/http` using error-returning handlers. Next we add a router for `params`, middleware around `Handler`, and structured error handling.
 
 Next chapter: routing. We'll build a radix tree that matches `/users/:id` in time proportional to the path length, not the number of routes.

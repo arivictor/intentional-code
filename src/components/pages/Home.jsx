@@ -83,14 +83,6 @@ export default function Home({
       body: `${patterns.length} patterns in idiomatic ${languageLabel}. Each names the problem it solves, weighs the tradeoffs, and links to the patterns it works with.`,
       cta: "Browse the catalog",
     },
-    {
-      kicker: "Apply",
-      title: "Practice",
-      icon: BookOpen,
-      href: `${basePath}/courses`,
-      body: "Put it together. Build something real, end to end — where the principles and patterns stop being theory.",
-      cta: "Start a course",
-    },
   ];
 
   return (
@@ -113,7 +105,7 @@ export default function Home({
         <p className="text-sm text-muted-foreground leading-relaxed max-w-xl mb-8">
           A field guide to writing {languageLabel} that's easier to read, test, and change — built on one habit:
           always answer <em className="not-italic font-medium text-foreground">why</em> before
-          {" "}<em className="not-italic font-medium text-foreground">how</em>. Follow the four steps below,
+          {" "}<em className="not-italic font-medium text-foreground">how</em>. Follow the three steps below,
           or jump straight to the catalog.
         </p>
         <div className="flex flex-wrap gap-3">
@@ -194,7 +186,7 @@ export default function Home({
       <section className="mb-12">
         <h2 className="text-2xl font-semibold text-foreground mb-1">How to use this guide</h2>
         <p className="text-sm text-muted-foreground mb-5 max-w-2xl">
-          Four steps, from the reasoning behind a design to shipping it. Read them in order, or jump to the one you need.
+          Three steps, from the reasoning behind a design to the patterns that express it. Read them in order, or jump to the one you need.
         </p>
         <ol className="grid gap-3 sm:grid-cols-2">
           {PATH.map((step, i) => {
