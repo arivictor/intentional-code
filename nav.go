@@ -31,11 +31,12 @@ type NavLink struct {
 
 // contentPage is one markdown page in the in-memory content index.
 type contentPage struct {
-	Title   string
-	Route   string   // clean route; index pages map to their folder path ("/", "/go")
-	Parts   []string // slug segments, e.g. ["go","patterns","creational","singleton"]
-	IsIndex bool
-	Order   int // frontmatter "order"; unordered pages sort last
+	Title    string
+	NavTitle string
+	Route    string   // clean route; index pages map to their folder path ("/", "/go")
+	Parts    []string // slug segments, e.g. ["go","patterns","creational","singleton"]
+	IsIndex  bool
+	Order    int // frontmatter "order"; unordered pages sort last
 }
 
 // dirEntry is a sub-directory discovered while grouping, with metadata pulled
@@ -88,17 +89,22 @@ func BuildContentIndex(dir string) (*ContentIndex, error) {
 		if title == "" {
 			title = pageTitleFromSlug(slug)
 		}
+		navTitle := strings.TrimSpace(firstNonEmpty(meta["nav_title"], meta["navtitle"], meta["nav"]))
+		if navTitle == "" {
+			navTitle = title
+		}
 		order := unordered
 		if o, convErr := strconv.Atoi(strings.TrimSpace(meta["order"])); convErr == nil {
 			order = o
 		}
 
 		idx.pages = append(idx.pages, contentPage{
-			Title:   title,
-			Route:   route,
-			Parts:   parts,
-			IsIndex: isIndex,
-			Order:   order,
+			Title:    title,
+			NavTitle: navTitle,
+			Route:    route,
+			Parts:    parts,
+			IsIndex:  isIndex,
+			Order:    order,
 		})
 		return nil
 	})
@@ -121,7 +127,7 @@ func (idx *ContentIndex) TopNav() []NavLink {
 		links = append(links, NavLink{Title: dir.Title, Path: dir.Route})
 	}
 	for _, p := range idx.childPages(nil) {
-		links = append(links, NavLink{Title: p.Title, Path: p.Route})
+		links = append(links, NavLink{Title: p.NavTitle, Path: p.Route})
 	}
 	return links
 }
@@ -142,6 +148,12 @@ func (idx *ContentIndex) Sidebar(currentRoute string, depth int) (string, []NavN
 // (expanded only when on the current path) and pages.
 func (idx *ContentIndex) buildNodes(prefix, curParts []string, cur string, depth int) []NavNode {
 	var nodes []NavNode
+	if len(prefix) == 0 {
+		if root, ok := idx.indexFor(nil); ok {
+			nodes = append(nodes, NavNode{Title: root.NavTitle, Path: root.Route, Active: root.Route == cur})
+		}
+	}
+
 	for _, dir := range idx.childDirs(prefix) {
 		childPrefix := append(append([]string{}, prefix...), dir.Name)
 		onPath := hasPrefix(curParts, childPrefix)
@@ -159,7 +171,7 @@ func (idx *ContentIndex) buildNodes(prefix, curParts []string, cur string, depth
 		nodes = append(nodes, node)
 	}
 	for _, p := range idx.childPages(prefix) {
-		nodes = append(nodes, NavNode{Title: p.Title, Path: p.Route, Active: p.Route == cur})
+		nodes = append(nodes, NavNode{Title: p.NavTitle, Path: p.Route, Active: p.Route == cur})
 	}
 	return nodes
 }
@@ -213,7 +225,7 @@ func (idx *ContentIndex) childDirs(prefix []string) []dirEntry {
 		}
 		if p.IsIndex && len(p.Parts) == len(prefix)+1 {
 			isDir[name] = true
-			entry.Title = p.Title
+			entry.Title = p.NavTitle
 			entry.Route = p.Route
 		}
 	}

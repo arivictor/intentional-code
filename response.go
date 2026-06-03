@@ -27,6 +27,8 @@ func (e *HTTPError) Error() string {
 type HTMLErrorResponder struct {
 	Renderer TemplateRenderer
 	TopNav   []NavLink
+	SiteName string
+	SiteURL  string
 	Logger   *log.Logger
 }
 
@@ -69,6 +71,13 @@ func (r HTMLErrorResponder) Handle(w http.ResponseWriter, req *http.Request, err
 		StatusCode:  status,
 		Title:       title,
 		Description: description,
+		SiteName:    firstNonEmpty(r.SiteName, defaultSiteName),
+		CanonicalURL: joinAbsoluteURL(
+			requestBaseURL(req, r.SiteURL),
+			req.URL.Path,
+		),
+		OGImageURL:  joinAbsoluteURL(requestBaseURL(req, r.SiteURL), "/og-image.png"),
+		Robots:      "noindex,nofollow",
 		TopNav:      r.TopNav,
 		CurrentPath: req.URL.Path,
 		Time:        time.Now().UTC().Format(time.RFC3339),

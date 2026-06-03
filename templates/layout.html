@@ -4,8 +4,33 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{{if .Title}}{{.Title}} — Intentional Code{{else}}Intentional Code{{end}}</title>
-  {{if .Description}}<meta name="description" content="{{.Description}}" />{{end}}
+  <title>{{if .Title}}{{.Title}} — {{if .SiteName}}{{.SiteName}}{{else}}Intentional Code{{end}}{{else}}{{if .SiteName}}{{.SiteName}}{{else}}Intentional Code{{end}}{{end}}</title>
+  <meta name="description" content="{{if .Description}}{{.Description}}{{else}}The patterns and principles that make Go code easier to read, test, and change.{{end}}" />
+  <meta name="robots" content="{{if .Robots}}{{.Robots}}{{else}}index,follow{{end}}" />
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+
+  {{if .CanonicalURL}}<link rel="canonical" href="{{.CanonicalURL}}" />{{end}}
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="{{if .SiteName}}{{.SiteName}}{{else}}Intentional Code{{end}}" />
+  <meta property="og:title" content="{{if .Title}}{{.Title}} — {{if .SiteName}}{{.SiteName}}{{else}}Intentional Code{{end}}{{else}}{{if .SiteName}}{{.SiteName}}{{else}}Intentional Code{{end}}{{end}}" />
+  <meta property="og:description" content="{{if .Description}}{{.Description}}{{else}}The patterns and principles that make Go code easier to read, test, and change.{{end}}" />
+  {{if .CanonicalURL}}<meta property="og:url" content="{{.CanonicalURL}}" />{{end}}
+  {{if .OGImageURL}}
+  <meta property="og:image" content="{{.OGImageURL}}" />
+  <meta property="og:image:secure_url" content="{{.OGImageURL}}" />
+  <meta property="og:image:type" content="image/png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Intentional Code" />
+  {{end}}
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{if .Title}}{{.Title}} — {{if .SiteName}}{{.SiteName}}{{else}}Intentional Code{{end}}{{else}}{{if .SiteName}}{{.SiteName}}{{else}}Intentional Code{{end}}{{end}}" />
+  <meta name="twitter:description" content="{{if .Description}}{{.Description}}{{else}}The patterns and principles that make Go code easier to read, test, and change.{{end}}" />
+  {{if .OGImageURL}}<meta name="twitter:image" content="{{.OGImageURL}}" />{{end}}
+
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
@@ -214,7 +239,8 @@
       align-items: center;
       gap: 8px;
     }
-    .search-trigger {
+    .search-trigger,
+    .theme-toggle {
       display: inline-flex;
       align-items: center;
       gap: 8px;
@@ -226,7 +252,8 @@
       font-weight: 500;
       line-height: 1;
       border-radius: 999px;
-      padding: 8px 10px;
+      height: 34px;
+      padding: 0 10px;
       cursor: pointer;
       transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
     }
@@ -249,22 +276,6 @@
       border-radius: 6px;
       padding: 3px 5px;
       background: var(--surface);
-    }
-    .theme-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      border: 1px solid var(--border);
-      background: var(--background);
-      color: var(--muted-strong);
-      font-family: var(--font-sans);
-      font-size: 13px;
-      font-weight: 500;
-      line-height: 1;
-      border-radius: 999px;
-      padding: 8px 10px;
-      cursor: pointer;
-      transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
     }
     .theme-toggle:hover {
       border-color: var(--border-strong);
@@ -315,14 +326,6 @@
     }
 
     /* ---------- Sidebar nav ---------- */
-    .sidebar-title {
-      font-size: 13px;
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      color: var(--heading);
-      margin: 0 0 14px;
-      padding: 0 12px;
-    }
     .nav-tree { list-style: none; margin: 0; padding: 0; }
     .nav-tree li { margin: 0; }
     .nav-tree .navrow {
@@ -339,8 +342,10 @@
       border-radius: var(--radius-sm);
       transition: color 0.12s ease, background-color 0.12s ease, border-color 0.12s ease;
     }
-    a.navitem:hover { color: var(--heading); }
-    .nav-tree .navitem.folder { color: var(--muted-strong); font-weight: 550; }
+    .nav-tree .navitem:hover {
+      color: var(--heading);
+      background: var(--surface-hover);
+    }
     .nav-tree .navrow .navitem { flex: 1 1 auto; min-width: 0; }
     .nav-tree .navitem.folder.has-children {
       display: flex;
@@ -370,7 +375,6 @@
       font: inherit;
       cursor: pointer;
     }
-    a.navitem.folder:hover { background: var(--surface-hover); }
     .nav-tree .navitem.active { color: var(--heading); font-weight: 500; }
     .nav-tree .navgroup[hidden] { display: none; }
     /* nested levels get an indented rail */
@@ -906,7 +910,6 @@
     {{if .Nav}}
     <aside class="sidebar">
       <nav aria-label="Section">
-        {{if .NavTitle}}<div class="sidebar-title">{{.NavTitle}}</div>{{end}}
         {{template "navtree" .Nav}}
       </nav>
     </aside>

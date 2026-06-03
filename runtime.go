@@ -15,12 +15,16 @@ import (
 	"time"
 )
 
+const defaultSiteName = "Intentional Code"
+const defaultSiteURL = "https://intentionalcode.com"
+
 type App struct {
 	ContentDir   string
 	LayoutPath   string
 	TemplateGlob string
 	PublicDir    string
 	SidebarDepth int
+	SiteURL      string
 }
 
 func (a *App) Run(addr string) error {
@@ -34,13 +38,14 @@ func (a *App) Run(addr string) error {
 	if err != nil {
 		return err
 	}
+	siteURL := a.siteURL()
 	searchIndex, err := BuildSearchIndex(dir)
 	if err != nil {
 		return err
 	}
 	topNav := index.TopNav()
 
-	httpApp := NewServer(HTMLErrorResponder{Renderer: renderer, TopNav: topNav, Logger: log.Default()})
+	httpApp := NewServer(HTMLErrorResponder{Renderer: renderer, TopNav: topNav, SiteName: defaultSiteName, SiteURL: siteURL, Logger: log.Default()})
 	httpApp.Use(LoggingMiddleware)
 	httpApp.Handle("GET", "/api/search", func(w http.ResponseWriter, r *http.Request) error {
 		q := strings.TrimSpace(r.URL.Query().Get("q"))
@@ -67,7 +72,7 @@ func (a *App) Run(addr string) error {
 		return json.NewEncoder(w).Encode(map[string]any{"query": q, "results": results})
 	})
 
-	landing, err := a.registerContentRoutes(httpApp, renderer, dir, index, topNav)
+	landing, err := a.registerContentRoutes(httpApp, renderer, dir, index, topNav, siteURL)
 	if err != nil {
 		return err
 	}
@@ -122,7 +127,7 @@ func (a *App) Run(addr string) error {
 	return httpApp.Run(addr)
 }
 
-func (a *App) registerContentRoutes(app *Server, renderer *FileTemplateRenderer, dir string, index *ContentIndex, topNav []NavLink) (string, error) {
+func (a *App) registerContentRoutes(app *Server, renderer *FileTemplateRenderer, dir string, index *ContentIndex, topNav []NavLink, siteURL string) (string, error) {
 	cleanDir := filepath.Clean(dir)
 	service := NewMarkdownService(StdlibMarkdownRenderer{}, cleanDir)
 	depth := a.sidebarDepth()
@@ -185,10 +190,15 @@ func (a *App) registerContentRoutes(app *Server, renderer *FileTemplateRenderer,
 			}
 
 			navTitle, nav := index.Sidebar(pageRoute, depth)
+			baseURL := requestBaseURL(r, siteURL)
 
 			return renderer.Render(w, "markdown", PageData{
 				Title:        title,
 				Description:  page.Description,
+				SiteName:     defaultSiteName,
+				CanonicalURL: joinAbsoluteURL(baseURL, pageRoute),
+				OGImageURL:   joinAbsoluteURL(baseURL, "/og-image.png"),
+				Robots:       "index,follow",
 				Time:         time.Now().UTC().Format(time.RFC3339),
 				MarkdownFile: page.Path,
 				BodyHTML:     template.HTML(page.HTML),
@@ -303,6 +313,70 @@ func (a *App) publicDir() string {
 		return "public"
 	}
 	return a.PublicDir
+}
+
+func (a *App) siteURL() string {
+	if strings.TrimSpace(a.SiteURL) != "" {
+		return normalizeBaseURL(a.SiteURL)
+	}
+	if env := strings.TrimSpace(os.Getenv("SITE_URL")); env != "" {
+		return normalizeBaseURL(env)
+	}
+	return defaultSiteURL
+}
+
+func normalizeBaseURL(raw string) string {
+	base := strings.TrimSpace(raw)
+	if base == "" {
+		return defaultSiteURL
+	}
+	if !strings.HasPrefix(base, "http://") && !strings.HasPrefix(base, "https://") {
+		base = "https://" + base
+	}
+	return strings.TrimRight(base, "/")
+}
+
+func requestBaseURL(r *http.Request, fallback string) string {
+	if r == nil {
+		return normalizeBaseURL(fallback)
+	}
+
+	host := strings.TrimSpace(r.Header.Get("X-Forwarded-Host"))
+	if host == "" {
+		host = strings.TrimSpace(r.Host)
+	}
+	if host == "" {
+		return normalizeBaseURL(fallback)
+	}
+	if i := strings.Index(host, ","); i != -1 {
+		host = strings.TrimSpace(host[:i])
+	}
+
+	proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto"))
+	if i := strings.Index(proto, ","); i != -1 {
+		proto = strings.TrimSpace(proto[:i])
+	}
+	if proto == "" {
+		if r.TLS != nil {
+			proto = "https"
+		} else {
+			proto = "http"
+		}
+	}
+
+	return proto + "://" + host
+}
+
+func joinAbsoluteURL(base, route string) string {
+	cleanBase := normalizeBaseURL(base)
+	cleanRoute := strings.TrimSpace(route)
+	if cleanRoute == "" {
+		cleanRoute = "/"
+	}
+	if !strings.HasPrefix(cleanRoute, "/") {
+		cleanRoute = "/" + cleanRoute
+	}
+	return cleanBase + cleanRoute
 }
 
 func staticFileExists(publicDir, requestPath string) (bool, error) {

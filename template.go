@@ -16,6 +16,10 @@ type PageData struct {
 	StatusCode   int
 	Title        string
 	Description  string
+	SiteName     string
+	CanonicalURL string
+	OGImageURL   string
+	Robots       string
 	Time         string
 	MarkdownFile string
 	BodyHTML     template.HTML

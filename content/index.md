@@ -1,5 +1,6 @@
 ---
-title: Intentional Code with Go
+title: Intentional Code
+nav_title: Home
 description: The patterns and principles that make Go code easier to read, test, and change.
 ---
 

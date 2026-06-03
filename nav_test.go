@@ -113,6 +113,56 @@ func TestSidebarStaysRootAnchoredOnNestedRoute(t *testing.T) {
 	}
 }
 
+func TestSidebarIncludesRootIndexAsLink(t *testing.T) {
+	contentDir := t.TempDir()
+	writeMarkdown(t, contentDir, "index.md", "---\ntitle: Home\n---\n")
+	writeMarkdown(t, contentDir, "patterns/index.md", "---\ntitle: Patterns\n---\n")
+
+	idx, err := BuildContentIndex(contentDir)
+	if err != nil {
+		t.Fatalf("build content index: %v", err)
+	}
+
+	_, nodes := idx.Sidebar("/patterns", 3)
+
+	home, ok := findNavNode(nodes, "Home")
+	if !ok {
+		t.Fatalf("expected root index page Home in sidebar nav tree")
+	}
+	if home.Path != "/" {
+		t.Fatalf("expected Home nav link path '/', got %q", home.Path)
+	}
+}
+
+func TestSidebarUsesNavTitleWhenProvided(t *testing.T) {
+	contentDir := t.TempDir()
+	writeMarkdown(t, contentDir, "index.md", "---\ntitle: Intentional Code\nnav_title: Home\n---\n")
+
+	idx, err := BuildContentIndex(contentDir)
+	if err != nil {
+		t.Fatalf("build content index: %v", err)
+	}
+
+	title, nodes := idx.Sidebar("/", 3)
+
+	if title != "Intentional Code" {
+		t.Fatalf("expected page title to remain Intentional Code, got %q", title)
+	}
+
+	home, ok := findNavNode(nodes, "Home")
+	if !ok {
+		t.Fatalf("expected nav label Home from nav_title")
+	}
+	if home.Path != "/" {
+		t.Fatalf("expected Home nav link path '/', got %q", home.Path)
+	}
+
+	if _, ok := findNavNode(nodes, "Intentional Code"); ok {
+		t.Fatalf("did not expect page title to appear as nav label when nav_title is set")
+	}
+}
+
+
 func writeMarkdown(t *testing.T, root, relPath, content string) {
 	t.Helper()
 	fullPath := filepath.Join(root, relPath)
