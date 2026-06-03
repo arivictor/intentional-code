@@ -244,7 +244,7 @@
       align-items: center;
       gap: 9px;
       font-weight: 600;
-      font-size: 15px;
+      font-size: 20px;
       letter-spacing: -0.02em;
       color: var(--heading);
       text-decoration: none;
@@ -324,6 +324,11 @@
       margin: 0 auto;
       padding: 0 var(--layout-shell-pad-right) 32px var(--layout-shell-pad-left);
     }
+    .docs.docs--error {
+      display: block;
+      max-width: var(--page-width);
+      padding: 0 24px 32px;
+    }
     .sidebar {
       position: sticky;
       top: var(--header-h);
@@ -338,6 +343,15 @@
       max-width: var(--content-width);
       min-width: 0;
       padding: 56px 0 96px;
+    }
+    .docs.docs--error main {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 0;
+      min-height: calc(100vh - var(--header-h) - 140px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .toc {
       position: sticky;
@@ -708,7 +722,8 @@
     /* ---------- Error page ---------- */
     .errorpage {
       max-width: 640px;
-      margin: 8vh auto 0;
+      margin: 0 auto;
+      width: 100%;
       text-align: center;
     }
     .errorpage .code {
@@ -717,7 +732,7 @@
       line-height: 1;
       font-weight: 700;
       letter-spacing: -0.04em;
-      color: var(--muted);
+      color: #000;
     }
     .errorpage h1 {
       margin: 14px 0 0;
@@ -887,12 +902,15 @@
       .sidebar { display: none; }
       .docs { padding: 0 24px; }
       main { flex: 1 1 auto; max-width: var(--content-width); margin: 0 auto; }
+      .docs.docs--error main { min-height: calc(100vh - var(--header-h) - 120px); }
     }
     @media (max-width: 640px) {
       .site-header { height: 56px; }
       :root { --header-h: 56px; }
       .docs { padding: 0 20px; }
       main { padding: 40px 0 72px; }
+      .docs.docs--error { padding: 0 20px 24px; }
+      .docs.docs--error main { min-height: calc(100vh - var(--header-h) - 108px); }
       .page-header { margin-bottom: 32px; }
       .page-header h1 { font-size: 33px; }
       .page-header .lede { font-size: 17px; }
@@ -930,7 +948,7 @@
     </div>
   </header>
 
-  <div class="docs">
+  <div class="docs{{if .StatusCode}} docs--error{{end}}">
     {{if .Nav}}
     <aside class="sidebar">
       <nav aria-label="Section">

@@ -25,7 +25,15 @@ type App struct {
 	PublicDir    string
 	SidebarDepth int
 	SiteURL      string
+	Mode         RenderMode
 }
+
+type RenderMode string
+
+const (
+	LiveRender RenderMode = "live_render"
+	PreRender  RenderMode = "pre_render"
+)
 
 func (a *App) Run(addr string) error {
 	dir := a.contentDir()
@@ -44,9 +52,26 @@ func (a *App) Run(addr string) error {
 		return err
 	}
 	topNav := index.TopNav()
+	sitemapRoutes := buildSitemapRoutes(index)
+	sitemapXML, err := renderSitemapXML(siteURL, sitemapRoutes, time.Now())
+	if err != nil {
+		return err
+	}
+	robotsTXT := renderRobotsTXT(siteURL)
 
 	httpApp := NewServer(HTMLErrorResponder{Renderer: renderer, TopNav: topNav, SiteName: defaultSiteName, SiteURL: siteURL, Logger: log.Default()})
 	httpApp.Use(LoggingMiddleware)
+	log.Printf("seo sitemap generated with %d routes", len(sitemapRoutes))
+	httpApp.Handle("GET", "/sitemap.xml", func(w http.ResponseWriter, r *http.Request) error {
+		w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+		_, writeErr := w.Write([]byte(sitemapXML))
+		return writeErr
+	})
+	httpApp.Handle("GET", "/robots.txt", func(w http.ResponseWriter, r *http.Request) error {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, writeErr := w.Write([]byte(robotsTXT))
+		return writeErr
+	})
 	httpApp.Handle("GET", "/api/search", func(w http.ResponseWriter, r *http.Request) error {
 		q := strings.TrimSpace(r.URL.Query().Get("q"))
 		limit := 8
@@ -129,11 +154,14 @@ func (a *App) Run(addr string) error {
 
 func (a *App) registerContentRoutes(app *Server, renderer *FileTemplateRenderer, dir string, index *ContentIndex, topNav []NavLink, siteURL string) (string, error) {
 	cleanDir := filepath.Clean(dir)
-	service := NewMarkdownService(StdlibMarkdownRenderer{}, cleanDir)
+	provider, err := a.newContentPageProvider(cleanDir)
+	if err != nil {
+		return "", err
+	}
 	depth := a.sidebarDepth()
 	registered := map[string]string{}
 
-	err := filepath.WalkDir(cleanDir, func(path string, d os.DirEntry, walkErr error) error {
+	err = filepath.WalkDir(cleanDir, func(path string, d os.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return walkErr
 		}
@@ -173,15 +201,9 @@ func (a *App) registerContentRoutes(app *Server, renderer *FileTemplateRenderer,
 
 		pageTitle := pageTitleFromSlug(serviceSlug)
 		app.Handle("GET", registerPath, func(w http.ResponseWriter, r *http.Request) error {
-			page, renderErr := service.LoadAndRender(serviceSlug)
-			if renderErr != nil {
-				if errors.Is(renderErr, ErrMarkdownNotFound) {
-					return &HTTPError{Status: 404, Message: "content page not found"}
-				}
-				if errors.Is(renderErr, ErrInvalidMarkdownPath) {
-					return &BadRequestError{Message: "invalid content path"}
-				}
-				return renderErr
+			page, getErr := provider.Get(serviceSlug)
+			if getErr != nil {
+				return mapContentProviderError(getErr)
 			}
 
 			title := page.Title
@@ -221,6 +243,57 @@ func (a *App) registerContentRoutes(app *Server, renderer *FileTemplateRenderer,
 	}
 
 	return landingRoute(registered), nil
+}
+
+func (a *App) newContentPageProvider(contentDir string) (contentPageProvider, error) {
+	switch a.mode() {
+	case PreRender:
+		startedAt := time.Now()
+		provider, err := newPreRenderedMarkdownProvider(contentDir, StdlibMarkdownRenderer{})
+		if err != nil {
+			return nil, err
+		}
+		if preRendered, ok := provider.(preRenderedMarkdownProvider); ok {
+			log.Printf("content mode=%s built %d markdown pages in %s", PreRender, len(preRendered.pages), time.Since(startedAt))
+		} else {
+			log.Printf("content mode=%s initialized in %s", PreRender, time.Since(startedAt))
+		}
+		return provider, nil
+	default:
+		log.Printf("content mode=%s using per-request live markdown rendering", LiveRender)
+		return newLiveMarkdownProvider(contentDir, StdlibMarkdownRenderer{}), nil
+	}
+}
+
+func (a *App) mode() RenderMode {
+	raw := strings.TrimSpace(string(a.Mode))
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("APP_MODE"))
+	}
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("APP_ENV"))
+	}
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("GO_ENV"))
+	}
+	if raw == "" {
+		raw = strings.TrimSpace(os.Getenv("ENV"))
+	}
+
+	return ParseRenderMode(raw)
+}
+
+func ParseRenderMode(raw string) RenderMode {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+
+	switch normalized {
+	case "prerender", "pre-render", "pre_render", "pre", "prod", "production":
+		return PreRender
+	case "liverender", "live-render", "live_render", "live", "dev", "development":
+		return LiveRender
+	default:
+		return LiveRender
+	}
 }
 
 // landingRoute is only used as the bare-root fallback when there is no root
