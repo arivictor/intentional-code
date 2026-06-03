@@ -1,3 +1,3 @@
-module intentioncode
+module intentionalcode
 
 go 1.24.4

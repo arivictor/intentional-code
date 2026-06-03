@@ -1,0 +1,8 @@
+{{define "content"}}
+<section class="errorpage">
+  <p class="code">{{.StatusCode}}</p>
+  <h1>{{.Title}}</h1>
+  {{if .Description}}<p class="lede">{{.Description}}</p>{{end}}
+  <a class="backlink" href="/">Back to home</a>
+</section>
+{{end}}

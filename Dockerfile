@@ -1,29 +1,23 @@
-FROM node:22-alpine AS builder
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /src
+
+# Cache modules first for faster rebuilds.
+COPY go.mod ./
+RUN go mod download
+
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/intentional-code ./cmd
+
+FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
 
-COPY package.json package-lock.json .npmrc ./
-RUN npm ci
-
-COPY . .
-RUN npm run build
-
-FROM nginx:alpine
-
-COPY --from=builder /app/dist /usr/share/nginx/html
-
-# Static SSG routing — no SPA fallback needed
-RUN printf 'server {\n\
-    listen 8080;\n\
-    root /usr/share/nginx/html;\n\
-    index index.html;\n\
-    absolute_redirect off;\n\
-    location / {\n\
-        try_files $uri $uri/ =404;\n\
-    }\n\
-    error_page 404 /404.html;\n\
-}\n' > /etc/nginx/conf.d/default.conf
+COPY --from=builder /out/intentional-code /app/intentional-code
+COPY --from=builder /src/content /app/content
+COPY --from=builder /src/templates /app/templates
+COPY --from=builder /src/public /app/public
 
 EXPOSE 8080
 
-CMD ["nginx", "-g", "daemon off;"]
+ENTRYPOINT ["/app/intentional-code"]
