@@ -13,21 +13,22 @@ type TemplateRenderer interface {
 }
 
 type PageData struct {
-	StatusCode   int
-	Title        string
-	Description  string
-	SiteName     string
-	CanonicalURL string
-	OGImageURL   string
-	Robots       string
-	Time         string
-	MarkdownFile string
-	BodyHTML     template.HTML
-	Headings     []Heading
-	NavTitle     string
-	Nav          []NavNode
-	TopNav       []NavLink
-	CurrentPath  string
+	StatusCode      int
+	Title           string
+	Description     string
+	SiteName        string
+	CanonicalURL    string
+	OGImageURL      string
+	TwitterImageURL string
+	Robots          string
+	Time            string
+	MarkdownFile    string
+	BodyHTML        template.HTML
+	Headings        []Heading
+	NavTitle        string
+	Nav             []NavNode
+	TopNav          []NavLink
+	CurrentPath     string
 }
 
 type FileTemplateRenderer struct {

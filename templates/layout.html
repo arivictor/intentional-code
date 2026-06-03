@@ -35,10 +35,10 @@
   <meta property="og:image:alt" content="Intentional Code" />
   {{end}}
 
-  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:card" content="{{if .TwitterImageURL}}summary{{else}}summary_large_image{{end}}" />
   <meta name="twitter:title" content="{{if .Title}}{{.Title}} — {{if .SiteName}}{{.SiteName}}{{else}}Intentional Code{{end}}{{else}}{{if .SiteName}}{{.SiteName}}{{else}}Intentional Code{{end}}{{end}}" />
   <meta name="twitter:description" content="{{if .Description}}{{.Description}}{{else}}The patterns and principles that make Go code easier to read, test, and change.{{end}}" />
-  {{if .OGImageURL}}<meta name="twitter:image" content="{{.OGImageURL}}" />{{end}}
+  {{if .TwitterImageURL}}<meta name="twitter:image" content="{{.TwitterImageURL}}" />{{else if .OGImageURL}}<meta name="twitter:image" content="{{.OGImageURL}}" />{{end}}
 
   <link rel="icon" href="/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />

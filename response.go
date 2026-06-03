@@ -76,11 +76,12 @@ func (r HTMLErrorResponder) Handle(w http.ResponseWriter, req *http.Request, err
 			requestBaseURL(req, r.SiteURL),
 			req.URL.Path,
 		),
-		OGImageURL:  joinAbsoluteURL(requestBaseURL(req, r.SiteURL), "/og-image.png"),
-		Robots:      "noindex,nofollow",
-		TopNav:      r.TopNav,
-		CurrentPath: req.URL.Path,
-		Time:        time.Now().UTC().Format(time.RFC3339),
+		OGImageURL:      joinAbsoluteURL(requestBaseURL(req, r.SiteURL), "/og-image.png"),
+		TwitterImageURL: joinAbsoluteURL(requestBaseURL(req, r.SiteURL), "/og-image-square.png"),
+		Robots:          "noindex,nofollow",
+		TopNav:          r.TopNav,
+		CurrentPath:     req.URL.Path,
+		Time:            time.Now().UTC().Format(time.RFC3339),
 	})
 	if renderErr != nil {
 		r.Logger.Printf("error rendering error page: %v", renderErr)

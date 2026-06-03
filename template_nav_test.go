@@ -14,9 +14,11 @@ func TestLayoutRendersAccordionControlsForFolders(t *testing.T) {
 	}
 
 	data := PageData{
-		Title:    "Nav Test",
-		BodyHTML: template.HTML("<p>content</p>"),
-		CurrentPath: "/",
+		Title:           "Nav Test",
+		BodyHTML:        template.HTML("<p>content</p>"),
+		CurrentPath:     "/",
+		OGImageURL:      "https://intentionalcode.com/og-image.png",
+		TwitterImageURL: "https://intentionalcode.com/og-image-square.png",
 		Nav: []NavNode{
 			{
 				Title:  "Routable Folder",
@@ -65,5 +67,11 @@ func TestLayoutRendersAccordionControlsForFolders(t *testing.T) {
 	}
 	if !strings.Contains(html, "<body data-current-path=\"/\">") {
 		t.Fatalf("expected current route marker on body for root toggle logic: %s", html)
+	}
+	if !strings.Contains(html, `<meta name="twitter:image" content="https://intentionalcode.com/og-image-square.png" />`) {
+		t.Fatalf("expected twitter image meta tag to use square image: %s", html)
+	}
+	if !strings.Contains(html, `<meta name="twitter:card" content="summary" />`) {
+		t.Fatalf("expected twitter card to be summary when square image is set: %s", html)
 	}
 }
