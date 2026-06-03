@@ -89,6 +89,12 @@
 
       --content-width: 720px;
       --page-width: 1024px;
+      --layout-shell-max: 1400px;
+      --layout-shell-gap: 100px;
+      --layout-shell-pad-left: 0px;
+      --layout-shell-pad-right: 32px;
+      --sidebar-top-level-pad-x: 12px;
+      --header-logo-pad-left: calc(var(--layout-shell-pad-left) + var(--sidebar-top-level-pad-x));
       --radius: 10px;
       --radius-sm: 6px;
       --header-h: 64px;
@@ -229,7 +235,9 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      max-width: 1400px;
+      max-width: var(--layout-shell-max);
+      padding-left: var(--header-logo-pad-left);
+      padding-right: var(--layout-shell-pad-right);
     }
     .brand {
       display: inline-flex;
@@ -308,13 +316,13 @@
     .docs {
       flex: 1 0 auto;
       display: flex;
-      gap: 56px;
+      gap: var(--layout-shell-gap);
       justify-content: center;
       align-items: flex-start;
       width: 100%;
-      max-width: 1400px;
+      max-width: var(--layout-shell-max);
       margin: 0 auto;
-      padding: 0 32px;
+      padding: 0 var(--layout-shell-pad-right) 32px var(--layout-shell-pad-left);
     }
     .sidebar {
       position: sticky;
