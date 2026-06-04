@@ -4,19 +4,7 @@ nav_title: Home
 description: Intentional Code is a collection of patterns and principles that make Go code easier to read, test, and change. It is not a framework or library. It is not a set of rules. It is a mindset for writing code with clear intent.
 ---
 
-Along the way there will be interactive examples to help you understand the patterns and principles. You can run the examples in your browser, or copy them to your own machine and run them there.
-
-**Try it out!** 
-
-Click the "Run" button on the code snippet below to see how it works. You can also edit the code and run it again to see how your changes affect the output.
-
-```go:title="main.go":run=true:editable=true
-package main
-
-func main() {
-    println("Hello, Intentional Code!")
-}
-```
+Along the way there will be interactive examples to help you understand the patterns and principles. 
 
 Architectural choices should be made with clear intent, not based on personal preference. When we apply architectur and patterns its *to solve a real problem that exists now.* We don't optimise for a problem that *might happen* someday. 
 
