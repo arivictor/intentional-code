@@ -31,7 +31,7 @@ wg.Wait()
 A buffered channel as a semaphore:
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"fmt"

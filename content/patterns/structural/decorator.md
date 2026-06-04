@@ -63,7 +63,7 @@ Each layer: func(http.Handler) http.Handler
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"fmt"

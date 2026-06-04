@@ -71,7 +71,7 @@ Define a single interface (`Entry`) that both leaf files and composite directori
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

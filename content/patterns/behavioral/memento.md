@@ -56,7 +56,7 @@ Create a memento type with unexported fields in the same package as the originat
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

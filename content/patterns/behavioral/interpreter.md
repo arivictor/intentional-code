@@ -70,7 +70,7 @@ Map each grammar rule to a struct implementing `Expression`. The tree structure 
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

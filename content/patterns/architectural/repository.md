@@ -57,7 +57,7 @@ Domain package
 The following is a single runnable file that combines the domain types, in-memory repository, and a main function that exercises the logic:
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"fmt"

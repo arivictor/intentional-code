@@ -56,7 +56,7 @@ Visitor interface               Node interface
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

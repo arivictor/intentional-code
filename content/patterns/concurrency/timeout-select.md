@@ -62,7 +62,7 @@ func fetchWithTimeout(url string) ([]byte, error) {
 When waiting for a result from a goroutine, select on both the result channel and the deadline.
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"errors"

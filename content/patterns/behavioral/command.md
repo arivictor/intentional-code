@@ -56,7 +56,7 @@ History.Undo() -> pop last command -> call last.Undo() -> Editor restored
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

@@ -76,7 +76,7 @@ Define product interfaces (`Reader`, `Writer`) and a factory interface whose met
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

@@ -13,7 +13,7 @@ You have an HTTP request template: a base request with preset headers and query 
 
 ```go
 // shallow_bug.go
-package intentionalcode
+package gomark
 
 type Request struct {
     Method  string
@@ -54,7 +54,7 @@ Implement a `Clone()` method that explicitly deep-copies every reference type. M
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

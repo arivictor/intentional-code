@@ -49,7 +49,7 @@ Create a `Converter` facade struct that encapsulates the multi-step process. Cal
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"fmt"

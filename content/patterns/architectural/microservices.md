@@ -49,7 +49,7 @@ Each service is a standalone Go binary:
 
 ```go
 // cmd/order-service/main.go
-package intentionalcode
+package gomark
 
 import (
     "myapp/internal/orderservice/app"

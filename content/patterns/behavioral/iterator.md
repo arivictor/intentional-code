@@ -67,7 +67,7 @@ With Go 1.23's range-over-func, define an iterator that yields values. Consumers
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"fmt"

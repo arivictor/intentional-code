@@ -49,7 +49,7 @@ Extract the shared intrinsic state (glyph style) into a separate type. Use a fac
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"fmt"

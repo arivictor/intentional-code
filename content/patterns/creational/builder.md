@@ -58,7 +58,7 @@ WithUserAgent(s) ──► func(c *config) { c.userAgent = s }
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"fmt"

@@ -59,7 +59,7 @@ Create a proxy that implements the same interface. It lazily loads the image on 
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"fmt"

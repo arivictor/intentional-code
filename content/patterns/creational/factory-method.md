@@ -58,7 +58,7 @@ NewFormatter(name) ──► Formatter
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

@@ -49,7 +49,7 @@ Logger  Server  Metrics
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

@@ -42,7 +42,7 @@ Define a `Filter` type and connect filters through a simple pipe. Each filter ha
 **Function-based pipeline (simplest form):**
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 
@@ -122,7 +122,7 @@ func main() {
 Use channels when filters can run concurrently. Each filter runs in its own goroutine, and output channels feed the next stage.
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

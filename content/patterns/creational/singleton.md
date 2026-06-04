@@ -58,7 +58,7 @@ The Go-idiomatic singleton uses `sync.Once` for thread-safe lazy initialization.
 The `sync.Once` singleton: correct but not recommended.
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"io"
@@ -91,7 +91,7 @@ This works correctly: thread-safe, lazy, and the output writer is configurable o
 The recommended alternative is dependency injection. Pass the logger as a parameter.
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"fmt"

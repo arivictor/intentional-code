@@ -57,7 +57,7 @@ formatter = TextFormatter │ CSVFormatter │ JSONFormatter
 Define a `Formatter` struct carrying the three hook functions:
 
 ```go
-package intentionalcode
+package gomark
 
 import (
 	"fmt"

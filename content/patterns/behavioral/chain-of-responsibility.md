@@ -42,7 +42,7 @@ Request ──► Validate ──► RateLimit ──► Auth ──► Handle
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

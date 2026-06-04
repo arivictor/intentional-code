@@ -45,7 +45,7 @@ Notify(msg, Console) ──► func(string) error
 The function-type approach, idiomatic Go:
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 
@@ -80,7 +80,7 @@ func main() {
 When a strategy needs configuration or multiple methods, use an interface instead:
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

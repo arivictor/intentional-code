@@ -53,7 +53,7 @@ Create a wrapper struct that holds the library client and implements your interf
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 

@@ -61,7 +61,7 @@ Define a `State` interface. Each state is a struct implementing the interface. T
 ```
 
 ```go
-package intentionalcode
+package gomark
 
 import "fmt"
 
