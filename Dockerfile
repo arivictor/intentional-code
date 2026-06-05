@@ -11,14 +11,13 @@ WORKDIR /src
 
 # Install the gomark CLI as a standalone binary in its own layer so it's cached
 # across source changes.
-RUN go install github.com/arivictor/gomark/cmd/gomark@v0.1.13
+RUN go install github.com/arivictor/gomark/cmd/gomark@v0.1.14
 
 COPY . .
 
 # Render the static site. gomark.yaml (auto-discovered) supplies title, URL and
 # SEO; the positional output dir below overrides its output_dir for the image.
-RUN mkdir -p /out/site
-RUN gomark build ./content /out/site
+RUN gomark build 
 
 # Stage 2: serve the static output. The Caddyfile binds to Cloud Run's $PORT
 # (falling back to 80 locally) and sets the application/wasm content type for
