@@ -58,8 +58,10 @@ Create a proxy that implements the same interface. It lazily loads the image on 
                 └────────────────┘
 ```
 
-```go
-package gomark
+Run it to see the lazy load fire once and the guest get denied:
+
+```go:title="main.go":run=true
+package main
 
 import (
 	"fmt"
@@ -122,8 +124,8 @@ Output:
 
 ```
 [disk] loading photo.jpg
-[image: photo.jpg (16 bytes)]
-[image: photo.jpg (16 bytes)]
+[image: photo.jpg (17 bytes)]
+[image: photo.jpg (17 bytes)]
 [access denied: role "guest" cannot view images]
 ```
 

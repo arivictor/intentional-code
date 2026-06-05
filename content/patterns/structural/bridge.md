@@ -57,12 +57,14 @@ Separate the two dimensions into two interfaces. The abstraction (formatter) hol
  Text         Fmt            Writer          Writer
 ```
 
-```go
-package gomark
+Run it to see two formats (plain text, JSON) combine freely with two writers (console, buffer) — four combinations from `2 + 2` types:
+
+```go:title="main.go":run=true
+package main
 
 import (
 	"fmt"
-	"os"
+	"strings"
 )
 
 type Writer interface {
@@ -73,17 +75,16 @@ type ConsoleWriter struct{}
 
 func (w *ConsoleWriter) Write(s string) { fmt.Println(s) }
 
-type FileWriter struct {
-	Path string
+type BufferWriter struct {
+	lines []string
 }
 
-func (w *FileWriter) Write(s string) {
-	f, err := os.OpenFile(w.Path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return
-	}
-	defer f.Close()
-	fmt.Fprintln(f, s)
+func (w *BufferWriter) Write(s string) {
+	w.lines = append(w.lines, s)
+}
+
+func (w *BufferWriter) Dump() string {
+	return strings.Join(w.lines, "\n")
 }
 
 type Formatter struct {
@@ -112,18 +113,25 @@ func (f *JSONFormatter) Generate(data string) {
 
 func main() {
 	console := &ConsoleWriter{}
-	file := &FileWriter{Path: "/tmp/report.log"}
+	buffer := &BufferWriter{}
 
+	// Same two formatters, two different writers — the axes vary independently.
 	NewPlainText(console).Generate("sales up 12%")
 	NewJSON(console).Generate("sales up 12%")
-	NewPlainText(file).Generate("sales up 12%")
-	NewJSON(file).Generate("sales up 12%")
+	NewPlainText(buffer).Generate("sales up 12%")
+	NewJSON(buffer).Generate("sales up 12%")
+
+	fmt.Println("--- buffered output ---")
+	fmt.Println(buffer.Dump())
 }
 ```
 
-Output (console):
+Output:
 
 ```
+Report: sales up 12%
+{"report": "sales up 12%"}
+--- buffered output ---
 Report: sales up 12%
 {"report": "sales up 12%"}
 ```

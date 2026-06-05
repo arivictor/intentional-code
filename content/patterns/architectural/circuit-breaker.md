@@ -42,8 +42,8 @@ Wrap the call in a circuit breaker. The breaker tracks failures and opens after 
 
 A minimal circuit breaker and weather service, merged into a single runnable file to demonstrate the pattern:
 
-```go:title="main.go"
-package gomark
+```go:title="main.go":run=true
+package main
 
 import (
 	"context"

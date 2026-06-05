@@ -55,8 +55,8 @@ Create a memento type with unexported fields in the same package as the originat
                     but can't read contents
 ```
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 
@@ -71,7 +71,7 @@ type Editor struct {
 }
 
 func NewEditor(content string) *Editor {
-	return &Editor{content: content}
+	return &Editor{content: content, cursor: len(content)}
 }
 
 func (e *Editor) Type(text string) {
@@ -114,10 +114,10 @@ func main() {
 }
 ```
 
-Output:
+Run it to watch each snapshot get restored:
 
 ```
-Start:   "Hello" (cursor=5)
+Start:      "Hello" (cursor=5)
 After type: "Hello World" (cursor=11)
 After more: "Hello World!!!" (cursor=14)
 Undo:       "Hello World" (cursor=11)

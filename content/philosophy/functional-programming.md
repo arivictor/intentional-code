@@ -151,6 +151,50 @@ activeUsers := Filter(users, func(u User) bool { return u.Active })
 emails := Map(activeUsers, func(u User) string { return u.Email })
 ```
 
+Here it is as a small runnable program:
+
+```go:title="main.go":run=true
+package main
+
+import "fmt"
+
+type User struct {
+    Email  string
+    Active bool
+}
+
+func Filter[T any](slice []T, keep func(T) bool) []T {
+    out := make([]T, 0, len(slice))
+    for _, v := range slice {
+        if keep(v) {
+            out = append(out, v)
+        }
+    }
+    return out
+}
+
+func Map[T, U any](slice []T, transform func(T) U) []U {
+    out := make([]U, len(slice))
+    for i, v := range slice {
+        out[i] = transform(v)
+    }
+    return out
+}
+
+func main() {
+    users := []User{
+        {Email: "a@example.com", Active: true},
+        {Email: "b@example.com", Active: false},
+        {Email: "c@example.com", Active: true},
+    }
+
+    activeUsers := Filter(users, func(u User) bool { return u.Active })
+    emails := Map[User, string](activeUsers, func(u User) string { return u.Email })
+
+    fmt.Println(emails) // [a@example.com c@example.com]
+}
+```
+
 ---
 
 ## Functional options: clean constructors without overloading

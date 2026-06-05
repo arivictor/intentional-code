@@ -109,6 +109,87 @@ func (s *stranglerInventory) Available(ctx context.Context, itemID string) (int,
 }
 ```
 
+Here's the facade idea as one runnable program — a single interface whose implementation routes to the legacy system or the new service based on a feature flag, with no change to the call site:
+
+```go:title="main.go":run=true
+package main
+
+import (
+	"context"
+	"fmt"
+)
+
+// One interface; the implementation can switch from legacy to new per-feature.
+type InventoryService interface {
+	Available(ctx context.Context, itemID string) (int, error)
+}
+
+// --- Legacy monolith implementation ---
+
+type legacyInventory struct{}
+
+func (legacyInventory) Available(_ context.Context, itemID string) (int, error) {
+	fmt.Printf("legacy: serving %s\n", itemID)
+	return 7, nil
+}
+
+// --- New service implementation ---
+
+type newInventory struct{}
+
+func (newInventory) Available(_ context.Context, itemID string) (int, error) {
+	fmt.Printf("new-service: serving %s\n", itemID)
+	return 7, nil
+}
+
+// --- Feature flags decide which subsystem handles each path ---
+
+type FeatureFlags struct{ enabled map[string]bool }
+
+func (f *FeatureFlags) IsEnabled(name string) bool { return f.enabled[name] }
+
+// stranglerInventory is the routing facade callers depend on.
+type stranglerInventory struct {
+	legacy InventoryService
+	newSvc InventoryService
+	flags  *FeatureFlags
+}
+
+func (s *stranglerInventory) Available(ctx context.Context, itemID string) (int, error) {
+	if s.flags.IsEnabled("inventory-new-service") {
+		return s.newSvc.Available(ctx, itemID)
+	}
+	return s.legacy.Available(ctx, itemID)
+}
+
+func main() {
+	ctx := context.Background()
+	flags := &FeatureFlags{enabled: map[string]bool{}}
+	svc := &stranglerInventory{
+		legacy: legacyInventory{},
+		newSvc: newInventory{},
+		flags:  flags,
+	}
+
+	// Flag off — traffic falls through to the legacy monolith.
+	qty, _ := svc.Available(ctx, "sku-1")
+	fmt.Println("available:", qty)
+
+	// Flip the flag: the same call site now routes to the new service.
+	flags.enabled["inventory-new-service"] = true
+	qty, _ = svc.Available(ctx, "sku-1")
+	fmt.Println("available:", qty)
+}
+```
+
+```
+// Output:
+// legacy: serving sku-1
+// available: 7
+// new-service: serving sku-1
+// available: 7
+```
+
 The migration proceeds in phases:
 
 ```

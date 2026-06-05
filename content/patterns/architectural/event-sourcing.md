@@ -140,6 +140,116 @@ func (a *Account) Changes() []Event { return a.changes }
 func (a *Account) ClearChanges()    { a.changes = nil }
 ```
 
+Here's the core idea as one runnable program — commands append events, and the current balance is derived by replaying the stored stream rather than reading a saved total:
+
+```go:title="main.go":run=true
+package main
+
+import (
+	"errors"
+	"fmt"
+	"time"
+)
+
+// --- Domain events: immutable facts ---
+
+type EventType string
+
+const (
+	EventAccountOpened  EventType = "AccountOpened"
+	EventMoneyDeposited EventType = "MoneyDeposited"
+	EventMoneyWithdrawn EventType = "MoneyWithdrawn"
+)
+
+type Event struct {
+	Type       EventType
+	OccurredAt time.Time
+	Amount     int
+}
+
+// --- Aggregate: applies events to derive state ---
+
+type Account struct {
+	ID      string
+	Balance int
+	changes []Event
+}
+
+func NewAccount(id string, initial int) *Account {
+	a := &Account{ID: id}
+	a.apply(Event{Type: EventAccountOpened, OccurredAt: time.Now(), Amount: initial})
+	return a
+}
+
+func (a *Account) Deposit(amount int) {
+	a.apply(Event{Type: EventMoneyDeposited, OccurredAt: time.Now(), Amount: amount})
+}
+
+func (a *Account) Withdraw(amount int) error {
+	if amount > a.Balance {
+		return errors.New("insufficient funds")
+	}
+	a.apply(Event{Type: EventMoneyWithdrawn, OccurredAt: time.Now(), Amount: amount})
+	return nil
+}
+
+// apply mutates in-memory state and records the event for persistence.
+func (a *Account) apply(e Event) {
+	switch e.Type {
+	case EventAccountOpened:
+		a.Balance = e.Amount
+	case EventMoneyDeposited:
+		a.Balance += e.Amount
+	case EventMoneyWithdrawn:
+		a.Balance -= e.Amount
+	}
+	a.changes = append(a.changes, e)
+}
+
+func (a *Account) Changes() []Event { return a.changes }
+
+// ReplayAccount rebuilds current state from a stored event stream.
+func ReplayAccount(id string, events []Event) *Account {
+	a := &Account{ID: id}
+	for _, e := range events {
+		a.apply(e)
+	}
+	return a
+}
+
+func main() {
+	// Commands append events to the stream.
+	acc := NewAccount("acc-1", 0)
+	acc.Deposit(500)
+	if err := acc.Withdraw(80); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	acc.Deposit(100)
+
+	// The event log is the source of truth; persist the changes.
+	log := acc.Changes()
+	fmt.Printf("stored %d events:\n", len(log))
+	for _, e := range log {
+		fmt.Printf("  %s amount=%d\n", e.Type, e.Amount)
+	}
+
+	// Current state is derived by replaying the log — no stored balance row.
+	rebuilt := ReplayAccount("acc-1", log)
+	fmt.Printf("replayed balance: %d\n", rebuilt.Balance)
+}
+```
+
+```
+// Output:
+// stored 4 events:
+//   AccountOpened amount=0
+//   MoneyDeposited amount=500
+//   MoneyWithdrawn amount=80
+//   MoneyDeposited amount=100
+// replayed balance: 520
+```
+
 The event store persists and loads events:
 
 ```go

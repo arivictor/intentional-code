@@ -89,6 +89,74 @@ When any `g.Go` func returns an error:
 3. `g.Wait()` returns as soon as all goroutines have exited
 4. The first non-nil error is returned to the caller
 
+## The stdlib equivalent
+
+`golang.org/x/sync/errgroup` is a thin wrapper over three stdlib pieces: a `sync.WaitGroup`, a cancellable `context.Context`, and a mutex-guarded "first error". Writing it by hand shows exactly what `errgroup` buys you — and unlike the snippets above, it runs with only the standard library:
+
+```go:title="main.go":run=true
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+)
+
+func fetchUsers(ctx context.Context) error {
+	fmt.Println("fetched users")
+	return nil
+}
+
+func fetchOrders(ctx context.Context) error {
+	fmt.Println("fetched orders")
+	return nil
+}
+
+func fetchProducts(ctx context.Context) error {
+	fmt.Println("fetched products")
+	return nil
+}
+
+func fetchAll(ctx context.Context) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	var (
+		wg       sync.WaitGroup
+		mu       sync.Mutex
+		firstErr error
+	)
+
+	run := func(fn func(context.Context) error) {
+		defer wg.Done()
+		if err := fn(ctx); err != nil {
+			mu.Lock()
+			if firstErr == nil {
+				firstErr = err
+				cancel() // stop the others, like errgroup does
+			}
+			mu.Unlock()
+		}
+	}
+
+	wg.Add(3)
+	go run(fetchUsers)
+	go run(fetchOrders)
+	go run(fetchProducts)
+
+	wg.Wait()
+	return firstErr
+}
+
+func main() {
+	if err := fetchAll(context.Background()); err != nil {
+		fmt.Println("error:", err)
+	}
+}
+```
+
+`errgroup` collapses all of this — the `WaitGroup`, the mutex, the first-error bookkeeping, and the `cancel()` on failure — into `g.Go` and `g.Wait()`.
+
 ## Collecting results alongside errors
 
 `errgroup` doesn't have a built-in results mechanism, but since `g.Go` closures can capture variables, you can collect results by writing to a pre-allocated slice (safe when each goroutine writes to its own index) or by using a mutex.

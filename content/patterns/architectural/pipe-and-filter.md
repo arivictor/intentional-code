@@ -41,8 +41,8 @@ Define a `Filter` type and connect filters through a simple pipe. Each filter ha
 
 **Function-based pipeline (simplest form):**
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 
@@ -57,10 +57,10 @@ func isBot(ua string) bool        { return ua == "bot" }
 func geoLookup(ip string) string  { return "US" }
 func exceedsRateLimit(id string) bool { return id == "spammer" }
 
-type Filter[T any] func([]T) []T
+type Filter func([]LogRecord) []LogRecord
 
-func Chain[T any](filters ...Filter[T]) Filter[T] {
-	return func(input []T) []T {
+func Chain(filters ...Filter) Filter {
+	return func(input []LogRecord) []LogRecord {
 		result := input
 		for _, f := range filters {
 			result = f(result)
@@ -105,9 +105,9 @@ func main() {
 	}
 
 	process := Chain(
-		Filter[LogRecord](RemoveBots),
-		Filter[LogRecord](EnrichWithGeo),
-		Filter[LogRecord](ApplyRateLimit),
+		RemoveBots,
+		EnrichWithGeo,
+		ApplyRateLimit,
 	)
 	results := process(rawRecords)
 
@@ -121,8 +121,8 @@ func main() {
 
 Use channels when filters can run concurrently. Each filter runs in its own goroutine, and output channels feed the next stage.
 
-```go
-package gomark
+```go:title="pipeline.go":run=true
+package main
 
 import "fmt"
 

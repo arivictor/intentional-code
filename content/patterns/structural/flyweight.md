@@ -48,8 +48,10 @@ Extract the shared intrinsic state (glyph style) into a separate type. Use a fac
 └────────────────────┘
 ```
 
-```go
-package gomark
+Run it to see five characters share just two interned `GlyphStyle` instances:
+
+```go:title="main.go":run=true
+package main
 
 import (
 	"fmt"

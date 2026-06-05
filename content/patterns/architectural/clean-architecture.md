@@ -202,6 +202,113 @@ func (r *NoteRepo) Save(ctx context.Context, n *domain.Note) error {
 }
 ```
 
+Here's the whole flow as one runnable program — the Entities ring, a Use Case that depends only on ports, and in-memory adapters that satisfy them:
+
+```go:title="main.go":run=true
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+// --- Entities ring: pure domain, no infrastructure imports ---
+
+type Note struct {
+	ID        string
+	Title     string
+	Body      string
+	CreatedAt time.Time
+}
+
+func NewNote(id, title, body string) (*Note, error) {
+	if title == "" {
+		return nil, fmt.Errorf("title is required")
+	}
+	return &Note{ID: id, Title: title, Body: body, CreatedAt: time.Now()}, nil
+}
+
+// --- Use Cases ring: application logic + ports (interfaces) ---
+
+type NoteRepository interface {
+	Save(ctx context.Context, n *Note) error
+}
+
+type IDGenerator interface {
+	NewID() string
+}
+
+type SaveNoteInput struct {
+	Title string
+	Body  string
+}
+
+type SaveNoteOutput struct {
+	NoteID string
+}
+
+type SaveNoteUseCase struct {
+	notes NoteRepository
+	ids   IDGenerator
+}
+
+func NewSaveNoteUseCase(notes NoteRepository, ids IDGenerator) *SaveNoteUseCase {
+	return &SaveNoteUseCase{notes: notes, ids: ids}
+}
+
+func (uc *SaveNoteUseCase) Execute(ctx context.Context, in SaveNoteInput) (SaveNoteOutput, error) {
+	note, err := NewNote(uc.ids.NewID(), in.Title, in.Body)
+	if err != nil {
+		return SaveNoteOutput{}, err
+	}
+	if err := uc.notes.Save(ctx, note); err != nil {
+		return SaveNoteOutput{}, fmt.Errorf("saving note: %w", err)
+	}
+	return SaveNoteOutput{NoteID: note.ID}, nil
+}
+
+// --- Interface Adapters ring: in-memory repository + fixed ID generator ---
+
+type memNoteRepo struct{ notes map[string]*Note }
+
+func (r *memNoteRepo) Save(_ context.Context, n *Note) error {
+	r.notes[n.ID] = n
+	return nil
+}
+
+type seqIDs struct{ n int }
+
+func (g *seqIDs) NewID() string {
+	g.n++
+	return fmt.Sprintf("note-%d", g.n)
+}
+
+func main() {
+	ctx := context.Background()
+	repo := &memNoteRepo{notes: map[string]*Note{}}
+	uc := NewSaveNoteUseCase(repo, &seqIDs{})
+
+	out, err := uc.Execute(ctx, SaveNoteInput{Title: "Hello", Body: "First note"})
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println("saved:", out.NoteID, "->", repo.notes[out.NoteID].Title)
+
+	// Domain invariant enforced in the Entities ring, not the handler.
+	if _, err := uc.Execute(ctx, SaveNoteInput{Title: "", Body: "no title"}); err != nil {
+		fmt.Println("rejected:", err)
+	}
+}
+```
+
+```
+// Output:
+// saved: note-1 -> Hello
+// rejected: title is required
+```
+
 ## Folder Structure
 
 Each ring maps to a package or package group:

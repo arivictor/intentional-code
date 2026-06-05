@@ -48,8 +48,8 @@ Define an `Observer` interface and let the subject maintain a list of observers.
 Logger  Server  Metrics
 ```
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 
@@ -118,7 +118,7 @@ func main() {
 }
 ```
 
-Output:
+Run it to see each observer react, then go silent once unsubscribed:
 
 ```
 Config reloaded: level=info timeout=30

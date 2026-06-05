@@ -52,8 +52,10 @@ Create a wrapper struct that holds the library client and implements your interf
      └───────────────┘         └──────────────────────┘
 ```
 
-```go
-package gomark
+Run it to see both loggers satisfy the same `Logger` interface:
+
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 

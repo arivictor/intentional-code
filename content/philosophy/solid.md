@@ -155,6 +155,51 @@ func SendAll(notifiers []Notifier, recipient, msg string) error {
 }
 ```
 
+Here the Open/Closed design is a small runnable program:
+
+```go:title="main.go":run=true
+package main
+
+import "fmt"
+
+// Open for extension via interface.
+type Notifier interface {
+    Notify(recipient, message string) error
+}
+
+type EmailNotifier struct{ smtpAddr string }
+
+func (e *EmailNotifier) Notify(recipient, message string) error {
+    fmt.Printf("[email via %s] to %s: %s\n", e.smtpAddr, recipient, message)
+    return nil
+}
+
+type SMSNotifier struct{ apiKey string }
+
+func (s *SMSNotifier) Notify(recipient, message string) error {
+    fmt.Printf("[sms] to %s: %s\n", recipient, message)
+    return nil
+}
+
+// Adding a new channel requires zero changes to SendAll or any existing type.
+func SendAll(notifiers []Notifier, recipient, msg string) error {
+    for _, n := range notifiers {
+        if err := n.Notify(recipient, msg); err != nil {
+            return err
+        }
+    }
+    return nil
+}
+
+func main() {
+    notifiers := []Notifier{
+        &EmailNotifier{smtpAddr: "smtp.example.com"},
+        &SMSNotifier{apiKey: "secret"},
+    }
+    SendAll(notifiers, "alice", "server down")
+}
+```
+
 > **Smell:** You keep adding cases to a switch or if/else chain. Every new variant requires modifying existing, tested code.
 
 ---

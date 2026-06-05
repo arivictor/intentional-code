@@ -48,8 +48,10 @@ Create a `Converter` facade struct that encapsulates the multi-step process. Cal
       └────────────┘  └─────────────┘  └────────────┘
 ```
 
-```go
-package gomark
+Run the example below to watch the facade drive all four subsystems from a single `Convert` call:
+
+```go:title="main.go":run=true
+package main
 
 import (
 	"fmt"

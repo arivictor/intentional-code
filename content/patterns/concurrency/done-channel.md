@@ -28,10 +28,10 @@ func startWorker(jobs <-chan string) <-chan string {
 
 ## The original pattern: done channel
 
-Before `context.Context` became standard, the idiom was a plain `done` channel. Closing `done` broadcasts the signal to every goroutine selecting on it.
+Before `context.Context` became standard, the idiom was a plain `done` channel. Closing `done` broadcasts the signal to every goroutine selecting on it. Run it:
 
-```go
-package gomark
+```go:title="done-channel.go":run=true
+package main
 
 import "fmt"
 
@@ -80,10 +80,10 @@ Closing a channel is the right primitive here because a send wakes one reader, w
 
 ## The modern form: context.Context
 
-`context.Context` replaced the raw done channel for most code. It carries a deadline, a cancellation signal, and arbitrary values. Pass it as the first argument to any function that starts goroutines.
+`context.Context` replaced the raw done channel for most code. It carries a deadline, a cancellation signal, and arbitrary values. Pass it as the first argument to any function that starts goroutines. Run it:
 
-```go
-package gomark
+```go:title="context.go":run=true
+package main
 
 import (
 	"context"

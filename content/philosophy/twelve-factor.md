@@ -89,6 +89,61 @@ func LoadConfig() (Config, error) {
 }
 ```
 
+Here it is as a small runnable program. The config comes entirely from the environment, and a missing required value fails loudly at startup:
+
+```go:title="main.go":run=true
+package main
+
+import (
+    "errors"
+    "fmt"
+    "os"
+    "strconv"
+)
+
+// Centralize config loading at startup, so failures are loud and early.
+type Config struct {
+    DatabaseURL string
+    Port        int
+    SecretKey   string
+}
+
+func LoadConfig() (Config, error) {
+    port, err := strconv.Atoi(os.Getenv("PORT"))
+    if err != nil {
+        return Config{}, fmt.Errorf("invalid PORT: %w", err)
+    }
+    cfg := Config{
+        DatabaseURL: os.Getenv("DATABASE_URL"),
+        Port:        port,
+        SecretKey:   os.Getenv("SECRET_KEY"),
+    }
+    if cfg.DatabaseURL == "" {
+        return Config{}, errors.New("DATABASE_URL is required")
+    }
+    return cfg, nil
+}
+
+func main() {
+    // Simulate the deploy environment by setting config in the environment.
+    os.Setenv("PORT", "8080")
+    os.Setenv("DATABASE_URL", "postgres://localhost/myapp")
+
+    cfg, err := LoadConfig()
+    if err != nil {
+        fmt.Println("config error:", err)
+        return
+    }
+    fmt.Printf("listening on :%d, db=%s\n", cfg.Port, cfg.DatabaseURL)
+
+    // A missing required value fails loudly at startup.
+    os.Unsetenv("DATABASE_URL")
+    if _, err := LoadConfig(); err != nil {
+        fmt.Println("config error:", err)
+    }
+}
+```
+
 ---
 
 ## IV. Backing Services

@@ -55,8 +55,8 @@ Undo flow:
 History.Undo() -> pop last command -> call last.Undo() -> Editor restored
 ```
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 
@@ -138,7 +138,7 @@ func main() {
 }
 ```
 
-Output:
+Run it to apply two commands and then unwind them with the history stack:
 
 ```
 Start:        Hello World

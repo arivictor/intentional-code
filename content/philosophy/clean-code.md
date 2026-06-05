@@ -253,4 +253,58 @@ func processPayment(card Card, amount Money) error {
 
 Guard clauses also make adding a new precondition a one-line insert at the top of the validation block, rather than a restructuring of nested conditions.
 
+Here it is as a small runnable program:
+
+```go:title="main.go":run=true
+package main
+
+import (
+    "errors"
+    "fmt"
+)
+
+type Card struct {
+    Valid   bool
+    Expired bool
+}
+
+func (c Card) IsValid() bool   { return c.Valid }
+func (c Card) IsExpired() bool { return c.Expired }
+
+func charge(card Card, amount int) error {
+    fmt.Printf("charged %d cents\n", amount)
+    return nil
+}
+
+// Guard clauses eliminate nesting; the happy path is obvious.
+func processPayment(card Card, amount int) error {
+    if !card.IsValid() {
+        return errors.New("invalid card")
+    }
+    if amount <= 0 {
+        return errors.New("amount must be positive")
+    }
+    if card.IsExpired() {
+        return errors.New("card is expired")
+    }
+    return charge(card, amount)
+}
+
+func main() {
+    good := Card{Valid: true}
+    if err := processPayment(good, 1500); err != nil {
+        fmt.Println("error:", err)
+    }
+
+    expired := Card{Valid: true, Expired: true}
+    if err := processPayment(expired, 1500); err != nil {
+        fmt.Println("error:", err)
+    }
+
+    if err := processPayment(good, -5); err != nil {
+        fmt.Println("error:", err)
+    }
+}
+```
+
 See also: [SOLID](/go/philosophy/solid), [Separation of Concerns](/go/philosophy/separation-of-concerns), [TDD](/go/philosophy/tdd).

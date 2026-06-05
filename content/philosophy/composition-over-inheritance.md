@@ -137,9 +137,16 @@ The compiler forces you to resolve the ambiguity explicitly. There's no hidden d
 
 ## Functional composition: building pipelines
 
-Composition applies to functions too. Go's first-class functions let you compose small operations into larger ones without inheritance or subclassing.
+Composition applies to functions too. Go's first-class functions let you compose small operations into larger ones without inheritance or subclassing. Here it is as a small runnable program:
 
-```go
+```go:title="main.go":run=true
+package main
+
+import (
+    "fmt"
+    "strings"
+)
+
 type Transform func(string) string
 
 func Chain(transforms ...Transform) Transform {
@@ -151,13 +158,15 @@ func Chain(transforms ...Transform) Transform {
     }
 }
 
-var normalize = Chain(
-    strings.TrimSpace,
-    strings.ToLower,
-    func(s string) string { return strings.ReplaceAll(s, " ", "-") },
-)
+func main() {
+    normalize := Chain(
+        strings.TrimSpace,
+        strings.ToLower,
+        func(s string) string { return strings.ReplaceAll(s, " ", "-") },
+    )
 
-fmt.Println(normalize("  Hello World  ")) // "hello-world"
+    fmt.Println(normalize("  Hello World  ")) // "hello-world"
+}
 ```
 
 Each `Transform` is independent and testable. The pipeline is assembled at the call site. No base class needed.

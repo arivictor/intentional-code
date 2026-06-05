@@ -72,6 +72,34 @@ func CanRefund(o Order) bool { return IsMutable(o) }
 func IsActive(o Order) bool  { return IsMutable(o) }
 ```
 
+Here it is as a small runnable program:
+
+```go:title="main.go":run=true
+package main
+
+import "fmt"
+
+type Order struct {
+    Status string
+}
+
+// The knowledge lives in one place. The rule changes in exactly one location.
+func IsMutable(o Order) bool {
+    return o.Status == "pending" || o.Status == "processing"
+}
+
+func CanCancel(o Order) bool { return IsMutable(o) }
+func CanRefund(o Order) bool { return IsMutable(o) }
+func IsActive(o Order) bool  { return IsMutable(o) }
+
+func main() {
+    for _, o := range []Order{{"pending"}, {"shipped"}, {"processing"}} {
+        fmt.Printf("%-12s cancel=%-5v refund=%-5v active=%-5v\n",
+            o.Status, CanCancel(o), CanRefund(o), IsActive(o))
+    }
+}
+```
+
 ---
 
 ## Configuration duplication

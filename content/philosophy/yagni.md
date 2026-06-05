@@ -58,6 +58,29 @@ func FetchPage(url string) ([]byte, error) {
 }
 ```
 
+The signature is what matters: callers pass a `url` and nothing else. Here it is as a small runnable program (the fetch is stubbed so it runs without network access):
+
+```go:title="main.go":run=true
+package main
+
+import "fmt"
+
+// Implement what callers actually use. No speculative options struct.
+func FetchPage(url string) (string, error) {
+    // Stand in for an HTTP fetch so the example runs without network access.
+    return "200 OK <" + url + ">", nil
+}
+
+func main() {
+    body, err := FetchPage("https://example.com")
+    if err != nil {
+        fmt.Println("error:", err)
+        return
+    }
+    fmt.Println(body)
+}
+```
+
 ---
 
 ## Speculative interfaces

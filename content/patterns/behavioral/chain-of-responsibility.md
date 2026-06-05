@@ -41,8 +41,8 @@ Request ──► Validate ──► RateLimit ──► Auth ──► Handle
              stop?         stop?       stop?     respond
 ```
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 
@@ -113,7 +113,7 @@ func main() {
 }
 ```
 
-Output:
+Run it to push four requests through the chain and see which link stops each one:
 
 ```
 [200] ok: hello

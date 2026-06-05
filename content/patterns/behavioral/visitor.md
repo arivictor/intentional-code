@@ -55,8 +55,10 @@ Visitor interface               Node interface
                                 Add.Accept(v)    → v.VisitAdd(n)
 ```
 
-```go
-package gomark
+Run it to print and evaluate the same expression tree with two different visitors:
+
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 

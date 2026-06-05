@@ -120,7 +120,40 @@ func divide(a, b float64) (float64, error) {
 }
 ```
 
-This is simple. The edge case is real. Handling it is not complexity; it's correctness.
+This is simple. The edge case is real. Handling it is not complexity; it's correctness. Here both ideas are together in a small runnable program:
+
+```go:title="main.go":run=true
+package main
+
+import (
+    "errors"
+    "fmt"
+    "strings"
+)
+
+// The actual requirement is to trim whitespace from user input.
+func sanitize(input string) string {
+    return strings.TrimSpace(input)
+}
+
+// Simple AND correct: the edge case is real, so handling it is correctness.
+func divide(a, b float64) (float64, error) {
+    if b == 0 {
+        return 0, errors.New("cannot divide by zero")
+    }
+    return a / b, nil
+}
+
+func main() {
+    fmt.Printf("%q\n", sanitize("   hello world  "))
+
+    q, err := divide(10, 4)
+    fmt.Println(q, err)
+
+    _, err = divide(10, 0)
+    fmt.Println(err)
+}
+```
 
 ---
 

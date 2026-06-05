@@ -105,7 +105,38 @@ func (o *Order) ApplyLargeOrderDiscount() {
 }
 ```
 
-The decision logic about what counts as a "large order" lives in `Order`. If the threshold changes, you update `Order`, not every caller that was querying its fields.
+The decision logic about what counts as a "large order" lives in `Order`. If the threshold changes, you update `Order`, not every caller that was querying its fields. Here it is as a small runnable program:
+
+```go:title="main.go":run=true
+package main
+
+import "fmt"
+
+// TELL, don't ask: Order owns the decision about when it qualifies.
+type Order struct {
+    status string
+    total  int
+}
+
+func (o *Order) ApplyLargeOrderDiscount() {
+    if o.status == "pending" && o.total > 10000 {
+        o.total -= 500
+    }
+}
+
+func (o Order) Total() int { return o.total }
+
+func main() {
+    big := &Order{status: "pending", total: 25000}
+    small := &Order{status: "pending", total: 5000}
+
+    big.ApplyLargeOrderDiscount()
+    small.ApplyLargeOrderDiscount()
+
+    fmt.Println("large order total:", big.Total())  // 24500
+    fmt.Println("small order total:", small.Total()) // 5000
+}
+```
 
 ---
 
