@@ -428,6 +428,125 @@ func (s *ShipService) Ship(ctx context.Context, id OrderID) error {
 }
 ```
 
+Here's the core idea as one runnable program — a value object, an aggregate root that enforces its own invariants, and a domain event recorded on a valid state transition:
+
+```go:title="main.go":run=true
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+// --- Value Object: immutable, compared by value ---
+
+type OrderID string
+
+type Money struct{ Cents int64 }
+
+// --- Domain Event: a fact that occurred inside the aggregate ---
+
+type ShippedEvent struct {
+	OrderID    OrderID
+	OccurredAt time.Time
+}
+
+type PaymentStatus string
+type ShippingStatus string
+
+const (
+	PaymentPending PaymentStatus = "pending"
+	PaymentPaid    PaymentStatus = "paid"
+
+	ShippingPending   ShippingStatus = "pending"
+	ShippingShipped   ShippingStatus = "shipped"
+	ShippingCancelled ShippingStatus = "cancelled"
+)
+
+// --- Aggregate Root: the only entry point for mutations ---
+
+type Order struct {
+	id             OrderID
+	paymentStatus  PaymentStatus
+	shippingStatus ShippingStatus
+	total          Money
+	events         []interface{}
+}
+
+func NewOrder(id OrderID, total Money) (*Order, error) {
+	if total.Cents <= 0 {
+		return nil, fmt.Errorf("order total must be greater than zero")
+	}
+	return &Order{
+		id:             id,
+		paymentStatus:  PaymentPending,
+		shippingStatus: ShippingPending,
+		total:          total,
+	}, nil
+}
+
+func (o *Order) MarkPaid() error {
+	if o.shippingStatus == ShippingCancelled {
+		return fmt.Errorf("cannot pay a cancelled order")
+	}
+	o.paymentStatus = PaymentPaid
+	return nil
+}
+
+// Ship enforces the invariant — callers cannot ship unpaid orders.
+func (o *Order) Ship() error {
+	if o.paymentStatus != PaymentPaid {
+		return fmt.Errorf("cannot ship unpaid order")
+	}
+	if o.shippingStatus == ShippingShipped {
+		return nil // idempotent
+	}
+	o.shippingStatus = ShippingShipped
+	o.events = append(o.events, ShippedEvent{OrderID: o.id, OccurredAt: time.Now()})
+	return nil
+}
+
+// PopEvents returns and clears uncommitted domain events.
+func (o *Order) PopEvents() []interface{} {
+	evts := o.events
+	o.events = nil
+	return evts
+}
+
+func main() {
+	order, err := NewOrder("ord-1", Money{Cents: 4999})
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+
+	// The invariant is enforced inside the aggregate, not by callers.
+	if err := order.Ship(); err != nil {
+		fmt.Println("ship rejected:", err)
+	}
+
+	order.MarkPaid()
+	if err := order.Ship(); err != nil {
+		fmt.Println("ship rejected:", err)
+		return
+	}
+
+	fmt.Println("shipping status:", order.shippingStatus)
+	for _, e := range order.PopEvents() {
+		if se, ok := e.(ShippedEvent); ok {
+			fmt.Printf("domain event: order %s shipped\n", se.OrderID)
+		}
+	}
+}
+```
+
+```
+// Output:
+// ship rejected: cannot ship unpaid order
+// shipping status: shipped
+// domain event: order ord-1 shipped
+```
+
 ## Folder Structure
 
 Bounded context boundaries come first; tactical building blocks live inside them:

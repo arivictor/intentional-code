@@ -55,10 +55,10 @@ The Go-idiomatic singleton uses `sync.Once` for thread-safe lazy initialization.
   All others: returns same instance
 ```
 
-The `sync.Once` singleton: correct but not recommended.
+The `sync.Once` singleton: correct but not recommended. Run it to see the same logger instance returned on every call.
 
-```go
-package gomark
+```go:title="sync-once.go":run=true
+package main
 
 import (
 	"io"
@@ -88,10 +88,10 @@ func main() {
 
 This works correctly: thread-safe, lazy, and the output writer is configurable on first call. But it's still global mutable state. Any test that calls `GetLogger` gets the same logger as production code, with no way to silence or redirect it.
 
-The recommended alternative is dependency injection. Pass the logger as a parameter.
+The recommended alternative is dependency injection. Pass the logger as a parameter, and run the example to see the handler log through the injected logger.
 
-```go
-package gomark
+```go:title="injection.go":run=true
+package main
 
 import (
 	"fmt"

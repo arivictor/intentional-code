@@ -107,6 +107,103 @@ func (c *InventoryClient) Reserve(ctx context.Context, itemID string, qty int) (
 }
 ```
 
+Here's the boundary as one runnable program — an inventory service exposed only over an HTTP API, and an order service that reaches it through a typed client over the network, never through a shared database:
+
+```go:title="main.go":run=true
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+)
+
+// --- Inventory service: owns its own data, exposed only over an HTTP API ---
+
+type inventoryServer struct {
+	stock map[string]int
+}
+
+func (s *inventoryServer) reserve(w http.ResponseWriter, r *http.Request) {
+	itemID := r.PathValue("item")
+	have := s.stock[itemID]
+	result := ReservationResult{Reserved: have > 0}
+	if have > 0 {
+		s.stock[itemID]--
+	} else {
+		result.Reason = "out of stock"
+	}
+	json.NewEncoder(w).Encode(result)
+}
+
+// --- Order service talks to inventory only through a typed client over the network ---
+
+type ReservationResult struct {
+	Reserved bool   `json:"reserved"`
+	Reason   string `json:"reason"`
+}
+
+type InventoryClient struct {
+	base   string
+	client *http.Client
+}
+
+func (c *InventoryClient) Reserve(ctx context.Context, itemID string) (ReservationResult, error) {
+	url := fmt.Sprintf("%s/inventory/%s/reserve", c.base, itemID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	if err != nil {
+		return ReservationResult{}, fmt.Errorf("build request: %w", err)
+	}
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return ReservationResult{}, fmt.Errorf("inventory reserve: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return ReservationResult{}, fmt.Errorf("inventory reserve: unexpected status %d", resp.StatusCode)
+	}
+	var result ReservationResult
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return ReservationResult{}, fmt.Errorf("decode reservation: %w", err)
+	}
+	return result, nil
+}
+
+func main() {
+	// Stand up the inventory service as an independent process (httptest server here).
+	inv := &inventoryServer{stock: map[string]int{"sku-1": 1}}
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /inventory/{item}/reserve", inv.reserve)
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	// The order service crosses the boundary via the API, never the database.
+	client := &InventoryClient{base: srv.URL, client: srv.Client()}
+	ctx := context.Background()
+
+	for i := 1; i <= 2; i++ {
+		res, err := client.Reserve(ctx, "sku-1")
+		if err != nil {
+			fmt.Println("error:", err)
+			return
+		}
+		if res.Reserved {
+			fmt.Printf("attempt %d: reserved\n", i)
+		} else {
+			fmt.Printf("attempt %d: rejected (%s)\n", i, res.Reason)
+		}
+	}
+}
+```
+
+```
+// Output:
+// attempt 1: reserved
+// attempt 2: rejected (out of stock)
+```
+
 And asynchronously via events for work that doesn't require an immediate response:
 
 ```go

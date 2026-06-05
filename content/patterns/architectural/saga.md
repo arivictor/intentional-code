@@ -123,6 +123,128 @@ func (s *OrderSaga) Execute(ctx context.Context, req PlaceOrderRequest) error {
 }
 ```
 
+Here's the orchestration flow as one runnable program — three steps where the last one fails, triggering compensations for the steps that already succeeded:
+
+```go:title="main.go":run=true
+package main
+
+import (
+	"context"
+	"fmt"
+)
+
+// --- Step services with their compensating actions ---
+
+type InventoryService interface {
+	Reserve(ctx context.Context, itemID string, qty int) error
+	Release(ctx context.Context, itemID string, qty int) error
+}
+
+type BillingService interface {
+	Charge(ctx context.Context, customerID string, amount int) error
+	Refund(ctx context.Context, customerID string, amount int) error
+}
+
+type ShippingService interface {
+	Schedule(ctx context.Context, orderID string) error
+}
+
+type PlaceOrderRequest struct {
+	OrderID    string
+	ItemID     string
+	CustomerID string
+	Qty        int
+	Amount     int
+}
+
+// --- Orchestration saga: drives steps, compensates on failure ---
+
+type OrderSaga struct {
+	inventory InventoryService
+	billing   BillingService
+	shipping  ShippingService
+}
+
+func (s *OrderSaga) Execute(ctx context.Context, req PlaceOrderRequest) error {
+	// Step 1: reserve inventory
+	if err := s.inventory.Reserve(ctx, req.ItemID, req.Qty); err != nil {
+		return fmt.Errorf("reserve inventory: %w", err)
+	}
+
+	// Step 2: charge customer; compensate step 1 on failure
+	if err := s.billing.Charge(ctx, req.CustomerID, req.Amount); err != nil {
+		s.inventory.Release(ctx, req.ItemID, req.Qty)
+		return fmt.Errorf("charge customer: %w", err)
+	}
+
+	// Step 3: schedule shipping; compensate steps 2 and 1 on failure
+	if err := s.shipping.Schedule(ctx, req.OrderID); err != nil {
+		s.billing.Refund(ctx, req.CustomerID, req.Amount)
+		s.inventory.Release(ctx, req.ItemID, req.Qty)
+		return fmt.Errorf("schedule shipping: %w", err)
+	}
+
+	return nil
+}
+
+// --- Stub services: shipping fails, forcing compensation ---
+
+type stubInventory struct{}
+
+func (stubInventory) Reserve(_ context.Context, itemID string, qty int) error {
+	fmt.Printf("inventory: reserved %d of %s\n", qty, itemID)
+	return nil
+}
+func (stubInventory) Release(_ context.Context, itemID string, qty int) error {
+	fmt.Printf("inventory: released %d of %s (compensation)\n", qty, itemID)
+	return nil
+}
+
+type stubBilling struct{}
+
+func (stubBilling) Charge(_ context.Context, customerID string, amount int) error {
+	fmt.Printf("billing: charged %s %d\n", customerID, amount)
+	return nil
+}
+func (stubBilling) Refund(_ context.Context, customerID string, amount int) error {
+	fmt.Printf("billing: refunded %s %d (compensation)\n", customerID, amount)
+	return nil
+}
+
+type stubShipping struct{}
+
+func (stubShipping) Schedule(_ context.Context, orderID string) error {
+	return fmt.Errorf("no carrier available")
+}
+
+func main() {
+	saga := &OrderSaga{
+		inventory: stubInventory{},
+		billing:   stubBilling{},
+		shipping:  stubShipping{},
+	}
+	req := PlaceOrderRequest{
+		OrderID:    "ord-1",
+		ItemID:     "sku-42",
+		CustomerID: "cust-7",
+		Qty:        2,
+		Amount:     4999,
+	}
+	if err := saga.Execute(context.Background(), req); err != nil {
+		fmt.Println("saga failed, compensated:", err)
+	}
+}
+```
+
+```
+// Output:
+// inventory: reserved 2 of sku-42
+// billing: charged cust-7 4999
+// billing: refunded cust-7 4999 (compensation)
+// inventory: released 2 of sku-42 (compensation)
+// saga failed, compensated: schedule shipping: no carrier available
+```
+
 **Choreography Saga:**
 
 Each service publishes an event on completion. Other services subscribe and execute their step. Failure is handled by publishing a failure event that triggers compensations.

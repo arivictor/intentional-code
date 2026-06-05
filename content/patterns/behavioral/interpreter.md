@@ -69,8 +69,8 @@ Map each grammar rule to a struct implementing `Expression`. The tree structure 
   left, right      field, op, value    value
 ```
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 
@@ -153,7 +153,7 @@ func main() {
 }
 ```
 
-Output:
+Run it to evaluate the rule tree against each record:
 
 ```
 map[age:35 status:active] → true

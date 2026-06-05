@@ -25,10 +25,10 @@ for _, event := range events {
 
 ## Solution
 
-Create a buffered jobs channel and start N worker goroutines. Each worker loops over the jobs channel. The sender closes the channel when done, which causes all workers to exit their range loops cleanly.
+Create a buffered jobs channel and start N worker goroutines. Each worker loops over the jobs channel. The sender closes the channel when done, which causes all workers to exit their range loops cleanly. Run it:
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import (
 	"fmt"
@@ -55,7 +55,7 @@ func NewPool(workers int, jobs <-chan Job) <-chan Result {
 	var wg sync.WaitGroup
 
 	wg.Add(workers)
-	for range workers {
+	for i := 0; i < workers; i++ {
 		go func() {
 			defer wg.Done()
 			for job := range jobs {

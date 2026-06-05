@@ -220,6 +220,138 @@ func (r *AccountRepo) Save(_ context.Context, a *app.Account) error {
 }
 ```
 
+Here's the whole flow as one runnable program — the application core, its driven ports, and in-memory/logging adapters plugged into them:
+
+```go:title="main.go":run=true
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+)
+
+// --- Application core (inside the hexagon) ---
+
+type Account struct {
+	ID      string
+	Email   string
+	Balance int64
+}
+
+// Driven ports — defined by the application, implemented by adapters.
+type AccountRepository interface {
+	FindByID(ctx context.Context, id string) (*Account, error)
+	Save(ctx context.Context, a *Account) error
+}
+
+type Notifier interface {
+	NotifyTransfer(ctx context.Context, email string, amount int64) error
+}
+
+type TransferService struct {
+	accounts AccountRepository
+	notifier Notifier
+}
+
+func NewTransferService(accounts AccountRepository, notifier Notifier) *TransferService {
+	return &TransferService{accounts: accounts, notifier: notifier}
+}
+
+func (s *TransferService) Transfer(ctx context.Context, fromID, toID string, amount int64) error {
+	from, err := s.accounts.FindByID(ctx, fromID)
+	if err != nil {
+		return fmt.Errorf("from account: %w", err)
+	}
+	to, err := s.accounts.FindByID(ctx, toID)
+	if err != nil {
+		return fmt.Errorf("to account: %w", err)
+	}
+	if from.Balance < amount {
+		return fmt.Errorf("insufficient funds: have %d, need %d", from.Balance, amount)
+	}
+	from.Balance -= amount
+	to.Balance += amount
+	if err := s.accounts.Save(ctx, from); err != nil {
+		return err
+	}
+	if err := s.accounts.Save(ctx, to); err != nil {
+		return err
+	}
+	if err := s.notifier.NotifyTransfer(ctx, from.Email, amount); err != nil {
+		return fmt.Errorf("notify transfer: %w", err)
+	}
+	return nil
+}
+
+// --- Driven adapters: in-memory repo + logging notifier ---
+
+type memAccountRepo struct {
+	mu       sync.RWMutex
+	accounts map[string]*Account
+}
+
+func newMemAccountRepo(accs ...*Account) *memAccountRepo {
+	m := make(map[string]*Account, len(accs))
+	for _, a := range accs {
+		m[a.ID] = a
+	}
+	return &memAccountRepo{accounts: m}
+}
+
+func (r *memAccountRepo) FindByID(_ context.Context, id string) (*Account, error) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	a, ok := r.accounts[id]
+	if !ok {
+		return nil, fmt.Errorf("account %s not found", id)
+	}
+	return a, nil
+}
+
+func (r *memAccountRepo) Save(_ context.Context, a *Account) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.accounts[a.ID] = a
+	return nil
+}
+
+type logNotifier struct{}
+
+func (logNotifier) NotifyTransfer(_ context.Context, email string, amount int64) error {
+	fmt.Printf("notify: emailed %s about transfer of %d\n", email, amount)
+	return nil
+}
+
+func main() {
+	ctx := context.Background()
+	repo := newMemAccountRepo(
+		&Account{ID: "alice", Email: "alice@example.com", Balance: 1000},
+		&Account{ID: "bob", Email: "bob@example.com", Balance: 500},
+	)
+	svc := NewTransferService(repo, logNotifier{})
+
+	if err := svc.Transfer(ctx, "alice", "bob", 300); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	alice, _ := repo.FindByID(ctx, "alice")
+	bob, _ := repo.FindByID(ctx, "bob")
+	fmt.Printf("alice=%d bob=%d\n", alice.Balance, bob.Balance)
+
+	if err := svc.Transfer(ctx, "alice", "bob", 5000); err != nil {
+		fmt.Println("rejected:", err)
+	}
+}
+```
+
+```
+// Output:
+// notify: emailed alice@example.com about transfer of 300
+// alice=700 bob=800
+// rejected: insufficient funds: have 700, need 5000
+```
+
 Test the application core with no infrastructure:
 
 ```go

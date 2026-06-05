@@ -64,8 +64,8 @@ HTTP Request
 
 The following is a single runnable file that combines the Model, View, and Controller layers and exercises them with `httptest`:
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import (
 	"context"

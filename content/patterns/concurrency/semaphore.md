@@ -28,10 +28,10 @@ wg.Wait()
 
 ## Solution
 
-A buffered channel as a semaphore:
+A buffered channel as a semaphore. Run it:
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import (
 	"fmt"

@@ -227,6 +227,62 @@ func Stack(fns ...DiscountFunc) DiscountFunc {
 
 Green. Now refactor.
 
+Tests run under `go test`, which the in-browser runner can't invoke; it executes `func main`. So to see the same assertions here, we drive the calculator from `main` and print each result as pass or fail:
+
+```go:title="main.go":run=true
+package main
+
+import "fmt"
+
+// DiscountFunc calculates a discount on a price in cents.
+type DiscountFunc func(price int64) int64
+
+type Calculator struct {
+    discount DiscountFunc
+}
+
+func NewCalculator(df DiscountFunc) *Calculator {
+    return &Calculator{discount: df}
+}
+
+func (c *Calculator) FinalPrice(price int64) int64 {
+    if c.discount == nil {
+        return price
+    }
+    return price - c.discount(price)
+}
+
+func Stack(fns ...DiscountFunc) DiscountFunc {
+    return func(price int64) int64 {
+        total := int64(0)
+        remaining := price
+        for _, fn := range fns {
+            d := fn(remaining)
+            total += d
+            remaining -= d
+        }
+        return total
+    }
+}
+
+func check(name string, got, want int64) {
+    if got == want {
+        fmt.Printf("PASS %s: %d\n", name, got)
+    } else {
+        fmt.Printf("FAIL %s: got %d, want %d\n", name, got, want)
+    }
+}
+
+func main() {
+    tenPercent := func(price int64) int64 { return price / 10 }
+    flat500 := func(price int64) int64 { return 500 }
+
+    check("no discount", NewCalculator(nil).FinalPrice(10000), 10000)
+    check("10 percent", NewCalculator(tenPercent).FinalPrice(10000), 9000)
+    check("stacked", NewCalculator(Stack(tenPercent, flat500)).FinalPrice(10000), 8500)
+}
+```
+
 ### Step 6: Refactor, table-driven tests
 
 ```go

@@ -230,6 +230,99 @@ func main() {
 }
 ```
 
+Here's the whole flow as one runnable program — the bus, a typed event, a producer that knows nothing about its consumers, and two independent subscribers:
+
+```go:title="main.go":run=true
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+// --- Event bus ---
+
+type Handler func(event interface{})
+
+type Bus struct {
+	mu       sync.RWMutex
+	handlers map[string][]Handler
+}
+
+func NewBus() *Bus {
+	return &Bus{handlers: make(map[string][]Handler)}
+}
+
+func (b *Bus) Subscribe(eventType string, h Handler) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.handlers[eventType] = append(b.handlers[eventType], h)
+}
+
+func (b *Bus) Publish(eventType string, event interface{}) {
+	// Copy the handler slice under the lock, then release it before invoking
+	// handlers: a handler that subscribes (needs the write lock) would deadlock
+	// otherwise, and we don't want to hold the lock for the duration of their work.
+	b.mu.RLock()
+	handlers := append([]Handler(nil), b.handlers[eventType]...)
+	b.mu.RUnlock()
+	for _, h := range handlers {
+		h(event)
+	}
+}
+
+// --- Typed event ---
+
+const FileUploaded = "file.uploaded"
+
+type FileUploadedEvent struct {
+	FileID     string
+	OwnerID    string
+	SizeBytes  int64
+	OccurredAt time.Time
+}
+
+// --- Producer: knows nothing about its consumers ---
+
+type UploadService struct {
+	bus *Bus
+}
+
+func (s *UploadService) ProcessUpload(ownerID, fileID string, data []byte) {
+	// ... persist the file, then publish a fact and return ...
+	s.bus.Publish(FileUploaded, FileUploadedEvent{
+		FileID:     fileID,
+		OwnerID:    ownerID,
+		SizeBytes:  int64(len(data)),
+		OccurredAt: time.Now(),
+	})
+}
+
+func main() {
+	bus := NewBus()
+
+	// Two independent consumers subscribe to the same fact.
+	bus.Subscribe(FileUploaded, func(raw interface{}) {
+		evt := raw.(FileUploadedEvent)
+		fmt.Printf("notifier: emailing owner %s about file %s\n", evt.OwnerID, evt.FileID)
+	})
+	bus.Subscribe(FileUploaded, func(raw interface{}) {
+		evt := raw.(FileUploadedEvent)
+		fmt.Printf("indexer: indexing file %s (%d bytes)\n", evt.FileID, evt.SizeBytes)
+	})
+
+	upload := &UploadService{bus: bus}
+	upload.ProcessUpload("owner-7", "file-42", []byte("hello world"))
+}
+```
+
+```
+// Output:
+// notifier: emailing owner owner-7 about file file-42
+// indexer: indexing file file-42 (11 bytes)
+```
+
 **Cross-service with an interface:** swap the in-process bus for NATS or Kafka without changing producers or consumers:
 
 ```go

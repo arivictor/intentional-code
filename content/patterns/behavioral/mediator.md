@@ -58,8 +58,8 @@ Introduce a `Room` mediator. Users register with the room and send messages thro
    └─────┘ └──────┘
 ```
 
-```go
-package gomark
+```go:title="chatroom.go":run=true
+package main
 
 import "fmt"
 
@@ -118,7 +118,7 @@ func main() {
 }
 ```
 
-Output:
+Run it to watch each message fan out to every other participant through the room:
 
 ```
 Alice sends: Hello everyone!
@@ -133,8 +133,8 @@ Bob sends: Hey Alice!
 
 In Go backends, Mediator most often appears as a **command/query bus**: callers dispatch commands through a shared bus without importing the handler package. The bus is the only shared dependency, which eliminates import cycles between adapters and domain handlers.
 
-```go
-package gomark
+```go:title="commandbus.go":run=true
+package main
 
 import (
 	"context"
@@ -151,14 +151,17 @@ func NewBus() *Bus {
 }
 
 func Register[C any](b *Bus, handler func(context.Context, C) error) {
-	key := reflect.TypeOf((*C)(nil)).Elem()
+	// reflect.TypeOf(new(C)).Elem() resolves C's type for any C — including
+	// pointer or interface commands, where a plain zero value would be a nil
+	// interface and collapse every such command onto the same nil map key.
+	key := reflect.TypeOf(new(C)).Elem()
 	b.handlers[key] = func(ctx context.Context, raw any) error {
 		return handler(ctx, raw.(C))
 	}
 }
 
 func Send[C any](b *Bus, ctx context.Context, cmd C) error {
-	key := reflect.TypeOf(cmd)
+	key := reflect.TypeOf(new(C)).Elem()
 	h, ok := b.handlers[key]
 	if !ok {
 		return fmt.Errorf("no handler registered for %T", cmd)
@@ -192,6 +195,13 @@ func main() {
 	Send(b, ctx, CreateOrderCmd{ItemID: "item-1", CustomerID: "cust-42", Amount: 99})
 	Send(b, ctx, CancelOrderCmd{OrderID: "ord-7", Reason: "duplicate"})
 }
+```
+
+Run it to dispatch two different commands through one bus, each landing on its registered handler:
+
+```
+created order: item=item-1 customer=cust-42 amount=99
+cancelled order: id=ord-7 reason=duplicate
 ```
 
 The HTTP adapter imports `bus` and the command struct, but not the handler package. Handler packages can live in separate packages with no import cycles. This is the same O(n) decoupling the chat room example demonstrates, applied to request dispatching instead of peer messaging.

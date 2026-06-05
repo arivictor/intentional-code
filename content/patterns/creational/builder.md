@@ -38,7 +38,7 @@ The caller must remember the position of every argument. Zero values are ambiguo
 
 ## Solution
 
-The functional options pattern fixes this cleanly. Define an `Option` type as a function that modifies a config. The constructor accepts a variadic list of options. Set defaults inside the constructor, then pass only the options you care about.
+The functional options pattern fixes this cleanly. Define an `Option` type as a function that modifies a config. The constructor accepts a variadic list of options. Set defaults inside the constructor, then pass only the options you care about. Run the example to compare a default client against a customized one:
 
 ```
 ┌──────────────────────────────────┐
@@ -57,8 +57,8 @@ WithRetries(n)   ──► func(c *config) { c.retries = n }
 WithUserAgent(s) ──► func(c *config) { c.userAgent = s }
 ```
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import (
 	"fmt"

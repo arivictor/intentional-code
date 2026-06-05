@@ -41,7 +41,7 @@ The struct assignment copies fields by value, but maps and slices hold reference
 
 ## Solution
 
-Implement a `Clone()` method that explicitly deep-copies every reference type. Making it a method ensures the copy logic lives with the type rather than scattered across callers.
+Implement a `Clone()` method that explicitly deep-copies every reference type. Making it a method ensures the copy logic lives with the type rather than scattered across callers. Run the example to confirm each clone is fully independent of the base:
 
 ```
 ┌───────────────────┐    Clone()    ┌───────────────────┐
@@ -53,8 +53,8 @@ Implement a `Clone()` method that explicitly deep-copies every reference type. M
 └───────────────────┘               └───────────────────┘
 ```
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 

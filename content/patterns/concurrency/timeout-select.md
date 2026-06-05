@@ -59,10 +59,10 @@ func fetchWithTimeout(url string) ([]byte, error) {
 
 ## Timeout on a channel receive
 
-When waiting for a result from a goroutine, select on both the result channel and the deadline.
+When waiting for a result from a goroutine, select on both the result channel and the deadline. Run it:
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import (
 	"errors"

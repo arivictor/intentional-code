@@ -54,10 +54,10 @@ Render(rows, formatter)
 formatter = TextFormatter │ CSVFormatter │ JSONFormatter
 ```
 
-Define a `Formatter` struct carrying the three hook functions:
+Define a `Formatter` struct carrying the three hook functions. Run it to render the same rows through three formatters that share one skeleton:
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import (
 	"fmt"

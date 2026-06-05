@@ -30,10 +30,10 @@ func resize(in <-chan Image) <-chan Image {
 
 ## Solution
 
-Fan out the resize stage across N goroutines, fan in their results to a single output channel.
+Fan out the resize stage across N goroutines, fan in their results to a single output channel. Run it:
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import (
 	"fmt"
@@ -64,7 +64,7 @@ func resize(in <-chan Image) <-chan Image {
 
 func fanOut(in <-chan Image, workers int) []<-chan Image {
 	channels := make([]<-chan Image, workers)
-	for i := range workers {
+	for i := 0; i < workers; i++ {
 		channels[i] = resize(in)
 	}
 	return channels
@@ -82,8 +82,8 @@ func fanIn(channels ...<-chan Image) <-chan Image {
 	}
 
 	wg.Add(len(channels))
-	for _, c := range channels {
-		go forward(c)
+	for i := 0; i < len(channels); i++ {
+		go forward(channels[i])
 	}
 
 	go func() {

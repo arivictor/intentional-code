@@ -99,6 +99,43 @@ func (s *postgresOrderStore) Save(ctx context.Context, o Order) error {
 
 Each layer can change independently. Replace Postgres with a different database and the business logic and handlers don't move. Change a validation rule and the storage and HTTP layers don't move.
 
+Because the business logic knows nothing of HTTP or SQL, it runs on its own. Here is the domain layer as a small runnable program:
+
+```go:title="main.go":run=true
+package main
+
+import (
+    "errors"
+    "fmt"
+)
+
+type Item struct {
+    SKU   string
+    Price int
+}
+
+type Order struct {
+    UserID string
+    Items  []Item
+}
+
+// Business rules only. Knows nothing about HTTP or SQL.
+func PlaceOrder(userID string, items []Item) (Order, error) {
+    if len(items) == 0 {
+        return Order{}, errors.New("order must contain at least one item")
+    }
+    return Order{UserID: userID, Items: items}, nil
+}
+
+func main() {
+    order, err := PlaceOrder("user-1", []Item{{SKU: "abc", Price: 1000}})
+    fmt.Println(order, err)
+
+    _, err = PlaceOrder("user-1", nil)
+    fmt.Println("error:", err)
+}
+```
+
 ---
 
 ## Concern leakage: the violation

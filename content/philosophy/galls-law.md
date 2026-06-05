@@ -64,6 +64,58 @@ func (b *EventBus) Publish(e Event) {
 }
 ```
 
+Here it is as a small runnable program:
+
+```go:title="main.go":run=true
+package main
+
+import (
+    "fmt"
+    "sync"
+)
+
+type Event struct {
+    Topic   string
+    Payload string
+}
+
+// Day one: a simple in-process event dispatcher.
+type EventBus struct {
+    mu       sync.RWMutex
+    handlers map[string][]func(Event)
+}
+
+func NewEventBus() *EventBus {
+    return &EventBus{handlers: map[string][]func(Event){}}
+}
+
+func (b *EventBus) Subscribe(topic string, fn func(Event)) {
+    b.mu.Lock()
+    defer b.mu.Unlock()
+    b.handlers[topic] = append(b.handlers[topic], fn)
+}
+
+func (b *EventBus) Publish(e Event) {
+    b.mu.RLock()
+    defer b.mu.RUnlock()
+    for _, fn := range b.handlers[e.Topic] {
+        fn(e)
+    }
+}
+
+func main() {
+    bus := NewEventBus()
+    bus.Subscribe("order.placed", func(e Event) {
+        fmt.Println("emailing receipt for", e.Payload)
+    })
+    bus.Subscribe("order.placed", func(e Event) {
+        fmt.Println("updating inventory for", e.Payload)
+    })
+
+    bus.Publish(Event{Topic: "order.placed", Payload: "order-42"})
+}
+```
+
 This ships in a day, works reliably, and gives you real data. You learn:
 
 - Which topics are high-volume (now you know where to optimise)

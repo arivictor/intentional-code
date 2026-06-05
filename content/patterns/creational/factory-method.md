@@ -36,7 +36,7 @@ This switch is a magnet for change. Every new format requires modifying this fun
 
 ## Solution
 
-Define a `Formatter` interface with a single method. Each format implements it independently. A constructor function selects the right implementation and returns the interface. The caller never sees the concrete types.
+Define a `Formatter` interface with a single method. Each format implements it independently. A constructor function selects the right implementation and returns the interface. The caller never sees the concrete types. Run the example to see each registered formatter produce its own output:
 
 ```
 ┌─────────────────────────┐
@@ -57,8 +57,8 @@ Define a `Formatter` interface with a single method. Each format implements it i
 NewFormatter(name) ──► Formatter
 ```
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 

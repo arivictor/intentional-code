@@ -66,13 +66,12 @@ With Go 1.23's range-over-func, define an iterator that yields values. Consumers
   }
 ```
 
-```go
-package gomark
+On Go 1.23+ you'd return an `iter.Seq[int]` and consume it with `for v := range root.InOrder()`. The runnable version below makes the same idea explicit with a `yield func(int) bool` callback (the shape `iter.Seq` formalizes): the traversal is still written once, and returning `false` from `yield` stops it early. Run it to walk the tree, sum it, and stop after three values:
 
-import (
-	"fmt"
-	"iter"
-)
+```go:title="main.go":run=true
+package main
+
+import "fmt"
 
 type Node struct {
 	Value int
@@ -80,63 +79,49 @@ type Node struct {
 	Right *Node
 }
 
-func (n *Node) InOrder() iter.Seq[int] {
-	return func(yield func(int) bool) {
-		if n == nil {
-			return
-		}
-		for v := range n.Left.InOrder() {
-			if !yield(v) {
-				return
-			}
-		}
-		if !yield(n.Value) {
-			return
-		}
-		for v := range n.Right.InOrder() {
-			if !yield(v) {
-				return
-			}
-		}
+// InOrder walks the tree left-value-right, calling yield for each value.
+// Returning false from yield stops the traversal early.
+func (n *Node) InOrder(yield func(int) bool) bool {
+	if n == nil {
+		return true
 	}
+	if !n.Left.InOrder(yield) {
+		return false
+	}
+	if !yield(n.Value) {
+		return false
+	}
+	return n.Right.InOrder(yield)
 }
 
 func main() {
 	root := &Node{
 		Value: 4,
-		Left: &Node{
-			Value: 2,
-			Left:  &Node{Value: 1},
-			Right: &Node{Value: 3},
-		},
-		Right: &Node{
-			Value: 6,
-			Left:  &Node{Value: 5},
-			Right: &Node{Value: 7},
-		},
+		Left:  &Node{Value: 2, Left: &Node{Value: 1}, Right: &Node{Value: 3}},
+		Right: &Node{Value: 6, Left: &Node{Value: 5}, Right: &Node{Value: 7}},
 	}
 
 	fmt.Print("In-order: ")
-	for v := range root.InOrder() {
+	root.InOrder(func(v int) bool {
 		fmt.Printf("%d ", v)
-	}
+		return true
+	})
 	fmt.Println()
 
 	sum := 0
-	for v := range root.InOrder() {
+	root.InOrder(func(v int) bool {
 		sum += v
-	}
+		return true
+	})
 	fmt.Println("Sum:", sum)
 
 	fmt.Print("First 3: ")
 	count := 0
-	for v := range root.InOrder() {
+	root.InOrder(func(v int) bool {
 		fmt.Printf("%d ", v)
 		count++
-		if count == 3 {
-			break
-		}
-	}
+		return count < 3
+	})
 	fmt.Println()
 }
 ```
@@ -144,7 +129,7 @@ func main() {
 Output:
 
 ```
-In-order: 1 2 3 4 5 6 7
+In-order: 1 2 3 4 5 6 7 
 Sum: 28
 First 3: 1 2 3
 ```

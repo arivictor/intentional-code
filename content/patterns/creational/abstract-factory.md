@@ -56,7 +56,7 @@ Two problems: the switch statements grow with every format and component, and th
 
 ## Solution
 
-Define product interfaces (`Reader`, `Writer`) and a factory interface whose methods return them. Each format gets one factory struct that produces a consistent, matched pair.
+Define product interfaces (`Reader`, `Writer`) and a factory interface whose methods return them. Each format gets one factory struct that produces a consistent, matched pair. Run the example to see each family produce its own matched reader and writer:
 
 ```
 ┌─────────────────────┐
@@ -75,8 +75,8 @@ Define product interfaces (`Reader`, `Writer`) and a factory interface whose met
 └────────┘ └────────┘
 ```
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 

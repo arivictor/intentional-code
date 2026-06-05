@@ -60,8 +60,8 @@ Define a `State` interface. Each state is a struct implementing the interface. T
 └── ConnectedState
 ```
 
-```go
-package gomark
+```go:title="main.go":run=true
+package main
 
 import "fmt"
 
@@ -81,7 +81,7 @@ func NewConnection() *Connection {
 }
 
 func (c *Connection) SetState(s State) {
-	fmt.Printf("  → %s\n", s)
+	fmt.Printf("  → %s\n", s.String())
 	c.state = s
 }
 
@@ -163,7 +163,7 @@ func main() {
 }
 ```
 
-Output:
+Run it to watch the connection move through its states (and reject illegal operations along the way):
 
 ```
 Cannot send: not connected.

@@ -291,6 +291,131 @@ func (h *NoteHandler) Get(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
+Here's the core idea as one runnable program — a command that mutates and returns only an error, and a query that returns a read-optimised projection:
+
+```go:title="main.go":run=true
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+)
+
+// --- Write side: domain type + command handler ---
+
+type Note struct {
+	ID        string
+	Title     string
+	Body      string
+	CreatedAt time.Time
+}
+
+type NoteStore struct {
+	mu    sync.RWMutex
+	notes map[string]*Note
+}
+
+func NewNoteStore() *NoteStore {
+	return &NoteStore{notes: make(map[string]*Note)}
+}
+
+func (s *NoteStore) Save(_ context.Context, n *Note) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.notes[n.ID] = n
+	return nil
+}
+
+type CreateNote struct {
+	ID    string
+	Title string
+	Body  string
+}
+
+type CreateNoteHandler struct{ store *NoteStore }
+
+func (h *CreateNoteHandler) Handle(ctx context.Context, cmd CreateNote) error {
+	if cmd.Title == "" {
+		return fmt.Errorf("title is required")
+	}
+	return h.store.Save(ctx, &Note{
+		ID:        cmd.ID,
+		Title:     cmd.Title,
+		Body:      cmd.Body,
+		CreatedAt: time.Now(),
+	})
+}
+
+// --- Read side: purpose-built projection, not the domain type ---
+
+type NoteView struct {
+	ID        string
+	Title     string
+	Preview   string
+	WordCount int
+}
+
+type GetNoteHandler struct{ store *NoteStore }
+
+func (h *GetNoteHandler) Handle(_ context.Context, id string) (*NoteView, error) {
+	h.store.mu.RLock()
+	defer h.store.mu.RUnlock()
+	n, ok := h.store.notes[id]
+	if !ok {
+		return nil, fmt.Errorf("note %s not found", id)
+	}
+	preview := n.Body
+	if len(preview) > 20 {
+		preview = preview[:20]
+	}
+	words := 0
+	inWord := false
+	for _, r := range n.Body {
+		if r == ' ' {
+			inWord = false
+		} else if !inWord {
+			inWord = true
+			words++
+		}
+	}
+	return &NoteView{ID: n.ID, Title: n.Title, Preview: preview, WordCount: words}, nil
+}
+
+func main() {
+	ctx := context.Background()
+	store := NewNoteStore()
+	create := &CreateNoteHandler{store: store}
+	get := &GetNoteHandler{store: store}
+
+	// Command: mutate, return only an error.
+	if err := create.Handle(ctx, CreateNote{ID: "n1", Title: "Hello", Body: "the quick brown fox jumps"}); err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+
+	// Query: read, return a read-optimised view.
+	view, err := get.Handle(ctx, "n1")
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Printf("view: id=%s title=%q preview=%q words=%d\n", view.ID, view.Title, view.Preview, view.WordCount)
+
+	// Command rejects invalid input via write-side validation.
+	if err := create.Handle(ctx, CreateNote{ID: "n2", Title: ""}); err != nil {
+		fmt.Println("command rejected:", err)
+	}
+}
+```
+
+```
+// Output:
+// view: id=n1 title="Hello" preview="the quick brown fox " words=5
+// command rejected: title is required
+```
+
 ## Handling Eventual Consistency
 
 When the read store is a separate projection updated asynchronously, a user who just submitted a command may query immediately and receive the old state. This surprises users who expect to see their own write reflected at once. Three strategies address this:
