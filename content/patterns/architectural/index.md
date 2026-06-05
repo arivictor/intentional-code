@@ -233,7 +233,15 @@ Architectural patterns work at service/application scale. They describe system s
 
 **[Event-Driven Architecture](/go/patterns/architectural/event-driven)** decouples producers from consumers using events. Start in-process when small; move to Kafka/NATS when needed.
 
+**[Publish/Subscribe](/go/patterns/architectural/pub-sub)** is the topic-based messaging mechanism event-driven systems run on: publishers send to a named topic, and every subscriber gets its own copy.
+
+**[Transactional Outbox](/go/patterns/architectural/outbox)** publishes events reliably by writing them to an outbox table in the same transaction as your state change, closing the dual-write gap between database and broker.
+
 **[Circuit Breaker](/go/patterns/architectural/circuit-breaker)** protects you from slow or failing dependencies by failing fast instead of letting requests pile up.
+
+**[Rate Limiting](/go/patterns/architectural/rate-limiting)** caps how often operations run using a token bucket, protecting you and your dependencies from overload before anything breaks.
+
+**[Retry](/go/patterns/architectural/retry)** recovers from transient failures with bounded, backed-off, context-aware re-attempts, while leaving permanent errors alone.
 
 **[MVC / MVP / MVVM](/go/patterns/architectural/mvc)** keep business decisions out of rendering code. They differ in how the UI and mediator/presenter/view-model interact.
 
@@ -244,6 +252,12 @@ Architectural patterns work at service/application scale. They describe system s
 **[Strangler Fig](/go/patterns/architectural/strangler-fig)** replaces legacy systems incrementally by routing some traffic to new code and expanding coverage over time.
 
 **[Microservices](/go/patterns/architectural/microservices)** split a system into independently deployable services with clear ownership boundaries. Start from a good monolith first, then extract when justified.
+
+**[Modular Monolith](/go/patterns/architectural/modular-monolith)** is that good monolith: one deployable, but internally split into modules with compiler-enforced boundaries (`internal/`, interfaces). The best starting point before any extraction.
+
+**[Microkernel / Plugin](/go/patterns/architectural/microkernel)** keeps a minimal core and pushes every feature into plugins that register against a stable contract, so the system grows by adding plugins, not editing the core.
+
+**[Backends for Frontends](/go/patterns/architectural/bff)** give each frontend its own backend that aggregates and shapes downstream data to that client's exact needs, instead of one general-purpose API serving everyone badly.
 
 **[Pipe and Filter](/go/patterns/architectural/pipe-and-filter)** processes data as ordered transformation steps. In Go this can be function chains, channel pipelines, or layered `io.Reader` wrappers.
 
