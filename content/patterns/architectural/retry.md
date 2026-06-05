@@ -63,11 +63,19 @@ type permanent struct{ err error }
 func (p permanent) Error() string { return p.err.Error() }
 func (p permanent) Unwrap() error { return p.err }
 
-func Permanent(err error) error { return permanent{err} }
+func Permanent(err error) error {
+	if err == nil {
+		return nil // nothing to wrap; never hand back an error that holds nil
+	}
+	return permanent{err}
+}
 
 // Retry calls fn until it succeeds, exhausts attempts, hits a permanent error,
 // or the context is cancelled. Backoff doubles each attempt: base, 2*base, ...
 func Retry(ctx context.Context, attempts int, base time.Duration, fn func() error) error {
+	if attempts < 1 {
+		attempts = 1 // always make at least one attempt
+	}
 	var err error
 	for attempt := 0; attempt < attempts; attempt++ {
 		if err = fn(); err == nil {
@@ -84,9 +92,13 @@ func Retry(ctx context.Context, attempts int, base time.Duration, fn func() erro
 
 		backoff := base << attempt // base * 2^attempt
 		// In production add jitter: backoff/2 + rand(backoff/2).
+		// Use NewTimer (not time.After) so a ctx cancellation can stop the
+		// timer instead of leaking it until it fires.
+		timer := time.NewTimer(backoff)
 		select {
-		case <-time.After(backoff):
+		case <-timer.C:
 		case <-ctx.Done():
+			timer.Stop()
 			return ctx.Err()
 		}
 	}
@@ -174,5 +186,5 @@ Finally, retries and circuit breakers want to live together. Retries handle the 
 - **Circuit Breaker:** The natural counterpart. Retries cover brief, isolated failures; the breaker trips when failures are sustained, halting retries so a struggling dependency can recover instead of being hammered.
 - **Rate Limiting:** Bounds the retry rate so a burst of simultaneous failures doesn't become a self-inflicted load spike. Backoff plus jitter is rate limiting applied over time.
 - **Saga:** Compensating transactions are the alternative when retrying isn't safe or possible. A saga step retries the local transaction, but unwinds prior steps when retries are exhausted.
-- **Outbox:** A relay that publishes events retries delivery until the broker accepts them, which is why outbox delivery is at-least-once and consumers must be idempotent.
+- **Transactional Outbox:** A relay that publishes events retries delivery until the broker accepts them, which is why outbox delivery is at-least-once and consumers must be idempotent.
 - **Timeout and Select:** Each individual attempt needs its own timeout; the retry loop wraps those bounded attempts and adds backoff between them.
