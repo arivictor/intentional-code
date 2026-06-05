@@ -121,6 +121,9 @@ func LoadConfig() (Config, error) {
     if cfg.DatabaseURL == "" {
         return Config{}, errors.New("DATABASE_URL is required")
     }
+    if cfg.SecretKey == "" {
+        return Config{}, errors.New("SECRET_KEY is required")
+    }
     return cfg, nil
 }
 
@@ -128,6 +131,7 @@ func main() {
     // Simulate the deploy environment by setting config in the environment.
     os.Setenv("PORT", "8080")
     os.Setenv("DATABASE_URL", "postgres://localhost/myapp")
+    os.Setenv("SECRET_KEY", "s3cr3t")
 
     cfg, err := LoadConfig()
     if err != nil {

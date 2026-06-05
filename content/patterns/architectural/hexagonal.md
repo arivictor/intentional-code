@@ -278,7 +278,9 @@ func (s *TransferService) Transfer(ctx context.Context, fromID, toID string, amo
 	if err := s.accounts.Save(ctx, to); err != nil {
 		return err
 	}
-	s.notifier.NotifyTransfer(ctx, from.Email, amount)
+	if err := s.notifier.NotifyTransfer(ctx, from.Email, amount); err != nil {
+		return fmt.Errorf("notify transfer: %w", err)
+	}
 	return nil
 }
 

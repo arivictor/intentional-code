@@ -66,9 +66,10 @@ package main
 import "fmt"
 
 // Implement what callers actually use. No speculative options struct.
-func FetchPage(url string) (string, error) {
+// The signature stays identical to the GOOD example above: (url) -> ([]byte, error).
+func FetchPage(url string) ([]byte, error) {
     // Stand in for an HTTP fetch so the example runs without network access.
-    return "200 OK <" + url + ">", nil
+    return []byte("200 OK <" + url + ">"), nil
 }
 
 func main() {
@@ -77,7 +78,7 @@ func main() {
         fmt.Println("error:", err)
         return
     }
-    fmt.Println(body)
+    fmt.Println(string(body))
 }
 ```
 

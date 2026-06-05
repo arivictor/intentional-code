@@ -152,14 +152,22 @@ type InventoryClient struct {
 
 func (c *InventoryClient) Reserve(ctx context.Context, itemID string) (ReservationResult, error) {
 	url := fmt.Sprintf("%s/inventory/%s/reserve", c.base, itemID)
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, nil)
+	if err != nil {
+		return ReservationResult{}, fmt.Errorf("build request: %w", err)
+	}
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return ReservationResult{}, fmt.Errorf("inventory reserve: %w", err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return ReservationResult{}, fmt.Errorf("inventory reserve: unexpected status %d", resp.StatusCode)
+	}
 	var result ReservationResult
-	json.NewDecoder(resp.Body).Decode(&result)
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return ReservationResult{}, fmt.Errorf("decode reservation: %w", err)
+	}
 	return result, nil
 }
 

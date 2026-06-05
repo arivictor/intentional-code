@@ -261,9 +261,13 @@ func (b *Bus) Subscribe(eventType string, h Handler) {
 }
 
 func (b *Bus) Publish(eventType string, event interface{}) {
+	// Copy the handler slice under the lock, then release it before invoking
+	// handlers: a handler that subscribes (needs the write lock) would deadlock
+	// otherwise, and we don't want to hold the lock for the duration of their work.
 	b.mu.RLock()
-	defer b.mu.RUnlock()
-	for _, h := range b.handlers[eventType] {
+	handlers := append([]Handler(nil), b.handlers[eventType]...)
+	b.mu.RUnlock()
+	for _, h := range handlers {
 		h(event)
 	}
 }

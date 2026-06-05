@@ -151,15 +151,17 @@ func NewBus() *Bus {
 }
 
 func Register[C any](b *Bus, handler func(context.Context, C) error) {
-	var zero C
-	key := reflect.TypeOf(zero)
+	// reflect.TypeOf(new(C)).Elem() resolves C's type for any C — including
+	// pointer or interface commands, where a plain zero value would be a nil
+	// interface and collapse every such command onto the same nil map key.
+	key := reflect.TypeOf(new(C)).Elem()
 	b.handlers[key] = func(ctx context.Context, raw any) error {
 		return handler(ctx, raw.(C))
 	}
 }
 
 func Send[C any](b *Bus, ctx context.Context, cmd C) error {
-	key := reflect.TypeOf(cmd)
+	key := reflect.TypeOf(new(C)).Elem()
 	h, ok := b.handlers[key]
 	if !ok {
 		return fmt.Errorf("no handler registered for %T", cmd)
