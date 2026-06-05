@@ -1,0 +1,18 @@
+# Cloud Run injects PORT (default 8080) and health-checks that port. The stock
+# caddy image listens on :80, which Cloud Run never probes — causing the
+# "failed to start and listen on the port" timeout. Bind to $PORT instead,
+# falling back to 80 for local `docker run`.
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:80} {
+	root * /usr/share/caddy
+	file_server
+	encode gzip zstd
+
+	# Serve the in-browser Go runner module with the correct MIME type.
+	@wasm path *.wasm
+	header @wasm Content-Type application/wasm
+}

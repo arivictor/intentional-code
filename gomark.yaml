@@ -1,0 +1,25 @@
+title: Intentional Code
+url: https://intentionalcode.com
+lang: en
+
+logo:
+  light: /favicon-32x32.png
+  dark: /favicon-32x32.png
+
+seo:
+  description: Intentional Code is a collection of architectural patterns and best practices for Go projects, with a focus on maintainability, scalability, and developer experience.
+  og_image: /og-image.png
+  twitter_image: /og-image.png
+  image_alt: Intentional Code — a collection of architectural patterns and best practices for Go projects, with a focus on maintainability, scalability, and developer experience.
+
+social:
+  - label: GitHub
+    url: https://github.com/arivictor/intentionalcode
+    icon: github
+
+build:
+  content_dir: .
+  output_dir: dist
+  runner: true
+  sitemap: true
+  robots: true
