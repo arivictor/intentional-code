@@ -236,3 +236,4 @@ The simple pool above collects errors into the results channel and lets the cons
 - **Pipeline**: a pool is often one stage in a larger pipeline; the jobs channel is the pipeline's upstream and the results channel is its downstream.
 - **Done Channel**: the cancellation discipline; essential for pools that need to shut down before the jobs channel is exhausted.
 - **Errgroup**: cancel all workers on the first error rather than collecting all errors into a results channel.
+- **Competing Consumers**: the worker pool *is* the in-process competing-consumers pattern. That page names the idea as a messaging pattern and extends it to consumers that are separate processes draining a broker queue (SQS, NATS queue groups, Kafka consumer groups).

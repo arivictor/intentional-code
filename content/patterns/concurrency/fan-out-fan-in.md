@@ -192,3 +192,4 @@ The primary risk is the fan-in's `merged` channel becoming a bottleneck: if it's
 - **Worker Pool**: an alternative for bounded concurrency: a fixed goroutine count consuming from a job channel rather than N goroutines sharing an input channel.
 - **Done Channel**: cancellation discipline to prevent fan-in goroutines leaking when the consumer exits.
 - **Errgroup**: handles the case where workers can fail; cancels all workers on the first error.
+- **Competing Consumers**: the messaging-level name for the fan-out half of this pattern — many consumers sharing one queue, each message handled exactly once. Worth contrasting carefully: competing consumers *distribute* messages, whereas pub/sub-style fan-out *duplicates* them to every consumer.

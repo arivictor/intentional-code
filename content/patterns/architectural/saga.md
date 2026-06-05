@@ -435,4 +435,5 @@ Both styles require compensating transactions to be idempotent, because at-least
 
 - **Event-Driven Architecture:** Choreography sagas are built on event-driven communication. Each service publishes facts; other services subscribe and react. The Saga pattern adds the concept of compensating transactions to the event-driven model.
 - **Event Sourcing:** Saga state (which steps have completed, which compensations are needed) can be stored as events in an event log, giving you a full history of the saga's progress.
+- **Transactional Outbox:** A choreographed saga only advances if each step's event is actually published. The outbox makes the local commit and its triggering event atomic, so a crash can't leave the saga silently stalled mid-workflow.
 - **CQRS:** Command handlers often initiate sagas. The saga coordinates writes across services; CQRS separates the write-side command handling from the read-side query model.

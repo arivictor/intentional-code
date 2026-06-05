@@ -484,3 +484,5 @@ Another ongoing cost is schema compatibility. Event schemas must stay backward c
 - **Circuit Breaker:** Wrap message broker publish calls in a circuit breaker. If the broker is unavailable, fail fast and route events to a dead-letter queue instead of blocking the producer.
 - **Hexagonal Architecture:** The message broker is a driven adapter implementing a `Publisher` port, and the event handler function is another driven port implemented by the infrastructure layer.
 - **Observer:** Event-Driven Architecture is the distributed, cross-process form of the Observer pattern. Observer is in-process with direct method calls; Event-Driven adds a broker, serialization, and at-least-once delivery semantics.
+- **Publish/Subscribe:** The concrete messaging mechanism most event-driven systems are built on — named topics with one-to-many fan-out. Event-Driven is the style; pub/sub is the how.
+- **Transactional Outbox:** Solves the producer's weakest link — reliably emitting an event in the same transaction as the state change, so the dual write between database and broker can't silently drop events.

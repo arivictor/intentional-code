@@ -37,6 +37,8 @@ If you can't answer these questions, the goroutine will eventually leak.
 
 **[Fan-out / Fan-in](/go/patterns/concurrency/fan-out-fan-in)** distributes work across goroutines and collects results. It's the natural extension of Pipeline when a single stage needs parallelism.
 
+**[Competing Consumers](/go/patterns/concurrency/competing-consumers)** runs several consumers against one shared queue so each message is handled exactly once. It's the worker pool named as a messaging pattern and extended to broker-backed queues (SQS, NATS queue groups, Kafka consumer groups).
+
 **[Done Channel](/go/patterns/concurrency/done-channel)** covers cancellation and goroutine lifecycle, the discipline that prevents goroutine leaks. Read this alongside whichever pattern you adopt first.
 
 **[Semaphore](/go/patterns/concurrency/semaphore)** bounds concurrent access to a resource using a buffered channel or `golang.org/x/sync/semaphore`. Use it when a worker pool is too rigid but you still need a concurrency ceiling.

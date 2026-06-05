@@ -240,6 +240,8 @@ Half-open recovery also has a cost: some requests will still fail, so callers mu
 
 ## Related Patterns
 
+- **Rate Limiting:** The proactive counterpart. A rate limiter caps load *before* a dependency is overwhelmed; the breaker reacts *after* failures appear. Production clients often stack both.
+- **Retry:** Pairs naturally — retries handle one-off blips, while the breaker stops retries from hammering a dependency that's down for a sustained period. Combine them so retry storms can't deepen an outage.
 - **Proxy:** Circuit Breaker is commonly implemented as a Proxy. It wraps a dependency behind the same interface the application already uses, intercepting calls to apply the state machine without changing the call site.
 - **Decorator:** An alternative implementation strategy. If the dependency interface is simple, a decorator that adds breaker behavior to any `func() error` is lighter than a full proxy struct.
 - **Event-Driven Architecture:** When a circuit opens, route events to a dead-letter queue instead of dropping them, then replay them once the circuit closes. The async nature of event-driven systems makes them more tolerant of short open periods.
