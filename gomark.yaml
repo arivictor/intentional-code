@@ -20,6 +20,7 @@ social:
 build:
   content_dir: content
   output_dir: /out/site
+  public_dir: public
   runner: true
   sitemap: true
   robots: true
