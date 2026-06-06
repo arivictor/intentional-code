@@ -69,7 +69,7 @@ Map each grammar rule to a struct implementing `Expression`. The tree structure 
   left, right      field, op, value    value
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

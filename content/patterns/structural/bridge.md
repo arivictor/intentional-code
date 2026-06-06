@@ -59,7 +59,7 @@ Separate the two dimensions into two interfaces. The abstraction (formatter) hol
 
 Run it to see two formats (plain text, JSON) combine freely with two writers (console, buffer) — four combinations from `2 + 2` types:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

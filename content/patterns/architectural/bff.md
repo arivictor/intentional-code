@@ -42,7 +42,7 @@ Give each frontend its own backend. Both BFFs call the same downstream services,
         each client ↔ its own backend     shared downstream services
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

@@ -57,7 +57,7 @@ Visitor interface               Node interface
 
 Run it to print and evaluate the same expression tree with two different visitors:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

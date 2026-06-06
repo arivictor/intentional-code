@@ -42,7 +42,7 @@ func processSequential(paths []string) error {
 
 Build a pipeline with three stages. Each stage runs in a goroutine and communicates via channels. The stages overlap automatically: while the reader is fetching file N+1, the parser is processing file N, and the writer is inserting file N-1. Run it:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

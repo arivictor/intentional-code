@@ -293,7 +293,7 @@ func (h *NoteHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 Here's the core idea as one runnable program — a command that mutates and returns only an error, and a query that returns a read-optimised projection:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

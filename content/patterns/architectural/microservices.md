@@ -109,7 +109,7 @@ func (c *InventoryClient) Reserve(ctx context.Context, itemID string, qty int) (
 
 Here's the boundary as one runnable program — an inventory service exposed only over an HTTP API, and an order service that reaches it through a typed client over the network, never through a shared database:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

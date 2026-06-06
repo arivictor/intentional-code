@@ -107,7 +107,7 @@ func (o *Order) ApplyLargeOrderDiscount() {
 
 The decision logic about what counts as a "large order" lives in `Order`. If the threshold changes, you update `Order`, not every caller that was querying its fields. Here it is as a small runnable program:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

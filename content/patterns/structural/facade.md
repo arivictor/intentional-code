@@ -50,7 +50,7 @@ Create a `Converter` facade struct that encapsulates the multi-step process. Cal
 
 Run the example below to watch the facade drive all four subsystems from a single `Convert` call:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

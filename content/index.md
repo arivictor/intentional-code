@@ -12,13 +12,15 @@ We think the best way to learn is by doing, so we'll start with some interactive
 
 **Try it out!**
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 func main() {
     println("Hello, Intentional Code!")
 }
 ```
+
+> [!TIP] You can edit the code above and run it to see how it works. Try changing the message or adding more code to see how it affects the output.
 
 [Philosophy](/philosophy) of software design can be applied to any language. Intentional Code will focus on Go and how to best apply them. In some cases, certain patterns are more or less relevant in Go, and we'll cover those differences. But the core principles of intentional code are universal.
 

@@ -55,7 +55,7 @@ Create a memento type with unexported fields in the same package as the originat
                     but can't read contents
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

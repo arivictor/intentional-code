@@ -68,7 +68,7 @@ With Go 1.23's range-over-func, define an iterator that yields values. Consumers
 
 On Go 1.23+ you'd return an `iter.Seq[int]` and consume it with `for v := range root.InOrder()`. The runnable version below makes the same idea explicit with a `yield func(int) bool` callback (the shape `iter.Seq` formalizes): the traversal is still written once, and returning `false` from `yield` stops it early. Run it to walk the tree, sum it, and stop after three values:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

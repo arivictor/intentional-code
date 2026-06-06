@@ -56,7 +56,7 @@ formatter = TextFormatter │ CSVFormatter │ JSONFormatter
 
 Define a `Formatter` struct carrying the three hook functions. Run it to render the same rows through three formatters that share one skeleton:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

@@ -122,7 +122,7 @@ func divide(a, b float64) (float64, error) {
 
 This is simple. The edge case is real. Handling it is not complexity; it's correctness. Here both ideas are together in a small runnable program:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

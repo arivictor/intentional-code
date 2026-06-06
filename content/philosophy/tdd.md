@@ -229,7 +229,7 @@ Green. Now refactor.
 
 Tests run under `go test`, which the in-browser runner can't invoke; it executes `func main`. So to see the same assertions here, we drive the calculator from `main` and print each result as pass or fail:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

@@ -91,7 +91,7 @@ func LoadConfig() (Config, error) {
 
 Here it is as a small runnable program. The config comes entirely from the environment, and a missing required value fails loudly at startup:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

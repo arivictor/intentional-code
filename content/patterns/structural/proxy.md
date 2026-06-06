@@ -60,7 +60,7 @@ Create a proxy that implements the same interface. It lazily loads the image on 
 
 Run it to see the lazy load fire once and the guest get denied:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

@@ -48,7 +48,7 @@ Define an `Observer` interface and let the subject maintain a list of observers.
 Logger  Server  Metrics
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

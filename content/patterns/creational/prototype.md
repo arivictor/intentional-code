@@ -53,7 +53,7 @@ Implement a `Clone()` method that explicitly deep-copies every reference type. M
 └───────────────────┘               └───────────────────┘
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

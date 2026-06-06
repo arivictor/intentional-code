@@ -41,7 +41,7 @@ Request ──► Validate ──► RateLimit ──► Auth ──► Handle
              stop?         stop?       stop?     respond
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

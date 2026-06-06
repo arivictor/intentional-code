@@ -255,7 +255,7 @@ Guard clauses also make adding a new precondition a one-line insert at the top o
 
 Here it is as a small runnable program:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

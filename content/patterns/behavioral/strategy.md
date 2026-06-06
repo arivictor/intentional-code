@@ -44,7 +44,7 @@ Notify(msg, Console) ──► func(string) error
 
 The function-type approach, idiomatic Go. Run it to send the same kind of message through three interchangeable strategies:
 
-```go:title="func_strategy.go":run=true
+```go:title="func_strategy.go":run=true:editable=true
 package main
 
 import "fmt"
@@ -79,7 +79,7 @@ func main() {
 
 When a strategy needs configuration or multiple methods, use an interface instead. Run this version to see two configured notifiers handle the same event:
 
-```go:title="interface_strategy.go":run=true
+```go:title="interface_strategy.go":run=true:editable=true
 package main
 
 import "fmt"

@@ -57,7 +57,7 @@ The Go-idiomatic singleton uses `sync.Once` for thread-safe lazy initialization.
 
 The `sync.Once` singleton: correct but not recommended. Run it to see the same logger instance returned on every call.
 
-```go:title="sync-once.go":run=true
+```go:title="sync-once.go":run=true:editable=true
 package main
 
 import (
@@ -90,7 +90,7 @@ This works correctly: thread-safe, lazy, and the output writer is configurable o
 
 The recommended alternative is dependency injection. Pass the logger as a parameter, and run the example to see the handler log through the injected logger.
 
-```go:title="injection.go":run=true
+```go:title="injection.go":run=true:editable=true
 package main
 
 import (

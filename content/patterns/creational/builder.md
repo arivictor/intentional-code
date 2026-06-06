@@ -57,7 +57,7 @@ WithRetries(n)   ──► func(c *config) { c.retries = n }
 WithUserAgent(s) ──► func(c *config) { c.userAgent = s }
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

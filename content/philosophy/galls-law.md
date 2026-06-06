@@ -66,7 +66,7 @@ func (b *EventBus) Publish(e Event) {
 
 Here it is as a small runnable program:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

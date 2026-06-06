@@ -125,7 +125,7 @@ func (s *OrderSaga) Execute(ctx context.Context, req PlaceOrderRequest) error {
 
 Here's the orchestration flow as one runnable program — three steps where the last one fails, triggering compensations for the steps that already succeeded:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

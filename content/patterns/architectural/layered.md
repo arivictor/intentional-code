@@ -65,7 +65,7 @@ Separate the code into four layers. Each layer has one responsibility and commun
 
 The following is a single runnable file demonstrating all four layers: Handler, Service, Repository (in-memory), and Infrastructure (stub mailer).
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

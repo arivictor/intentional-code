@@ -93,7 +93,7 @@ When any `g.Go` func returns an error:
 
 `golang.org/x/sync/errgroup` is a thin wrapper over three stdlib pieces: a `sync.WaitGroup`, a cancellable `context.Context`, and a mutex-guarded "first error". Writing it by hand shows exactly what `errgroup` buys you — and unlike the snippets above, it runs with only the standard library:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

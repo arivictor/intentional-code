@@ -64,7 +64,7 @@ Each layer: func(http.Handler) http.Handler
 
 Run it to watch each request pass through the wrapper stack — authenticated, rejected, and a route with no auth at all:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

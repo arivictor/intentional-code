@@ -32,7 +32,7 @@ func resize(in <-chan Image) <-chan Image {
 
 Fan out the resize stage across N goroutines, fan in their results to a single output channel. Run it:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

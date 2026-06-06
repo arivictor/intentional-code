@@ -222,7 +222,7 @@ func (r *AccountRepo) Save(_ context.Context, a *app.Account) error {
 
 Here's the whole flow as one runnable program — the application core, its driven ports, and in-memory/logging adapters plugged into them:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

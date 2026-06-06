@@ -70,7 +70,7 @@ Define a single interface (`Entry`) that both leaf files and composite directori
                └─────────────┘
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

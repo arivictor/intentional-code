@@ -75,7 +75,7 @@ Define product interfaces (`Reader`, `Writer`) and a factory interface whose met
 └────────┘ └────────┘
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

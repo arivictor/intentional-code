@@ -74,7 +74,7 @@ func IsActive(o Order) bool  { return IsMutable(o) }
 
 Here it is as a small runnable program:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

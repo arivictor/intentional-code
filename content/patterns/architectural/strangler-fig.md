@@ -111,7 +111,7 @@ func (s *stranglerInventory) Available(ctx context.Context, itemID string) (int,
 
 Here's the facade idea as one runnable program — a single interface whose implementation routes to the legacy system or the new service based on a feature flag, with no change to the call site:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

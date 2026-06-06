@@ -33,7 +33,7 @@ Start several consumers on the same channel. Each ranges the shared queue; the r
             each message goes to exactly ONE consumer
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

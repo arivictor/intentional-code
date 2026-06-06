@@ -45,7 +45,7 @@ Define a `Plugin` contract. The core holds a registry and runs each registered p
    └─────────┘        └──────────┘       └──────────┘
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

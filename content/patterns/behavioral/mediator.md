@@ -58,7 +58,7 @@ Introduce a `Room` mediator. Users register with the room and send messages thro
    └─────┘ └──────┘
 ```
 
-```go:title="chatroom.go":run=true
+```go:title="chatroom.go":run=true:editable=true
 package main
 
 import "fmt"
@@ -133,7 +133,7 @@ Bob sends: Hey Alice!
 
 In Go backends, Mediator most often appears as a **command/query bus**: callers dispatch commands through a shared bus without importing the handler package. The bus is the only shared dependency, which eliminates import cycles between adapters and domain handlers.
 
-```go:title="commandbus.go":run=true
+```go:title="commandbus.go":run=true:editable=true
 package main
 
 import (

@@ -46,7 +46,7 @@ Loop a bounded number of times. On failure, decide whether the error is retryabl
      └── wait(base·2ⁿ + jitter) ◄── unless ctx cancelled
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

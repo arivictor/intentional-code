@@ -55,7 +55,7 @@ Undo flow:
 History.Undo() -> pop last command -> call last.Undo() -> Editor restored
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

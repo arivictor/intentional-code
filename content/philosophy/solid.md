@@ -157,7 +157,7 @@ func SendAll(notifiers []Notifier, recipient, msg string) error {
 
 Here the Open/Closed design is a small runnable program:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

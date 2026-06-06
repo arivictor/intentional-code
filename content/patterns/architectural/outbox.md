@@ -47,7 +47,7 @@ Write the order and the event to the database in one transaction. A relay polls 
                                   (failure → row stays, retried next poll)
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

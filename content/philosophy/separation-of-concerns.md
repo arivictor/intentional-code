@@ -101,7 +101,7 @@ Each layer can change independently. Replace Postgres with a different database 
 
 Because the business logic knows nothing of HTTP or SQL, it runs on its own. Here is the domain layer as a small runnable program:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

@@ -232,7 +232,7 @@ func main() {
 
 Here's the whole flow as one runnable program — the bus, a typed event, a producer that knows nothing about its consumers, and two independent subscribers:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

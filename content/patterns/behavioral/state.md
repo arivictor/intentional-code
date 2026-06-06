@@ -60,7 +60,7 @@ Define a `State` interface. Each state is a struct implementing the interface. T
 └── ConnectedState
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

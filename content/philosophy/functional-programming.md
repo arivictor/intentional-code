@@ -153,7 +153,7 @@ emails := Map(activeUsers, func(u User) string { return u.Email })
 
 Here it is as a small runnable program:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

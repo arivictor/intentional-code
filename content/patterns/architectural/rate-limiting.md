@@ -42,7 +42,7 @@ Put a token bucket in front of the call. Refill at the rate the dependency permi
 
 The token bucket below takes the current time explicitly, which keeps it deterministic and trivial to test:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

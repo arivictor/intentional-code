@@ -40,7 +40,7 @@ The handler publishes one message to a `user.signup` topic. Each interested part
 
 An in-process broker makes the fan-out concrete: each `Subscribe` hands back a fresh channel, and `Publish` delivers a copy to every channel registered on the topic.
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

@@ -60,7 +60,7 @@ func FetchPage(url string) ([]byte, error) {
 
 The signature is what matters: callers pass a `url` and nothing else. Here it is as a small runnable program (the fetch is stubbed so it runs without network access):
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

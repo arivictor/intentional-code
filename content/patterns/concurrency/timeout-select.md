@@ -61,7 +61,7 @@ func fetchWithTimeout(url string) ([]byte, error) {
 
 When waiting for a result from a goroutine, select on both the result channel and the deadline. Run it:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

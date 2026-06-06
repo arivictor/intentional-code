@@ -41,7 +41,7 @@ Define a `Filter` type and connect filters through a simple pipe. Each filter ha
 
 **Function-based pipeline (simplest form):**
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"
@@ -121,7 +121,7 @@ func main() {
 
 Use channels when filters can run concurrently. Each filter runs in its own goroutine, and output channels feed the next stage.
 
-```go:title="pipeline.go":run=true
+```go:title="pipeline.go":run=true:editable=true
 package main
 
 import "fmt"

@@ -139,7 +139,7 @@ The compiler forces you to resolve the ambiguity explicitly. There's no hidden d
 
 Composition applies to functions too. Go's first-class functions let you compose small operations into larger ones without inheritance or subclassing. Here it is as a small runnable program:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

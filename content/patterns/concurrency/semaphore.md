@@ -30,7 +30,7 @@ wg.Wait()
 
 A buffered channel as a semaphore. Run it:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

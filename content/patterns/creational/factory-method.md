@@ -57,7 +57,7 @@ Define a `Formatter` interface with a single method. Each format implements it i
 NewFormatter(name) ──► Formatter
 ```
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"

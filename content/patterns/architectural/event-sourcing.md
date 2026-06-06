@@ -142,7 +142,7 @@ func (a *Account) ClearChanges()    { a.changes = nil }
 
 Here's the core idea as one runnable program — commands append events, and the current balance is derived by replaying the stored stream rather than reading a saved total:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

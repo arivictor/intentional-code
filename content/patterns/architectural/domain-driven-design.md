@@ -430,7 +430,7 @@ func (s *ShipService) Ship(ctx context.Context, id OrderID) error {
 
 Here's the core idea as one runnable program — a value object, an aggregate root that enforces its own invariants, and a domain event recorded on a valid state transition:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

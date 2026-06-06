@@ -27,7 +27,7 @@ for _, event := range events {
 
 Create a buffered jobs channel and start N worker goroutines. Each worker loops over the jobs channel. The sender closes the channel when done, which causes all workers to exit their range loops cleanly. Run it:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import (

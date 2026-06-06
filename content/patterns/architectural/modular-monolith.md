@@ -53,7 +53,7 @@ myapp/
 
 The boundary is the interface. `orders` depends on `billing`'s *contract*, not its concrete type — so billing's internals can change freely, and the module could later move behind a network call without `orders` noticing:
 
-```go:title="main.go":run=true
+```go:title="main.go":run=true:editable=true
 package main
 
 import "fmt"
