@@ -4,7 +4,7 @@
 # needs no backend.
 
 # Stage 1: install the gomark CLI and render the static site.
-FROM golang:1.24-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 ENV CGO_ENABLED=0
 WORKDIR /src
