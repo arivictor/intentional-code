@@ -24,3 +24,7 @@ build:
   runner: true
   sitemap: true
   robots: true
+
+analytics:
+  provider: ga4
+  id: G-XPNPSMB1G7
