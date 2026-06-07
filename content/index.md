@@ -2,6 +2,7 @@
 title: What is Intentional Code?
 nav_title: Home
 description: Patterns and principles for writing code that's easier to read, test, and change.
+icon: house
 ---
 
 Intentional Code is a collection of patterns and principles that make Go code easier to read, test, and change. It is not a framework or library. It is not a set of rules. It is a mindset for writing code with clear intent.

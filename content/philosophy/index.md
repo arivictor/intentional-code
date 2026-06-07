@@ -1,6 +1,7 @@
 ---
 title: Philosophy
 description: Software architecture is a way of thinking about code. The principles here are lenses, not a rulebook.
+icon: brain
 ---
 
 ## What Architecture Is
