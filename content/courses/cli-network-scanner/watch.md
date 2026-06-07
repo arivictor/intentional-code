@@ -1,6 +1,7 @@
 ---
 title: "Module 10: Watching a Host — Pipeline"
 description: "The watch command monitors a host continuously. We structure it as a pipeline of goroutines — each with one job, each cancellable."
+order: 10
 ---
 
 # Module 10: Watching a Host — Pipeline

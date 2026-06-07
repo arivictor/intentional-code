@@ -1,6 +1,7 @@
 ---
 title: "Module 5: Middleware — Chain of Responsibility"
 description: "We extract flag parsing and help handling into middleware. Here's the moment that forces the extraction, and the pattern that makes it clean."
+order: 5
 ---
 
 # Module 5: Middleware — Chain of Responsibility

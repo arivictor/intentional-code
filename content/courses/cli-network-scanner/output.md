@@ -1,6 +1,7 @@
 ---
 title: "Module 12: Output Formatting — Decorator"
 description: "We add colour, table formatting, and quiet mode to the output writer — without commands knowing any of it exists."
+order: 12
 ---
 
 # Module 12: Output Formatting — Decorator

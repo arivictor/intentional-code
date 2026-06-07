@@ -1,6 +1,7 @@
 ---
 title: "Module 11: DNS Lookups — Strategy"
 description: "DNS lookups are simple. The interesting part is how we handle five different record types without a switch statement growing forever."
+order: 11
 ---
 
 # Module 11: DNS Lookups — Strategy

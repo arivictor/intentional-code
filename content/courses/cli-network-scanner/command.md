@@ -1,6 +1,7 @@
 ---
 title: "Module 3: The Command Interface"
 description: "We define the Command interface — the first pattern in the framework. Here's why it has to exist before anything else."
+order: 3
 ---
 
 # Module 3: The Command Interface

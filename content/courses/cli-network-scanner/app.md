@@ -1,6 +1,7 @@
 ---
 title: "Module 4: The App — Builder and Facade"
 description: "We build the App type using two patterns: Builder for construction and Facade for dispatch. Here's why both are needed."
+order: 4
 ---
 
 # Module 4: The App — Builder and Facade

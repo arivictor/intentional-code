@@ -1,6 +1,7 @@
 ---
 title: "Module 13: Testing Without a Network"
 description: "How to test the framework and commands thoroughly without hitting a real network, calling os.Exit, or writing to a terminal."
+order: 13
 ---
 
 # Module 13: Testing Without a Network

@@ -1,6 +1,7 @@
 ---
 title: "Module 8: Port Scanning — Fan-out / Fan-in"
 description: "Sequential port scanning at 500ms timeout takes 8.5 minutes for 1024 ports. We feel the pain, then reach for fan-out/fan-in."
+order: 8
 ---
 
 # Module 8: Port Scanning — Fan-out / Fan-in

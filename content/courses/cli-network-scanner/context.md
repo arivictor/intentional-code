@@ -1,6 +1,7 @@
 ---
 title: "Module 6: Context — The Data-Passing Spine"
 description: "Every command receives a *Context. This module explains what it carries, why it's not context.Context, and how it makes commands testable."
+order: 6
 ---
 
 # Module 6: Context — The Data-Passing Spine

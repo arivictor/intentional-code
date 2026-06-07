@@ -1,6 +1,7 @@
 ---
 title: "Module 7: Probing a Host — No Pattern Needed"
 description: "We write the first real network code. And we deliberately don't reach for a pattern. Knowing when not to use one is half the skill."
+order: 7
 ---
 
 # Module 7: Probing a Host — No Pattern Needed

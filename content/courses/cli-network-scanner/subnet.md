@@ -1,6 +1,7 @@
 ---
 title: "Module 9: Subnet Scanning — Worker Pool"
 description: "Same shape of problem as port scanning, different constraint. We reach for the Worker Pool instead — and explain exactly why."
+order: 9
 ---
 
 # Module 9: Subnet Scanning — Worker Pool

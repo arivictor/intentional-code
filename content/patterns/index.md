@@ -1,6 +1,7 @@
 ---
 title: Patterns
 description: Browse implementation patterns by family and learn where each one fits.
+order: 3
 ---
 
 Patterns are tools, not rules. Use each one when its tradeoffs match your context.

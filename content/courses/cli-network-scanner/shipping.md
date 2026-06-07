@@ -1,6 +1,7 @@
 ---
 title: "Module 14: Shipping a Single Binary"
 description: "Build, version, cross-compile, and distribute netscan as a single self-contained binary. No install script. No runtime dependencies."
+order: 14
 ---
 
 # Module 14: Shipping a Single Binary

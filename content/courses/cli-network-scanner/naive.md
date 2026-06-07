@@ -1,6 +1,7 @@
 ---
 title: "Module 1: The Naïve Version — and Why It Breaks"
 description: "We start by writing the simplest possible CLI tool. Then we add a second subcommand, and watch the design collapse."
+order: 1
 ---
 
 # Module 1: The Naïve Version — and Why It Breaks

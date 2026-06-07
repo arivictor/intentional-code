@@ -1,6 +1,7 @@
 ---
 title: "Module 2: Project Structure — Why Before What"
 description: "Before writing the framework, we decide where everything lives — and more importantly, why."
+order: 2
 ---
 
 # Module 2: Project Structure — Why Before What
