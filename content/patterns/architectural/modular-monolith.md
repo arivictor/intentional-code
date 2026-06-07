@@ -127,6 +127,113 @@ Three Go-specific tools make the boundaries real rather than aspirational:
 - **Interfaces at the boundary** invert the dependency: callers depend on a contract, so a module's guts (and even its location) can change without breaking callers.
 - **Import linting.** Tools like `go-arch-lint` or a custom `go vet`-style check enforce the dependency *direction* — e.g. "orders may import billing's API, but billing may never import orders" — catching architectural drift in CI.
 
+## Handling Complex Coordination
+
+Module boundaries break down as soon as a single operation needs two modules at once. A checkout flow, for example, must reserve inventory *and* charge billing *and* create an order — in one coherent call. The naive fix is letting orders import billing (or vice versa), but that reintroduces coupling through the back door.
+
+The answer is an **application layer**: a thin use-case type that sits *above* the modules, depending on both APIs but owned by neither. Each module stays focused on its own domain; the use case owns the cross-cutting flow.
+
+```text:title="project layout with an application layer"
+myapp/
+  cmd/server/main.go          ← wires everything together
+  app/
+    checkout.go               ← use case: depends on OrdersAPI + BillingAPI
+  modules/
+    billing/
+      api.go                  ← BillingAPI interface
+      internal/...
+    orders/
+      api.go                  ← OrdersAPI interface
+      internal/...
+```
+
+The use case holds references to each module's public contract and is the only thing that calls both:
+
+```go:title="app/checkout.go":run=true:editable=true
+package main
+
+import "fmt"
+
+// --- billing module ---
+
+type BillingAPI interface {
+	Charge(customerID string, cents int) (receiptID string, err error)
+}
+
+type billingService struct{}
+
+func NewBilling() BillingAPI { return &billingService{} }
+
+func (b *billingService) Charge(customerID string, cents int) (string, error) {
+	return fmt.Sprintf("receipt-%s-%d", customerID, cents), nil
+}
+
+// --- orders module ---
+
+type OrdersAPI interface {
+	Create(customerID, receiptID string, cents int) (orderID string, err error)
+}
+
+type ordersService struct{}
+
+func NewOrders() OrdersAPI { return &ordersService{} }
+
+func (o *ordersService) Create(customerID, receiptID string, cents int) (string, error) {
+	return fmt.Sprintf("order-%s", customerID), nil
+}
+
+// --- application layer: CheckoutUseCase ---
+//
+// Neither billing nor orders knows about the other.
+// The use case owns the cross-module flow and nothing else.
+
+type CheckoutUseCase struct {
+	billing BillingAPI
+	orders  OrdersAPI
+}
+
+func NewCheckout(billing BillingAPI, orders OrdersAPI) *CheckoutUseCase {
+	return &CheckoutUseCase{billing: billing, orders: orders}
+}
+
+func (c *CheckoutUseCase) Execute(customerID string, cents int) (string, error) {
+	receiptID, err := c.billing.Charge(customerID, cents)
+	if err != nil {
+		return "", fmt.Errorf("charge failed: %w", err)
+	}
+
+	orderID, err := c.orders.Create(customerID, receiptID, cents)
+	if err != nil {
+		// In a real system you'd void the charge here (compensating action).
+		return "", fmt.Errorf("order creation failed: %w", err)
+	}
+
+	return orderID, nil
+}
+
+func main() {
+	checkout := NewCheckout(NewBilling(), NewOrders())
+
+	orderID, err := checkout.Execute("cust-42", 4999)
+	if err != nil {
+		fmt.Println("error:", err)
+		return
+	}
+	fmt.Println("checkout complete:", orderID)
+}
+```
+
+```
+// Output:
+// checkout complete: order-cust-42
+```
+
+A few things to keep consistent as the application layer grows:
+
+- **One use case per flow, not a God service.** `CheckoutUseCase`, `RefundUseCase`, and `SubscriptionRenewalUseCase` are separate types. A single `AppService` that accumulates every cross-module method is the same coupling problem in a different coat.
+- **Compensating actions live in the use case, not the modules.** If `orders.Create` fails after `billing.Charge` succeeds, the use case is responsible for issuing a refund. Modules stay unaware of each other's failure modes.
+- **Keep use cases thin.** Business rules that belong to a single domain (pricing, inventory limits) stay inside the module. The use case sequences the calls; it doesn't replicate domain logic from either side.
+
 ## When to Use
 
 - You want clear domain boundaries and team ownership, but the operational cost of microservices (network calls, distributed tracing, eventual consistency, multiple deploys) isn't justified yet.
