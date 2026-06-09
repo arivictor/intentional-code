@@ -5,6 +5,8 @@ description: Judgment, not recipes — the decision behind the code, for Go deve
 icon: house
 ---
 
+![Intentional Code](/og-image.svg)
+
 Most programming resources teach you what to type. Intentional Code teaches you what to decide.
 
 It is a reference and philosophy for Go developers who want code that is easier to read, test, and change by understanding the trade-offs behind them, not by following rules. The goal is never a finished project. It is better judgment: the ability to make a good structural call on a problem you have never seen before.
