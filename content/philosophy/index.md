@@ -1,6 +1,6 @@
 ---
 title: Philosophy
-description: The Tenets of Intentional Code — principles of judgment, with the field's famous laws folded in as worked examples.
+description: The Tenets of Intentional Code — How to make better software decisions
 icon: scroll
 order: 2
 ---
