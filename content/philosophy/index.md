@@ -1,7 +1,7 @@
 ---
 title: Philosophy
 description: The Tenets of Intentional Code — principles of judgment, with the field's famous laws folded in as worked examples.
-icon: brain
+icon: scroll
 order: 2
 ---
 

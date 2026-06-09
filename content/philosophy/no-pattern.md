@@ -7,7 +7,7 @@ order: 3
 
 # The best pattern is often no pattern
 
-The most dangerous code is the code that solves problems you don't have yet. It reads as diligence — planning ahead, leaving room, avoiding corners — but it's debt dressed as foresight. Every abstraction layer is a concept the next reader must hold in their head. Every configuration knob is a state your tests must cover. Every speculative interface is a constraint your design must honour even as the real requirements turn out to be different.
+The most dangerous code is the code that solves problems you don't have yet. It reads as diligence, planning ahead, leaving room, avoiding corners, but it's debt dressed as foresight. Every abstraction layer is a concept the next reader must hold in their head. Every configuration knob is a state your tests must cover. Every speculative interface is a constraint your design must honour even as the real requirements turn out to be different.
 
 So the strong default is *less*. Reach for a pattern when the problem is actively asking for one, not because the pattern is the "professional" choice. A direct function that's wrong is easy to fix. A clever, flexible abstraction that's wrong is hard even to diagnose.
 

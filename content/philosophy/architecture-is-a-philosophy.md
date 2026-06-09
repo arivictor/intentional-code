@@ -7,9 +7,9 @@ order: 1
 
 # Architecture is a philosophy, not a rule
 
-Every codebase has architecture — even the ones that insist they don't care about it. The shape is already there: in the boundaries, in the direction dependencies travel, in the contracts people lean on when they touch code they didn't write. The only choice you actually get is whether that shape happened on purpose or by accident.
+Every codebase has architecture, the shape is already there in the boundaries, in the direction dependencies travel, in the contracts people lean on when they touch code they didn't write. The only choice you actually get is whether that shape happened on purpose or by accident.
 
-So the first tenet is a refusal. Architecture is not a checklist you apply or a rulebook you obey. It is a way of thinking about code — a continuous process of listening for pressure and adjusting boundaries, not a one-time act of decoration. Every principle on this site is a *lens* for seeing that pressure more clearly. None of them is a law, and the moment you treat one as a law is the moment a good idea curdles into cargo cult.
+So the first tenet is a refusal. Architecture is not a checklist you apply or a rulebook you obey. It is a way of thinking about code, a continuous process of listening for pressure and adjusting boundaries, not a one-time act of decoration. Every principle on this site is a *lens* for seeing that pressure more clearly. None of them is a law, and the moment you treat one as a law is the moment a good idea curdles into cargo cult.
 
 Tending software is closer to gardening than to pouring a foundation. You plant, water, prune, and let things grow. You don't need to know exactly how the garden will look in a year; you need to create conditions where it can thrive, and keep tending it. A small decision today becomes a hard constraint later, so the work is never really "done."
 

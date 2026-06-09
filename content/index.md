@@ -1,7 +1,7 @@
 ---
 title: What is Intentional Code?
 nav_title: Home
-description: Judgment, not recipes — the decision behind the code, for Go developers who want to read, test, and change it with less friction.
+description: Judgment, not recipes, the decision behind the code, for Go developers who want to read, test, and change it with less friction.
 icon: house
 order: 0
 ---
@@ -16,13 +16,13 @@ It is a reference and philosophy for Go developers who want code that is easier 
 
 A tutorial answers "how do I build X?" and hands you the one true path. You cannot disagree with it.
 
-Intentional Code answers "why would you structure X this way — and when wouldn't you?" Every pattern here comes with the trade-off it makes, the situation that earns it, and the situation where it is just over-engineering. It takes positions you could argue with. That is the point.
+Intentional Code answers "why would you structure X this way, and when wouldn't you?" Every pattern here comes with the trade-off it makes, the situation that earns it, and the situation where it is just over-engineering. It takes positions you could argue with. That is the point.
 
-Good architecture is not knowing the patterns. It is knowing which one the problem in front of you actually needs — and having the judgment to reach for none of them when that is the right call.
+Good architecture is not knowing the patterns. It is knowing which one the problem in front of you actually needs, and having the judgment to reach for none of them when that is the right call.
 
 ## The Tenets
 
-None of these tell you what to type. All of them shape how you decide — and the last one means it.
+None of these tell you what to type. All of them shape how you decide, and the last one means it.
 
 1. **[Architecture is a philosophy, not a rule.](/go/philosophy/architecture-is-a-philosophy)**
 2. **[If you can't name the trade-off, you didn't decide — you defaulted.](/go/philosophy/name-the-trade-off)**

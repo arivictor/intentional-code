@@ -7,9 +7,9 @@ order: 9
 
 # Make the next change local. That's the whole job
 
-Strip the field of its vocabulary and almost everything that's left points at one goal: when the next change arrives, it should touch one place, not six. Locality is the payoff. Coupling is the tax you pay against it. Cohesion — keeping the things that change together in the same place — is how you lower the bill. Nearly every principle worth knowing is some specific tactic in service of this one outcome, which is why it's the closest thing this site has to a single job description.
+Strip the field of its vocabulary and almost everything that's left points at one goal: when the next change arrives, it should touch one place, not six. Locality is the payoff. Coupling is the tax you pay against it. Cohesion seeks to ensure that the things that change together stay in the same place. Nearly every principle worth knowing is some specific tactic in service of this one outcome, which is why it's the closest thing this site has to a single job description.
 
-You feel its absence before you can name it. A one-line requirement turns into edits across four packages. A change to the database schema somehow breaks an HTTP handler. Fixing a validation rule forces you to re-test storage. Each of those is locality leaking away — a sign that responsibilities have smeared across boundaries that were supposed to contain them.
+You feel its absence before you can name it. A one-line requirement turns into edits across four packages. A change to the database schema somehow breaks an HTTP handler. Fixing a validation rule forces you to re-test storage. Each of those is locality leaking away, which is a sign that responsibilities have smeared across boundaries that were supposed to contain them.
 
 ## Architecture is communication
 

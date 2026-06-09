@@ -9,7 +9,7 @@ order: 2
 
 Every structural choice buys something and pays for something. An interface buys substitutability and pays in indirection. A cache buys latency and pays in staleness. A new package buys isolation and pays in ceremony. There is no free move. So the test of whether you actually *made* a decision is blunt: can you say, out loud, what you gave up to get what you wanted?
 
-If you can't, you didn't decide. You defaulted — to habit, to fashion, to the shape of the last codebase you worked in, to whatever looked impressive in a conference talk. Defaulting isn't always wrong; the default is sometimes the right answer. But you can't know that until you've named the alternative you're rejecting and the cost you're agreeing to pay.
+If you can't, you didn't decide. You defaulted to habit, to fashion, to the shape of the last codebase you worked in, to whatever looked impressive in a conference talk. Defaulting isn't always wrong; the default is sometimes the right answer. But you can't know that until you've named the alternative you're rejecting and the cost you're agreeing to pay.
 
 ## Decisions, not preferences
 

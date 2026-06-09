@@ -202,7 +202,7 @@ func (r *NoteRepo) Save(ctx context.Context, n *domain.Note) error {
 }
 ```
 
-Here's the whole flow as one runnable program — the Entities ring, a Use Case that depends only on ports, and in-memory adapters that satisfy them:
+Here's the whole flow as one runnable program, the Entities ring, a Use Case that depends only on ports, and in-memory adapters that satisfy them:
 
 ```go:title="main.go":run=true:editable=true
 package main

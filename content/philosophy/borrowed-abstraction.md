@@ -1,25 +1,25 @@
 ---
 title: Every abstraction is borrowed against the future
 nav_title: Borrowed abstraction
-description: An abstraction is a loan — flexibility now in exchange for indirection forever. Only borrow what you'll actually spend.
+description: An abstraction is a loan for flexibility now in exchange for indirection forever. Only borrow what you'll actually spend.
 order: 5
 ---
 
 # Every abstraction is borrowed against the future
 
-An abstraction is a loan. You borrow flexibility — the ability to swap an implementation, add a case, vary a behaviour — and the interest is indirection: every reader from now on has to step through the abstraction to find out what actually happens. Sometimes that's a bargain. Often it's a loan taken out against a future that never arrives, and you service the debt forever in exchange for flexibility you never spend.
+An abstraction is a loan. You borrow flexibility, the ability to swap an implementation, add a case, vary a behaviour, and the interest is indirection: every reader from now on has to step through the abstraction to find out what actually happens. Sometimes that's a bargain. Often it's a loan taken out against a future that never arrives, and you service the debt forever in exchange for flexibility you never spend.
 
-So the question to ask before you abstract is not "could this vary?" — almost anything *could*. It's "will I spend this flexibility, and soon enough that paying interest in the meantime is worth it?" If the answer is a confident yes, borrow. If it's a hopeful maybe, you're speculating, and the [wrong abstraction costs more than the duplication it replaces](/go/philosophy/wrong-abstraction).
+So the question to ask before you abstract is "will I spend this flexibility, and soon enough so that paying interest in the meantime is worth it?" If the answer is a confident yes, borrow. If it's a hopeful maybe, you're speculating, and the [wrong abstraction costs more than the duplication it replaces](/go/philosophy/wrong-abstraction).
 
-The corollary is that abstractions should be *cheap to take on and cheap to unwind*. A small interface defined at the point you actually need it is a short-term loan. A deep inheritance hierarchy is a thirty-year mortgage on coupling — and Go, wisely, won't even sell it to you.
+The corollary is that abstractions should be *cheap to take on and cheap to unwind*. A small interface defined at the point you actually need it is a short-term loan. A deep inheritance hierarchy is a thirty-year mortgage on coupling, and Go, wisely, won't even sell it to you.
 
 ## Composition over Inheritance
 
-Go made the central decision here for you: there is no inheritance. What you get instead — embedding and interfaces — are exactly the cheap, repayable abstractions this tenet asks for. You compose behaviour from small pieces at the point of use, and you can pull a piece out again without unwinding an ancestry.
+Go made the central decision here for you: there is no inheritance. What you get instead is embedding and interfaces, exactly the cheap, repayable abstractions this tenet asks for. You compose behaviour from small pieces at the point of use, and you can pull a piece out again without unwinding an ancestry.
 
 *"Favour object composition over class inheritance."* (Gang of Four, 1994)
 
-Go already made this decision for you as the language has no inheritance. No subclasses, no `extends`, no override. What Go gives you instead is embedding and interfaces, two mechanisms that let you compose behaviour from small, focused pieces without coupling types together through ancestry.
+Go  has no inheritance. No subclasses, no `extends`, no override. What Go gives you instead is embedding and interfaces, two mechanisms that let you compose behaviour from small, focused pieces without coupling types together through ancestry.
 
 Inheritance hierarchies couple types through shared state and implementation in ways that are hard to reason about and harder to change. Go sidesteps that entirely: each piece does one thing, and you assemble them at the point of use.
 
