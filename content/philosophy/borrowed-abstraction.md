@@ -1,9 +1,21 @@
 ---
-title: Composition over Inheritance
-description: Build behaviour by combining small, focused pieces rather than building tall hierarchies of shared ancestry.
+title: Every abstraction is borrowed against the future
+nav_title: Borrowed abstraction
+description: An abstraction is a loan — flexibility now in exchange for indirection forever. Only borrow what you'll actually spend.
+order: 5
 ---
 
-# Composition over Inheritance
+# Every abstraction is borrowed against the future
+
+An abstraction is a loan. You borrow flexibility — the ability to swap an implementation, add a case, vary a behaviour — and the interest is indirection: every reader from now on has to step through the abstraction to find out what actually happens. Sometimes that's a bargain. Often it's a loan taken out against a future that never arrives, and you service the debt forever in exchange for flexibility you never spend.
+
+So the question to ask before you abstract is not "could this vary?" — almost anything *could*. It's "will I spend this flexibility, and soon enough that paying interest in the meantime is worth it?" If the answer is a confident yes, borrow. If it's a hopeful maybe, you're speculating, and the [wrong abstraction costs more than the duplication it replaces](/go/philosophy/wrong-abstraction).
+
+The corollary is that abstractions should be *cheap to take on and cheap to unwind*. A small interface defined at the point you actually need it is a short-term loan. A deep inheritance hierarchy is a thirty-year mortgage on coupling — and Go, wisely, won't even sell it to you.
+
+## Composition over Inheritance
+
+Go made the central decision here for you: there is no inheritance. What you get instead — embedding and interfaces — are exactly the cheap, repayable abstractions this tenet asks for. You compose behaviour from small pieces at the point of use, and you can pull a piece out again without unwinding an ancestry.
 
 *"Favour object composition over class inheritance."* (Gang of Four, 1994)
 
@@ -13,7 +25,7 @@ Inheritance hierarchies couple types through shared state and implementation in 
 
 ---
 
-## Embedding: selective reuse without coupling
+### Embedding: selective reuse without coupling
 
 Go's struct embedding lets one type reuse another's methods without claiming to *be* that type. The embedded type's methods appear on the outer type, but the relationship is has-a, not is-a.
 
@@ -63,7 +75,7 @@ If this were inheritance-based, `APIServer` would subclass some `LoggingServer`,
 
 ---
 
-## Interfaces: compose behaviour at the call site
+### Interfaces: compose behaviour at the call site
 
 In inheritance hierarchies, types are grouped by what they *are*. In Go, types are grouped by what they *do*, and you define the grouping at the call site with an interface.
 
@@ -102,7 +114,7 @@ A `Duck` works in both contexts without any shared base class. New types that im
 
 ---
 
-## The diamond problem: why Go skipped inheritance
+### The diamond problem: why Go skipped inheritance
 
 Classical inheritance has a fundamental problem: when a type inherits from two types that share a common ancestor, method resolution is ambiguous. Languages deal with this through complex rules (C++ virtual inheritance) or by prohibiting it (Java single inheritance). Go sidesteps it entirely.
 
@@ -135,7 +147,7 @@ The compiler forces you to resolve the ambiguity explicitly. There's no hidden d
 
 ---
 
-## Functional composition: building pipelines
+### Functional composition: building pipelines
 
 Composition applies to functions too. Go's first-class functions let you compose small operations into larger ones without inheritance or subclassing. Here it is as a small runnable program:
 
@@ -173,4 +185,4 @@ Each `Transform` is independent and testable. The pipeline is assembled at the c
 
 > **Smell:** A type embeds another type but overrides most of its methods, effectively replacing rather than extending it. A hierarchy is more than two levels deep. You're embedding a large type to get access to one method.
 
-See also: [Strategy](/go/patterns/behavioral/strategy), [Decorator](/go/patterns/structural/decorator), [SOLID](/go/philosophy/solid).
+See also: [Strategy](/go/patterns/behavioral/strategy), [Decorator](/go/patterns/structural/decorator), [SOLID](/go/philosophy/keep-changes-local#solid).

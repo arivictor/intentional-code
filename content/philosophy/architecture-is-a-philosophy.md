@@ -1,9 +1,44 @@
 ---
-title: Clean Code
-description: Code is read far more than it is written. Clarity is a feature, not a preference.
+title: Architecture is a philosophy, not a rule
+nav_title: A philosophy, not a rule
+description: Every codebase has architecture. The only choice is whether you shaped it on purpose. Principles are lenses, not laws.
+order: 1
 ---
 
-# Clean Code
+# Architecture is a philosophy, not a rule
+
+Every codebase has architecture — even the ones that insist they don't care about it. The shape is already there: in the boundaries, in the direction dependencies travel, in the contracts people lean on when they touch code they didn't write. The only choice you actually get is whether that shape happened on purpose or by accident.
+
+So the first tenet is a refusal. Architecture is not a checklist you apply or a rulebook you obey. It is a way of thinking about code — a continuous process of listening for pressure and adjusting boundaries, not a one-time act of decoration. Every principle on this site is a *lens* for seeing that pressure more clearly. None of them is a law, and the moment you treat one as a law is the moment a good idea curdles into cargo cult.
+
+Tending software is closer to gardening than to pouring a foundation. You plant, water, prune, and let things grow. You don't need to know exactly how the garden will look in a year; you need to create conditions where it can thrive, and keep tending it. A small decision today becomes a hard constraint later, so the work is never really "done."
+
+## When architecture helps
+
+Architecture earns its keep when change pressure is already in the room:
+
+- the project has outlived its life as a prototype
+- several people need a shared structure to work inside
+- requirements shift often
+- infrastructure details are likely to change
+- correctness and reliability genuinely matter
+
+At that point boundaries stop being theory. They keep one change from spilling into six files, and they let two people work in parallel without colliding all afternoon.
+
+## When architecture hurts
+
+Architecture turns to ceremony when it arrives before the work does:
+
+- throwaway prototypes and experiments
+- one-off scripts with a clear expiry date
+- simple, stable requirements
+- a team that doesn't understand the domain yet
+
+You can read it in the symptoms: extra interfaces nobody can explain, folders named for a future that never arrived, review comments defending structure no one has needed yet. People who do this well recognise the *names* of patterns. People who have done it for years recognise the *pressure* that asks for them.
+
+## Clean Code
+
+The smallest scale at which this tenet shows up is the everyday act of writing a function. "Clean Code" is usually handed down as a set of rules — and then argued about as if the rules were the point. They aren't. Clarity is a judgment call about the next person who has to read this, and it is a feature, not a preference.
 
 Code is read by humans. Compilers don't care about names, structure, or clarity; developers do, and they'll spend far more time reading your code than you spent writing it. Clean code communicates its intent so clearly that the next reader can work with it safely, without reverse-engineering what it does.
 
@@ -11,7 +46,7 @@ Go's culture pushes hard in this direction: short functions, clear names, explic
 
 ---
 
-## Naming: the most impactful decision you make
+### Naming: the most impactful decision you make
 
 A good name makes a variable, function, or type self-documenting. A bad name forces every reader to trace execution to understand what a thing *is*.
 
@@ -49,7 +84,7 @@ func hasField(jsonData []byte, fieldName string) bool {
 
 ---
 
-## Functions: one thing, done well
+### Functions: one thing, done well
 
 A function should do one thing. If you find yourself writing "and" in a function name, that's two functions.
 
@@ -112,7 +147,7 @@ func processOrder(o Order) error {
 
 ---
 
-## Avoid noise: comments that restate code
+### Avoid noise: comments that restate code
 
 Comments should explain *why*, not *what*. If a comment is just prose for the code directly below it, the code needs better names, not a comment.
 
@@ -142,7 +177,7 @@ Write a comment when the code cannot express the *reason*: a non-obvious constra
 
 ---
 
-## Error messages as documentation
+### Error messages as documentation
 
 Error messages are read by developers diagnosing failures. Make them useful: include context, include values, don't just state the failure.
 
@@ -161,7 +196,7 @@ if err := store.Save(order); err != nil {
 
 ---
 
-## Consistency
+### Consistency
 
 A codebase is clean when it reads as if it were written by one person with a single style. Inconsistency forces context-switching: the reader has to re-orient every time style shifts.
 
@@ -171,7 +206,7 @@ In Go, `gofmt` handles formatting. Everything else (error handling patterns, nam
 
 ---
 
-## Error handling idioms
+### Error handling idioms
 
 Go's error handling is explicit by design. Three idioms keep it safe and debuggable:
 
@@ -214,7 +249,7 @@ var (
 
 ---
 
-## Guard clauses
+### Guard clauses
 
 A guard clause is an early return that handles a precondition at the top of a function, keeping the happy path at the left margin. Functions with nested `if` blocks force the reader to track multiple levels of indentation simultaneously.
 
@@ -307,4 +342,4 @@ func main() {
 }
 ```
 
-See also: [SOLID](/go/philosophy/solid), [Separation of Concerns](/go/philosophy/separation-of-concerns), [TDD](/go/philosophy/tdd).
+See also: [SOLID](/go/philosophy/keep-changes-local#solid), [Separation of Concerns](/go/philosophy/keep-changes-local#separation-of-concerns), [TDD](/go/philosophy/listen-to-the-tests#test-driven-development).

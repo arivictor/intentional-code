@@ -9,7 +9,7 @@ The Decorator pattern wraps an object to add behavior, keeping the same interfac
 
 The canonical Go example is `http.Handler` middleware: a function that takes a handler, returns a new handler that logs, authenticates, compresses, or rate-limits, and then calls the original. 
 
-It's the [Open/Closed Principle](/go/philosophy/solid).
+It's the [Open/Closed Principle](/go/philosophy/keep-changes-local#solid).
 
 ## Scenario
 

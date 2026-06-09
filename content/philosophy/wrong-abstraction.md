@@ -1,9 +1,21 @@
 ---
-title: Don't Repeat Yourself
-description: Every piece of knowledge should have a single, authoritative representation. Here's why that's harder than it sounds.
+title: Duplication is cheaper than the wrong abstraction
+nav_title: The wrong abstraction
+description: Repeated code is a small, visible cost. The wrong abstraction is a large, hidden one — and far harder to undo.
+order: 8
 ---
 
-# Don't Repeat Yourself
+# Duplication is cheaper than the wrong abstraction
+
+"Don't repeat yourself" gets taught as a reflex: see two similar blocks, merge them. But the reflex skips the only question that matters — *do these two things represent the same knowledge, or do they just happen to look alike right now?* Because the moment you extract a shared abstraction from two things that merely resemble each other, you weld their futures together. When one needs to change and the other doesn't, you're stuck adding a flag, then a branch, then a second flag — slowly turning a clean function into a thicket of special cases.
+
+That thicket is more expensive than the duplication ever was. Repeated code is a small, visible cost: you can see all the copies, and updating them is mechanical. The wrong abstraction is a large, hidden one: it actively resists the change you now need, and un-welding it is far harder than copy-paste would have been. So when you're unsure, prefer the duplication. It keeps your options open; a premature abstraction spends them.
+
+Read correctly, the principle was never about repeated *lines*. It's about repeated *knowledge* — a single business rule, a single source of truth — that genuinely has one home. The practical test isn't "do these look the same?" but "when this rule changes, how many places must I touch?" One is right. More than one is a liability. But two things that change for different reasons are not one rule, however alike they look today.
+
+## DRY
+
+The principle's real name — *Don't Repeat Yourself* — is fine; it's the misreading that's dangerous. Here it is stated precisely, with the line between accidental similarity and genuinely duplicated knowledge drawn where it belongs.
 
 *"Every piece of knowledge must have a single, unambiguous, authoritative representation within a system."*
 
@@ -13,7 +25,7 @@ The practical test: when the rule changes, how many places do you have to update
 
 ---
 
-## The failure mode: accidental similarity vs. duplicated knowledge
+### The failure mode: accidental similarity vs. duplicated knowledge
 
 Avoid reflexively extracting code just because it looks the same. Two loops that iterate over different things for different reasons happen to share syntax; merging them couples unrelated logic. The question is always: *do these represent the same knowledge?*
 
@@ -40,7 +52,7 @@ These look like duplication. They are not. The rules are independent. If the dri
 
 ---
 
-## Real duplication: the same rule in multiple places
+### Real duplication: the same rule in multiple places
 
 ```go
 // BAD — order status logic duplicated across the codebase.
@@ -102,7 +114,7 @@ func main() {
 
 ---
 
-## Configuration duplication
+### Configuration duplication
 
 Magic values are a common DRY violation. When a value appears in multiple places, a change requires a search-and-replace; one missed instance is a silent bug.
 
@@ -142,7 +154,7 @@ func RefreshSession(s Session) Session {
 
 ---
 
-## The Rule of Three
+### The Rule of Three
 
 Don't extract on the first duplication. Wait for three. The first instance is just code. The second is a coincidence. The third is a pattern worth naming.
 
@@ -150,7 +162,7 @@ Premature abstraction is its own problem: you create an abstraction before you u
 
 ---
 
-## DRY and generated code
+### DRY and generated code
 
 Generated code is an exception. If a struct is generated from a schema, and a corresponding SQL table definition also comes from that schema, the *source of truth* is the schema, not the two outputs. The outputs can look identical without violating DRY because neither encodes the knowledge; the generator does.
 
@@ -158,4 +170,4 @@ The principle is about knowledge, not bytes.
 
 > **Smell:** A business rule changes and you update it in one place, but a bug report comes in two weeks later because a second copy of the rule was missed. Or: you grep for a constant value and find it hardcoded in five files.
 
-See also: [Single Responsibility Principle](/go/philosophy/solid), [Strategy](/go/patterns/behavioral/strategy) for encapsulating variable algorithms in one place.
+See also: [Single Responsibility Principle](/go/philosophy/keep-changes-local#solid), [Strategy](/go/patterns/behavioral/strategy) for encapsulating variable algorithms in one place.

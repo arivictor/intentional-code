@@ -1,13 +1,25 @@
 ---
-title: Test-Driven Development
-description: The red/green/refactor loop in Go, and how design pressure naturally produces patterns.
+title: Hard to test is the design talking — listen to it
+nav_title: Listen to the tests
+description: A test is the first real client of your code. When it fights you, the problem is the design, not the test.
+order: 7
 ---
 
-# Test-Driven Development
+# Hard to test is the design talking — listen to it
+
+A test is the first honest client your code ever has. It calls your function with nothing but the public surface, no insider knowledge, no sympathy for how the internals happen to work. So when a test is miserable to write — when it needs a wall of setup, or a mock for every collaborator, or a database spun up to check a pricing rule — that pain is not a testing problem. It's the design speaking plainly: the boundaries are in the wrong place, this unit knows too much, the dependencies are concrete where they should be abstract.
+
+The mistake is to treat the symptom. Reaching for a heavier mocking framework to subdue a stubborn test is like turning up the radio to drown out the engine noise. The fix is upstream, in the design. Shrink the interface. Pull the side effect out of the calculation. Pass the dependency in instead of reaching for it. Do that and the test gets easy — because the design got better.
+
+That's the whole reason testability is worth caring about. It isn't about coverage numbers. It's that "easy to test" and "easy to change" turn out to be the same property viewed from two angles, and the test is the cheapest place to feel the difference early.
+
+## Test-Driven Development
+
+The tightest way to keep this feedback loop running is to write the test first — to let the difficulty of the test push on the design *before* the code hardens around a bad shape. TDD isn't "write tests." It's a design discipline that happens to leave tests behind.
 
 Write a failing test. Make it pass. Refactor. Go's tooling makes this loop faster and more pleasant than in most languages: `go test ./...` needs no configuration, implicit interfaces eliminate the need for mocking frameworks, and table-driven tests keep test cases as data rather than duplicated functions. More importantly, the design pressure TDD creates naturally produces the small interfaces and clean boundaries that patterns like [Strategy](/go/patterns/behavioral/strategy), [Repository](/go/patterns/architectural/repository), and [Observer](/go/patterns/behavioral/observer) formalize. You often arrive at the pattern without setting out to implement it.
 
-## The red / green / refactor loop
+### The red / green / refactor loop
 
 TDD is not "write tests." It's a design discipline with three steps, always in order:
 
@@ -17,13 +29,13 @@ TDD is not "write tests." It's a design discipline with three steps, always in o
 
 The discipline is in the order. You never write production code without a failing test first. You never refactor without green tests. This prevents both over-engineering ("I might need this") and under-testing ("I'll add tests later").
 
-## Why Go makes TDD pleasant
+### Why Go makes TDD pleasant
 
-### go test: zero configuration
+#### go test: zero configuration
 
 No test runner to install, no configuration files. Put a `_test.go` file next to your code, write functions starting with `Test`, and run `go test ./...`. The convention is the configuration.
 
-### Table-driven tests
+#### Table-driven tests
 
 Go's most important testing idiom. Define test cases as a slice of structs, iterate with `t.Run`. Adding a new case is one line, not a new function. The test output names each subtest clearly.
 
@@ -63,11 +75,11 @@ func TestParseAmount(t *testing.T) {
 }
 ```
 
-### Subtests and t.Parallel()
+#### Subtests and t.Parallel()
 
 `t.Run` creates named subtests that can be filtered with `-run` and parallelised with `t.Parallel()`. This encourages granular test cases without function-per-case sprawl.
 
-### Interfaces as natural test seams
+#### Interfaces as natural test seams
 
 Because Go interfaces are satisfied implicitly, you don't need a mocking framework. Define a small interface where you need a seam, and write a simple struct that implements it for tests. No codegen, no reflection, no magic.
 
@@ -114,15 +126,15 @@ func TestAlertService(t *testing.T) {
 }
 ```
 
-### Fuzzing
+#### Fuzzing
 
 Go 1.18 added native fuzzing. Write a `Fuzz` function, seed it with a few cases, and Go generates randomised inputs looking for panics, crashes, or assertion failures. Particularly valuable for parsers and serializers.
 
-## Worked example: TDD driving out a Strategy pattern
+### Worked example: TDD driving out a Strategy pattern
 
 Let's build a small discount calculator, driven from a failing test, and watch how TDD pressure naturally produces a clean strategy-based design.
 
-### Step 1: Red, write the failing test
+#### Step 1: Red, write the failing test
 
 We want to calculate order discounts. Start with the simplest case: no discount.
 
@@ -143,7 +155,7 @@ func TestNoDiscount(t *testing.T) {
 
 This doesn't compile. `NewCalculator` doesn't exist. Good. Red.
 
-### Step 2: Green, make it pass with minimum code
+#### Step 2: Green, make it pass with minimum code
 
 ```go
 // discount.go
@@ -170,7 +182,7 @@ func (c *Calculator) FinalPrice(price int64) int64 {
 
 Run `go test`. Green. Now we can extend.
 
-### Step 3: Red, add a percentage discount test
+#### Step 3: Red, add a percentage discount test
 
 ```go
 // discount_test.go
@@ -188,7 +200,7 @@ func TestPercentageDiscount(t *testing.T) {
 
 Run `go test`. This already passes; our design is general enough. Green without new code.
 
-### Step 4: Red, composing multiple discounts
+#### Step 4: Red, composing multiple discounts
 
 ```go
 // discount_test.go
@@ -207,7 +219,7 @@ func TestStackedDiscounts(t *testing.T) {
 
 Red. `Stack` doesn't exist.
 
-### Step 5: Green, implement Stack
+#### Step 5: Green, implement Stack
 
 ```go
 // discount.go
@@ -283,7 +295,7 @@ func main() {
 }
 ```
 
-### Step 6: Refactor, table-driven tests
+#### Step 6: Refactor, table-driven tests
 
 ```go
 // discount_test.go
@@ -317,9 +329,260 @@ func TestCalculator(t *testing.T) {
 
 > **Notice what happened.** TDD pressure naturally produced a [Strategy](/go/patterns/behavioral/strategy) pattern. `DiscountFunc` is a function type that encapsulates an algorithm. We didn't set out to implement Strategy; the tests drove us toward it. This is how principles and patterns connect: good tests push you toward good design.
 
-## TDD anti-patterns to avoid
+### TDD anti-patterns to avoid
 
 - **Testing implementation, not behavior.** Don't assert that a private function was called. Assert the output given an input.
 - **Heavy mocking.** If you need a mocking framework, your interfaces are probably too large. Shrink the interface; write a simple fake.
 - **Test-after.** Writing tests after the code is done gives you tests, but not the design pressure. You lose the most valuable part of TDD.
 - **Skipping refactor.** Green is not done. If you skip refactoring, you accumulate the exact technical debt TDD is meant to prevent.
+## Functional Programming
+
+The other way to make code testable is to give it less to hide. A pure function — output determined entirely by its inputs, no reaching into shared state, no clock, no I/O — is testable by construction: no setup, no mocks, no order-dependence. Go isn't a functional language, but the ideas that make code predictable port directly.
+
+Go is not a functional language. It has mutable state, imperative loops, and no algebraic types. But many ideas from functional programming translate directly and improve Go code: pure functions are easier to test, immutable data prevents whole categories of bugs, and higher-order functions enable flexible composition without inheritance.
+
+Take the ideas that pay off and leave the rest.
+
+---
+
+### Pure functions: no hidden inputs, no hidden outputs
+
+A pure function's output depends only on its inputs. It has no side effects: it doesn't modify shared state, doesn't perform I/O, doesn't depend on globals or time. Given the same inputs, it always returns the same outputs.
+
+Pure functions are easy to test (no setup, no mocking), easy to reason about (no hidden state), and safe to call in any order or concurrently.
+
+```go
+// IMPURE — depends on external state, result varies with time.
+func isExpiredSession(s Session) bool {
+    return time.Now().After(s.ExpiresAt) // hidden input: time.Now()
+}
+
+// PURE — expiry is a parameter. The function is deterministic.
+// In tests, pass any time you like.
+func isExpiredAt(s Session, now time.Time) bool {
+    return now.After(s.ExpiresAt)
+}
+```
+
+```go
+// IMPURE — modifies a shared map, not safe to call concurrently.
+var cache = map[string]int{}
+
+func getCached(key string) int {
+    if v, ok := cache[key]; ok {
+        return v
+    }
+    v := computeExpensive(key)
+    cache[key] = v // side effect
+    return v
+}
+
+// PURE — takes the cache as input, returns the new cache as output.
+// Caller decides how to store state.
+func getCachedPure(cache map[string]int, key string) (int, map[string]int) {
+    if v, ok := cache[key]; ok {
+        return v, cache
+    }
+    v := computeExpensive(key)
+    next := make(map[string]int, len(cache)+1)
+    for k, val := range cache {
+        next[k] = val
+    }
+    next[key] = v
+    return v, next
+}
+```
+
+---
+
+### Immutability: data that doesn't change doesn't surprise you
+
+Mutable shared state is the source of most concurrency bugs. When multiple goroutines can modify the same data, you need synchronization everywhere you access it. Immutable data needs no synchronization at all.
+
+In Go, full immutability isn't enforced by the compiler (there's no `const` struct), but you can design for it:
+
+```go
+// Mutable — callers can modify Config after construction.
+type Config struct {
+    Host string
+    Port int
+    TLS  bool
+}
+
+// Immutable by convention — use a constructor that copies inputs,
+// expose only read methods, never expose the underlying fields.
+type Config struct {
+    host string
+    port int
+    tls  bool
+}
+
+func NewConfig(host string, port int, tls bool) Config {
+    return Config{host: host, port: port, tls: tls}
+}
+
+func (c Config) Host() string { return c.host }
+func (c Config) Port() int    { return c.port }
+func (c Config) TLS() bool    { return c.tls }
+
+// Modifications return a new Config, leaving the original unchanged.
+func (c Config) WithHost(host string) Config {
+    c.host = host
+    return c
+}
+```
+
+This pattern (value types that return modified copies) avoids shared mutable state entirely. It's safe to pass `Config` values between goroutines without a mutex.
+
+---
+
+### Higher-order functions: behaviour as a parameter
+
+First-class functions let you pass behaviour as a value. This is the basis of the [Strategy](/go/patterns/behavioral/strategy) pattern and many other compositional designs.
+
+```go
+// A pipeline that applies transformations in sequence.
+type StringTransform func(string) string
+
+func Apply(s string, transforms ...StringTransform) string {
+    for _, t := range transforms {
+        s = t(s)
+    }
+    return s
+}
+
+result := Apply("  Hello, World!  ",
+    strings.TrimSpace,
+    strings.ToLower,
+    func(s string) string { return strings.ReplaceAll(s, ",", "") },
+)
+// "hello world!"
+```
+
+```go
+// Filter and Map — functional staples that work naturally in Go.
+
+func Filter[T any](slice []T, keep func(T) bool) []T {
+    out := make([]T, 0, len(slice))
+    for _, v := range slice {
+        if keep(v) {
+            out = append(out, v)
+        }
+    }
+    return out
+}
+
+func Map[T, U any](slice []T, transform func(T) U) []U {
+    out := make([]U, len(slice))
+    for i, v := range slice {
+        out[i] = transform(v)
+    }
+    return out
+}
+
+// Usage — no mutable accumulator, no index arithmetic.
+activeUsers := Filter(users, func(u User) bool { return u.Active })
+emails := Map(activeUsers, func(u User) string { return u.Email })
+```
+
+Here it is as a small runnable program:
+
+```go:title="main.go":run=true:editable=true
+package main
+
+import "fmt"
+
+type User struct {
+    Email  string
+    Active bool
+}
+
+func Filter[T any](slice []T, keep func(T) bool) []T {
+    out := make([]T, 0, len(slice))
+    for _, v := range slice {
+        if keep(v) {
+            out = append(out, v)
+        }
+    }
+    return out
+}
+
+func Map[T, U any](slice []T, transform func(T) U) []U {
+    out := make([]U, len(slice))
+    for i, v := range slice {
+        out[i] = transform(v)
+    }
+    return out
+}
+
+func main() {
+    users := []User{
+        {Email: "a@example.com", Active: true},
+        {Email: "b@example.com", Active: false},
+        {Email: "c@example.com", Active: true},
+    }
+
+    activeUsers := Filter(users, func(u User) bool { return u.Active })
+    emails := Map[User, string](activeUsers, func(u User) string { return u.Email })
+
+    fmt.Println(emails) // [a@example.com c@example.com]
+}
+```
+
+---
+
+### Functional options: clean constructors without overloading
+
+The functional options pattern uses higher-order functions to build flexible constructors. It's a common Go idiom that avoids both large config structs and function overloading.
+
+```go
+type Server struct {
+    host    string
+    port    int
+    timeout time.Duration
+}
+
+type Option func(*Server)
+
+func WithHost(host string) Option {
+    return func(s *Server) { s.host = host }
+}
+
+func WithPort(port int) Option {
+    return func(s *Server) { s.port = port }
+}
+
+func WithTimeout(d time.Duration) Option {
+    return func(s *Server) { s.timeout = d }
+}
+
+func NewServer(opts ...Option) *Server {
+    s := &Server{host: "localhost", port: 8080, timeout: 30 * time.Second}
+    for _, opt := range opts {
+        opt(s)
+    }
+    return s
+}
+
+// Callers set only what they need; defaults apply to the rest.
+srv := NewServer(
+    WithPort(9090),
+    WithTimeout(5 * time.Second),
+)
+```
+
+---
+
+### Where to draw the line
+
+Taken too far, functional style in Go produces awkward code. Avoid:
+
+- Folding straightforward loops into recursive functions (Go has no tail-call optimisation)
+- Chaining function calls to the point where the call stack becomes the control flow
+- Avoiding all state; some state is inherent to the problem, and immutability is a tool, not a doctrine
+
+Use the ideas that make code clearer. Ignore the ones that don't.
+
+> **Smell:** A function returns different results when called twice with the same arguments. A struct method modifies a field that another goroutine reads without a lock. You need to set up global state before calling a function in a test.
+
+See also: [Strategy](/go/patterns/behavioral/strategy), [Composition over Inheritance](/go/philosophy/borrowed-abstraction#composition-over-inheritance), [TDD](/go/philosophy/listen-to-the-tests#test-driven-development).

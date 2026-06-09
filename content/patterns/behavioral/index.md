@@ -7,11 +7,11 @@ description: Patterns for how objects communicate, distribute responsibility, an
 
 Behavioral patterns are about communication. They answer the question: **how should these objects communicate and distribute responsibility?** Where structural patterns are about composition (fitting types together), behavioral patterns are about runtime flow: who calls whom, how algorithms are selected, how state changes are tracked.
 
-Behavioral patterns are closely related to the [SOLID Principles](/go/philosophy/solid): Open/Closed drives Strategy and Observer; Single Responsibility drives Command and Mediator.
+Behavioral patterns are closely related to the [SOLID Principles](/go/philosophy/keep-changes-local#solid): Open/Closed drives Strategy and Observer; Single Responsibility drives Command and Mediator.
 
 ## The Building Blocks
 
-**Start with [Strategy](/go/patterns/behavioral/strategy)** if you have a switch statement that selects an algorithm. Strategy is the simplest behavioral pattern in Go, often just a function type or a single-method interface, and it's the pattern [TDD](/go/philosophy/tdd) most reliably drives you toward.
+**Start with [Strategy](/go/patterns/behavioral/strategy)** if you have a switch statement that selects an algorithm. Strategy is the simplest behavioral pattern in Go, often just a function type or a single-method interface, and it's the pattern [TDD](/go/philosophy/listen-to-the-tests#test-driven-development) most reliably drives you toward.
 
 **[Observer](/go/patterns/behavioral/observer)** is for one-to-many notification: one thing changes, many things need to know. Go gives you three subscriber mechanisms (interface values, function values, and channels), each with different lifecycle and concurrency tradeoffs. Pick wrong and you get goroutine leaks.
 

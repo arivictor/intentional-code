@@ -1,9 +1,379 @@
 ---
-title: SOLID Principles
-description: The five SOLID principles, reinterpreted for Go's implicit-interface, composition-first model.
+title: Make the next change local. That's the whole job
+nav_title: Keep changes local
+description: Almost every other principle is downstream of one goal — when the next change comes, it touches one place, not six.
+order: 9
 ---
 
-# SOLID Principles
+# Make the next change local. That's the whole job
+
+Strip the field of its vocabulary and almost everything that's left points at one goal: when the next change arrives, it should touch one place, not six. Locality is the payoff. Coupling is the tax you pay against it. Cohesion — keeping the things that change together in the same place — is how you lower the bill. Nearly every principle worth knowing is some specific tactic in service of this one outcome, which is why it's the closest thing this site has to a single job description.
+
+You feel its absence before you can name it. A one-line requirement turns into edits across four packages. A change to the database schema somehow breaks an HTTP handler. Fixing a validation rule forces you to re-test storage. Each of those is locality leaking away — a sign that responsibilities have smeared across boundaries that were supposed to contain them.
+
+## Architecture is communication
+
+Locality is also what makes a codebase legible to other people. When boundaries are clear, a newcomer can open the tree and put a new feature in roughly the right place on the first try. Imports read like a map. Pull requests argue about behaviour instead of about where things should live. When the structure drifts, every change reopens the same negotiation in slightly different words — and consistency, here, carries far more weight than cleverness.
+
+## Separation of Concerns
+
+The high-level form of the tenet: each part of a system should address one concern, with explicit boundaries between parts. Isolate what changes together, and a change in one domain stops rippling into the others.
+
+*"Separation of concerns, even if not perfectly possible, is yet the only available technique for effective ordering of one's thoughts."* (Edsger Dijkstra, 1974)
+
+A concern is a distinct responsibility: something a piece of software must do, know, or decide. Separation of Concerns (SoC) says those responsibilities should live in distinct places, with clear boundaries between them. When concerns are mixed, a change in one area ripples unpredictably into others.
+
+SoC is closely related to the Single Responsibility Principle, but it operates at a higher level. SRP says a *type* should have one reason to change. SoC says an entire *layer or module* should address one domain of the problem. Both are expressions of the same underlying idea: isolate what changes together.
+
+---
+
+### The three-layer model
+
+The most common application of SoC in web services is the three-layer architecture: delivery, business logic, and data access. Each layer speaks to one audience and knows nothing of the others' implementation.
+
+```
+HTTP handlers  →  domain services  →  storage layer
+(delivery)        (business logic)     (persistence)
+```
+
+```go
+// delivery/order_handler.go — HTTP concerns only.
+// Knows about requests, responses, status codes.
+// Knows nothing about how orders are validated or stored.
+
+type OrderHandler struct {
+    service OrderService
+}
+
+func (h *OrderHandler) Create(w http.ResponseWriter, r *http.Request) {
+    var req CreateOrderRequest
+    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+        http.Error(w, "invalid request body", http.StatusBadRequest)
+        return
+    }
+    order, err := h.service.PlaceOrder(r.Context(), req.UserID, req.Items)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    json.NewEncoder(w).Encode(order)
+}
+```
+
+```go
+// domain/order_service.go — business rules only.
+// Knows about validation, pricing, inventory.
+// Knows nothing about HTTP or SQL.
+
+type OrderService interface {
+    PlaceOrder(ctx context.Context, userID string, items []Item) (Order, error)
+}
+
+type orderService struct {
+    store    OrderStore
+    inventory InventoryChecker
+}
+
+func (s *orderService) PlaceOrder(ctx context.Context, userID string, items []Item) (Order, error) {
+    if len(items) == 0 {
+        return Order{}, errors.New("order must contain at least one item")
+    }
+    for _, item := range items {
+        if !s.inventory.InStock(ctx, item.SKU) {
+            return Order{}, fmt.Errorf("item %s is out of stock", item.SKU)
+        }
+    }
+    order := Order{ID: newID(), UserID: userID, Items: items}
+    return order, s.store.Save(ctx, order)
+}
+```
+
+```go
+// store/order_store.go — persistence concerns only.
+// Knows about SQL, transactions, connection pooling.
+// Knows nothing about business rules or HTTP.
+
+type OrderStore interface {
+    Save(ctx context.Context, o Order) error
+}
+
+type postgresOrderStore struct {
+    db *sql.DB
+}
+
+func (s *postgresOrderStore) Save(ctx context.Context, o Order) error {
+    _, err := s.db.ExecContext(ctx, `
+        INSERT INTO orders (id, user_id, total_cents, created_at)
+        VALUES ($1, $2, $3, $4)
+    `, o.ID, o.UserID, o.TotalCents(), time.Now())
+    return fmt.Errorf("saving order: %w", err)
+}
+```
+
+Each layer can change independently. Replace Postgres with a different database and the business logic and handlers don't move. Change a validation rule and the storage and HTTP layers don't move.
+
+Because the business logic knows nothing of HTTP or SQL, it runs on its own. Here is the domain layer as a small runnable program:
+
+```go:title="main.go":run=true:editable=true
+package main
+
+import (
+    "errors"
+    "fmt"
+)
+
+type Item struct {
+    SKU   string
+    Price int
+}
+
+type Order struct {
+    UserID string
+    Items  []Item
+}
+
+// Business rules only. Knows nothing about HTTP or SQL.
+func PlaceOrder(userID string, items []Item) (Order, error) {
+    if len(items) == 0 {
+        return Order{}, errors.New("order must contain at least one item")
+    }
+    return Order{UserID: userID, Items: items}, nil
+}
+
+func main() {
+    order, err := PlaceOrder("user-1", []Item{{SKU: "abc", Price: 1000}})
+    fmt.Println(order, err)
+
+    _, err = PlaceOrder("user-1", nil)
+    fmt.Println("error:", err)
+}
+```
+
+---
+
+### Concern leakage: the violation
+
+Concern leakage happens when one layer reaches into another's responsibilities.
+
+```go
+// BAD — the HTTP handler contains business logic and SQL.
+// Three concerns in one place.
+
+func (h *Handler) CreateOrder(w http.ResponseWriter, r *http.Request) {
+    var req struct {
+        UserID string  `json:"user_id"`
+        Items  []Item  `json:"items"`
+    }
+    json.NewDecoder(r.Body).Decode(&req)
+
+    // Business rule leaking into handler:
+    if len(req.Items) == 0 {
+        http.Error(w, "no items", 400)
+        return
+    }
+
+    // SQL leaking into handler:
+    total := 0
+    for _, item := range req.Items {
+        total += item.Price
+    }
+    h.db.Exec("INSERT INTO orders (user_id, total) VALUES (?, ?)", req.UserID, total)
+
+    w.WriteHeader(201)
+}
+```
+
+When the business rule changes (minimum order amount, discount logic, inventory check), you edit the handler. When the database schema changes, you edit the handler. The handler has three reasons to change, which violates both SoC and SRP.
+
+---
+
+### Package boundaries in Go
+
+Go's package system is the natural mechanism for enforcing SoC. A package should represent a single concern. Packages that import each other in cycles are a signal that concerns have leaked; two packages become so entangled that neither can stand alone.
+
+```
+cmd/          — entry points, wires dependencies together
+internal/
+  handler/    — HTTP delivery
+  domain/     — business rules and domain types
+  store/      — persistence
+  notify/     — notifications
+```
+
+The dependency graph should be a DAG. `handler` imports `domain`. `store` imports `domain`. `domain` imports nothing internal. `cmd` imports everything and wires it together.
+
+> **Smell:** A handler function imports a SQL package directly. A business logic function constructs an HTTP response. A database struct has a method that sends an email. You need to mock the database to test a business rule.
+
+See also: [Clean Architecture](/go/patterns/architectural/clean-architecture), [Hexagonal Architecture](/go/patterns/architectural/hexagonal), [Repository](/go/patterns/architectural/repository), [SOLID](/go/philosophy/keep-changes-local#solid).
+## Law of Demeter
+
+Where Separation of Concerns draws the boundaries, the Law of Demeter keeps you from tunnelling through them. Talk only to your immediate collaborators; every dot in `a.b().c().d()` is a dependency on structure you don't own, and a place a distant change can reach in and break you.
+
+*"Each unit should have only limited knowledge about other units: only units 'closely' related to the current unit."*
+
+The Law of Demeter, also called the Principle of Least Knowledge, says a method should only call methods on:
+
+1. Itself
+2. Its parameters
+3. Objects it creates directly
+4. Its own fields
+
+It should not reach through objects to call methods on *their* collaborators. Each dot in a chain like `order.Customer().Address().City()` is a dependency on the internal structure of an object you don't own. If that structure changes, you break.
+
+The informal version: **don't talk to strangers**.
+
+---
+
+### The violation: method chaining through ownership
+
+```go
+// BAD — the handler knows too much about the internal structure of Order.
+// If Order.customer changes from a Customer to a CustomerID,
+// this handler must change too.
+
+func (h *Handler) ShipOrder(w http.ResponseWriter, r *http.Request) {
+    order := h.store.Find(r.URL.Query().Get("id"))
+
+    // Three levels deep — reaching through Order into Customer into Address
+    city := order.Customer().Address().City()
+
+    rate := h.shipping.QuoteFor(city)
+    // ...
+}
+```
+
+```go
+// GOOD — Order exposes what callers need, hiding its internal structure.
+// The handler asks Order for a shipping destination; it doesn't care
+// how Order derives that information.
+
+type Order struct {
+    customer Customer
+}
+
+func (o Order) ShippingDestination() string {
+    return o.customer.Address().City()
+}
+
+func (h *Handler) ShipOrder(w http.ResponseWriter, r *http.Request) {
+    order := h.store.Find(r.URL.Query().Get("id"))
+    rate := h.shipping.QuoteFor(order.ShippingDestination())
+    // ...
+}
+```
+
+The navigation from `Order` to city is encapsulated in `Order.ShippingDestination`. The handler's dependency is on `Order`'s interface, not on `Customer` or `Address`.
+
+---
+
+### Detecting violations: count the dots
+
+A single dot is usually fine. Two dots is a yellow flag. Three or more is almost always a violation.
+
+```go
+// One dot — fine.
+user.Name
+
+// Two dots — possibly fine if the middle type is a value type.
+response.Body.Close()
+
+// Three dots — violation. You're navigating through someone else's structure.
+app.Config().Database().ConnectionString()
+```
+
+The exception: fluent builder patterns are sometimes intentionally chained, like `strings.NewReplacer(...).Replace(s)`. These return `self` at each step rather than reaching into collaborators' internals. That's different from traversing an ownership graph.
+
+---
+
+### Tell, don't ask
+
+The Law of Demeter is related to "Tell, Don't Ask": rather than asking an object for data to make a decision, tell it to make the decision itself.
+
+```go
+// ASK — caller fetches data, makes a decision externally.
+if order.Status() == "pending" && order.Total() > 10000 {
+    order.ApplyDiscount(500)
+}
+
+// TELL — caller tells Order to apply its own discount rule.
+// Order owns the decision about when it qualifies.
+order.ApplyLargeOrderDiscount()
+```
+
+```go
+// Implementation:
+func (o *Order) ApplyLargeOrderDiscount() {
+    if o.status == "pending" && o.total > 10000 {
+        o.total -= 500
+    }
+}
+```
+
+The decision logic about what counts as a "large order" lives in `Order`. If the threshold changes, you update `Order`, not every caller that was querying its fields. Here it is as a small runnable program:
+
+```go:title="main.go":run=true:editable=true
+package main
+
+import "fmt"
+
+// TELL, don't ask: Order owns the decision about when it qualifies.
+type Order struct {
+    status string
+    total  int
+}
+
+func (o *Order) ApplyLargeOrderDiscount() {
+    if o.status == "pending" && o.total > 10000 {
+        o.total -= 500
+    }
+}
+
+func (o Order) Total() int { return o.total }
+
+func main() {
+    big := &Order{status: "pending", total: 25000}
+    small := &Order{status: "pending", total: 5000}
+
+    big.ApplyLargeOrderDiscount()
+    small.ApplyLargeOrderDiscount()
+
+    fmt.Println("large order total:", big.Total())  // 24500
+    fmt.Println("small order total:", small.Total()) // 5000
+}
+```
+
+---
+
+### In Go: package boundaries as the unit
+
+In Go, the Law of Demeter applies most naturally at the package level. A package should be self-contained. If package A reaches through package B to directly manipulate package C's types, that's a three-layer dependency that should be collapsed.
+
+```go
+// BAD — handler package reaches through service package into store package.
+func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
+    svc := h.services.UserService()
+    user, _ := svc.Store().FindByID(r.URL.Query().Get("id")) // reaches into store
+    json.NewEncoder(w).Encode(user)
+}
+
+// GOOD — handler calls service; service calls store; each layer knows only its neighbour.
+func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
+    user, err := h.userService.GetByID(r.Context(), r.URL.Query().Get("id"))
+    if err != nil {
+        http.Error(w, "not found", http.StatusNotFound)
+        return
+    }
+    json.NewEncoder(w).Encode(user)
+}
+```
+
+> **Smell:** A function chain has more than two dots (excluding nil-safe accessors). Changing a deeply nested struct field breaks code in packages that shouldn't know about that struct. A caller extracts data from an object only to pass it back to that same object.
+
+See also: [Separation of Concerns](/go/philosophy/keep-changes-local#separation-of-concerns), [Clean Architecture](/go/patterns/architectural/clean-architecture), [Facade](/go/patterns/structural/facade).
+## SOLID
+
+The most famous set of object-oriented principles is, read through this tenet, five different tactics for keeping change local: a type with one reason to change (SRP), behaviour you extend without editing (OCP), interfaces narrow enough that no client carries what it doesn't use (ISP), and dependencies pointed at abstractions so infrastructure can move without disturbing logic (DIP). Here they are, reinterpreted for Go's implicit-interface, composition-first world.
 
 In Go, three of the five SOLID principles apply almost by default: interfaces are implicit and small by convention (ISP), packages compose rather than inherit (OCP), and focused packages are idiomatic (SRP). The two that need deliberate effort are LSP (which in Go is about behavioral contracts for interface implementors, not subclass hierarchies) and DIP, where Go's "accept interfaces, return structs" idiom replaces abstract classes.
 
@@ -11,7 +381,7 @@ Understanding the principles tells you *why* a design choice is good or bad. Pat
 
 ---
 
-## S: Single Responsibility Principle
+### S: Single Responsibility Principle
 
 *"A module should have one, and only one, reason to change."*
 
@@ -95,7 +465,7 @@ func (h *UserHandler) Register(w http.ResponseWriter, r *http.Request) {
 
 ---
 
-## O: Open/Closed Principle
+### O: Open/Closed Principle
 
 *"Software entities should be open for extension, closed for modification."*
 
@@ -204,7 +574,7 @@ func main() {
 
 ---
 
-## L: Liskov Substitution Principle
+### L: Liskov Substitution Principle
 
 *"Subtypes must be substitutable for their base types without altering correctness."*
 
@@ -269,7 +639,7 @@ func (r *LimitedReader) Read(p []byte) (int, error) {
 
 ---
 
-## I: Interface Segregation Principle
+### I: Interface Segregation Principle
 
 *"No client should be forced to depend on methods it does not use."*
 
@@ -338,7 +708,7 @@ func GenerateReport(src Lister) (Report, error) {
 
 ---
 
-## D: Dependency Inversion Principle
+### D: Dependency Inversion Principle
 
 *"Depend on abstractions, not concretions."*
 
@@ -418,7 +788,7 @@ func (f *fakeNotifier) NotifyConfirmation(email, id string) error {
 
 ---
 
-## Putting It Together
+### Putting It Together
 
 The five principles don't operate independently. When you fix one, you often fix two others for free. Here's a struct that violates four of them simultaneously:
 
@@ -501,7 +871,7 @@ func (f *fakeSender) Send(recipient string, _ []byte) error {
 
 ISP was implicit: `ReportSource` required exactly one method, so anything that can query can satisfy it. LSP is the silent constraint: if your `ReportSource.Rows` implementation sometimes returns a closed `*sql.Rows` without an error, every caller silently gets wrong results. The compiler doesn't catch this; behavioral contracts require documentation and tests.
 
-## Which principles bite hardest in Go
+### Which principles bite hardest in Go
 
 **SRP, OCP, and ISP come nearly free.** Small focused packages are idiomatic. Interfaces are implicit and small by convention — `io.Reader`, `http.Handler`, `fmt.Stringer`. The standard library models OCP continuously: new `io.Reader` implementations can be added anywhere without touching `io`. Violating ISP takes deliberate effort; a five-method interface should make you pause.
 

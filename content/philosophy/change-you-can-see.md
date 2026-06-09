@@ -1,9 +1,32 @@
 ---
-title: Gall's Law
-description: Complex systems that work evolved from simple systems that worked. Design for simplicity first. Complexity that emerges is manageable; complexity that is designed in is not.
+title: Design for the change you can see, not the change you imagine
+nav_title: Change you can see
+description: There are two futures — the one in your backlog and the one in your head. Build for the first; the second is speculation you pay for now.
+order: 6
 ---
 
-# Gall's Law
+# Design for the change you can see, not the change you imagine
+
+There are two kinds of future. There's the change you can *see* — the requirement that's already been asked for, the load you've actually measured, the second use case sitting in the backlog. And there's the change you *imagine* — the "what if we someday," the "this might need to," the extensibility that exists only in your head. Both feel like the same prudent instinct. They are not. The first is information; the second is a guess you start paying for the moment you build to it.
+
+Design for the change you can see. When the change you imagined finally shows up wearing real requirements, it almost never looks like what you guessed — and the scaffolding you built for the guess is now in the way.
+
+This isn't an argument against thinking ahead. It's an argument against *designing* ahead. Decisions that are genuinely hard to reverse — data formats, wire protocols, public APIs — deserve real upfront thought, because changing them later is disproportionately expensive. Operational concerns — scaling, sharding, distribution, retries — should be added in response to evidence, because you can only learn their real shape by running the system.
+
+## Good enough first, better over time
+
+Perfect architecture stays out of reach, and that's fine. Ship something stable enough to be real, then listen for evidence that the shape is wrong:
+
+- changes take longer than they should
+- regressions keep appearing in the same place
+- a feature ripples through modules that shouldn't care
+- people can't confidently decide where new code goes
+
+When those signals keep showing up, adjust the boundaries — one seam at a time, kept close to the pain. That's not failing to plan; it's letting the system tell you what it needs instead of guessing in advance.
+
+## Gall's Law
+
+This tenet has an older, sharper statement, and it's an observation rather than a slogan: complex systems that work are invariably found to have grown from simple systems that worked. The ones designed complex from scratch don't.
 
 *"A complex system that works is invariably found to have evolved from a simple system that worked. A complex system designed from scratch never works and cannot be made to work. You have to start over with a working simple system."* (John Gall, *Systemantics*, 1975)
 
@@ -13,7 +36,7 @@ The reason is fundamental: a complex system has so many interacting parts that y
 
 ---
 
-## The failure mode: designing complexity upfront
+### The failure mode: designing complexity upfront
 
 ```go
 // A system designed to handle every future requirement on day one.
@@ -38,7 +61,7 @@ This system is difficult to build, difficult to test, and impossible to debug wh
 
 ---
 
-## The working alternative: evolve from something simple
+### The working alternative: evolve from something simple
 
 ```go
 // Day one: a simple in-process event dispatcher.
@@ -145,7 +168,7 @@ The complexity that was added is motivated by real operational evidence. It solv
 
 ---
 
-## Gall's Law in architecture decisions
+### Gall's Law in architecture decisions
 
 The principle applies at every scale:
 
@@ -153,11 +176,11 @@ The principle applies at every scale:
 
 **Databases:** Don't shard on day one. A single Postgres instance handles enormous load. Add read replicas when you have measured read latency. Shard when you have a partition key that matches real access patterns, which you can only identify through operation.
 
-**Abstractions:** Don't design the plugin system before you have three plugins. The right abstraction emerges from real usage. The Rule of Three (see [DRY](/go/philosophy/dry)) is Gall's Law applied to code.
+**Abstractions:** Don't design the plugin system before you have three plugins. The right abstraction emerges from real usage. The Rule of Three (see [DRY](/go/philosophy/wrong-abstraction#dry)) is Gall's Law applied to code.
 
 ---
 
-## What this is not
+### What this is not
 
 Gall's Law is not an argument against thinking ahead. It's an argument against *designing* ahead:
 
@@ -170,7 +193,7 @@ The distinction is: structural decisions that are genuinely hard to reverse (dat
 
 ---
 
-## The working simple system as foundation
+### The working simple system as foundation
 
 Gall's Law explains why rewrites fail. A rewrite discards the working simple system: all the edge cases it handles, all the implicit knowledge baked into its behaviour, all the operational experience that shaped it. The rewrite starts from scratch with a complex design and no operational baseline.
 
@@ -178,4 +201,4 @@ The alternative is iterative evolution: keep the system running, add complexity 
 
 > **Smell:** A system that was never fully deployed. A design document that is more detailed than the code. An architecture that handles ten hypothetical failure modes but hasn't shipped to handle the most basic real one. A migration plan that requires moving everything at once.
 
-See also: [YAGNI](/go/philosophy/yagni), [KISS](/go/philosophy/kiss), [Event-Driven Architecture](/go/patterns/architectural/event-driven).
+See also: [YAGNI](/go/philosophy/no-pattern#yagni), [KISS](/go/philosophy/no-pattern#kiss), [Event-Driven Architecture](/go/patterns/architectural/event-driven).

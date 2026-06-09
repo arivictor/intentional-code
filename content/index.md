@@ -3,6 +3,7 @@ title: What is Intentional Code?
 nav_title: Home
 description: Judgment, not recipes — the decision behind the code, for Go developers who want to read, test, and change it with less friction.
 icon: house
+order: 0
 ---
 
 ![Intentional Code](/og-image.svg)
@@ -23,15 +24,16 @@ Good architecture is not knowing the patterns. It is knowing which one the probl
 
 None of these tell you what to type. All of them shape how you decide — and the last one means it.
 
-1. **Architecture is a philosophy, not a rule.**
-2. **If you can't name the trade-off, you didn't decide — you defaulted.**
-3. **The best pattern is often no pattern.**
-4. **Every abstraction is borrowed against the future. Only borrow what you'll spend.**
-5. **Design for the change you can see, not the change you imagine.**
-6. **Hard to test is the design talking — listen to it.**
-7. **Duplication is cheaper than the wrong abstraction.**
-8. **Build the simplest thing that could possibly work.**
-9. **You may disagree with any of these — but you need a reason.**
+1. **[Architecture is a philosophy, not a rule.](/go/philosophy/architecture-is-a-philosophy)**
+2. **[If you can't name the trade-off, you didn't decide — you defaulted.](/go/philosophy/name-the-trade-off)**
+3. **[The best pattern is often no pattern.](/go/philosophy/no-pattern)**
+4. **[Build the simplest thing that could possibly work.](/go/philosophy/build-the-simplest-thing)**
+5. **[Every abstraction is borrowed against the future. Only borrow what you'll spend.](/go/philosophy/borrowed-abstraction)**
+6. **[Design for the change you can see, not the change you imagine.](/go/philosophy/change-you-can-see)**
+7. **[Hard to test is the design talking — listen to it.](/go/philosophy/listen-to-the-tests)**
+8. **[Duplication is cheaper than the wrong abstraction.](/go/philosophy/wrong-abstraction)**
+9. **[Make the next change local. That's the whole job.](/go/philosophy/keep-changes-local)**
+10. **[You may disagree with any of these — but you need a reason.](/go/philosophy/disagree-with-reason)**
 
 ## The payoff
 

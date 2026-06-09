@@ -7,7 +7,7 @@ description: Composing types by wrapping, extending, and combining them without 
 
 Structural patterns are about composition. You wrap, extend, or combine existing types and leave the originals alone. In Go, embedding and implicit interfaces make this feel ordinary, so you see these shapes in code long before you hear their names.
 
-Most structural patterns line up with [SOLID Principles](/go/philosophy/solid), especially Open/Closed and Dependency Inversion. You add behaviour without rewriting existing types, and you lean on interfaces instead of concrete implementations.
+Most structural patterns line up with [SOLID Principles](/go/philosophy/keep-changes-local#solid), especially Open/Closed and Dependency Inversion. You add behaviour without rewriting existing types, and you lean on interfaces instead of concrete implementations.
 
 ## The Building Blocks
 

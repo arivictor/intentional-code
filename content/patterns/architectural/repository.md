@@ -9,7 +9,7 @@ The Repository pattern defines a persistence contract as an interface that the d
 
 One of the clearest signs you need a Repository is a service function that takes `*sql.DB` directly. That usually means you cannot test the business rule without a real database running. The Repository pattern fixes that by replacing the concrete database dependency with an interface defined near the domain logic. In Go, implicit interface satisfaction makes this natural: the domain does not need to import the infrastructure package, and any type with the right methods can satisfy the interface, including an in-memory fake used in fast tests.
 
-This is the [Dependency Inversion Principle](/go/philosophy/solid) applied to persistence. The domain says what storage behavior it needs, and infrastructure provides an implementation of that contract.
+This is the [Dependency Inversion Principle](/go/philosophy/keep-changes-local#solid) applied to persistence. The domain says what storage behavior it needs, and infrastructure provides an implementation of that contract.
 
 ## Scenario
 

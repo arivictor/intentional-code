@@ -7,7 +7,7 @@ description: "Define a one-to-many dependency between objects so that when one c
 
 The Observer pattern defines a one-to-many relationship between a subject and its observers. When the subject's state changes, it notifies all registered observers, which react independently. This decouples the subject from its observers: the subject doesn't know who is listening or what they do with the notification. In Go, the simplest form of an observer is an interface with a method like `OnChange()`, but function values and channels are also common, each with their own tradeoffs around lifecycle management and concurrency.
 
-The pattern's core guarantee is when the subject's state changes, it doesn't know or care who reacts. Registered observers are notified; the subject imports nothing from observer packages. This is the [Open/Closed Principle](/go/philosophy/solid) applied to event notification. You add new reactions without touching the thing that changed.
+The pattern's core guarantee is when the subject's state changes, it doesn't know or care who reacts. Registered observers are notified; the subject imports nothing from observer packages. This is the [Open/Closed Principle](/go/philosophy/keep-changes-local#solid) applied to event notification. You add new reactions without touching the thing that changed.
 
 ## Scenario
 

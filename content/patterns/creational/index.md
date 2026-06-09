@@ -7,7 +7,7 @@ description: Object-creation mechanisms that increase flexibility and reuse of e
 
 Creational patterns are about construction. They answer the question: **how should these objects be created?** Go has no `new` keyword with arguments, no constructor overloading, and no default parameter values. Every constructor is a function, which is both a constraint and a freedom. The patterns in this category fill in the gaps that this simplicity creates.
 
-The [SOLID Principles](/go/philosophy/solid), especially Dependency Inversion, explain why creational patterns matter: the goal is always to decouple the *construction* of an object from its *use*, so the business logic never imports the concrete type directly.
+The [SOLID Principles](/go/philosophy/keep-changes-local#solid), especially Dependency Inversion, explain why creational patterns matter: the goal is always to decouple the *construction* of an object from its *use*, so the business logic never imports the concrete type directly.
 
 ## The Building Blocks
 
