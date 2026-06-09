@@ -1,17 +1,17 @@
 ---
 title: "Backends for Frontends (BFF)"
-description: "Give each frontend its own dedicated backend that aggregates and shapes downstream data to that client's exact needs, instead of forcing one general-purpose API to serve a web app, a mobile app, and everything else equally badly."
+description: "Each frontend gets its own backend, shaped to its own screen, network, and flow, while downstream services stay shared and general."
 ---
 
 # Backends for Frontends (BFF)
 
-A Backend for Frontend is a dedicated backend service tailored to one specific frontend. Instead of every client — a desktop web app, a native mobile app, a smart-TV interface — talking to a single general-purpose API, each gets its own BFF that sits between it and the downstream services. The BFF aggregates calls to those services and shapes a response designed for exactly that client: the payload it needs, in the form it wants, over the connection it has.
+A Backend for Frontend is a backend you keep close to one frontend. One app, one BFF. Another app, another BFF. They sit in front of the same downstream services, then shape responses for the client that asked.
 
-The reason a single shared API tends to disappoint everyone is that frontends have genuinely different needs. A mobile client on a flaky cellular link wants tiny, pre-aggregated payloads to minimise round-trips and bytes; a web dashboard wants rich, denormalised data for a dense screen. Forcing both through one endpoint means either the mobile client over-fetches and stitches data together itself, or the API grows a thicket of `?fields=`, `?include=`, and version flags trying to please both. A BFF moves that per-client shaping into a backend the client team owns.
+You see the difference fast when clients share one general API. Mobile asks for a small view on a weak link. Web asks for a wider one on a big screen. The shared endpoint starts collecting flags and field lists, and both sides still do extra work. A BFF gives each team a place to shape data without asking every other team first.
 
 ## Scenario
 
-One `/home` endpoint serves both the mobile app and the web app. The mobile team can't get a lean payload without breaking the web view, so the app downloads a large profile object and full order history just to render a name and one recent order — three extra fields' worth of work on every screen, over a slow connection.
+One `/home` endpoint serves mobile and web. Mobile needs a name, an avatar, one recent order. It still pulls a full profile and full order history, then throws most of it away before paint.
 
 ```go
 // One endpoint, one shape, two unhappy clients.
@@ -29,7 +29,7 @@ func (h *API) Home(w http.ResponseWriter, r *http.Request) {
 
 ## Solution
 
-Give each frontend its own backend. Both BFFs call the same downstream services, but each composes a response shaped for its client — the mobile BFF returns a minimal payload, the web BFF a richer one.
+Give each frontend its own backend. Both BFFs call the same downstream services, and each composes a response shaped for its client. The mobile BFF returns a minimal payload. The web BFF returns a richer one.
 
 ```text:title="diagram"
    ┌────────────┐      ┌──────────────┐
@@ -136,34 +136,36 @@ func main() {
 
 The crucial ownership rule: **a BFF is owned by the frontend team it serves.** That's what keeps it from collapsing back into a shared API. Because the mobile team owns the mobile BFF, they can change its shape in lockstep with the app and never negotiate with the web team. The downstream services stay general-purpose and client-agnostic; all the client-specific glue lives in the BFF.
 
-A BFF differs from a plain API gateway. A gateway handles cross-cutting concerns for *all* traffic — routing, auth, TLS termination, global rate limiting — and is generally client-agnostic. A BFF is *per client* and is full of client-specific business logic: which services to call, how to aggregate them, what fields to project. The two compose well: a shared gateway out front, a BFF per frontend behind it.
+The ownership rule matters. A BFF belongs to the frontend team it serves. If mobile owns the mobile BFF, it can change payload shape in the same pull request as the app. Downstream services stay general and shared, and the client-specific stitching stays at the edge.
+
+A BFF and an API gateway can live in the same system. The gateway handles cross-cutting concerns for all traffic, routing, auth, TLS termination, global limits. The BFF handles per-client shaping, which services to call, how to combine results, which fields to return.
 
 ## When to Use
 
-- You serve multiple frontends (web, iOS, Android, partner integrations) with materially different data, payload-size, or round-trip needs.
-- Mobile clients are over-fetching or making chatty multi-call sequences against a one-size-fits-all API.
-- Frontend teams are blocked waiting on a shared backend team to add or reshape endpoints, and you want to give them control over their own edge.
-- You want a place to do client-specific aggregation and composition without polluting the core domain services.
+- You serve several frontends, and their payload or round-trip needs are clearly different.
+- Mobile clients over-fetch, or make many small calls in sequence to render one screen.
+- Frontend teams wait on a shared backend team for shape changes.
+- You want client-specific aggregation without pushing that logic into core domain services.
 
 ## When Not to Use
 
-- You have a single frontend, or all your clients genuinely want the same shape. A second backend tier is pure overhead.
-- The duplication across BFFs would be almost total — if every BFF returns nearly the same thing, one shared API (or GraphQL, where the client selects fields) may serve better.
-- Your team can't sustain the extra services. Each BFF is another deployable to build, monitor, secure, and keep in sync with downstream contract changes.
-- The shaping is trivial and a few optional query parameters on one endpoint handle it cleanly.
+- You have one frontend, or clients want mostly the same shape.
+- Most BFF code would be duplicated anyway, with little client-specific behavior.
+- The team cannot support extra deployables, monitoring, and contract drift.
+- A few optional query parameters already cover the shape differences cleanly.
 
 ## Tradeoffs
 
-A BFF buys each frontend an edge it controls, at the price of **more services and some duplicated logic**. Aggregation and orchestration that would otherwise sprawl across clients (or bloat a shared API) get a clean home — but you now run N backends instead of one, and similar concerns (auth checks, common DTOs) tend to get re-implemented in each. Factor genuinely shared logic into libraries the BFFs import, while accepting that *some* duplication is the point: it's what lets each BFF evolve independently.
+A BFF gives each frontend an edge it controls, and it adds moving parts. You run more services. You repeat some glue code, auth checks, and DTO mapping. Shared pieces can move into libraries, but some duplication stays by design so each BFF can move at its own pace.
 
-The sharpest failure mode is the **BFF that grows into a second monolith** or quietly becomes the new shared API because two clients started pointing at the same one. Hold the line on ownership (one BFF per frontend, owned by that frontend's team) and keep domain logic in the downstream services — the BFF aggregates and shapes; it should not become where the business rules live.
+The common failure mode is quiet. A BFF starts serving two clients, then three, and now it looks like the shared API you were trying to escape. Keep ownership tight, one frontend team per BFF, and keep domain rules in downstream services.
 
-There's also a real **latency and failure-handling** dimension: the BFF fans out to several downstream services, so it must handle partial failures, set per-call timeouts, and ideally parallelise independent calls. A naive sequential BFF can be slower than the chatty client it replaced.
+Latency needs attention. A BFF often fans out to several services, so partial failures, per-call timeouts, and parallel calls matter. A sequential implementation can end up slower than the chatty client flow it replaced.
 
 ## Related Patterns
 
-- **Microservices:** The BFF is the client-facing edge of a microservices system, aggregating calls to many fine-grained services into one client-shaped response so frontends don't orchestrate that fan-out themselves.
-- **API Gateway:** Complementary, not competing. A gateway handles cross-cutting, client-agnostic concerns for all traffic; a BFF handles per-client shaping behind it. Common to run both.
-- **Facade:** A BFF is a Facade at the system boundary — it presents a simple, purpose-built interface over a set of more complex downstream services, for one specific consumer.
-- **Rate Limiting:** Per-client rate limiting and auth often live at the BFF/gateway edge, where requests enter before fanning out to internal services.
-- **Modular Monolith:** A BFF need not be a separate service — it can be a module in a modular monolith, giving you client-shaped edges without yet paying the distribution tax.
+- **Microservices:** A BFF sits at the client edge and aggregates calls to fine-grained services, so the frontend does not orchestrate fan-out itself.
+- **API Gateway:** A gateway handles cross-cutting concerns for all traffic. A BFF shapes responses for one client. Many systems use both.
+- **Facade:** A BFF acts as a facade at the boundary, one simple interface over several downstream services for one consumer.
+- **Rate Limiting:** Per-client rate limits and auth checks often happen at the gateway or BFF edge, before internal fan-out.
+- **Modular Monolith:** A BFF can be a module inside a modular monolith, so you keep client-shaped edges without immediate distribution overhead.

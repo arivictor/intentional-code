@@ -3,24 +3,24 @@ title: Structural Patterns
 description: Composing types by wrapping, extending, and combining them without modifying the originals.
 ---
 
-The question structural patterns answer: **how should these types fit together?**
+## What Are Structural Patterns?
 
-Structural patterns are about composition: wrapping, extending, or combining existing types without modifying them. In Go, where embedding and implicit interfaces make composition the primary tool, these patterns appear in idiomatic code constantly, often without the names.
+Structural patterns are about composition. You wrap, extend, or combine existing types and leave the originals alone. In Go, embedding and implicit interfaces make this feel ordinary, so you see these shapes in code long before you hear their names.
 
-**Start with [Adapter](/go/patterns/structural/adapter)** when you have a type that doesn't quite satisfy an interface you need. Any wrapper struct that makes one package's type compatible with another's interface is an Adapter. It's one of the most common patterns in Go codebases.
+Most structural patterns line up with [SOLID Principles](/go/philosophy/solid), especially Open/Closed and Dependency Inversion. You add behaviour without rewriting existing types, and you lean on interfaces instead of concrete implementations.
 
-**[Decorator](/go/patterns/structural/decorator)** is for adding behaviour to an existing type without changing it. Go middleware (HTTP, gRPC, database) is Decorator. Any function that takes an interface and returns the same interface, adding logging, metrics, or retry logic, is a Decorator.
+## The Building Blocks
 
-**[Proxy](/go/patterns/structural/proxy)** looks similar to Decorator but has a different intent: it controls *access* rather than adding behaviour. Lazy initialisation, access control, and connection pooling are all Proxy territory. The distinction is subtle in Go code (both wrap an interface), but it matters for design intent.
+**Start with [Adapter](/go/patterns/structural/adapter)** when a type almost fits the interface you need. A small wrapper can make one package speak another package's contract. You will see this often.
 
-**[Facade](/go/patterns/structural/facade)** simplifies a complex subsystem behind a single entry point. If you have orchestration code that is duplicated across callers, that code belongs in a Facade. The `http.ListenAndServe` function is a textbook Facade over `net.Listener`, `http.Server`, and TLS configuration.
+**[Decorator](/go/patterns/structural/decorator)** adds behaviour around a type without changing it. Go middleware does this every day, in HTTP, gRPC, and database layers. A function that accepts an interface and returns the same interface with logging, metrics, or retries attached is Decorator in plain clothes.
 
-**[Composite](/go/patterns/structural/composite)** is for tree structures where leaves and branches must be treated the same way. Filesystem paths, UI component trees, and expression trees are natural Composite territory.
+**[Proxy](/go/patterns/structural/proxy)** can look the same on the surface, a wrapper around an interface, but the job is different. A Proxy controls access. Lazy startup, permission checks, and connection pooling usually land here.
 
-**[Bridge](/go/patterns/structural/bridge)** separates an abstraction from its implementation so both can vary independently. It's the right choice when a type hierarchy is growing in two independent directions at once.
+**[Facade](/go/patterns/structural/facade)** gives you one clean entry point to a subsystem with too many moving parts. When orchestration logic starts repeating across callers, pull it into a Facade. The `http.ListenAndServe` call is a familiar example, sitting over `net.Listener`, `http.Server`, and TLS setup.
 
-**[Flyweight](/go/patterns/structural/flyweight)** is a targeted memory optimisation: when you have large numbers of similar objects, share the immutable parts and keep only the unique parts per instance. It's situational; reach for it when profiling points to memory as the bottleneck.
+**[Composite](/go/patterns/structural/composite)** fits tree structures where leaves and branches need the same interface. Filesystem paths, UI trees, and expression trees all lean this way.
 
----
+**[Bridge](/go/patterns/structural/bridge)** keeps an abstraction and its implementation separate, so each can change without dragging the other. Use it when variation is happening in two directions at once.
 
-Most structural patterns are expressions of the [SOLID Principles](/go/philosophy/solid) Open/Closed and Dependency Inversion principles: add behaviour without modifying existing types, and depend on interfaces rather than concrete implementations.
+**[Flyweight](/go/patterns/structural/flyweight)** is a memory move. When you hold large numbers of similar objects, share the immutable parts and keep only unique state per instance. It is a tool you reach for after profiling tells you memory is the pressure point.

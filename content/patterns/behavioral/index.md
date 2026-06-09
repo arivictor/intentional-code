@@ -3,9 +3,13 @@ title: Behavioral Patterns
 description: Patterns for how objects communicate, distribute responsibility, and select behaviour at runtime.
 ---
 
-The question behavioral patterns answer: **how should these objects communicate and distribute responsibility?**
+## What Are Behavioral Patterns?
 
-Where structural patterns are about composition (fitting types together), behavioral patterns are about runtime flow: who calls whom, how algorithms are selected, how state changes are tracked.
+Behavioral patterns are about communication. They answer the question: **how should these objects communicate and distribute responsibility?** Where structural patterns are about composition (fitting types together), behavioral patterns are about runtime flow: who calls whom, how algorithms are selected, how state changes are tracked.
+
+Behavioral patterns are closely related to the [SOLID Principles](/go/philosophy/solid): Open/Closed drives Strategy and Observer; Single Responsibility drives Command and Mediator.
+
+## The Building Blocks
 
 **Start with [Strategy](/go/patterns/behavioral/strategy)** if you have a switch statement that selects an algorithm. Strategy is the simplest behavioral pattern in Go, often just a function type or a single-method interface, and it's the pattern [TDD](/go/philosophy/tdd) most reliably drives you toward.
 
@@ -28,7 +32,3 @@ Where structural patterns are about composition (fitting types together), behavi
 **[Visitor](/go/patterns/behavioral/visitor)** separates operations from the types they operate on, letting you add new operations without modifying the type hierarchy. Go's lack of method overloading means Visitor uses explicit type switches or double-dispatch, which is more verbose than in languages with overloading, but still useful for stable type hierarchies with evolving operations.
 
 **[Interpreter](/go/patterns/behavioral/interpreter)** defines a grammar as a set of types (one per grammar rule) and evaluates a sentence by walking the resulting tree. Each node implements a shared `Interpret` interface. Use it for small DSLs and rule engines; for large or performance-critical grammars, reach for a parser generator or bytecode VM instead.
-
----
-
-Behavioral patterns are closely related to the [SOLID Principles](/go/philosophy/solid): Open/Closed drives Strategy and Observer; Single Responsibility drives Command and Mediator.

@@ -3,11 +3,13 @@ title: Concurrency Patterns
 description: The standard ways to combine goroutines and channels into concurrent systems that stay correct, bounded, and cancellable.
 ---
 
+## What Are Concurrency Patterns?
+
 Go's concurrency model is built on two primitives: goroutines and channels. Goroutines are cheap, independently-scheduled functions. Channels are typed conduits that let goroutines communicate and synchronise without shared memory. The language slogan captures the philosophy: *"Do not communicate by sharing memory; instead, share memory by communicating."*
 
 These primitives compose well, but raw goroutines fail in ways that are easy to miss at first. Goroutines leak when nothing tells them to stop. Channels block forever when a sender or receiver exits early. Unrecovered panics in goroutines crash the whole process. The patterns in this section are the standard ways to avoid those failures and build concurrent systems that stay correct, bounded, and cancellable.
 
-## The building blocks
+## The Building Blocks
 
 **Goroutines** are the unit of concurrency. Spawning one is as cheap as a function call; Go programs routinely run thousands. The cost of getting them wrong is also low-friction, which is why discipline around their lifecycle matters.
 

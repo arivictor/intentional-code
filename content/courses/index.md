@@ -7,4 +7,4 @@ icon: graduation-cap
 
 ## Courses
 
-* [CLI Network Scanner](./cli-network-scanner/index.md)
+* [Build a CLI](./cli-network-scanner/index.md)
