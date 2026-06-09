@@ -49,4 +49,6 @@ If you can't answer these questions, the goroutine will eventually leak.
 
 ---
 
+These patterns follow the channel-first model: *share memory by communicating*. For the other half — when goroutines legitimately **share** a piece of state and you need a lock, an atomic, or a `WaitGroup` to keep it correct — see the [Synchronisation patterns](/go/patterns/synchronisation), starting with [Data Races](/go/patterns/synchronisation/data-races).
+
 The [Observer](/go/patterns/behavioral/observer) and [Event-Driven Architecture](/go/patterns/architectural/event-driven) patterns use channels and goroutines for async notification; the concurrency patterns here are the implementation vocabulary for those higher-level designs.
