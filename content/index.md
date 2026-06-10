@@ -1,7 +1,7 @@
 ---
-title: Every Go design pattern here comes with the decision attached.
+title: Intentional Code
 nav_title: Home
-description: Every Go design, concurrency, and architecture pattern here comes with the trade-off it makes, the situation that earns it, and the point where it tips into over-engineering.
+description: Learn Go patterns with intention. When to use them, when they're over-engineering.
 icon: house
 order: 0
 ---
