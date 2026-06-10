@@ -5,6 +5,8 @@ description: "Separate an algorithm from the object structure it operates on by 
 
 # Visitor
 
+**Buys open/closed for operations — add a visitor without touching node types; pays in double-dispatch boilerplate and costly new node types. A type switch usually wins.**
+
 Visitor separates an operation from the types it operates on. Instead of adding a new method to every type each time you need a new operation, the operations live in a visitor struct. Each type accepts a visitor and calls the right method on it. In Go, this means every element type implements `Accept(Visitor)`, and the visitor implements one method per element type.
 
 Here's the honest truth: Visitor is verbose in Go and often not the right choice. The Go alternative (a type switch) is simpler and covers most use cases. Use Visitor when you need the open/closed principle for operations, meaning you want to add new operations without modifying element types. Use a type switch when you need simplicity and your element types are stable.
@@ -136,7 +138,7 @@ Expression: ((3 + 4) * 2)
 Result:     14
 ```
 
-> In most Go codebases, a type switch is preferred over Visitor. It's simpler, more readable, and exhaustive-switch linters tell you when you've missed a case. Use Visitor only when you truly need the open/closed principle for operations, for example in a compiler or interpreter where new analysis passes are added frequently but the AST node types are stable.
+> In most Go code, reach for a type switch over Visitor. It's simpler, more readable, and exhaustive-switch linters tell you when you've missed a case. Use Visitor only when you truly need the open/closed principle for operations, for example in a compiler or interpreter where new analysis passes are added frequently but the AST node types are stable.
 
 ## When to Use
 
@@ -155,6 +157,8 @@ Result:     14
 The open/closed benefit only works in one direction. Adding a new operation is usually cheap: you add one new visitor struct and leave existing node code alone. But adding a new node type is expensive, because every existing visitor must now learn that new type. This is the exact opposite tradeoff of a type switch.
 
 In this example, the `any` return type is the roughest part of Visitor in Go. You lose compile-time type safety at each `Accept` call and depend on type assertions, which can panic at runtime if they are wrong. Generics can reduce that risk, but they also make the design harder to read and maintain. The boilerplate is real: with five node types and ten operations, you end up writing fifty visit methods. Visitor is worth it only when new operations are added often and the set of node types stays mostly stable.
+
+In Go this is usually [the case for no pattern at all](/go/philosophy/no-pattern): a type switch does the same dispatch without the `Accept`/`Visit` ceremony, and an exhaustive-switch linter tells you when you've missed a case.
 
 ## Related Patterns
 

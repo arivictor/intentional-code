@@ -5,6 +5,8 @@ description: "Convert the interface of an existing type into another interface c
 
 # Adapter
 
+**Buys one-place translation isolating a third-party API from your domain; pays in a layer of indirection and silent information loss when a rich type is flattened.**
+
 The Adapter pattern converts the interface of an existing type into another interface clients expect, letting incompatible types work together. In Go, any wrapper struct that makes one package's type compatible with another's interface is an Adapter: one of the most common patterns in the language, frequently written without being recognised as one. The formal structure is a struct that holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
 
 The pattern is especially common when integrating third-party packages. You can't modify the package, and you don't want to modify your domain interface everywhere it's used, so you build a thin wrapper that translates between them once, in one place.
@@ -117,9 +119,11 @@ The benefit is concentrated: translation logic lives in one place, not scattered
 
 If the adapted API changes (new parameters, changed return types), the adapter must be updated. The compiler will catch this immediately, which is actually a feature. Adapters can also silently lose information: translating a rich structured log entry down to a plain string means callers can never get that structure back. Be deliberate about what the adapter discards.
 
+You meet adapters constantly in the standard library: `strings.NewReader`, `bufio.NewReader`, and `io.NopCloser` each wrap one type so it satisfies an interface a caller expects, such as `io.Reader` or `io.ReadCloser`. That framing makes the trade-off clear — an adapter is [an abstraction borrowed against the future](/go/philosophy/borrowed-abstraction): worth it to quarantine a foreign API, wasteful when you wrap a type you already own.
+
 ## Related Patterns
 
 - **Bridge**: Bridge designs two interfaces to vary independently from the start; Adapter is a retrofit that reconciles two existing interfaces that were never designed to work together.
-- **Decorator**: Decorator preserves the same interface and adds behavior; Adapter changes the interface to resolve a mismatch. If your wrapper changes the API, it's an Adapter; if it adds to the same API, it's a Decorator.
+- **Decorator**: Decorator preserves the same interface and adds behaviour; Adapter changes the interface to resolve a mismatch. If your wrapper changes the API, it's an Adapter; if it adds to the same API, it's a Decorator.
 - **Facade**: Facade simplifies a whole subsystem's API into fewer entry points; Adapter makes one specific type compatible with one specific interface.
 - **Proxy**: Proxy preserves the same interface to control access to the real object; Adapter provides a different interface to bridge an incompatibility.

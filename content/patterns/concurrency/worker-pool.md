@@ -7,7 +7,7 @@ description: "Process jobs concurrently using a fixed number of goroutines, boun
 
 A worker pool processes a queue of jobs using a fixed number of goroutines. Rather than spawning one goroutine per job (which can exhaust memory under load) a pool creates N workers at startup and keeps them running, each drawing jobs from a shared channel. Work is bounded: at most N jobs run simultaneously regardless of how many are enqueued.
 
-This is the most common concurrency pattern in production Go code.
+**Buys a hard ceiling on goroutines and amortised startup for job streams; pays in channel plumbing and out-of-order results.** It's the concurrency pattern you'll reach for most often.
 
 ## Scenario
 
@@ -228,6 +228,8 @@ A buffer of one to two times the worker count is a reasonable starting point: it
 
 **Error model.**
 The simple pool above collects errors into the results channel and lets the consumer decide. The [Errgroup](/go/patterns/concurrency/errgroup) pattern cancels the whole pool on the first error, which is appropriate when any failure makes the rest of the work pointless (batch imports, parallel validation steps). Choose based on whether your consumer needs to know which jobs failed independently, or just whether the whole operation succeeded.
+
+Every one of these is the same move — [naming the trade-off](/go/philosophy/name-the-trade-off) before you reach for the pool. The ceiling, the amortised startup, and the back-pressure are real gains, but each is bought with channel plumbing and out-of-order results; if you can't say which one you're buying, goroutine-per-job is the honest default.
 
 ## Related Patterns
 

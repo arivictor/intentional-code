@@ -5,11 +5,13 @@ description: "Store state as an append-only log of domain events, and derive cur
 
 # Event Sourcing
 
+**Buys a built-in audit trail and time-travel via replay; pays in projection complexity, eventually consistent reads, and forever-backward-compatible event schemas.**
+
 Most systems store only the latest state of an entity. Event Sourcing stores the full history of changes, then rebuilds the current state by replaying that history. Instead of one row that says `balance = 420`, an account has an event stream like `AccountOpened`, `MoneyDeposited(500)`, `MoneyWithdrawn(80)`. The current balance is calculated from those events.
 
 This gives you an audit trail by default. It also gives you built-in time-travel debugging, because you can rebuild state as it looked at an earlier point in time. You can also replay old events into a new projection to answer questions you did not plan for when the system was first designed. But there are real costs: reads are more complex (you usually need projection tables), replay can be slow for long streams unless you use snapshots, and event schema changes need careful versioning.
 
-Event Sourcing fits naturally with [CQRS](/go/patterns/architectural/cqrs): commands append events to the stream, and the query side consumes that stream to build denormalized read models.
+Event Sourcing fits naturally with [CQRS](/go/patterns/architectural/cqrs): commands append events to the stream, and the query side consumes that stream to build denormalised read models.
 
 ## Scenario
 

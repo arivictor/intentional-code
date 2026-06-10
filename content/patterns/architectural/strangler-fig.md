@@ -5,6 +5,8 @@ description: "Incrementally replace a legacy system by routing some traffic to a
 
 # Strangler Fig
 
+**Buys incremental, reversible migration off a legacy system instead of a big-bang rewrite; pays in running two implementations, data-sync drift, and a routing layer that can outstay its welcome.**
+
 The Strangler Fig pattern gets its name from a vine that grows around a tree and slowly replaces it. The software version works the same way. You build a new system around the edges of the old one, send some requests to the new code, and leave the rest on the legacy system. Over time, the new system handles more and more, until the old system handles nothing and can be removed.
 
 The important property is that the old and new systems run side by side for a long time. A routing layer sits in front of them and decides where each request goes. Neither system needs to know about that routing decision. As the migration moves forward, the new system covers more paths and the legacy system covers fewer. At the end, the routing layer becomes a simple pass-through to the new system, and the old system is deleted.
@@ -232,14 +234,14 @@ func (s *stranglerInventory) Available(ctx context.Context, itemID string) (int,
 ## When Not to Use
 
 - The legacy system is small enough to rewrite and test in one cycle.
-- The old and new systems cannot share a data store or synchronize state. The data migration problem is harder than the code migration.
+- The old and new systems cannot share a data store or synchronise state. The data migration problem is harder than the code migration.
 - The routing layer is too expensive to maintain for the expected migration duration.
 
 ## Tradeoffs
 
 The biggest benefit is lower risk. If the new service has a bug, you can switch traffic back and let the legacy system handle the request again. You can also verify each subsystem in production before giving it more traffic.
 
-The costs are real. For a while, you are maintaining two implementations at the same time. Keeping data consistent between the old and new systems is a real engineering problem: writes to one side often need to be copied to the other, or the two systems drift apart. The migration also lasts for months, which means the routing layer can quietly become permanent infrastructure if the team does not remove it on purpose. Set a clear deadline for each migration phase. Shadow mode is extremely useful for finding behavior differences before cutover, but it also doubles the load on both systems during that validation period.
+The costs are real. For a while, you are maintaining two implementations at the same time. Keeping data consistent between the old and new systems is a real engineering problem: writes to one side often need to be copied to the other, or the two systems drift apart. The migration also lasts for months, which means the routing layer can quietly become permanent infrastructure if the team does not remove it on purpose. Set a clear deadline for each migration phase. Shadow mode is extremely useful for finding behaviour differences before cutover, but it also doubles the load on both systems during that validation period.
 
 ## Related Patterns
 

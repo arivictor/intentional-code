@@ -1,9 +1,11 @@
 ---
 title: "Clean Architecture"
-description: "Structure code in concentric rings, Entities, Use Cases, Interface Adapters, Frameworks, enforcing a strict inward dependency rule so the domain never imports infrastructure."
+description: "Structure code in concentric rings — Entities, Use Cases, Interface Adapters, Frameworks — with a strict inward dependency rule, so the domain never imports infrastructure."
 ---
 
 # Clean Architecture
+
+**Buys domain independence from infrastructure and a second delivery mechanism almost for free; pays in inter-ring mapping boilerplate and a rule the compiler won't enforce.**
 
 Popularised by Robert C. Martin ("Uncle Bob"), Clean Architecture is a software design pattern designed to separate your core business logic from your technical framework, database, and user interface. The ultimate goal is Separation of Concerns so that your application is easy to test, maintain, and change over time. Clean Architecture is imagined as concentric layers of code. It is as much a philosophy as it is a pattern. The pattern hinges around one rule, which is that each source code layer can only point inward. By "point inward" we mean the outer most layer can import inner layers, but inner layers cannot import outer layers. 
 
@@ -354,6 +356,8 @@ The inward dependency rule answers a specific question: "why can't my domain typ
 The inward dependency rule is the entire point, and the architecture only works if the team enforces it. A single `import "database/sql"` in a use case package silently breaks the concept, and Go's toolchain won't catch it. Data mapping between rings is mechanical but unavoidable: domain types need to be converted to DTOs for the HTTP response, to row types for the database, and back again, which adds boilerplate even for small features. 
 
 In older Go codebases without generics, many small interfaces and converter functions compound this cost. The payoff arrives when you add a second delivery mechanism (gRPC, a worker, a CLI) without touching any domain code, or when you swap a database by replacing one adapter package. If you never do either of those things, the pattern is overhead.
+
+Those rings only earn their cost once you can [name the trade-off](/go/philosophy/name-the-trade-off) they buy. Impose them by default and you've paid the mapping boilerplate for boundaries you never use; reach for them when a second delivery mechanism or a database swap is a change you can actually see coming.
 
 ## Related Patterns
 

@@ -5,6 +5,8 @@ description: "Limit the number of goroutines accessing a resource concurrently u
 
 # Semaphore
 
+**Buys a concurrency ceiling without a standing pool, the simplest option for a known batch; pays per-job goroutine startup. Same ceiling as a Worker Pool, simpler: use the semaphore for known batches, the pool for streams.**
+
 A semaphore limits how many goroutines can use a resource at the same time. In Go, the usual way to build one is a buffered channel of empty structs. The channel capacity is the limit. Sending into the channel means "take one slot," and receiving from the channel means "free one slot." If the channel is full, the next send blocks until some goroutine releases a slot.
 
 Think of a semaphore as the middle ground between two extremes: a mutex (only one goroutine allowed) and no limit at all (everyone runs at once). Use it when you know the safe concurrency limit of a downstream system and want to enforce that limit directly, without building and managing a long-lived worker pool.

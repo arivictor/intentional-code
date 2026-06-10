@@ -5,6 +5,8 @@ description: "Distribute work from a single channel across multiple goroutines, 
 
 # Fan-out / Fan-in
 
+**Buys parallelism for a slow stage behind an unchanged single-channel interface; pays in lost input order and a possible fan-in bottleneck.**
+
 Fan-out distributes work from a single source channel to multiple goroutines processing in parallel. Fan-in merges the results from multiple goroutines back into a single channel for the downstream consumer. Together they turn a single-threaded pipeline stage into a parallel one, without changing the interface: the caller still reads from one channel.
 
 The pattern addresses a specific bottleneck: a pipeline stage that is slower than its upstream and downstream. Rather than replacing the slow stage, you run N copies of it simultaneously.

@@ -5,6 +5,8 @@ description: "Recover from transient failures by re-attempting an operation with
 
 # Retry
 
+**Buys recovery from transient failures via bounded backoff with jitter; pays in added latency, retry amplification down a call chain, and a hard dependency on idempotency.**
+
 Networks drop packets, databases briefly deadlock, and services restart. Many failures are *transient* — the same call would succeed a moment later. A retry loop re-attempts a failed operation a bounded number of times, waiting longer between each attempt (**exponential backoff**) and adding randomness (**jitter**) so that many clients don't retry in lockstep. The two rules that separate a safe retry from a harmful one: respect `context` cancellation, and never retry an error that can't succeed (a `400`, a validation failure, "account not found").
 
 ## Scenario
@@ -143,7 +145,7 @@ func main() {
 // result: 400 invalid payload (after 1 call)
 ```
 
-**Jitter matters.** Without it, every client that failed at the same instant retries at the same instant, producing synchronized load spikes (the "thundering herd"). Full jitter — sleeping a random duration in `[0, backoff)` — spreads them out. For production, a maintained library handles backoff, jitter, and max-elapsed-time for you:
+**Jitter matters.** Without it, every client that failed at the same instant retries at the same instant, producing synchronised load spikes (the "thundering herd"). Full jitter — sleeping a random duration in `[0, backoff)` — spreads them out. For production, a maintained library handles backoff, jitter, and max-elapsed-time for you:
 
 ```go
 // using github.com/cenkalti/backoff/v4

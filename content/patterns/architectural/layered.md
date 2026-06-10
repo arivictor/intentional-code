@@ -1,9 +1,11 @@
 ---
 title: "Layered Architecture"
-description: "Organise code into horizontal layers, Handler, Service, Repository, Infrastructure, where each layer depends only on the layer below it."
+description: "Organise code into horizontal layers — Handler, Service, Repository, Infrastructure — where each layer depends only on the one below it."
 ---
 
 # Layered Architecture
+
+**Buys testable business rules and a swappable storage backend; pays in lasagne code and heavy changes when one field has to touch every layer.**
 
 Layered architecture organises code into horizontal layers, where each layer has a single responsibility and depends only on the layer below it. A common layering is Handler (HTTP, gRPC, CLI), Service (business rules, orchestration), Repository (data access abstraction), and Infrastructure (SQL drivers, third-party SDKs). Each layer defines interfaces for the layer above it to depend on, which allows for test doubles and swapping implementations without changing business logic.
 
@@ -273,7 +275,7 @@ In package terms: `handler` imports `service`, `service` imports `repository` (t
 
 If someone asks, "why did you split this into folders?", the answer should be concrete. You did it because you want to test business rules without a running database, and because you want to change the storage backend without rewriting business logic. The folder structure is there to enforce that rule. The rule exists to serve those needs. If your project does not have either of those pressures, then the folders may just be extra ceremony.
 
-The main benefit is clear separation of concerns. Business logic lives in the service layer, without SQL or HTTP code mixed into it. That makes it possible to test the logic with an in-memory repository and a fake mailer. The common failure mode is "lasagne code": layers that only pass data from one place to another, without making any real decision or protecting any invariant. Small feature changes can also feel heavy, because even a simple change, like adding one field to a post, may require updates in the handler, service, domain type, and SQL query. Strict downward layers can also make query optimization awkward. The service layer cannot reach directly into the database layer, so everything has to go through the repository interface. Over time, that interface can grow to include filter, sort, and pagination options that are really query concerns.
+The main benefit is clear separation of concerns. Business logic lives in the service layer, without SQL or HTTP code mixed into it. That makes it possible to test the logic with an in-memory repository and a fake mailer. The common failure mode is "lasagne code": layers that only pass data from one place to another, without making any real decision or protecting any invariant. Small feature changes can also feel heavy, because even a simple change, like adding one field to a post, may require updates in the handler, service, domain type, and SQL query. Strict downward layers can also make query optimisation awkward. The service layer cannot reach directly into the database layer, so everything has to go through the repository interface. Over time, that interface can grow to include filter, sort, and pagination options that are really query concerns.
 
 ## Related Patterns
 

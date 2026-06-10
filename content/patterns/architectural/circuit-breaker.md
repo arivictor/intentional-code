@@ -5,6 +5,8 @@ description: "Prevent cascading failures by wrapping remote calls in a state mac
 
 # Circuit Breaker
 
+**Buys fail-fast protection against a slow dependency exhausting your goroutines; pays in tuning a threshold and per-instance state that isn't shared.**
+
 The Circuit Breaker protects a service from cascading failures when a dependency is slow or unavailable. It wraps calls to the dependency in a state machine: **Closed** (calls pass through normally), **Open** (calls fail immediately without hitting the dependency), and **Half-Open** (a probe request tests whether the dependency has recovered). When failures exceed a threshold, the breaker opens and fast-fails all calls until a cooldown period expires.
 
 ## Scenario
@@ -222,12 +224,12 @@ cb := gobreaker.NewCircuitBreaker(gobreaker.Settings{
 
 - You call an external service (third-party API, another microservice) that can be slow or unreliable.
 - A slow dependency would otherwise block goroutines and exhaust your thread pool.
-- You want fail-fast behavior rather than long timeouts under load.
+- You want fail-fast behaviour rather than long timeouts under load.
 - You need a way to automatically recover when the dependency comes back online.
 
 ## When Not to Use
 
-- The call is to your own database or a dependency that must succeed. Fail-fast is the wrong behavior there, and you probably want retries or a normal error path instead.
+- The call is to your own database or a dependency that must succeed. Fail-fast is the wrong behaviour there, and you probably want retries or a normal error path instead.
 - The operation is idempotent and cheap to retry, so a simple retry with backoff may be enough.
 - You control both sides (in-process calls, same service). Circuit breakers are for network boundaries.
 - The failure mode you're protecting against isn't latency or unavailability. Circuit breakers don't help with data corruption or logic errors.
@@ -243,7 +245,7 @@ Half-open recovery also has a cost: some requests will still fail, so callers mu
 - **Rate Limiting:** The proactive counterpart. A rate limiter caps load *before* a dependency is overwhelmed; the breaker reacts *after* failures appear. Production clients often stack both.
 - **Retry:** Pairs naturally — retries handle one-off blips, while the breaker stops retries from hammering a dependency that's down for a sustained period. Combine them so retry storms can't deepen an outage.
 - **Proxy:** Circuit Breaker is commonly implemented as a Proxy. It wraps a dependency behind the same interface the application already uses, intercepting calls to apply the state machine without changing the call site.
-- **Decorator:** An alternative implementation strategy. If the dependency interface is simple, a decorator that adds breaker behavior to any `func() error` is lighter than a full proxy struct.
+- **Decorator:** An alternative implementation strategy. If the dependency interface is simple, a decorator that adds breaker behaviour to any `func() error` is lighter than a full proxy struct.
 - **Event-Driven Architecture:** When a circuit opens, route events to a dead-letter queue instead of dropping them, then replay them once the circuit closes. The async nature of event-driven systems makes them more tolerant of short open periods.
 - **Hexagonal Architecture:** Put the circuit breaker inside the driven adapter (the infrastructure layer), not in the application core. The application calls the port interface without caring that a breaker is operating underneath.
 - **Layered Architecture:** The circuit breaker belongs in the Infrastructure layer. Service layer code calls repository interfaces normally, and the infrastructure implementation wraps outbound network calls in the breaker.

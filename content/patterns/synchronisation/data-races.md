@@ -5,6 +5,8 @@ description: "What a data race actually is, why counter++ isn't atomic, and how 
 
 # Data Races
 
+**Buys near-zero-false-positive race detection when you run the suite under `-race` in CI; pays a test-time CPU and memory multiplier, and catches only the interleavings it actually observes.**
+
 A data race happens when two goroutines touch the same memory at the same time, and at least one of them is writing. The result is undefined: you might get the right answer, a wrong answer, a torn value, or a crash — and which one you get can change between runs, between machines, and between compiler versions. Races are the single most common concurrency bug in Go, and the most expensive to debug, because the symptom rarely shows up where the cause lives.
 
 This page is the foundation for the rest of this section. Every other pattern here — [Mutex](/go/patterns/synchronisation/mutex), [RWMutex](/go/patterns/synchronisation/rwmutex), [Atomic](/go/patterns/synchronisation/atomic) — exists to make a data race impossible.
@@ -104,7 +106,7 @@ Two things to internalise about the detector:
 - **It only catches races it actually observes.** If a particular interleaving doesn't happen during the run, it won't be reported. That's why you run your *whole test suite* under `-race` in CI, not a one-off — more code paths exercised means more races caught.
 - **It has no false positives.** If `-race` reports a race, it is a real race. There is no "but it works on my machine" rebuttal.
 
-Wire it into CI once and it pays for itself. The [cli-network-scanner course](/go/courses/cli-network-scanner) already runs `go test -race ./...` in its Makefile and GitHub Actions for exactly this reason.
+Wire it into CI once and it pays for itself: run `go test -race ./...` in your Makefile and GitHub Actions, and treat a race report as a build failure rather than a flaky test to retry.
 
 ## When you have a race
 

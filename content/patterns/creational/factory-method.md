@@ -5,6 +5,8 @@ description: "Define an interface for creating an object, but let the calling co
 
 # Factory Method
 
+**Buys open/closed extension — add implementations without touching callers; pays in indirection and runtime-only failure on an unknown name.**
+
 The Factory Method pattern defines an interface for creating an object, but lets the calling code decide which concrete type to instantiate. In Go, this is simply a constructor function that returns an interface. The "factory" is the constructor; the "method" is its return type. The pattern is useful when you have a growing switch statement that selects which type to create based on a runtime value. By moving that selection logic into a constructor function, you can add new implementations without modifying existing code, adhering to the Open/Closed Principle.
 
 This is the [Open/Closed Principle](/go/philosophy/keep-changes-local#solid) in practice.

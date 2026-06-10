@@ -19,5 +19,5 @@ The [SOLID Principles](/go/philosophy/keep-changes-local#solid), especially Depe
 
 **[Prototype](/go/patterns/creational/prototype)** is for copying existing objects when construction from scratch is expensive or complex. Go's struct assignment does a shallow copy automatically; Prototype makes the deep-copy contract explicit and safe.
 
-**[Singleton](/go/patterns/creational/singleton)** is the most controversial pattern in this category. In most Go codebases it's an anti-pattern that hides dependencies. The exception: `sync.Once` gives you a thread-safe lazy initialiser that's useful for things that genuinely must be shared and initialised exactly once, like a parsed config or a connection pool.
+**[Singleton](/go/patterns/creational/singleton)** is the one I'd argue with most in this category. In most Go code it's an anti-pattern that hides dependencies. The exception: `sync.Once` gives you a thread-safe lazy initialiser that's useful for things that genuinely must be shared and initialised exactly once, like a parsed config or a connection pool.
 

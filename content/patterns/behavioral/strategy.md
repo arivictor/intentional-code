@@ -5,6 +5,8 @@ description: "Define a family of algorithms, encapsulate each one, and make them
 
 # Strategy
 
+**Buys runtime-interchangeable algorithms at near-zero cost via function types; pays because the selection switch doesn't vanish — it relocates to the caller.**
+
 Strategy defines a family of algorithms and makes them interchangeable. In Go, the most idiomatic form is a function type: pass a function value rather than creating an interface with a single method. Use the interface form when the strategy has multiple methods or carries state.
 
 This is the [Open/Closed Principle](/go/philosophy/keep-changes-local#solid) applied to algorithms. The context is open to new behaviours without modifying existing code. It's also one of the patterns that becomes nearly invisible in Go. When someone passes a `func` to a constructor or a `sort.Slice` call, they're using Strategy without naming it.
@@ -136,9 +138,11 @@ The function-type form costs almost nothing in Go. Passing a `func` is idiomatic
 
 The cost that never goes away is that the switch doesn't disappear; it moves to the caller. If every call site does `if userType == "premium" { send = PremiumNotifier{} }`, you've relocated the problem rather than solved it. Centralise strategy selection in a factory or constructor, not scattered across call sites.
 
+That near-zero cost is the point: a function value *is* the whole pattern, so [the abstraction you borrow is almost free](/go/philosophy/borrowed-abstraction). The only debt is where the selection switch lives — keep it in one place and Strategy stays cheap.
+
 ## Related Patterns
 
 - **Bridge**: Strategy varies one interchangeable algorithm; Bridge separates two independent dimensions of variation simultaneously. If you have two axes (abstraction + implementation), use Bridge. If you have one (algorithm selection), use Strategy.
-- **State**: Both swap behavior at runtime. The distinction is who controls the swap: Strategy is chosen and set by an external caller; State transitions internally in response to events.
+- **State**: Both swap behaviour at runtime. The distinction is who controls the swap: Strategy is chosen and set by an external caller; State transitions internally in response to events.
 - **Template Method**: Template Method holds the algorithm skeleton fixed and plugs in one or two steps; Strategy replaces the whole algorithm. Prefer Template Method when the structure matters, Strategy when it doesn't.
-- **Command**: Both encapsulate behavior as a value; Command adds undo and queuing on top. If you need those capabilities, use Command. If you only need interchangeability, Strategy is simpler.
+- **Command**: Both encapsulate behaviour as a value; Command adds undo and queuing on top. If you need those capabilities, use Command. If you only need interchangeability, Strategy is simpler.

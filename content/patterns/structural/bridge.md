@@ -5,6 +5,8 @@ description: "Split a large type into two separate hierarchies — abstraction a
 
 # Bridge
 
+**Buys turning an N×M type explosion into N+M across two independent axes; pays in extra interfaces that don't earn their keep until each axis has three-plus options.**
+
 The Bridge pattern splits a large type into two separate hierarchies — abstraction and implementation — that can vary independently. In Go, this is typically implemented with two interfaces and a struct that composes them. The abstraction holds a reference to the implementation and delegates calls to it. The key value of Bridge is preventing a cartesian explosion of types when you have two or more independent dimensions of variation. By separating them into two hierarchies, you can add new values to one dimension without multiplying the number of types in the other.
 
 The key question before reaching for Bridge: are these two dimensions truly independent? If they always change together, Bridge adds interfaces for no gain. If adding to one dimension never requires touching the other, Bridge is the right structure.

@@ -5,6 +5,8 @@ description: "Run a group of goroutines and collect their errors, automatically 
 
 # Errgroup
 
+**Buys first-error collection plus automatic cancellation, replacing WaitGroup + error channel + cancel; pays with cooperative-only stop and only the first error returned.**
+
 `errgroup` coordinates a group of goroutines that can fail. It collects errors from all goroutines and returns the first non-nil error. When used with `errgroup.WithContext`, it also cancels a shared context the moment any goroutine fails, stopping the rest of the group automatically.
 
 This is the right tool for the pattern that looks like: "start N concurrent operations, wait for all to complete or any to fail, stop everything on the first failure."

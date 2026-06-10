@@ -5,6 +5,8 @@ description: "Keep a minimal core that provides only essential mechanism, and pu
 
 # Microkernel (Plugin)
 
+**Buys a core that grows by adding plugins instead of edits; pays in a load-bearing contract you must version and behaviour that's harder to trace.**
+
 The Microkernel pattern (also called the Plugin architecture) splits a system into two parts: a small, stable **core** that provides only the essential mechanism, and a set of **plugins** that supply the actual features. The core knows nothing about any specific feature; it knows only a plugin *contract* (an interface) and how to discover, register, and dispatch to whatever plugins are present. New capabilities arrive as new plugins. The core never changes to accommodate them.
 
 This is the architecture behind editors (VS Code), browsers (extensions), CI systems, and Go tooling that loads drivers or processors at runtime. The payoff is the **Open/Closed Principle** at system scale: open for extension (add a plugin), closed for modification (don't touch the core).

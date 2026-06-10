@@ -5,6 +5,8 @@ description: "Use select to wait on multiple channel operations simultaneously, 
 
 # Timeout and Select
 
+**Buys deadlines and cancellation so a goroutine never blocks forever; pays in non-deterministic case ordering and easy-to-leak timers inside loops.**
+
 The Timeout and Select pattern uses Go's `select` statement to wait on multiple channel operations simultaneously, with the ability to specify timeouts and cancellation. This prevents goroutines from blocking indefinitely when waiting for a channel operation that may never complete. `select` allows you to wait on multiple channel operations and proceed with whichever one is ready first. 
 
 Combined with `context.WithTimeout` or `time.After`, it gives you precise control over how long a goroutine is willing to wait for a result, a message, or a downstream service to respond. Every goroutine that blocks on a channel without a timeout is a goroutine that can block forever.

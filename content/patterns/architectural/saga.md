@@ -5,6 +5,8 @@ description: "Coordinate a multi-step distributed transaction as a sequence of l
 
 # Saga
 
+**Buys cross-service consistency without a distributed transaction via compensations; pays in idempotent compensations that must never permanently fail and durable saga state.**
+
 The Saga pattern coordinates a multi-step operation across multiple services by breaking it into a sequence of local transactions. Each step succeeds in its own service and then triggers the next step by sending a message or publishing an event. If one step fails, earlier completed steps are undone with compensating transactions.
 
 This is needed because a distributed system usually cannot use one database transaction across multiple services. Instead of one big transaction, a saga runs several smaller ones and defines how to recover when something in the middle fails.
@@ -411,7 +413,7 @@ func ResumeSaga(ctx context.Context, store SagaStore, saga *DurableOrderSaga, id
 }
 ```
 
-Each service call should carry an idempotency key (typically the saga ID plus the step name) so that retried calls after a crash don't double-charge or double-reserve. A saga that crashes after charging but before recording `charge_customer` will retry the charge on resume. The billing service must recognize the idempotency key and return success without charging again.
+Each service call should carry an idempotency key (typically the saga ID plus the step name) so that retried calls after a crash don't double-charge or double-reserve. A saga that crashes after charging but before recording `charge_customer` will retry the charge on resume. The billing service must recognise the idempotency key and return success without charging again.
 
 ## When to Use
 

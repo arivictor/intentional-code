@@ -5,6 +5,8 @@ description: "Each frontend gets its own backend, shaped to its own screen, netw
 
 # Backends for Frontends (BFF)
 
+**Buys each frontend an edge it owns and can change alone; pays in extra deployables, duplicated glue, and fan-out latency.**
+
 A Backend for Frontend is a backend you keep close to one frontend. One app, one BFF. Another app, another BFF. They sit in front of the same downstream services, then shape responses for the client that asked.
 
 You see the difference fast when clients share one general API. Mobile asks for a small view on a weak link. Web asks for a wider one on a big screen. The shared endpoint starts collecting flags and field lists, and both sides still do extra work. A BFF gives each team a place to shape data without asking every other team first.
@@ -150,7 +152,7 @@ A BFF and an API gateway can live in the same system. The gateway handles cross-
 ## When Not to Use
 
 - You have one frontend, or clients want mostly the same shape.
-- Most BFF code would be duplicated anyway, with little client-specific behavior.
+- Most BFF code would be duplicated anyway, with little client-specific behaviour.
 - The team cannot support extra deployables, monitoring, and contract drift.
 - A few optional query parameters already cover the shape differences cleanly.
 

@@ -1,0 +1,99 @@
+# Intentional Code
+
+> Go design, concurrency, and architecture patterns, each paired with the decision behind it: the trade-off it makes, the situation that earns it, and where it's over-engineering. Written by Ari Victor, a security engineer building production Go in financial services.
+
+Every pattern below lists what it buys and what you pay, so an assistant can compare two options without opening each page. Worker Pool vs Semaphore: same goroutine ceiling, but the semaphore is simpler with no standing pool — use the semaphore for a known batch, the pool for a continuous stream.
+
+## Start here
+
+- [Home](https://intentionalcode.com/): the pitch and the ten tenets.
+- [About](https://intentionalcode.com/about): who writes this and why.
+- [Patterns index](https://intentionalcode.com/patterns): the full triage table.
+
+## Philosophy — the Tenets
+
+- [Architecture is a philosophy, not a rule](https://intentionalcode.com/philosophy/architecture-is-a-philosophy): the shape is always there; the only question is whether you chose it.
+- [If you can't name the trade-off, you didn't decide — you defaulted](https://intentionalcode.com/philosophy/name-the-trade-off): every choice gives something up; say what.
+- [The best pattern is often no pattern](https://intentionalcode.com/philosophy/no-pattern): most over-engineering solves a problem you don't have yet.
+- [Build the simplest thing that could possibly work](https://intentionalcode.com/philosophy/build-the-simplest-thing): make it work before you make it elegant; the crude version is how you learn the problem.
+- [Every abstraction is borrowed against the future](https://intentionalcode.com/philosophy/borrowed-abstraction): only borrow flexibility you'll actually spend.
+- [Design for the change you can see, not the change you imagine](https://intentionalcode.com/philosophy/change-you-can-see): build for the backlog, not the daydream.
+- [Hard to test is the design talking — listen to it](https://intentionalcode.com/philosophy/listen-to-the-tests): pain in a test is a design smell, not a testing problem.
+- [Duplication is cheaper than the wrong abstraction](https://intentionalcode.com/philosophy/wrong-abstraction): un-welding two things that only looked alike costs more than repeating yourself.
+- [Make the next change local. That's the whole job](https://intentionalcode.com/philosophy/keep-changes-local): locality is the payoff; coupling is the tax.
+- [You may disagree — but you need a reason](https://intentionalcode.com/philosophy/disagree-with-reason): a reasoned exception is intentional; an unreasoned one is just the default in disguise.
+
+## Patterns
+
+
+### Creational
+- [Singleton](https://intentionalcode.com/patterns/creational/singleton): buys one guaranteed shared instance; pays in hidden global dependencies, untestable swaps, and first-caller-wins config. Usually prefer dependency injection.
+- [Factory Method](https://intentionalcode.com/patterns/creational/factory-method): buys open/closed extension (add implementations without touching callers); pays in indirection and runtime-only failure on an unknown name.
+- [Abstract Factory](https://intentionalcode.com/patterns/creational/abstract-factory): buys a compiler-enforced guarantee that product families never mix; pays heavy ceremony — a new product type touches the interface and every family.
+- [Builder](https://intentionalcode.com/patterns/creational/builder): buys defaults plus override-any-subset construction and non-breaking extensibility; pays one function per option and runtime-only validation.
+- [Prototype](https://intentionalcode.com/patterns/creational/prototype): buys correct, independent deep copies of reference fields; pays in manual `Clone()` upkeep the compiler won't check.
+
+### Structural
+- [Adapter](https://intentionalcode.com/patterns/structural/adapter): buys one-place translation isolating a third-party API from your domain; pays in indirection and silent information loss when a rich type is flattened.
+- [Decorator](https://intentionalcode.com/patterns/structural/decorator): buys composable cross-cutting behaviour with no edits to the wrapped code; pays in order-sensitivity the compiler won't catch and opaque stack traces.
+- [Proxy](https://intentionalcode.com/patterns/structural/proxy): buys transparent lazy-init, access control, and caching behind the same interface; pays in keeping the proxy in sync and first-call latency.
+- [Facade](https://intentionalcode.com/patterns/structural/facade): buys one entry point so a sequence change propagates everywhere at once; pays by becoming a god-object magnet unless kept to a single workflow.
+- [Composite](https://intentionalcode.com/patterns/structural/composite): buys clean recursive code treating leaves and trees uniformly; pays when the shared interface grows too coarse and leaves must stub methods that don't apply.
+- [Bridge](https://intentionalcode.com/patterns/structural/bridge): buys turning an N×M type explosion into N+M across two independent axes; pays in extra interfaces until each axis has three-plus options.
+- [Flyweight](https://intentionalcode.com/patterns/structural/flyweight): buys large memory savings by interning shared state; pays in a mutexed package-level cache and an intern map that can leak by never shrinking.
+
+### Behavioural
+- [Strategy](https://intentionalcode.com/patterns/behavioral/strategy): buys runtime-interchangeable algorithms at near-zero cost via function types; pays because the selection switch relocates to the caller rather than vanishing.
+- [Observer](https://intentionalcode.com/patterns/behavioral/observer): buys clean decoupling (add reactions without touching the subject); pays in visibility, forgotten-unsubscribe leaks, and ordering hazards under concurrency.
+- [Command](https://intentionalcode.com/patterns/behavioral/command): buys undo, queuing, and logging of operations; pays in per-command snapshots that get expensive — use a plain `func()` until you need them.
+- [Chain of Responsibility](https://intentionalcode.com/patterns/behavioral/chain-of-responsibility): buys composable, independently testable steps that can short-circuit; pays in debuggability — you add logging to see where a request stopped.
+- [State](https://intentionalcode.com/patterns/behavioral/state): buys isolated per-state behaviour so adding a state is one new struct; pays in type proliferation and a state-context cycle that surprises newcomers.
+- [Template Method](https://intentionalcode.com/patterns/behavioral/template-method): buys a fixed skeleton with pluggable steps via injected funcs; pays when hooks multiply — an interface beats a struct of nil-able funcs.
+- [Iterator](https://intentionalcode.com/patterns/behavioral/iterator): buys write-once traversal with lazy evaluation and clean early-break; pays in per-level overhead and no bidirectional iteration without materialising a slice.
+- [Mediator](https://intentionalcode.com/patterns/behavioral/mediator): buys O(n) decoupling so participants import nothing from each other; pays in a hub that absorbs all routing and risks becoming a god object.
+- [Memento](https://intentionalcode.com/patterns/behavioral/memento): buys compiler-enforced opaque snapshots for undo; pays in memory per snapshot and deep-copy discipline for reference types.
+- [Visitor](https://intentionalcode.com/patterns/behavioral/visitor): buys open/closed for operations (add a visitor without touching node types); pays in double-dispatch boilerplate. A type switch usually wins.
+- [Interpreter](https://intentionalcode.com/patterns/behavioral/interpreter): buys isolated, testable grammar rules; pays in tree indirection and no parser errors — the wrong tool above small, stable grammars.
+
+### Concurrency
+- [Worker Pool](https://intentionalcode.com/patterns/concurrency/worker-pool): buys a hard ceiling on goroutines and amortised startup for job streams; pays in channel plumbing and out-of-order results.
+- [Semaphore](https://intentionalcode.com/patterns/concurrency/semaphore): same ceiling as a worker pool, simpler with no standing pool; pays per-job goroutine startup. Use the semaphore for a known batch, the pool for a stream.
+- [Pipeline](https://intentionalcode.com/patterns/concurrency/pipeline): buys overlapping concurrent stages with sequential clarity and low memory; pays in cross-goroutine debugging — over-buffering hides back-pressure.
+- [Fan-out / Fan-in](https://intentionalcode.com/patterns/concurrency/fan-out-fan-in): buys parallelism for a slow stage behind one channel interface; pays in lost input order and a possible fan-in bottleneck.
+- [Done Channel](https://intentionalcode.com/patterns/concurrency/done-channel): buys explicit, composable cancellation that prevents goroutine leaks; pays in verbosity — every blocking op needs a `select` on `ctx.Done()`.
+- [Timeout and Select](https://intentionalcode.com/patterns/concurrency/timeout-select): buys deadlines and cancellation so a goroutine never blocks forever; pays in non-deterministic case ordering and easy-to-leak timers in loops.
+- [Errgroup](https://intentionalcode.com/patterns/concurrency/errgroup): buys first-error collection plus automatic cancellation; pays with cooperative-only stop and only the first error returned.
+- [Competing Consumers](https://intentionalcode.com/patterns/concurrency/competing-consumers): buys horizontal throughput as you add consumers; pays in lost global ordering and at-least-once redelivery you must make idempotent.
+
+### Synchronisation
+- [Mutex](https://intentionalcode.com/patterns/synchronisation/mutex): buys an obviously-correct critical section for any multi-word shared state; pays in serialised access, contention, and deadlock risk if mishandled.
+- [RWMutex](https://intentionalcode.com/patterns/synchronisation/rwmutex): buys parallel reads for read-dominated, contended state; pays heavier per-op bookkeeping — slower than a plain Mutex unless reads truly dominate.
+- [Atomic](https://intentionalcode.com/patterns/synchronisation/atomic): buys lock-free, fastest protection when shared state is one word; pays by being useless for multi-variable invariants.
+- [Once](https://intentionalcode.com/patterns/synchronisation/once): buys correct-by-construction lazy, thread-safe initialisation; pays by being permanent — no retry on failure and no re-run.
+- [WaitGroup](https://intentionalcode.com/patterns/synchronisation/waitgroup): buys simple block-until-the-batch-completes coordination; pays by doing only that — no errors or cancellation (reach for [Errgroup](/patterns/concurrency/errgroup)).
+- [Cond](https://intentionalcode.com/patterns/synchronisation/cond): buys efficient broadcast wakeups for many waiters on one predicate; pays by not composing with `select`, timeouts, or cancellation — a channel usually wins.
+- [Pool](https://intentionalcode.com/patterns/synchronisation/pool): buys reduced GC pressure on a measured hot path; pays in reset-bug risk — the GC can drop items anytime, so it's not a cache.
+- [Data Races](https://intentionalcode.com/patterns/synchronisation/data-races): buys near-zero-false-positive detection when you run the suite under `-race` in CI; pays a test-time CPU/memory multiplier and catches only the interleavings it observes.
+
+### Architectural
+- [Clean Architecture](https://intentionalcode.com/patterns/architectural/clean-architecture): buys domain independence and a second delivery mechanism almost for free; pays in inter-ring mapping boilerplate and a rule the compiler won't enforce.
+- [Hexagonal](https://intentionalcode.com/patterns/architectural/hexagonal): buys full application-logic tests with no real infrastructure via in-memory adapters; pays in port proliferation and steady domain-to-infrastructure mapping.
+- [Layered](https://intentionalcode.com/patterns/architectural/layered): buys testable business rules and a swappable storage backend; pays in lasagne code and heavy changes when one field touches every layer.
+- [Repository](https://intentionalcode.com/patterns/architectural/repository): buys domain tests without a database and an explicit persistence contract; pays in interface sprawl and leaks once pagination and filtering creep in.
+- [MVC / MVP / MVVM](https://intentionalcode.com/patterns/architectural/mvc): buys a reusable, testable service layer and a response shape that stops domain types leaking into the API; pays in indirection — more files, types, and wiring.
+- [Modular Monolith](https://intentionalcode.com/patterns/architectural/modular-monolith): buys microservice-like boundaries with in-process speed and one deploy; pays in the discipline to stop modules decaying back to mud.
+- [Microservices](https://intentionalcode.com/patterns/architectural/microservices): buys independent deploy and scaling per team; pays the distributed-systems tax from day one and a high operational baseline.
+- [Backends for Frontends](https://intentionalcode.com/patterns/architectural/bff): buys each frontend an edge it owns and can change alone; pays in extra deployables, duplicated glue, and fan-out latency.
+- [Microkernel](https://intentionalcode.com/patterns/architectural/microkernel): buys a core that grows by adding plugins instead of edits; pays in a load-bearing contract you must version and harder-to-trace behaviour.
+- [Domain-Driven Design](https://intentionalcode.com/patterns/architectural/domain-driven-design): buys invariants enforced in one aggregate and code that speaks the business's language; pays dearly when aggregate boundaries are drawn wrong.
+- [CQRS](https://intentionalcode.com/patterns/architectural/cqrs): buys independently shaped read and write models; pays in doubled handlers and eventual consistency that surprises users reading their own write.
+- [Event Sourcing](https://intentionalcode.com/patterns/architectural/event-sourcing): buys a built-in audit trail and time-travel via replay; pays in projection complexity, eventually consistent reads, and forever-compatible event schemas.
+- [Event-Driven](https://intentionalcode.com/patterns/architectural/event-driven): buys producer/consumer decoupling and fault isolation; pays in eventual consistency, mandatory idempotency, and broker operational work.
+- [Publish/Subscribe](https://intentionalcode.com/patterns/architectural/pub-sub): buys one-to-many fan-out across processes; pays in lost flow observability and at-least-once delivery needing idempotent consumers.
+- [Transactional Outbox](https://intentionalcode.com/patterns/architectural/outbox): buys an event recorded atomically with the state change, killing the dual-write; pays in delivery latency, a relay to operate, and downstream dedup.
+- [Saga](https://intentionalcode.com/patterns/architectural/saga): buys cross-service consistency without a distributed transaction; pays in idempotent compensations that must never permanently fail and durable saga state.
+- [Pipe and Filter](https://intentionalcode.com/patterns/architectural/pipe-and-filter): buys independently testable, reorderable, composable stages; pays in hard-to-diagnose channel stalls and per-stage allocation pressure.
+- [Circuit Breaker](https://intentionalcode.com/patterns/architectural/circuit-breaker): buys fail-fast protection against a slow dependency exhausting your goroutines; pays in tuning a threshold and per-instance, unshared state.
+- [Retry](https://intentionalcode.com/patterns/architectural/retry): buys recovery from transient failures via bounded backoff with jitter; pays in added latency, retry amplification, and a hard dependency on idempotency.
+- [Rate Limiting](https://intentionalcode.com/patterns/architectural/rate-limiting): buys a bounded load that respects a downstream quota; pays the shed-vs-throttle choice and a per-instance limiter that won't enforce a global cap.
+- [Strangler Fig](https://intentionalcode.com/patterns/architectural/strangler-fig): buys incremental, reversible migration off a legacy system; pays in running two implementations, data-sync drift, and a routing layer that can become permanent.

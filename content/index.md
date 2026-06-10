@@ -1,16 +1,16 @@
 ---
-title: What is Intentional Code?
+title: Go Design Patterns, with the Decision Attached
 nav_title: Home
-description: Judgment, not recipes, the decision behind the code, for Go developers who want to read, test, and change it with less friction.
+description: Go design, concurrency, and architecture patterns — each with the trade-off it makes, the situation that earns it, and where it's over-engineering.
 icon: house
 order: 0
 ---
 
 ![Intentional Code](/og-image.svg)
 
-Most programming resources teach you what to type. Intentional Code teaches you what to decide.
+Most pattern catalogues show you the code. This one shows you the call. Every pattern here—21 architectural, 11 behavioural, 8 concurrency, 5 creational, 7 structural, 8 synchronisation—comes with the trade-off it makes, the situation that earns it, and the situation where it's over-engineering. Written by [Ari Victor](https://github.com/arivictor), a security engineer building production Go in financial services, because the resources I wanted didn't exist: opinionated enough to disagree with, specific enough to be wrong about.
 
-It is a reference and philosophy for Go developers who want code that is easier to read, test, and change by understanding the trade-offs behind them, not by following rules. The goal is never a finished project. It is better judgment: the ability to make a good structural call on a problem you have never seen before.
+The goal is never a finished project. It's the ability to make a good structural call on a problem you've never seen—including the call to use no pattern at all.
 
 ## Not a tutorial
 
