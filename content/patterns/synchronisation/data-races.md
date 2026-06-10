@@ -5,7 +5,7 @@ description: "What a data race actually is, why counter++ isn't atomic, and how 
 
 # Data Races
 
-**The `-race` detector buys near-zero-false-positive race detection in CI; pays a test-time CPU and memory multiplier, and only catches interleavings it actually observes.**
+**Buys near-zero-false-positive race detection when you run the suite under `-race` in CI; pays a test-time CPU and memory multiplier, and catches only the interleavings it actually observes.**
 
 A data race happens when two goroutines touch the same memory at the same time, and at least one of them is writing. The result is undefined: you might get the right answer, a wrong answer, a torn value, or a crash — and which one you get can change between runs, between machines, and between compiler versions. Races are the single most common concurrency bug in Go, and the most expensive to debug, because the symptom rarely shows up where the cause lives.
 

@@ -68,10 +68,10 @@ The shared-memory primitives that keep state correct when several goroutines tou
 - **[RWMutex](/go/patterns/synchronisation/rwmutex)** — buys parallel reads for read-dominated, contended state; pays heavier per-op bookkeeping — slower than a plain Mutex unless reads truly dominate.
 - **[Atomic](/go/patterns/synchronisation/atomic)** — buys lock-free, fastest protection when shared state is one word; pays by being useless for multi-variable invariants.
 - **[Once](/go/patterns/synchronisation/once)** — buys correct-by-construction lazy, thread-safe initialisation; pays by being permanent — no retry on failure and no re-run.
-- **[WaitGroup](/go/patterns/synchronisation/waitgroup)** — buys simple block-until-the-batch-completes coordination; pays by doing only that — no errors or cancellation (reach for errgroup).
+- **[WaitGroup](/go/patterns/synchronisation/waitgroup)** — buys simple block-until-the-batch-completes coordination; pays by doing only that — no errors or cancellation (reach for [Errgroup](/go/patterns/concurrency/errgroup)).
 - **[Cond](/go/patterns/synchronisation/cond)** — buys efficient broadcast wakeups for many waiters on one predicate; pays by not composing with `select`, timeouts, or cancellation — a channel usually wins.
 - **[Pool](/go/patterns/synchronisation/pool)** — buys reduced GC pressure on a measured hot path; pays in reset-bug risk — the GC can drop items anytime, so it's not a cache.
-- **[Data Races](/go/patterns/synchronisation/data-races)** — the `-race` detector buys near-zero-false-positive detection in CI; pays a test-time CPU/memory multiplier and only catches interleavings it observes.
+- **[Data Races](/go/patterns/synchronisation/data-races)** — buys near-zero-false-positive detection when you run the suite under `-race` in CI; pays a test-time CPU/memory multiplier and catches only the interleavings it observes.
 
 ## Architectural
 

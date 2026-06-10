@@ -70,10 +70,10 @@ Every pattern below lists what it buys and what you pay, so an assistant can com
 - [RWMutex](https://intentionalcode.com/patterns/synchronisation/rwmutex): buys parallel reads for read-dominated, contended state; pays heavier per-op bookkeeping — slower than a plain Mutex unless reads truly dominate.
 - [Atomic](https://intentionalcode.com/patterns/synchronisation/atomic): buys lock-free, fastest protection when shared state is one word; pays by being useless for multi-variable invariants.
 - [Once](https://intentionalcode.com/patterns/synchronisation/once): buys correct-by-construction lazy, thread-safe initialisation; pays by being permanent — no retry on failure and no re-run.
-- [WaitGroup](https://intentionalcode.com/patterns/synchronisation/waitgroup): buys simple block-until-the-batch-completes coordination; pays by doing only that — no errors or cancellation (reach for errgroup).
+- [WaitGroup](https://intentionalcode.com/patterns/synchronisation/waitgroup): buys simple block-until-the-batch-completes coordination; pays by doing only that — no errors or cancellation (reach for [Errgroup](/patterns/concurrency/errgroup)).
 - [Cond](https://intentionalcode.com/patterns/synchronisation/cond): buys efficient broadcast wakeups for many waiters on one predicate; pays by not composing with `select`, timeouts, or cancellation — a channel usually wins.
 - [Pool](https://intentionalcode.com/patterns/synchronisation/pool): buys reduced GC pressure on a measured hot path; pays in reset-bug risk — the GC can drop items anytime, so it's not a cache.
-- [Data Races](https://intentionalcode.com/patterns/synchronisation/data-races): the `-race` detector buys near-zero-false-positive detection in CI; pays a test-time CPU/memory multiplier and only catches interleavings it observes.
+- [Data Races](https://intentionalcode.com/patterns/synchronisation/data-races): buys near-zero-false-positive detection when you run the suite under `-race` in CI; pays a test-time CPU/memory multiplier and catches only the interleavings it observes.
 
 ### Architectural
 - [Clean Architecture](https://intentionalcode.com/patterns/architectural/clean-architecture): buys domain independence and a second delivery mechanism almost for free; pays in inter-ring mapping boilerplate and a rule the compiler won't enforce.
