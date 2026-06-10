@@ -15,7 +15,7 @@ You have an HTTP request template: a base request with preset headers and query 
 
 ```go
 // shallow_bug.go
-package gomark
+package main
 
 type Request struct {
     Method  string

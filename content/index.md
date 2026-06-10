@@ -1,7 +1,7 @@
 ---
-title: Go Design Patterns, with the Decision Attached
+title: Every Go design pattern here comes with the decision attached.
 nav_title: Home
-description: Go design, concurrency, and architecture patterns — each with the trade-off it makes, the situation that earns it, and where it's over-engineering.
+description: Every Go design, concurrency, and architecture pattern here comes with the trade-off it makes, the situation that earns it, and the point where it tips into over-engineering.
 icon: house
 order: 0
 ---

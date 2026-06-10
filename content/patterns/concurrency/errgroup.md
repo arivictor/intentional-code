@@ -44,7 +44,7 @@ for err := range errs {
 > **Setup**: `go mod init example && go get golang.org/x/sync/errgroup && go run main.go`
 
 ```go
-package gomark
+package main
 
 import (
 	"context"
@@ -164,7 +164,7 @@ func main() {
 `errgroup` doesn't have a built-in results mechanism, but since `g.Go` closures can capture variables, you can collect results by writing to a pre-allocated slice (safe when each goroutine writes to its own index) or by using a mutex.
 
 ```go
-package gomark
+package main
 
 import (
 	"context"

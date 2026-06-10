@@ -209,7 +209,7 @@ The PostgreSQL implementation would live in a separate package (needs a real DB 
 ## When Not to Use
 
 - Simple CRUD applications where there is no domain logic to protect. A direct `sql.DB` call is cleaner.
-- The application is a thin data service. Adding a repository interface just to have one adds ceremony without value.
+- The application is a thin data service. A repository interface added just to have one is indirection with nothing behind it.
 - Your query needs are so varied (complex filters, reporting) that a single interface becomes a leaky abstraction. In that case, a query builder or direct SQL for reads is usually cleaner.
 
 ## The Decision

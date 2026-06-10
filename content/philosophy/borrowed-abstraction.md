@@ -18,37 +18,39 @@ The corollary is that abstractions should be *cheap to take on and cheap to unwi
 Go made the central decision here for you: there is no inheritance. What you get instead is embedding and interfaces, exactly the cheap, repayable abstractions this tenet asks for. You compose behaviour from small pieces at the point of use, and you can pull a piece out again without unwinding an ancestry. Types are grouped by what they *do*, not what they *are*, and you declare that grouping at the call site with an interface rather than a base class:
 
 ```go
-// BAD (hypothetical inheritance) — types are coupled through ancestry.
-// Animal → Swimmer → Duck
-// Animal → Runner → Duck  (impossible — can't inherit from two things)
+// BAD (hypothetical inheritance) — behaviour welded on through ancestry.
+// Notifier → RetryingNotifier → SlackNotifier
+// Notifier → AuditedNotifier  → SlackNotifier  (impossible — only one parent)
 
-// GOOD — compose behaviour through interfaces.
+// GOOD — compose behaviour through small interfaces.
 
-type Swimmer interface {
-    Swim() string
+type Sender interface {
+    Send(msg string) error
 }
 
-type Runner interface {
-    Run() string
+type HealthChecker interface {
+    Healthy() bool
 }
 
-// Duck composes both.
-type Duck struct{}
-
-func (d Duck) Swim() string { return "swimming" }
-func (d Duck) Run() string  { return "waddling" }
-
-// Functions declare exactly the behaviour they need.
-func Race(r Runner) {
-    fmt.Println(r.Run())
+// SlackNotifier satisfies both — no base class, no inheritance.
+type SlackNotifier struct {
+    webhook string
 }
 
-func WaterTest(s Swimmer) {
-    fmt.Println(s.Swim())
+func (s SlackNotifier) Send(msg string) error { /* POST to s.webhook */ return nil }
+func (s SlackNotifier) Healthy() bool          { /* ping s.webhook */ return true }
+
+// Each function asks for exactly the behaviour it needs.
+func Alert(s Sender, msg string) error {
+    return s.Send(msg)
+}
+
+func ReadyCheck(h HealthChecker) bool {
+    return h.Healthy()
 }
 ```
 
-A `Duck` works in both contexts with no shared base class, and a new type that implements either interface needs no change to `Race` or `WaterTest`. That is the borrowed abstraction repaying itself: each interface is a small loan, taken exactly where it's spent. Struct embedding does the same for reuse, letting one type borrow another's methods (`has-a`, not `is-a`) without the mortgage of a hierarchy.
+A `SlackNotifier` works wherever a `Sender` or a `HealthChecker` is expected, with no shared base class, and an `EmailNotifier` that implements either interface needs no change to `Alert` or `ReadyCheck`. That is the borrowed abstraction repaying itself: each interface is a small loan, taken exactly where it's spent. Struct embedding does the same for reuse, letting a retrying sender embed a `Sender` and wrap it with backoff (`has-a`, not `is-a`) without the mortgage of a hierarchy.
 
 > **Smell:** A type embeds another and overrides most of its methods, replacing rather than extending it. A hierarchy more than two levels deep. You embed a large type just to reach one method.
 
