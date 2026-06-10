@@ -17,6 +17,9 @@ social:
   - label: GitHub
     url: https://github.com/arivictor/intentional-code
     icon: github
+  - label: YouTube
+    url: https://www.youtube.com/@intentionalcode
+    icon: tv
 
 build:
   content_dir: content
