@@ -18,7 +18,7 @@ Three things in `netscan` were designed specifically to enable testing without a
 2. **`io.Writer` in Context** — lets tests capture output via `bytes.Buffer`
 3. **`flag.ContinueOnError`** — lets tests trigger parsing errors without `os.Exit` killing the test process
 
-These aren't test-specific constructs. They're seams — points in the production code where behaviour can be varied without changing the code under test.
+These are seams — points in the production code where behaviour can be varied without changing the code under test.
 
 ## The fake Dialer
 

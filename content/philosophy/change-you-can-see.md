@@ -11,7 +11,7 @@ There are two kinds of future. There's the change you can *see*, the requirement
 
 Design for the change you can see. When the change you imagined finally shows up wearing real requirements, it almost never looks like what you guessed, and the scaffolding you built for the guess is now in the way.
 
-This is  an argument against *designing* ahead. Decisions that are genuinely hard to reverse like data formats, wire protocols, public APIs, all deserve real upfront thought, because changing them later is disproportionately expensive. Operational concerns such as scaling, sharding, distribution, retries, should be added in response to evidence, because you can only learn their real shape by running the system.
+This is  an argument against *designing* ahead. Decisions that are genuinely hard to reverse — data formats, wire protocols, public APIs — all deserve real upfront thought, because changing them later is disproportionately expensive. Operational concerns such as scaling, sharding, distribution, and retries should be added in response to evidence, because you can only learn their real shape by running the system.
 
 ## Good enough first, better over time
 
@@ -22,7 +22,7 @@ Perfect architecture stays out of reach, and that's fine. Ship something stable 
 - a feature ripples through modules that shouldn't care
 - people can't confidently decide where new code goes
 
-When those signals keep showing up, adjust the boundaries, one seam at a time, kept close to the pain. That's not failing to plan; it's letting the system tell you what it needs instead of guessing in advance.
+When those signals keep showing up, adjust the boundaries, one seam at a time, kept close to the pain. That's letting the system tell you what it needs instead of guessing in advance.
 
 ## Gall's Law
 

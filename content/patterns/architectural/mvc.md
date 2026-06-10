@@ -13,7 +13,7 @@ For a Go web service, MVC is the most natural fit of the three. MVP is useful in
 
 ## The Three Variants
 
-**MVC (Model-View-Controller):** The Controller receives input, calls the Model (usually a service or domain package), and passes data to the View (template or JSON response). In a Go HTTP service, the Controller is usually the handler. Classic GUI MVC has a longer-lived relationship between View and Model, but that usually disappears in request/response server code. The handler runs, renders the response, and the request ends.
+**MVC (Model-View-Controller):** The Controller receives input, calls the Model (usually a service or domain package), and passes data to the View (template or JSON response). In a Go HTTP service, the Controller is typically the handler. Classic GUI MVC has a longer-lived relationship between View and Model, but that mostly disappears in request/response server code. The handler runs, renders the response, and the request ends.
 
 **MVP (Model-View-Presenter):** The Presenter owns presentation logic, and the View is a simple interface with no business knowledge. The View forwards user actions to the Presenter. The Presenter calls the Model, then tells the View what to display. In Go, this is most useful when the view is something you control directly: a CLI, terminal UI, or a test double that captures output.
 

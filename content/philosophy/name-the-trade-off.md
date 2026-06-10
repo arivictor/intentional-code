@@ -13,7 +13,7 @@ If you can't, you didn't decide. You defaulted to habit, to fashion, to the shap
 
 ## Decisions, not preferences
 
-This is why architectural choices can't be settled by taste. "I like it this way" is not a reason; it's the absence of one. The reason has to come from the problem and the people in front of you — the change you expect, the team that will maintain it, the failures you can't afford — not from what you happen to find elegant or have used before.
+This is why architectural choices can't be settled by taste. "I like it this way" is not a reason; it's the absence of one. The reason has to come from the problem and the people in front of you — the change you expect, the team that will maintain it, the failures you can't afford.
 
 Sometimes the honest answer is that the problem in front of you needs a dirty, top-to-bottom script, and any structure you add is pure cost. Naming the trade-off is what lets you say that without flinching.
 

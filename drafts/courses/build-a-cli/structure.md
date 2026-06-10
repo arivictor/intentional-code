@@ -38,7 +38,7 @@ netscan/
 └── testdata/
 ```
 
-Let's walk through each directory as a decision.
+Each directory is a decision.
 
 ## `cmd/netscan/main.go` — the composition root
 

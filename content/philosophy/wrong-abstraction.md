@@ -13,11 +13,11 @@ That thicket is more expensive than the duplication ever was. Repeated code is a
 
 The phrasing is Sandi Metz's, from her 2016 essay [*The Wrong Abstraction*](https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction). The idea predates Go, but it lands hardest here, where implicit interfaces make an abstraction cheap to reach for and just as quietly expensive to unwind.
 
-Read correctly, the principle was never about repeated *lines*. It's about repeated *knowledge* — a single business rule, a single source of truth — that genuinely has one home. The practical test isn't "do these look the same?" but "when this rule changes, how many places must I touch?" One is right. More than one is a liability. But two things that change for different reasons are not one rule, however alike they look today.
+Read correctly, the principle was never about repeated *lines*. It's about repeated *knowledge* — a single business rule, a single source of truth — that genuinely has one home. The practical test is "when this rule changes, how many places must I touch?" One is right. More than one is a liability. But two things that change for different reasons are not one rule, however alike they look today.
 
 ## DRY
 
-The principle's real name — *Don't Repeat Yourself* — is fine; it's the misreading that's dangerous. DRY is about duplicated *knowledge*, not duplicated lines, and the most expensive mistake is merging two things that only look alike:
+The principle's real name — *Don't Repeat Yourself* — is fine; it's the misreading that's dangerous. The most expensive mistake is merging two things that only look alike:
 
 ```go
 // Two functions that look similar but encode independent knowledge.
@@ -38,7 +38,7 @@ func validateDriverAge(age int) error {
 }
 ```
 
-These look like duplication; they aren't. The rules are independent, and a shared `validateAge(min int)` wrapper would weld them together so that changing the driving age could break user registration. The flip side is just as real: when three functions genuinely encode the *same* rule, give it one home so the rule changes in one place. The tell is whether they change for the same reason — not whether they look alike. And when you're unsure, wait: the Rule of Three says the first instance is just code, the second a coincidence, the third a pattern worth naming. Extract before that and you're designing the abstraction before you understand its shape.
+These look like duplication; they aren't. The rules are independent, and a shared `validateAge(min int)` wrapper would weld them together so that changing the driving age could break user registration. The flip side is just as real: when three functions genuinely encode the *same* rule, give it one home so the rule changes in one place. The tell is whether they change for the same reason. And when you're unsure, wait: the Rule of Three says the first instance is just code, the second a coincidence, the third a pattern worth naming. Extract before that and you're designing the abstraction before you understand its shape.
 
 > **Smell:** A business rule changes, you update it in one place, and a bug surfaces two weeks later from a copy you missed. Or you grep a constant value and find it hardcoded in five files.
 

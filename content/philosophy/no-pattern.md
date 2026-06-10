@@ -7,13 +7,13 @@ order: 3
 
 # The best pattern is often no pattern
 
-The most dangerous code is the code that solves problems you don't have yet. It reads as diligence, planning ahead, leaving room, avoiding corners, but it's debt dressed as foresight. Every abstraction layer is a concept the next reader must hold in their head. Every configuration knob is a state your tests must cover. Every speculative interface is a constraint your design must honour even as the real requirements turn out to be different.
+The most dangerous code is the code that solves problems you don't have yet. It reads as diligence, but it's debt dressed as foresight. Every abstraction layer is a concept the next reader must hold in their head. Every configuration knob is a state your tests must cover. Every speculative interface is a constraint your design must honour even as the real requirements turn out to be different.
 
 So the strong default is *less*. Reach for a pattern when the problem is actively asking for one, not because the pattern is the "professional" choice. A direct function that's wrong is easy to fix. A clever, flexible abstraction that's wrong is hard even to diagnose.
 
 ## Essential vs accidental complexity
 
-Some complexity belongs to the problem itself. Billing rules, retries, ordering guarantees — these stay hard even in spotless code. That's *essential* complexity, and your job is to keep it visible, not to pretend a pattern can dissolve it.
+Some complexity belongs to the problem itself. Billing rules, retries, ordering guarantees — these stay hard even in spotless code. That's *essential* complexity, and your job is to keep it visible; no pattern can dissolve it.
 
 The rest is *accidental*: circular dependencies, mystery ownership, a name that means one thing here and something else one package over. We add it ourselves, usually while trying to be clever. The work is to trim the accidental until the code says what it does without a guided tour — and never to mistake the essential kind for something structure can delete.
 
@@ -114,7 +114,7 @@ func sanitize(input string) string {
 }
 ```
 
-The chain exists in case there are ever more steps. There aren't; when there are, add them. Simple is not the same as naive, though: the simplest version still has to handle the real edge cases — a divide-by-zero check is correctness, not complexity. The only thing you're cutting is the machinery aimed at problems you don't have yet.
+The chain exists in case there are ever more steps. There aren't; when there are, add them. Simple is not the same as naive, though: the simplest version still has to handle the real edge cases — a divide-by-zero check is correctness. The only thing you're cutting is the machinery aimed at problems you don't have yet.
 
 > **Smell:** You spend more time explaining *why* the code is shaped the way it is than what it does. A newcomer reads three files to understand a function that takes a string. The code has more abstraction layers than the problem has moving parts.
 
