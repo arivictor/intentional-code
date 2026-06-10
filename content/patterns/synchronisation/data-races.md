@@ -106,7 +106,7 @@ Two things to internalise about the detector:
 - **It only catches races it actually observes.** If a particular interleaving doesn't happen during the run, it won't be reported. That's why you run your *whole test suite* under `-race` in CI, not a one-off — more code paths exercised means more races caught.
 - **It has no false positives.** If `-race` reports a race, it is a real race. There is no "but it works on my machine" rebuttal.
 
-Wire it into CI once and it pays for itself. The [cli-network-scanner course](/go/courses/cli-network-scanner) already runs `go test -race ./...` in its Makefile and GitHub Actions for exactly this reason.
+Wire it into CI once and it pays for itself: run `go test -race ./...` in your Makefile and GitHub Actions, and treat a race report as a build failure rather than a flaky test to retry.
 
 ## When you have a race
 
