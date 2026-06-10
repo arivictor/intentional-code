@@ -9,7 +9,7 @@ description: "Build one deployable binary, but partition it internally into modu
 
 A modular monolith is a single deployable application that is *internally* divided into well-bounded modules. It sits deliberately between the big-ball-of-mud monolith and full [Microservices](/patterns/architectural/microservices): one process, one database connection, one deploy — but inside, each module (billing, orders, catalog, notifications) owns its domain, exposes a small public contract, and hides its implementation. Modules talk to each other only through those published contracts, never by reaching into each other's internals.
 
-Go is unusually well suited to this. The **package** is a real encapsulation boundary, and the `internal/` directory is enforced *by the compiler*: code under `billing/internal/` can only be imported by code rooted at `billing/`. That gives you architectural boundaries the build will defend, not just ones a code reviewer hopes everyone respects. The result keeps the operational simplicity of a monolith while staying genuinely decomposable — and any module you later need to extract into a service is already a clean seam.
+Go is unusually well suited to this. The **package** is a real encapsulation boundary, and the `internal/` directory is enforced *by the compiler*: code under `modules/billing/internal/` can only be imported by code rooted at `modules/billing/`. That gives you architectural boundaries the build will defend, not just ones a code reviewer hopes everyone respects. The result keeps the operational simplicity of a monolith while staying genuinely decomposable — and any module you later need to extract into a service is already a clean seam.
 
 ## Scenario
 

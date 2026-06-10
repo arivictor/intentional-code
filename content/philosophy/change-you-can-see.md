@@ -11,7 +11,7 @@ There are two kinds of future. There's the change you can *see*, the requirement
 
 Design for the change you can see. When the change you imagined finally shows up wearing real requirements, it almost never looks like what you guessed, and the scaffolding you built for the guess is now in the way.
 
-This is  an argument against *designing* ahead. Decisions that are genuinely hard to reverse — data formats, wire protocols, public APIs — all deserve real upfront thought, because changing them later is disproportionately expensive. Operational concerns such as scaling, sharding, distribution, and retries should be added in response to evidence, because you can only learn their real shape by running the system.
+This is  an argument against *designing* ahead. Decisions that are genuinely hard to reverse, data formats, wire protocols, public APIs, all deserve real upfront thought, because changing them later is disproportionately expensive. Operational concerns such as scaling, sharding, distribution, and retries should be added in response to evidence, because you can only learn their real shape by running the system.
 
 ## Good enough first, better over time
 
