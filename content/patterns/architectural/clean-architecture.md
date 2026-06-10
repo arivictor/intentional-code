@@ -357,7 +357,7 @@ The inward dependency rule is the entire point, and the architecture only works 
 
 In older Go codebases without generics, many small interfaces and converter functions compound this cost. The payoff arrives when you add a second delivery mechanism (gRPC, a worker, a CLI) without touching any domain code, or when you swap a database by replacing one adapter package. If you never do either of those things, the pattern is overhead.
 
-Those rings only earn their cost once you can [name the trade-off](/go/philosophy/name-the-trade-off) they buy. Impose them by default and you've paid the mapping boilerplate for boundaries you never use; reach for them when a second delivery mechanism or a database swap is a change you can actually see coming.
+Those rings only earn their cost once you can [name the trade-off](/philosophy/name-the-trade-off) they buy. Impose them by default and you've paid the mapping boilerplate for boundaries you never use; reach for them when a second delivery mechanism or a database swap is a change you can actually see coming.
 
 ## Related Patterns
 

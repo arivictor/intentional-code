@@ -6,7 +6,7 @@ order: 3
 
 # Module 3: The Command Interface
 
-**Pattern: [Command](/go/patterns/behavioral/command)**
+**Pattern: [Command](/patterns/behavioral/command)**
 
 Before we build the registry, or the middleware chain, or the App itself — we need to decide what a command *is*. Not what it does. What it *is*.
 
@@ -16,7 +16,7 @@ What we want instead: commands as **values**. Things we can put in a map, pass t
 
 ## Why the Command pattern
 
-The [Command pattern](/go/patterns/behavioral/command) says: encapsulate a request as an object. In our case, a subcommand invocation is the request. Wrapping it in an interface means the dispatcher (the App) can hold and call any command without knowing its type.
+The [Command pattern](/patterns/behavioral/command) says: encapsulate a request as an object. In our case, a subcommand invocation is the request. Wrapping it in an interface means the dispatcher (the App) can hold and call any command without knowing its type.
 
 The pattern also gives us something the naïve version doesn't: **closed dispatch**. In the switch version, adding a new command means editing `main`. With an interface and a registry, adding a command means implementing the interface and registering it. `main` doesn't change.
 

@@ -6,7 +6,7 @@ order: 5
 
 # Module 5: Middleware — Chain of Responsibility
 
-**Pattern: [Chain of Responsibility](/go/patterns/behavioral/chain-of-responsibility)**
+**Pattern: [Chain of Responsibility](/patterns/behavioral/chain-of-responsibility)**
 
 Here's the moment that forces this pattern. You've written the `host` command. It works. Now you write the `ports` command, and you notice something: the first thing `ports.Run` does is check for `--help` and parse flags — exactly what `host.Run` does.
 

@@ -145,7 +145,7 @@ In tests, pass `log.New(io.Discard, "", 0)` to silence the logger entirely: no g
 
 You've already used a Go singleton with exactly these foot-guns: `http.DefaultClient` is a package-level shared instance with no timeout by default, and any code that reassigns or mutates it changes behaviour for every caller in the process.
 
-This is [tenet #2 — name the trade-off](/go/philosophy/name-the-trade-off) in practice. The global isn't free; it's a dependency you took on without writing it into a single function signature. If you can't say out loud what the global buys you over an injected parameter, you didn't decide to use it — you defaulted into it.
+This is [tenet #2 — name the trade-off](/philosophy/name-the-trade-off) in practice. The global isn't free; it's a dependency you took on without writing it into a single function signature. If you can't say out loud what the global buys you over an injected parameter, you didn't decide to use it — you defaulted into it.
 
 ## Related Patterns
 

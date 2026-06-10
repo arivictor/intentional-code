@@ -6,7 +6,7 @@ order: 11
 
 # Module 11: DNS Lookups — Strategy
 
-**Pattern: [Strategy](/go/patterns/behavioral/strategy)**
+**Pattern: [Strategy](/patterns/behavioral/strategy)**
 
 The DNS command is the simplest in the project — no goroutines, no channels, one call to the stdlib resolver. What makes it worth a module is the Strategy pattern applied to output formatting, and a case study in recognising when a switch statement should become an interface.
 

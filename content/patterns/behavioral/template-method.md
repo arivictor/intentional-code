@@ -139,7 +139,7 @@ Charlie
 
 ## When Not to Use
 
-- Most or all steps vary. You don't have a fixed skeleton; you have a completely different algorithm. Use [Strategy](/go/patterns/behavioral/strategy) instead.
+- Most or all steps vary. You don't have a fixed skeleton; you have a completely different algorithm. Use [Strategy](/patterns/behavioral/strategy) instead.
 - The skeleton is trivial (2-3 lines). Just inline it.
 
 ## The Decision

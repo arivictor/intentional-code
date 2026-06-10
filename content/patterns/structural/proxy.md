@@ -142,7 +142,7 @@ Output:
 
 - The real object is cheap to create. Lazy initialisation adds complexity without benefit.
 - Access control belongs at a higher level (HTTP middleware, gateway) rather than at the object level.
-- You're adding behaviour without restricting access: that's [Decorator](/go/patterns/structural/decorator), not Proxy.
+- You're adding behaviour without restricting access: that's [Decorator](/patterns/structural/decorator), not Proxy.
 
 ## The Decision
 

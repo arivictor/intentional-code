@@ -11,7 +11,7 @@ The Decorator pattern wraps an object to add behaviour, keeping the same interfa
 
 The canonical Go example is `http.Handler` middleware: a function that takes a handler, returns a new handler that logs, authenticates, compresses, or rate-limits, and then calls the original. 
 
-It's the [Open/Closed Principle](/go/philosophy/keep-changes-local#solid).
+It's the [Open/Closed Principle](/philosophy/keep-changes-local#solid).
 
 ## Scenario
 
@@ -149,7 +149,7 @@ Output:
 ## When Not to Use
 
 - The added behaviour is tightly coupled to the object's internals. A decorator that needs private fields isn't a decorator; it's a refactoring need.
-- Deep decorator stacks (5+ layers) make debugging difficult. Consider whether a [Chain of Responsibility](/go/patterns/behavioral/chain-of-responsibility) would be clearer.
+- Deep decorator stacks (5+ layers) make debugging difficult. Consider whether a [Chain of Responsibility](/patterns/behavioral/chain-of-responsibility) would be clearer.
 - You only ever need one fixed combination. Direct composition in a single handler might be simpler.
 
 ## The Decision

@@ -62,7 +62,7 @@ internal/
 
 > **Smell:** A handler imports a SQL package directly. A business function constructs an HTTP response. A database struct has a method that sends an email. You need to mock the database to test a business rule.
 
-See also: [Clean Architecture](/go/patterns/architectural/clean-architecture), [Hexagonal Architecture](/go/patterns/architectural/hexagonal), [Repository](/go/patterns/architectural/repository).
+See also: [Clean Architecture](/patterns/architectural/clean-architecture), [Hexagonal Architecture](/patterns/architectural/hexagonal), [Repository](/patterns/architectural/repository).
 
 ## Law of Demeter
 
@@ -88,7 +88,7 @@ The navigation now lives inside `Order`, so the handler depends on `Order`'s sur
 
 > **Smell:** A chain has more than two dots (excluding nil-safe accessors). Changing a deeply nested struct field breaks code in packages that shouldn't know it exists. A caller extracts data from an object only to hand it straight back.
 
-See also: [Separation of Concerns](/go/philosophy/keep-changes-local#separation-of-concerns), [Facade](/go/patterns/structural/facade).
+See also: [Separation of Concerns](/philosophy/keep-changes-local#separation-of-concerns), [Facade](/patterns/structural/facade).
 
 ## SOLID
 
@@ -127,8 +127,8 @@ func SendAll(notifiers []Notifier, recipient, msg string) error {
 }
 ```
 
-Adding a channel touches one new file and leaves every tested line alone — the change stays local. DIP is the same move aimed at infrastructure: depend on a small interface your code defines, not a concrete `*sql.DB` or `*smtp.Client`, and swapping a provider (or writing a test) stays out of your business logic. That overlap with testability is not a coincidence; it's the same property [the tests were trying to tell you about](/go/philosophy/listen-to-the-tests).
+Adding a channel touches one new file and leaves every tested line alone — the change stays local. DIP is the same move aimed at infrastructure: depend on a small interface your code defines, not a concrete `*sql.DB` or `*smtp.Client`, and swapping a provider (or writing a test) stays out of your business logic. That overlap with testability is not a coincidence; it's the same property [the tests were trying to tell you about](/philosophy/listen-to-the-tests).
 
 > **Smell:** You keep adding cases to a switch for every new variant. You can't test a function without standing up a database. A type satisfies an interface with `panic("not supported")` for methods that don't apply.
 
-See also: [Repository](/go/patterns/architectural/repository), [Observer](/go/patterns/behavioral/observer), [Strategy](/go/patterns/behavioral/strategy).
+See also: [Repository](/patterns/architectural/repository), [Observer](/patterns/behavioral/observer), [Strategy](/patterns/behavioral/strategy).

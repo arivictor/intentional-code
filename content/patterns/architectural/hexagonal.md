@@ -429,7 +429,7 @@ The main question Hexagonal Architecture answers is: "why are my tests slow and 
 
 The biggest benefit is simple: you can test full application logic without real infrastructure. Replace a driven adapter with an in-memory fake and run tests with no network, no database, and no external services. But the payoff only comes if you actually write those tests. The architecture by itself does not create test coverage. The main ongoing cost is interface growth: many small ports per aggregate can become noisy, especially when each aggregate gets its own repository port. Data mapping also adds steady work, for example converting protobuf payloads to domain types or SQL rows to domain objects. That mapping is necessary, but it grows with the model. New team members also need time to learn the port/adapter model before they can move quickly in the codebase.
 
-If you arrived here because the tests were slow, that's [the design talking](/go/philosophy/listen-to-the-tests) — ports exist precisely so application logic runs without real infrastructure. Adopt them to answer a testing pain you already feel, not as a default layer.
+If you arrived here because the tests were slow, that's [the design talking](/philosophy/listen-to-the-tests) — ports exist precisely so application logic runs without real infrastructure. Adopt them to answer a testing pain you already feel, not as a default layer.
 
 ## Related Patterns
 

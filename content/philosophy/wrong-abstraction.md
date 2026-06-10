@@ -42,4 +42,4 @@ These look like duplication; they aren't. The rules are independent, and a share
 
 > **Smell:** A business rule changes, you update it in one place, and a bug surfaces two weeks later from a copy you missed. Or you grep a constant value and find it hardcoded in five files.
 
-See also: [Single Responsibility Principle](/go/philosophy/keep-changes-local#solid), [Strategy](/go/patterns/behavioral/strategy).
+See also: [Single Responsibility Principle](/philosophy/keep-changes-local#solid), [Strategy](/patterns/behavioral/strategy).

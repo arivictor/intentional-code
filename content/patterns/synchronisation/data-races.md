@@ -9,7 +9,7 @@ description: "What a data race actually is, why counter++ isn't atomic, and how 
 
 A data race happens when two goroutines touch the same memory at the same time, and at least one of them is writing. The result is undefined: you might get the right answer, a wrong answer, a torn value, or a crash — and which one you get can change between runs, between machines, and between compiler versions. Races are the single most common concurrency bug in Go, and the most expensive to debug, because the symptom rarely shows up where the cause lives.
 
-This page is the foundation for the rest of this section. Every other pattern here — [Mutex](/go/patterns/synchronisation/mutex), [RWMutex](/go/patterns/synchronisation/rwmutex), [Atomic](/go/patterns/synchronisation/atomic) — exists to make a data race impossible.
+This page is the foundation for the rest of this section. Every other pattern here — [Mutex](/patterns/synchronisation/mutex), [RWMutex](/patterns/synchronisation/rwmutex), [Atomic](/patterns/synchronisation/atomic) — exists to make a data race impossible.
 
 ## Scenario
 
@@ -39,7 +39,7 @@ The bug hides in plain sight. `counter++` *looks* like one step, but it's three:
 
 ## The fix
 
-Make the read-modify-write indivisible. A [`sync.Mutex`](/go/patterns/synchronisation/mutex) does exactly that: only one goroutine holds the lock at a time, so the three steps of `counter++` can't be interleaved with anyone else's. This version always prints `9000`:
+Make the read-modify-write indivisible. A [`sync.Mutex`](/patterns/synchronisation/mutex) does exactly that: only one goroutine holds the lock at a time, so the three steps of `counter++` can't be interleaved with anyone else's. This version always prints `9000`:
 
 ```go:title="main.go":run=true:editable=true
 package main
@@ -112,9 +112,9 @@ Wire it into CI once and it pays for itself: run `go test -race ./...` in your M
 
 The fix is always one of: stop sharing the memory, or synchronise the access. In rough order of preference:
 
-- **Don't share it.** Give each goroutine its own copy and combine results at the end. No shared write, no race. This is the channels model — see the [concurrency patterns](/go/patterns/concurrency).
-- **Make the access atomic.** For a single integer or pointer, [`sync/atomic`](/go/patterns/synchronisation/atomic) is lock-free and the lightest fix.
-- **Guard it with a lock.** For anything more than one word — a struct, a map, a multi-field update — a [`sync.Mutex`](/go/patterns/synchronisation/mutex) around the critical section is the standard tool.
+- **Don't share it.** Give each goroutine its own copy and combine results at the end. No shared write, no race. This is the channels model — see the [concurrency patterns](/patterns/concurrency).
+- **Make the access atomic.** For a single integer or pointer, [`sync/atomic`](/patterns/synchronisation/atomic) is lock-free and the lightest fix.
+- **Guard it with a lock.** For anything more than one word — a struct, a map, a multi-field update — a [`sync.Mutex`](/patterns/synchronisation/mutex) around the critical section is the standard tool.
 
 ## Common Mistakes
 
@@ -124,7 +124,7 @@ The fix is always one of: stop sharing the memory, or synchronise the access. In
 
 **Reaching for a longer sleep to "fix" it.** `time.Sleep` doesn't synchronise anything; it just changes the timing so the race is harder to reproduce. The bug is still there, now better hidden.
 
-**Racing on a map.** Concurrent map writes are special: the Go runtime detects them directly and crashes the program with `fatal error: concurrent map writes`, even without `-race`. Guard the map with a [Mutex](/go/patterns/synchronisation/mutex), or use `sync.Map` for the specific access patterns it's built for.
+**Racing on a map.** Concurrent map writes are special: the Go runtime detects them directly and crashes the program with `fatal error: concurrent map writes`, even without `-race`. Guard the map with a [Mutex](/patterns/synchronisation/mutex), or use `sync.Map` for the specific access patterns it's built for.
 
 ## The Decision
 
@@ -136,7 +136,7 @@ The fastest, simplest, most bug-resistant fix for a race is to not have shared m
 
 ## Related Patterns
 
-- **[Mutex](/go/patterns/synchronisation/mutex)**: the default fix — mutual exclusion around a critical section.
-- **[Atomic](/go/patterns/synchronisation/atomic)**: the lock-free fix for a single integer, flag, or pointer.
-- **[WaitGroup](/go/patterns/synchronisation/waitgroup)**: coordinates *completion* (used above) but does **not** protect shared memory — a common point of confusion.
-- **[Concurrency Patterns](/go/patterns/concurrency)**: the channel-first model that avoids shared memory in the first place.
+- **[Mutex](/patterns/synchronisation/mutex)**: the default fix — mutual exclusion around a critical section.
+- **[Atomic](/patterns/synchronisation/atomic)**: the lock-free fix for a single integer, flag, or pointer.
+- **[WaitGroup](/patterns/synchronisation/waitgroup)**: coordinates *completion* (used above) but does **not** protect shared memory — a common point of confusion.
+- **[Concurrency Patterns](/patterns/concurrency)**: the channel-first model that avoids shared memory in the first place.

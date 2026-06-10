@@ -6,7 +6,7 @@ order: 9
 
 # Module 9: Subnet Scanning — Worker Pool
 
-**Pattern: [Worker Pool](/go/patterns/concurrency/worker-pool)**
+**Pattern: [Worker Pool](/patterns/concurrency/worker-pool)**
 
 This module is a deliberate contrast with the last one. Port scanning and subnet scanning look like the same problem: probe a lot of things concurrently, collect results. But the constraints are different — and different constraints produce different patterns.
 

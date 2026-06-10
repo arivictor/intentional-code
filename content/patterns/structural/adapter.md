@@ -119,7 +119,7 @@ The benefit is concentrated: translation logic lives in one place, not scattered
 
 If the adapted API changes (new parameters, changed return types), the adapter must be updated. The compiler will catch this immediately, which is actually a feature. Adapters can also silently lose information: translating a rich structured log entry down to a plain string means callers can never get that structure back. Be deliberate about what the adapter discards.
 
-You meet adapters constantly in the standard library: `strings.NewReader`, `bufio.NewReader`, and `io.NopCloser` each wrap one type so it satisfies an interface a caller expects, such as `io.Reader` or `io.ReadCloser`. That framing makes the trade-off clear — an adapter is [an abstraction borrowed against the future](/go/philosophy/borrowed-abstraction): worth it to quarantine a foreign API, wasteful when you wrap a type you already own.
+You meet adapters constantly in the standard library: `strings.NewReader`, `bufio.NewReader`, and `io.NopCloser` each wrap one type so it satisfies an interface a caller expects, such as `io.Reader` or `io.ReadCloser`. That framing makes the trade-off clear — an adapter is [an abstraction borrowed against the future](/philosophy/borrowed-abstraction): worth it to quarantine a foreign API, wasteful when you wrap a type you already own.
 
 ## Related Patterns
 

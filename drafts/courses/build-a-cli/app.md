@@ -6,7 +6,7 @@ order: 4
 
 # Module 4: The App — Builder and Facade
 
-**Patterns: [Builder](/go/patterns/creational/builder), [Facade](/go/patterns/structural/facade)**
+**Patterns: [Builder](/patterns/creational/builder), [Facade](/patterns/structural/facade)**
 
 We now have a `Command` interface and a way to implement it. The next question: who holds the commands, and how does execution get from `os.Args` to the right `cmd.Run`?
 
@@ -16,7 +16,7 @@ That's the `App` type. It's the heart of the framework.
 
 `App` uses two patterns simultaneously — which is worth naming explicitly so you recognise the combination later.
 
-**[Builder](/go/patterns/creational/builder)** handles construction. An `App` has several optional parts: a version string, registered commands, middleware, custom output writers. A constructor with all of these as parameters would look like this:
+**[Builder](/patterns/creational/builder)** handles construction. An `App` has several optional parts: a version string, registered commands, middleware, custom output writers. A constructor with all of these as parameters would look like this:
 
 ```go
 // Don't do this.
@@ -40,7 +40,7 @@ app := cli.New("netscan").
 
 Every call says exactly what it's doing. Nothing needs a zero value. New options can be added without changing existing call sites.
 
-**[Facade](/go/patterns/structural/facade)** handles the public surface. From `main.go`'s perspective, the entire framework — argument slicing, command lookup, flag parsing, middleware chain, error formatting — collapses to one call:
+**[Facade](/patterns/structural/facade)** handles the public surface. From `main.go`'s perspective, the entire framework — argument slicing, command lookup, flag parsing, middleware chain, error formatting — collapses to one call:
 
 ```go
 app.Run(os.Args)

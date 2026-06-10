@@ -9,7 +9,7 @@ description: "Reuse short-lived allocations across goroutines with sync.Pool to 
 
 `sync.Pool` is a free list of reusable objects. Instead of allocating a fresh buffer (or struct, or slice) every time a hot function runs and throwing it away after, you borrow one from the pool, use it, and return it for the next caller. On a path that runs thousands of times a second, this turns a storm of short-lived allocations into a handful of reused objects, which is less work for the garbage collector and less memory churn.
 
-Unlike everything else in this section, `sync.Pool` is not about correctness — it won't fix a [data race](/go/patterns/synchronisation/data-races). It's a *performance* optimisation, and a situational one. Reach for it only when allocation pressure shows up in a profile.
+Unlike everything else in this section, `sync.Pool` is not about correctness — it won't fix a [data race](/patterns/synchronisation/data-races). It's a *performance* optimisation, and a situational one. Reach for it only when allocation pressure shows up in a profile.
 
 ## Scenario
 
@@ -107,10 +107,10 @@ The shape is always the same: `Get`, type-assert to the concrete type, `defer` a
 The Go allocator and GC are fast and getting faster; for the overwhelming majority of code, allocating a fresh object per call is the right, simple choice. `sync.Pool` is a targeted fix for a *measured* allocation hotspot — a serialiser, a parser, an encoder running on every request. The decision is entirely profile-driven: no allocation problem in the profile, no pool. Adding one speculatively trades real complexity and reset-bug risk for a speedup you haven't confirmed exists.
 
 **Pool vs. a fixed pre-allocated set.**
-If you need a *bounded* set of reusable resources with guaranteed retention — say, exactly 10 reusable workers or connections — `sync.Pool` is the wrong shape, because it can drop items and has no size control. Use a buffered channel as a [semaphore](/go/patterns/concurrency/semaphore)-style free list, or a [worker pool](/go/patterns/concurrency/worker-pool), where you own the lifecycle. `sync.Pool` is specifically for GC-pressure relief on interchangeable scratch objects, nothing more.
+If you need a *bounded* set of reusable resources with guaranteed retention — say, exactly 10 reusable workers or connections — `sync.Pool` is the wrong shape, because it can drop items and has no size control. Use a buffered channel as a [semaphore](/patterns/concurrency/semaphore)-style free list, or a [worker pool](/patterns/concurrency/worker-pool), where you own the lifecycle. `sync.Pool` is specifically for GC-pressure relief on interchangeable scratch objects, nothing more.
 
 ## Related Patterns
 
-- **[Data Races](/go/patterns/synchronisation/data-races)**: `sync.Pool` is safe for concurrent use, but the objects you borrow are *yours alone* until you `Put` them back — sharing one across goroutines is still a race.
-- **[Worker Pool](/go/patterns/concurrency/worker-pool)**: confusingly similar name, different job — that pools *goroutines* with a guaranteed lifecycle; this pools *objects* with no guarantees.
-- **[Semaphore](/go/patterns/concurrency/semaphore)**: the right tool when you need a bounded, retained set of reusable resources.
+- **[Data Races](/patterns/synchronisation/data-races)**: `sync.Pool` is safe for concurrent use, but the objects you borrow are *yours alone* until you `Put` them back — sharing one across goroutines is still a race.
+- **[Worker Pool](/patterns/concurrency/worker-pool)**: confusingly similar name, different job — that pools *goroutines* with a guaranteed lifecycle; this pools *objects* with no guarantees.
+- **[Semaphore](/patterns/concurrency/semaphore)**: the right tool when you need a bounded, retained set of reusable resources.

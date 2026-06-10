@@ -9,7 +9,7 @@ description: "Run several consumers against one shared queue so each message is 
 
 Competing Consumers runs multiple consumers against a **single shared queue**, where each message is delivered to exactly one consumer. The consumers *compete* for work: whichever is free grabs the next message. Add consumers and throughput rises; lose one and the others pick up its share. In Go, the queue is a channel and the consumers are goroutines ranging over it — the runtime hands each value to exactly one waiting receiver.
 
-The distinction that matters: this is **load distribution, not duplication**. It's the opposite of [Pub/Sub](/go/patterns/architectural/pub-sub) and [Fan-out](/go/patterns/concurrency/fan-out-fan-in), where *every* consumer receives a copy of *every* message. Here each message is handled once, by one consumer. If you've used a [Worker Pool](/go/patterns/concurrency/worker-pool), you've already used competing consumers in-process — this page names the pattern and extends it to consumers that may be separate processes draining a broker queue (SQS, a NATS queue group, a Kafka consumer group).
+The distinction that matters: this is **load distribution, not duplication**. It's the opposite of [Pub/Sub](/patterns/architectural/pub-sub) and [Fan-out](/patterns/concurrency/fan-out-fan-in), where *every* consumer receives a copy of *every* message. Here each message is handled once, by one consumer. If you've used a [Worker Pool](/patterns/concurrency/worker-pool), you've already used competing consumers in-process — this page names the pattern and extends it to consumers that may be separate processes draining a broker queue (SQS, a NATS queue group, a Kafka consumer group).
 
 ## Scenario
 
@@ -133,7 +133,7 @@ This is also how SQS (multiple pollers on one queue), Kafka (consumers in a grou
 
 ## When Not to Use
 
-- Every consumer needs to *see* every message (cache invalidation, notifications). That's [Pub/Sub](/go/patterns/architectural/pub-sub) / fan-out, not competing consumers.
+- Every consumer needs to *see* every message (cache invalidation, notifications). That's [Pub/Sub](/patterns/architectural/pub-sub) / fan-out, not competing consumers.
 - Strict global ordering is required. Competing consumers process concurrently and finish out of order; if you need ordering, partition by key (so each key has one consumer) or use a single consumer.
 - Messages have causal dependencies that demand serial processing.
 - The work is so fast that channel/queue coordination costs more than the processing itself — a single loop may be faster.

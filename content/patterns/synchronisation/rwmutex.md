@@ -7,7 +7,7 @@ description: "Let many goroutines read shared state in parallel while writers ge
 
 **Buys parallel reads for read-dominated, contended state; pays heavier per-operation bookkeeping — slower than a plain Mutex unless reads truly dominate.**
 
-A `sync.RWMutex` is a lock with two modes. Any number of goroutines can hold the **read** lock at the same time, but the **write** lock is exclusive — while a writer holds it, no readers and no other writers get in. The payoff is parallel reads: if your data is read far more often than it's written, readers stop queuing behind each other and only block during the rare write. For read-heavy shared state — configuration, caches, routing tables — this can be a real throughput win over a plain [Mutex](/go/patterns/synchronisation/mutex).
+A `sync.RWMutex` is a lock with two modes. Any number of goroutines can hold the **read** lock at the same time, but the **write** lock is exclusive — while a writer holds it, no readers and no other writers get in. The payoff is parallel reads: if your data is read far more often than it's written, readers stop queuing behind each other and only block during the rare write. For read-heavy shared state — configuration, caches, routing tables — this can be a real throughput win over a plain [Mutex](/patterns/synchronisation/mutex).
 
 The catch: an `RWMutex` is heavier than a `Mutex`. It only pays off when reads genuinely dominate *and* the lock is contended. Otherwise the extra bookkeeping makes it the slower choice.
 
@@ -90,7 +90,7 @@ The reader methods take `RLock`; the writer takes `Lock`. While `Reload` holds t
 
 ## Copy-on-write: an even lighter alternative
 
-When reads vastly outnumber writes and you want readers to take *no lock at all*, store the data behind an atomic pointer and replace it wholesale on write. Readers load the current pointer; writers build a brand-new value and swap it in. See [Atomic](/go/patterns/synchronisation/atomic) for the full pattern — it's often the better choice for config specifically, because a read becomes a single atomic load with zero contention.
+When reads vastly outnumber writes and you want readers to take *no lock at all*, store the data behind an atomic pointer and replace it wholesale on write. Readers load the current pointer; writers build a brand-new value and swap it in. See [Atomic](/patterns/synchronisation/atomic) for the full pattern — it's often the better choice for config specifically, because a read becomes a single atomic load with zero contention.
 
 `RWMutex` sits between a plain `Mutex` (simple, fully serialised) and copy-on-write (lock-free reads, but you rebuild the whole value on every write). Reach for `RWMutex` when readers need a lock but you want them to share it.
 
@@ -98,12 +98,12 @@ When reads vastly outnumber writes and you want readers to take *no lock at all*
 
 - Reads outnumber writes by a wide margin (think 10:1 or more) and the lock is hot.
 - Read operations are long enough that running them in parallel actually matters — a read that copies a slice or walks a map, not a read that returns a single `int`.
-- The data is too large or too structured for an [atomic](/go/patterns/synchronisation/atomic) pointer swap to be convenient.
+- The data is too large or too structured for an [atomic](/patterns/synchronisation/atomic) pointer swap to be convenient.
 
 ## When Not to Use
 
-- Reads and writes are roughly balanced, or the lock is barely contended — use a plain [Mutex](/go/patterns/synchronisation/mutex); it's simpler and, in the uncontended case, faster.
-- The critical section is a single-word read — use [`sync/atomic`](/go/patterns/synchronisation/atomic).
+- Reads and writes are roughly balanced, or the lock is barely contended — use a plain [Mutex](/patterns/synchronisation/mutex); it's simpler and, in the uncontended case, faster.
+- The critical section is a single-word read — use [`sync/atomic`](/patterns/synchronisation/atomic).
 - The read work is trivially short. The overhead of `RLock`/`RUnlock` can exceed the read itself, and you'd have been faster with a `Mutex` or an atomic.
 
 ## Common Mistakes
@@ -122,10 +122,10 @@ When reads vastly outnumber writes and you want readers to take *no lock at all*
 Default to `Mutex`. It's simpler, and for the common case — short critical sections, moderate contention — it's as fast or faster. Move to `RWMutex` only with evidence: a profile showing a lock that's read overwhelmingly more than written, with readers actually contending. The mental model: `RWMutex` trades a higher per-operation cost for the ability to run reads in parallel. That trade only wins when there are many parallel reads to be had.
 
 **RWMutex vs. copy-on-write with atomics.**
-For read-dominated state that you replace wholesale — a config struct, a routing table — an [`atomic.Pointer`](/go/patterns/synchronisation/atomic) swap gives readers a lock-free load, which beats even an `RWMutex`'s shared lock under heavy read load. The cost is that every write rebuilds the entire value, so it fits *replace* better than *mutate in place*. If readers need a lock and writers mutate fields rather than swapping the whole object, `RWMutex` is the better fit.
+For read-dominated state that you replace wholesale — a config struct, a routing table — an [`atomic.Pointer`](/patterns/synchronisation/atomic) swap gives readers a lock-free load, which beats even an `RWMutex`'s shared lock under heavy read load. The cost is that every write rebuilds the entire value, so it fits *replace* better than *mutate in place*. If readers need a lock and writers mutate fields rather than swapping the whole object, `RWMutex` is the better fit.
 
 ## Related Patterns
 
-- **[Mutex](/go/patterns/synchronisation/mutex)**: the simpler default; reach for `RWMutex` only when reads dominate and contend.
-- **[Atomic](/go/patterns/synchronisation/atomic)**: copy-on-write via `atomic.Pointer` gives lock-free reads for replace-wholesale state.
-- **[Data Races](/go/patterns/synchronisation/data-races)**: why reads need a lock at all, not just writes.
+- **[Mutex](/patterns/synchronisation/mutex)**: the simpler default; reach for `RWMutex` only when reads dominate and contend.
+- **[Atomic](/patterns/synchronisation/atomic)**: copy-on-write via `atomic.Pointer` gives lock-free reads for replace-wholesale state.
+- **[Data Races](/patterns/synchronisation/data-races)**: why reads need a lock at all, not just writes.

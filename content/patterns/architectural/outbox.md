@@ -187,7 +187,7 @@ Because the relay can crash after publishing but before marking a row, delivery 
 ## When to Use
 
 - You must publish events or messages reliably as a consequence of a database change, and losing or duplicating-without-control is unacceptable.
-- You're building an [Event-Driven](/go/patterns/architectural/event-driven), [Event Sourcing](/go/patterns/architectural/event-sourcing), or [Saga](/go/patterns/architectural/saga) system where downstream steps depend on every state change being announced.
+- You're building an [Event-Driven](/patterns/architectural/event-driven), [Event Sourcing](/patterns/architectural/event-sourcing), or [Saga](/patterns/architectural/saga) system where downstream steps depend on every state change being announced.
 - Your database supports transactions (so the business row and outbox row commit atomically).
 - You can tolerate at-least-once delivery and make consumers idempotent.
 

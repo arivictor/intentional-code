@@ -17,7 +17,7 @@ The important rule is that the snapshot (the memento) is opaque. The originator,
 
 Go makes this pattern clean because of package visibility. If `Memento` has unexported fields and lives in the same package as the originator, outside packages can hold `*Memento` values and pass them around, but cannot read or modify snapshot contents. That means encapsulation is enforced by the compiler, not by team convention.
 
-You can think of Memento as the encapsulated complement to [Prototype](/go/patterns/creational/prototype): Prototype copies state so you can branch and continue independently; Memento captures state so you can safely return to it later.
+You can think of Memento as the encapsulated complement to [Prototype](/patterns/creational/prototype): Prototype copies state so you can branch and continue independently; Memento captures state so you can safely return to it later.
 
 ## Scenario
 

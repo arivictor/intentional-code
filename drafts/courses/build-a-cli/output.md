@@ -6,7 +6,7 @@ order: 12
 
 # Module 12: Output Formatting — Decorator
 
-**Pattern: [Decorator](/go/patterns/structural/decorator)**
+**Pattern: [Decorator](/patterns/structural/decorator)**
 
 There's a tension in every CLI tool between two uses: humans at a terminal (want colour, symbols, aligned tables) and scripts piping the output (want plain text, no escape codes, machine-parseable).
 
@@ -16,7 +16,7 @@ The Decorator solves it: wrap the underlying `io.Writer` in something that adds 
 
 ## Why Decorator fits here
 
-The [Decorator pattern](/go/patterns/structural/decorator) adds behaviour to an object by wrapping it in another object with the same interface. Our decorating object (`output.Writer`) wraps an `io.Writer` and adds:
+The [Decorator pattern](/patterns/structural/decorator) adds behaviour to an object by wrapping it in another object with the same interface. Our decorating object (`output.Writer`) wraps an `io.Writer` and adds:
 
 - Colour via ANSI escape codes (when the output is a terminal)
 - Prefix symbols (`✓`, `✗`, `→`)

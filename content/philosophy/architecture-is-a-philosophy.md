@@ -66,6 +66,6 @@ func hasField(jsonData []byte, fieldName string) bool {
 }
 ```
 
-No rule produced `hasField`. A style guide can hand you `camelCase` and "boolean functions read as questions," but it cannot tell you that this function is best named for the question it answers. That last step is judgment, and it is the same judgment, scaled down, that decides where a boundary goes or whether a package should exist. Clarity is decided per reader, never per rulebook. (The neighbouring idea that a function should do only one thing belongs to [making the next change local](/go/philosophy/keep-changes-local#solid); the point here is narrower.)
+No rule produced `hasField`. A style guide can hand you `camelCase` and "boolean functions read as questions," but it cannot tell you that this function is best named for the question it answers. That last step is judgment, and it is the same judgment, scaled down, that decides where a boundary goes or whether a package should exist. Clarity is decided per reader, never per rulebook. (The neighbouring idea that a function should do only one thing belongs to [making the next change local](/philosophy/keep-changes-local#solid); the point here is narrower.)
 
 > **Smell:** You have to read a function three times to know what it does. A variable named `data`, `result`, `temp`, or `x` at package scope. A comment that starts with "this function..."

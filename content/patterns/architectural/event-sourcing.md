@@ -11,7 +11,7 @@ Most systems store only the latest state of an entity. Event Sourcing stores the
 
 This gives you an audit trail by default. It also gives you built-in time-travel debugging, because you can rebuild state as it looked at an earlier point in time. You can also replay old events into a new projection to answer questions you did not plan for when the system was first designed. But there are real costs: reads are more complex (you usually need projection tables), replay can be slow for long streams unless you use snapshots, and event schema changes need careful versioning.
 
-Event Sourcing fits naturally with [CQRS](/go/patterns/architectural/cqrs): commands append events to the stream, and the query side consumes that stream to build denormalised read models.
+Event Sourcing fits naturally with [CQRS](/patterns/architectural/cqrs): commands append events to the stream, and the query side consumes that stream to build denormalised read models.
 
 ## Scenario
 
@@ -403,7 +403,7 @@ Optimistic locking works well when conflicts are rare. A deposit and a withdrawa
 - You need a full audit trail as a first-class requirement (financial systems, healthcare records, legal contracts).
 - You need temporal queries: "what was the state at time T?"
 - You have multiple read models with different shapes that evolve over time and can be rebuilt by replaying the log.
-- You're using [CQRS](/go/patterns/architectural/cqrs) and want the event log to drive read-side projections.
+- You're using [CQRS](/patterns/architectural/cqrs) and want the event log to drive read-side projections.
 
 ## When Not to Use
 

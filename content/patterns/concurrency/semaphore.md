@@ -150,7 +150,7 @@ Both limit concurrency. The choice is about lifecycle:
 | Backpressure | Acquire blocks the sender | Jobs channel buffers |
 | Best for | Short bursts, known job set | Long-running, streaming jobs |
 
-If jobs arrive continuously over time, a [Worker Pool](/go/patterns/concurrency/worker-pool) amortises goroutine startup cost. If you're processing a known set of items once and the goroutine startup cost is acceptable, a semaphore is simpler.
+If jobs arrive continuously over time, a [Worker Pool](/patterns/concurrency/worker-pool) amortises goroutine startup cost. If you're processing a known set of items once and the goroutine startup cost is acceptable, a semaphore is simpler.
 
 ## When to Use
 

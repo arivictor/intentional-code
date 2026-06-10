@@ -158,7 +158,7 @@ The open/closed benefit only works in one direction. Adding a new operation is u
 
 In this example, the `any` return type is the roughest part of Visitor in Go. You lose compile-time type safety at each `Accept` call and depend on type assertions, which can panic at runtime if they are wrong. Generics can reduce that risk, but they also make the design harder to read and maintain. The boilerplate is real: with five node types and ten operations, you end up writing fifty visit methods. Visitor is worth it only when new operations are added often and the set of node types stays mostly stable.
 
-In Go this is usually [the case for no pattern at all](/go/philosophy/no-pattern): a type switch does the same dispatch without the `Accept`/`Visit` ceremony, and an exhaustive-switch linter tells you when you've missed a case.
+In Go this is usually [the case for no pattern at all](/philosophy/no-pattern): a type switch does the same dispatch without the `Accept`/`Visit` ceremony, and an exhaustive-switch linter tells you when you've missed a case.
 
 ## Related Patterns
 

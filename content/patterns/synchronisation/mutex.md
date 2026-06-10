@@ -7,7 +7,7 @@ description: "Protect shared state with a sync.Mutex so only one goroutine enter
 
 **Buys an obviously-correct critical section for any multi-word shared state; pays in serialised access, contention, and deadlock risk if you mishandle it.**
 
-A `sync.Mutex` is a lock. One goroutine holds it at a time; everyone else who calls `Lock()` waits until the holder calls `Unlock()`. The stretch of code between `Lock` and `Unlock` — the **critical section** — runs as if it were single-threaded, which is exactly what you need when several goroutines read and write the same data. It's the most general fix for a [data race](/go/patterns/synchronisation/data-races): when in doubt, a mutex is correct.
+A `sync.Mutex` is a lock. One goroutine holds it at a time; everyone else who calls `Lock()` waits until the holder calls `Unlock()`. The stretch of code between `Lock` and `Unlock` — the **critical section** — runs as if it were single-threaded, which is exactly what you need when several goroutines read and write the same data. It's the most general fix for a [data race](/patterns/synchronisation/data-races): when in doubt, a mutex is correct.
 
 ## Scenario
 
@@ -108,7 +108,7 @@ func (s *SafeMap) Get(k string) (int, bool) {
 }
 ```
 
-If your map is read far more than it's written, the [RWMutex](/go/patterns/synchronisation/rwmutex) lets readers run in parallel. For a write-heavy map, a plain `Mutex` like this is the right call.
+If your map is read far more than it's written, the [RWMutex](/patterns/synchronisation/rwmutex) lets readers run in parallel. For a write-heavy map, a plain `Mutex` like this is the right call.
 
 ## Reducing contention: striped locks
 
@@ -136,14 +136,14 @@ A write to key `"a"` and a write to key `"b"` likely land on different shards an
 ## When to Use
 
 - Any data structure touched by more than one goroutine where the access is more than a single machine word (a struct, a map, a slice, a multi-field invariant).
-- A critical section that must stay consistent across several statements — "read the balance, check it, then subtract" must be one atomic step, which a mutex gives you and an [atomic](/go/patterns/synchronisation/atomic) does not.
+- A critical section that must stay consistent across several statements — "read the balance, check it, then subtract" must be one atomic step, which a mutex gives you and an [atomic](/patterns/synchronisation/atomic) does not.
 - You want the simplest thing that's obviously correct. A mutex is harder to get subtly wrong than lock-free code.
 
 ## When Not to Use
 
-- The shared state is a single integer, flag, or pointer — [`sync/atomic`](/go/patterns/synchronisation/atomic) is lighter and lock-free.
-- The data is read constantly and written rarely — an [RWMutex](/go/patterns/synchronisation/rwmutex) lets readers run concurrently.
-- You can avoid sharing entirely by passing data through channels — prefer that; no lock means no deadlock. See the [concurrency patterns](/go/patterns/concurrency).
+- The shared state is a single integer, flag, or pointer — [`sync/atomic`](/patterns/synchronisation/atomic) is lighter and lock-free.
+- The data is read constantly and written rarely — an [RWMutex](/patterns/synchronisation/rwmutex) lets readers run concurrently.
+- You can avoid sharing entirely by passing data through channels — prefer that; no lock means no deadlock. See the [concurrency patterns](/patterns/concurrency).
 
 ## Common Mistakes
 
@@ -160,18 +160,18 @@ A write to key `"a"` and a write to key `"b"` likely land on different shards an
 ## The Decision
 
 **Mutex vs. atomic.**
-If the shared state is exactly one integer, pointer, or boolean, [`sync/atomic`](/go/patterns/synchronisation/atomic) does the job lock-free and faster. The moment you need to update *two* things together, or keep an invariant across several statements ("if balance ≥ amount, subtract amount"), atomics can't help — the check and the update would be two separate atomic operations with a race in the gap. That's a critical section, and a critical section needs a mutex.
+If the shared state is exactly one integer, pointer, or boolean, [`sync/atomic`](/patterns/synchronisation/atomic) does the job lock-free and faster. The moment you need to update *two* things together, or keep an invariant across several statements ("if balance ≥ amount, subtract amount"), atomics can't help — the check and the update would be two separate atomic operations with a race in the gap. That's a critical section, and a critical section needs a mutex.
 
 **Mutex vs. RWMutex.**
-An [RWMutex](/go/patterns/synchronisation/rwmutex) allows many concurrent readers, which sounds strictly better but isn't: it's a heavier lock, and if your workload isn't genuinely read-dominated and contended, the extra bookkeeping makes it *slower* than a plain `Mutex`. Default to `Mutex`. Switch to `RWMutex` only when a profile shows readers contending on a lock that writes rarely touch.
+An [RWMutex](/patterns/synchronisation/rwmutex) allows many concurrent readers, which sounds strictly better but isn't: it's a heavier lock, and if your workload isn't genuinely read-dominated and contended, the extra bookkeeping makes it *slower* than a plain `Mutex`. Default to `Mutex`. Switch to `RWMutex` only when a profile shows readers contending on a lock that writes rarely touch.
 
 **Mutex vs. channels.**
 The Go proverb says *share memory by communicating*, but a mutex around a small piece of shared state is often simpler and clearer than routing every access through a goroutine and channel. Use channels for *transferring ownership* of data and for coordinating *flow*; use a mutex for *protecting* a piece of state that several goroutines legitimately share. Neither is a code smell — picking the wrong one for the job is.
 
 ## Related Patterns
 
-- **[Data Races](/go/patterns/synchronisation/data-races)**: the problem a mutex solves; start there if "critical section" isn't yet second nature.
-- **[RWMutex](/go/patterns/synchronisation/rwmutex)**: the read-optimised variant for read-heavy state.
-- **[Atomic](/go/patterns/synchronisation/atomic)**: lighter, lock-free protection for a single word of state.
-- **[Once](/go/patterns/synchronisation/once)**: built on a mutex internally; the right tool when the critical section is one-time initialisation.
-- **[Singleton](/go/patterns/creational/singleton)**: uses a mutex (or `Once`) to make lazy construction safe under concurrency.
+- **[Data Races](/patterns/synchronisation/data-races)**: the problem a mutex solves; start there if "critical section" isn't yet second nature.
+- **[RWMutex](/patterns/synchronisation/rwmutex)**: the read-optimised variant for read-heavy state.
+- **[Atomic](/patterns/synchronisation/atomic)**: lighter, lock-free protection for a single word of state.
+- **[Once](/patterns/synchronisation/once)**: built on a mutex internally; the right tool when the critical section is one-time initialisation.
+- **[Singleton](/patterns/creational/singleton)**: uses a mutex (or `Once`) to make lazy construction safe under concurrency.

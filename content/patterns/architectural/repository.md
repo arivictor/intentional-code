@@ -11,7 +11,7 @@ The Repository pattern defines a persistence contract as an interface that the d
 
 One of the clearest signs you need a Repository is a service function that takes `*sql.DB` directly. That usually means you cannot test the business rule without a real database running. The Repository pattern fixes that by replacing the concrete database dependency with an interface defined near the domain logic. In Go, implicit interface satisfaction makes this natural: the domain does not need to import the infrastructure package, and any type with the right methods can satisfy the interface, including an in-memory fake used in fast tests.
 
-This is the [Dependency Inversion Principle](/go/philosophy/keep-changes-local#solid) applied to persistence. The domain says what storage behaviour it needs, and infrastructure provides an implementation of that contract.
+This is the [Dependency Inversion Principle](/philosophy/keep-changes-local#solid) applied to persistence. The domain says what storage behaviour it needs, and infrastructure provides an implementation of that contract.
 
 ## Scenario
 
@@ -218,7 +218,7 @@ The main benefit is testability. An in-memory implementation lets you test domai
 
 The cost grows with the number of aggregates. One repository interface per aggregate can turn into many small interfaces, and each one usually needs both a production implementation and an in-memory fake. If those implementations drift apart, tests can give false confidence. Complex read requirements also put pressure on the pattern. Pagination, filtering, sorting, and joins often start leaking into the interface as more parameters and more specialised methods. Over time, that can make the repository harder to implement and harder to fake accurately.
 
-The interface is [Dependency Inversion borrowed against the future](/go/philosophy/borrowed-abstraction): it pays off the day you test the domain without a database, and not before. Add it when that test pressure is real, not on the chance you might swap databases someday.
+The interface is [Dependency Inversion borrowed against the future](/philosophy/borrowed-abstraction): it pays off the day you test the domain without a database, and not before. Add it when that test pressure is real, not on the chance you might swap databases someday.
 
 ## Related Patterns
 

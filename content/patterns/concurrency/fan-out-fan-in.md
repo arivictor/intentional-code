@@ -166,7 +166,7 @@ workers := runtime.NumCPU()
 workers := 50
 ```
 
-For I/O-bound work, consider a [Worker Pool](/go/patterns/concurrency/worker-pool) instead. It bounds concurrency with a fixed pool rather than spawning N goroutines upfront.
+For I/O-bound work, consider a [Worker Pool](/patterns/concurrency/worker-pool) instead. It bounds concurrency with a fixed pool rather than spawning N goroutines upfront.
 
 ## When to Use
 
@@ -180,7 +180,7 @@ For I/O-bound work, consider a [Worker Pool](/go/patterns/concurrency/worker-poo
 - Items are not independent; each depends on the result of the previous one.
 - The bottleneck is downstream (a slow consumer). Adding parallel producers makes the fan-in goroutines block on a full channel. Fix the consumer instead.
 - The work is cheap enough that channel overhead exceeds the benefit of parallelism. Measure first.
-- You need a fixed upper bound on goroutines regardless of input size. Use a [Worker Pool](/go/patterns/concurrency/worker-pool).
+- You need a fixed upper bound on goroutines regardless of input size. Use a [Worker Pool](/patterns/concurrency/worker-pool).
 
 ## The Decision
 

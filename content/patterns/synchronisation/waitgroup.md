@@ -5,9 +5,9 @@ description: "Wait for a set of goroutines to finish with sync.WaitGroup — com
 
 # WaitGroup
 
-**Buys simple block-until-the-batch-completes coordination; pays by doing only that — no error handling or cancellation (reach for [Errgroup](/go/patterns/concurrency/errgroup)), and no streaming.**
+**Buys simple block-until-the-batch-completes coordination; pays by doing only that — no error handling or cancellation (reach for [Errgroup](/patterns/concurrency/errgroup)), and no streaming.**
 
-A `sync.WaitGroup` answers one question: *have all my goroutines finished?* You tell it how many to expect with `Add`, each goroutine calls `Done` as it exits, and `Wait` blocks until the count hits zero. That's the whole job — it coordinates **completion**, not access. This is the distinction worth fixing in your head before anything else: a WaitGroup is not a lock. It does nothing to protect shared memory. If your goroutines write to the same variable, you still need a [Mutex](/go/patterns/synchronisation/mutex) or an [atomic](/go/patterns/synchronisation/atomic) — the WaitGroup just tells you when they're all done.
+A `sync.WaitGroup` answers one question: *have all my goroutines finished?* You tell it how many to expect with `Add`, each goroutine calls `Done` as it exits, and `Wait` blocks until the count hits zero. That's the whole job — it coordinates **completion**, not access. This is the distinction worth fixing in your head before anything else: a WaitGroup is not a lock. It does nothing to protect shared memory. If your goroutines write to the same variable, you still need a [Mutex](/patterns/synchronisation/mutex) or an [atomic](/patterns/synchronisation/atomic) — the WaitGroup just tells you when they're all done.
 
 You've already seen it in every example in this section; this page is the primitive itself.
 
@@ -91,9 +91,9 @@ Same semantics, fewer ways to misuse. If you're on Go 1.25 or later, prefer `wg.
 
 ## When Not to Use
 
-- The goroutines can *fail* and you want to stop on the first error — use [Errgroup](/go/patterns/concurrency/errgroup), which is a WaitGroup plus error propagation plus cancellation.
-- You need to *stream* results as they arrive rather than wait for the whole batch — use a channel and range over it; see [Fan-out / Fan-in](/go/patterns/concurrency/fan-out-fan-in).
-- You're trying to protect shared memory — a WaitGroup does not do that. Use a [Mutex](/go/patterns/synchronisation/mutex) or [atomic](/go/patterns/synchronisation/atomic).
+- The goroutines can *fail* and you want to stop on the first error — use [Errgroup](/patterns/concurrency/errgroup), which is a WaitGroup plus error propagation plus cancellation.
+- You need to *stream* results as they arrive rather than wait for the whole batch — use a channel and range over it; see [Fan-out / Fan-in](/patterns/concurrency/fan-out-fan-in).
+- You're trying to protect shared memory — a WaitGroup does not do that. Use a [Mutex](/patterns/synchronisation/mutex) or [atomic](/patterns/synchronisation/atomic).
 
 ## Common Mistakes
 
@@ -110,13 +110,13 @@ Same semantics, fewer ways to misuse. If you're on Go 1.25 or later, prefer `wg.
 ## The Decision
 
 **WaitGroup vs. Errgroup.**
-A WaitGroup waits; it has no opinion about failure. The moment your goroutines can return an error and a single failure should cancel the rest, [`errgroup.Group`](/go/patterns/concurrency/errgroup) is the upgrade — it *is* a WaitGroup with error collection and context cancellation built in. Use a bare WaitGroup when the work can't meaningfully fail (or when each goroutine handles its own errors and you only need to know everyone's done). Reach for errgroup when "if one fails, stop everything" is the desired behaviour.
+A WaitGroup waits; it has no opinion about failure. The moment your goroutines can return an error and a single failure should cancel the rest, [`errgroup.Group`](/patterns/concurrency/errgroup) is the upgrade — it *is* a WaitGroup with error collection and context cancellation built in. Use a bare WaitGroup when the work can't meaningfully fail (or when each goroutine handles its own errors and you only need to know everyone's done). Reach for errgroup when "if one fails, stop everything" is the desired behaviour.
 
 **WaitGroup vs. a channel.**
 A WaitGroup is the right tool when you want to *block until a batch completes* and then act. A channel is the right tool when you want to *stream results as they arrive* and process each immediately. If you find yourself building a "done" channel and counting sends to know when N goroutines finished, that's a WaitGroup reinvented — use the WaitGroup. If you're waiting for the whole batch only to then range over collected results, a WaitGroup plus disjoint result slots is simpler than channel plumbing.
 
 ## Related Patterns
 
-- **[Errgroup](/go/patterns/concurrency/errgroup)**: WaitGroup plus error propagation and cancellation — the upgrade when goroutines can fail.
-- **[Mutex](/go/patterns/synchronisation/mutex)** / **[Atomic](/go/patterns/synchronisation/atomic)**: what you *also* need if the goroutines share mutable state — a WaitGroup doesn't protect memory.
-- **[Worker Pool](/go/patterns/concurrency/worker-pool)** and **[Fan-out / Fan-in](/go/patterns/concurrency/fan-out-fan-in)**: both use a WaitGroup internally to know when all workers have drained the queue.
+- **[Errgroup](/patterns/concurrency/errgroup)**: WaitGroup plus error propagation and cancellation — the upgrade when goroutines can fail.
+- **[Mutex](/patterns/synchronisation/mutex)** / **[Atomic](/patterns/synchronisation/atomic)**: what you *also* need if the goroutines share mutable state — a WaitGroup doesn't protect memory.
+- **[Worker Pool](/patterns/concurrency/worker-pool)** and **[Fan-out / Fan-in](/patterns/concurrency/fan-out-fan-in)**: both use a WaitGroup internally to know when all workers have drained the queue.

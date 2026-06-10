@@ -6,7 +6,7 @@ order: 10
 
 # Module 10: Watching a Host — Pipeline
 
-**Pattern: [Pipeline](/go/patterns/concurrency/pipeline)**
+**Pattern: [Pipeline](/patterns/concurrency/pipeline)**
 
 `netscan watch` is the most interesting command to build because it runs forever (until cancelled) and has the clearest separation of concerns. Each concern maps naturally to a pipeline stage.
 
@@ -155,7 +155,7 @@ When the user presses Ctrl-C:
 
 No goroutine leaks. No stuck selects. No manual cleanup. The channel closure cascade is the shutdown mechanism — each stage closing its output channel signals the next stage to stop.
 
-This is why the [Done Channel pattern](/go/patterns/concurrency/done-channel) matters. Without `ctx.Ctx.Done()` in the ticker goroutine, Ctrl-C would cancel the context but the ticker would keep firing — and `ticks <- struct{}{}` would block forever (no reader) while the ticker goroutine leaked.
+This is why the [Done Channel pattern](/patterns/concurrency/done-channel) matters. Without `ctx.Ctx.Done()` in the ticker goroutine, Ctrl-C would cancel the context but the ticker would keep firing — and `ticks <- struct{}{}` would block forever (no reader) while the ticker goroutine leaked.
 
 ## Why `time.NewTicker` and not `time.Sleep`
 

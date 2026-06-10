@@ -9,7 +9,7 @@ order: 5
 
 An abstraction is a loan. You borrow flexibility, the ability to swap an implementation, add a case, vary a behaviour, and the interest is indirection: every reader from now on has to step through the abstraction to find out what actually happens. Sometimes that's a bargain. Often it's a loan taken out against a future that never arrives, and you service the debt forever in exchange for flexibility you never spend.
 
-So the question to ask before you abstract is "will I spend this flexibility, and soon enough so that paying interest in the meantime is worth it?" If the answer is a confident yes, borrow. If it's a hopeful maybe, you're speculating, and the [wrong abstraction costs more than the duplication it replaces](/go/philosophy/wrong-abstraction).
+So the question to ask before you abstract is "will I spend this flexibility, and soon enough so that paying interest in the meantime is worth it?" If the answer is a confident yes, borrow. If it's a hopeful maybe, you're speculating, and the [wrong abstraction costs more than the duplication it replaces](/philosophy/wrong-abstraction).
 
 The corollary is that abstractions should be *cheap to take on and cheap to unwind*. A small interface defined at the point you actually need it is a short-term loan. A deep inheritance hierarchy is a thirty-year mortgage on coupling, and Go, wisely, won't even sell it to you.
 
@@ -52,4 +52,4 @@ A `Duck` works in both contexts with no shared base class, and a new type that i
 
 > **Smell:** A type embeds another and overrides most of its methods, replacing rather than extending it. A hierarchy more than two levels deep. You embed a large type just to reach one method.
 
-See also: [Strategy](/go/patterns/behavioral/strategy), [Decorator](/go/patterns/structural/decorator), [SOLID](/go/philosophy/keep-changes-local#solid).
+See also: [Strategy](/patterns/behavioral/strategy), [Decorator](/patterns/structural/decorator), [SOLID](/philosophy/keep-changes-local#solid).

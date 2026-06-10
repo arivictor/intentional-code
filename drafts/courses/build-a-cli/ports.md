@@ -6,7 +6,7 @@ order: 8
 
 # Module 8: Port Scanning — Fan-out / Fan-in
 
-**Patterns: [Fan-out / Fan-in](/go/patterns/concurrency/fan-out-fan-in), [Done Channel](/go/patterns/concurrency/done-channel)**
+**Patterns: [Fan-out / Fan-in](/patterns/concurrency/fan-out-fan-in), [Done Channel](/patterns/concurrency/done-channel)**
 
 Start with the sequential version. Feel the problem. Then reach for the pattern.
 
@@ -35,7 +35,7 @@ Port scanning is a problem that is *embarrassingly parallel*: each probe is inde
 
 ## Why fan-out / fan-in
 
-The [Fan-out / Fan-in pattern](/go/patterns/concurrency/fan-out-fan-in) fits this problem exactly: distribute a set of independent tasks across multiple goroutines (fan-out), then collect all their results into a single channel (fan-in).
+The [Fan-out / Fan-in pattern](/patterns/concurrency/fan-out-fan-in) fits this problem exactly: distribute a set of independent tasks across multiple goroutines (fan-out), then collect all their results into a single channel (fan-in).
 
 ```
 ports 1..1024
@@ -139,7 +139,7 @@ This is a pattern within the pattern: whenever you need to wait for producers be
 
 ## The Done Channel — handling cancellation
 
-**Pattern: [Done Channel](/go/patterns/concurrency/done-channel)**
+**Pattern: [Done Channel](/patterns/concurrency/done-channel)**
 
 Notice this in the worker:
 

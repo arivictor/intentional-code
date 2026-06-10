@@ -7,13 +7,13 @@ description: "Lock-free reads and writes on a single integer, flag, or pointer w
 
 **Buys lock-free, fastest protection when shared state is exactly one word; pays by being useless for multi-variable invariants — two atomics aren't one transaction.**
 
-`sync/atomic` provides operations that the CPU guarantees to be indivisible: an atomic add, load, store, or compare-and-swap completes in one step that no other goroutine can interleave with. No lock, no critical section — just a single hardware-backed operation. When the shared state is exactly *one* thing — a counter, a flag, a pointer — atomics are the lightest and fastest way to make it safe. The moment you need to update two things together, atomics stop being enough and you want a [Mutex](/go/patterns/synchronisation/mutex).
+`sync/atomic` provides operations that the CPU guarantees to be indivisible: an atomic add, load, store, or compare-and-swap completes in one step that no other goroutine can interleave with. No lock, no critical section — just a single hardware-backed operation. When the shared state is exactly *one* thing — a counter, a flag, a pointer — atomics are the lightest and fastest way to make it safe. The moment you need to update two things together, atomics stop being enough and you want a [Mutex](/patterns/synchronisation/mutex).
 
 Since Go 1.19 there are typed atomic wrappers — `atomic.Int64`, `atomic.Bool`, `atomic.Pointer[T]` — that are clearer and harder to misuse than the older free functions. Prefer them.
 
 ## Scenario
 
-You've got the [counter race](/go/patterns/synchronisation/data-races) again: several goroutines incrementing one shared integer. A [Mutex](/go/patterns/synchronisation/mutex) fixes it, but for a single `int` a full lock is more machinery than the job needs — every increment pays lock/unlock overhead to protect one add:
+You've got the [counter race](/patterns/synchronisation/data-races) again: several goroutines incrementing one shared integer. A [Mutex](/patterns/synchronisation/mutex) fixes it, but for a single `int` a full lock is more machinery than the job needs — every increment pays lock/unlock overhead to protect one add:
 
 ```go
 // WORKS, but heavy — a whole mutex to guard a single integer's increment.
@@ -74,7 +74,7 @@ if shuttingDown.Load() {
 }
 ```
 
-For *exactly-once* actions (run this setup the first time anyone asks, never again), reach for [`sync.Once`](/go/patterns/synchronisation/once) instead — it handles the "wait until the first caller finishes initialising" case that a bare flag doesn't.
+For *exactly-once* actions (run this setup the first time anyone asks, never again), reach for [`sync.Once`](/patterns/synchronisation/once) instead — it handles the "wait until the first caller finishes initialising" case that a bare flag doesn't.
 
 ## Copy-on-write with atomic.Pointer
 
@@ -99,7 +99,7 @@ func Current() *Config { return current.Load() }
 func Reload(c *Config) { current.Store(c) }
 ```
 
-The rule that makes this safe: the pointed-to `Config` is **immutable** once stored. Readers may be looking at the old value while a writer swaps in the new one — that's fine, because nobody mutates a `Config` in place; writers only ever replace the pointer. This often beats an [RWMutex](/go/patterns/synchronisation/rwmutex) for config, since reads become a bare load.
+The rule that makes this safe: the pointed-to `Config` is **immutable** once stored. Readers may be looking at the old value while a writer swaps in the new one — that's fine, because nobody mutates a `Config` in place; writers only ever replace the pointer. This often beats an [RWMutex](/patterns/synchronisation/rwmutex) for config, since reads become a bare load.
 
 For "read it, compute a new version, store it only if nobody changed it underneath me", use `CompareAndSwap` in a retry loop — the foundation of lock-free algorithms.
 
@@ -112,7 +112,7 @@ For "read it, compute a new version, store it only if nobody changed it undernea
 
 ## When Not to Use
 
-- You need to update more than one variable as a unit, or keep an invariant across several steps — that's a critical section; use a [Mutex](/go/patterns/synchronisation/mutex).
+- You need to update more than one variable as a unit, or keep an invariant across several steps — that's a critical section; use a [Mutex](/patterns/synchronisation/mutex).
 - The logic is "check a condition, then act on it" where the value can change between the check and the act — atomics don't give you that window; a mutex does.
 - Readability matters more than the last few nanoseconds and the state is small — a `Mutex` is often easier for the next reader to verify than a clever atomic.
 
@@ -132,11 +132,11 @@ For "read it, compute a new version, store it only if nobody changed it undernea
 Count the things you're protecting. *One* word — an integer, a flag, a pointer — atomics, lock-free and fast. *More than one*, or an invariant that spans several statements — a mutex, because only a lock can make a multi-step section indivisible. The trap is stretching atomics to cover a transaction ("check then act") they can't actually make atomic; the result compiles, runs, and is subtly wrong. When in doubt, a mutex is never *wrong* — only sometimes heavier than necessary.
 
 **atomic.Pointer vs. RWMutex for read-heavy state.**
-For config and other replace-wholesale state, an `atomic.Pointer` swap gives readers a single lock-free load — faster than an [RWMutex](/go/patterns/synchronisation/rwmutex)'s shared lock under heavy read load — at the cost of rebuilding the entire value on every write and keeping it immutable. If writers mutate fields in place rather than swapping the whole object, you need a lock instead.
+For config and other replace-wholesale state, an `atomic.Pointer` swap gives readers a single lock-free load — faster than an [RWMutex](/patterns/synchronisation/rwmutex)'s shared lock under heavy read load — at the cost of rebuilding the entire value on every write and keeping it immutable. If writers mutate fields in place rather than swapping the whole object, you need a lock instead.
 
 ## Related Patterns
 
-- **[Mutex](/go/patterns/synchronisation/mutex)**: the general fix when more than one word, or an invariant, is in play.
-- **[RWMutex](/go/patterns/synchronisation/rwmutex)**: the lock-based alternative for read-heavy state; `atomic.Pointer` is the lock-free counterpart.
-- **[Once](/go/patterns/synchronisation/once)**: for exactly-once initialisation, which a bare atomic flag can't express safely.
-- **[Data Races](/go/patterns/synchronisation/data-races)**: the problem; this is the lightest fix when the state is a single word.
+- **[Mutex](/patterns/synchronisation/mutex)**: the general fix when more than one word, or an invariant, is in play.
+- **[RWMutex](/patterns/synchronisation/rwmutex)**: the lock-based alternative for read-heavy state; `atomic.Pointer` is the lock-free counterpart.
+- **[Once](/patterns/synchronisation/once)**: for exactly-once initialisation, which a bare atomic flag can't express safely.
+- **[Data Races](/patterns/synchronisation/data-races)**: the problem; this is the lightest fix when the state is a single word.

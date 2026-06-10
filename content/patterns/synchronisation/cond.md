@@ -159,6 +159,6 @@ This is the whole decision, and it almost always lands on channels. A channel *i
 
 ## Related Patterns
 
-- **[Mutex](/go/patterns/synchronisation/mutex)**: a `Cond` is always paired with a mutex; you must understand the lock first.
-- **[WaitGroup](/go/patterns/synchronisation/waitgroup)**: for "wait until N goroutines finish", which is *not* what `Cond` is for — different question.
-- **[Timeout and Select](/go/patterns/concurrency/timeout-select)** and **[Pipeline](/go/patterns/concurrency/pipeline)**: the channel-based approach that replaces `Cond` in nearly every real case.
+- **[Mutex](/patterns/synchronisation/mutex)**: a `Cond` is always paired with a mutex; you must understand the lock first.
+- **[WaitGroup](/patterns/synchronisation/waitgroup)**: for "wait until N goroutines finish", which is *not* what `Cond` is for — different question.
+- **[Timeout and Select](/patterns/concurrency/timeout-select)** and **[Pipeline](/patterns/concurrency/pipeline)**: the channel-based approach that replaces `Cond` in nearly every real case.

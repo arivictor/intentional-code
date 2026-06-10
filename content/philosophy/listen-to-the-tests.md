@@ -48,7 +48,7 @@ func (f *fakeSender) Send(to, body string) error {
 
 This is the tenet running in reverse: an easy test is evidence of a good seam. The classic anti-pattern proves the same point from the other side — if a test needs a heavy mocking framework, the interface is too large. Shrink it, and the test gets simple because the design did.
 
-See also: [Strategy](/go/patterns/behavioral/strategy), [Repository](/go/patterns/architectural/repository).
+See also: [Strategy](/patterns/behavioral/strategy), [Repository](/patterns/architectural/repository).
 
 ## Functional Programming
 
@@ -71,4 +71,4 @@ The impure version forces a test to manipulate the clock; the pure one takes the
 
 > **Smell:** A function returns different results when called twice with the same arguments. A method mutates a field another goroutine reads without a lock. You must set up global state before calling a function in a test.
 
-See also: [Composition over Inheritance](/go/philosophy/borrowed-abstraction#composition-over-inheritance), [TDD](/go/philosophy/listen-to-the-tests#test-driven-development).
+See also: [Composition over Inheritance](/philosophy/borrowed-abstraction#composition-over-inheritance), [TDD](/philosophy/listen-to-the-tests#test-driven-development).

@@ -125,14 +125,14 @@ users tags:      [v1 users]
 ## When Not to Use
 
 - Your type is simple and has only value fields. Plain struct assignment is the correct copy mechanism.
-- Deep copying is too expensive for your use case. Consider immutable shared state ([Flyweight](/go/patterns/structural/flyweight)) instead.
+- Deep copying is too expensive for your use case. Consider immutable shared state ([Flyweight](/patterns/structural/flyweight)) instead.
 - You only need a few variations. A constructor with parameters is simpler than cloning and modifying.
 
 ## The Decision
 
 The `Clone()` method is the right tool when correctness requires truly independent copies of reference types, but it has to be maintained manually. Every time you add a slice, map, or pointer field to a struct, you must also update `Clone()` or you silently introduce a sharing bug. The Go compiler gives you no help here: a forgotten field passes all type checks and only fails at runtime when a mutation bleeds through.
 
-Deep-copying large object graphs is also proportionally expensive. If the object you're cloning contains many nested pointers, the clone walks all of them. For objects with circular references, you need to track visited nodes, which adds real complexity. If the primary goal is snapshotting state for undo rather than creating a new independent instance, [Memento](/go/patterns/behavioral/memento) is a more targeted fit.
+Deep-copying large object graphs is also proportionally expensive. If the object you're cloning contains many nested pointers, the clone walks all of them. For objects with circular references, you need to track visited nodes, which adds real complexity. If the primary goal is snapshotting state for undo rather than creating a new independent instance, [Memento](/patterns/behavioral/memento) is a more targeted fit.
 
 The standard library ships a Prototype you've already used: `(*http.Request).Clone(ctx)` deep-copies the header map and trailers so the copy can be mutated without disturbing the original — and it's a method precisely because a shallow struct copy would share those maps.
 

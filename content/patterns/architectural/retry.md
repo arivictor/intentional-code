@@ -173,7 +173,7 @@ if err := backoff.Retry(op, b); err != nil {
 - The operation isn't idempotent and a retry could double-charge a card, send two emails, or create duplicate records. Make it idempotent first, or don't retry.
 - The error is permanent: bad input, authn/authz failures, "not found". Retrying wastes time and can mask a real bug.
 - The caller can't tolerate the added latency. Retries multiply worst-case response time by the attempt count.
-- The dependency is already overloaded and retries would deepen the outage. Pair retries with a [Circuit Breaker](/go/patterns/architectural/circuit-breaker) and a [Rate Limiter](/go/patterns/architectural/rate-limiting).
+- The dependency is already overloaded and retries would deepen the outage. Pair retries with a [Circuit Breaker](/patterns/architectural/circuit-breaker) and a [Rate Limiter](/patterns/architectural/rate-limiting).
 
 ## Tradeoffs
 

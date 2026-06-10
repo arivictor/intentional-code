@@ -11,7 +11,7 @@ description: "Run a piece of initialisation exactly once, no matter how many gor
 
 ## Scenario
 
-You want to build something expensive lazily — only when first used — and share it across goroutines. The hand-rolled "check, then build" is a classic [data race](/go/patterns/synchronisation/data-races):
+You want to build something expensive lazily — only when first used — and share it across goroutines. The hand-rolled "check, then build" is a classic [data race](/patterns/synchronisation/data-races):
 
 ```go
 // BAD — two goroutines can both see `instance == nil` and both build it.
@@ -102,13 +102,13 @@ If your initialiser can *fail*, note that `Once` itself has no error channel —
 
 - Lazy initialisation of a shared resource: connection pools, clients, parsed templates, compiled regexes — built on first use, shared thereafter.
 - Exactly-once side effects: registering metrics, setting up a signal handler, printing a one-time warning.
-- Making a [Singleton](/go/patterns/creational/singleton) thread-safe without hand-writing double-checked locking.
+- Making a [Singleton](/patterns/creational/singleton) thread-safe without hand-writing double-checked locking.
 
 ## When Not to Use
 
 - The value is cheap and always needed — just initialise it at declaration (`var x = build()`) or in `init()`; lazy setup adds nothing.
 - The initialisation can fail and you want to retry on the next call — `Once` runs once, success or not, and never retries. Use a mutex-guarded builder.
-- You need to *re-run* the setup later (config reload, reconnect) — `Once` is permanent. Use an [atomic.Pointer](/go/patterns/synchronisation/atomic) swap or a [Mutex](/go/patterns/synchronisation/mutex)-guarded rebuild.
+- You need to *re-run* the setup later (config reload, reconnect) — `Once` is permanent. Use an [atomic.Pointer](/patterns/synchronisation/atomic) swap or a [Mutex](/patterns/synchronisation/mutex)-guarded rebuild.
 
 ## Common Mistakes
 
@@ -130,6 +130,6 @@ You can replicate `Once` with a `bool` and a `Mutex`, and people do — and they
 
 ## Related Patterns
 
-- **[Singleton](/go/patterns/creational/singleton)**: the canonical user of `Once` — lazy, thread-safe single-instance construction.
-- **[Mutex](/go/patterns/synchronisation/mutex)**: what `Once` is built on; the right tool when init can fail and must retry, or must re-run.
-- **[Atomic](/go/patterns/synchronisation/atomic)**: an `atomic.Bool` flag covers "has it started?" but not "wait until it's finished" — that's what `Once` adds.
+- **[Singleton](/patterns/creational/singleton)**: the canonical user of `Once` — lazy, thread-safe single-instance construction.
+- **[Mutex](/patterns/synchronisation/mutex)**: what `Once` is built on; the right tool when init can fail and must retry, or must re-run.
+- **[Atomic](/patterns/synchronisation/atomic)**: an `atomic.Bool` flag covers "has it started?" but not "wait until it's finished" — that's what `Once` adds.

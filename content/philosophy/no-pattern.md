@@ -66,7 +66,7 @@ YAGNI has a boundary, and naming it is the judgment. The decisions that are genu
 
 > **Smell:** You search for usages of a function and find exactly one caller: the test. A config struct with eight fields where every caller sets the same six. An interface defined in the same package as its only implementation.
 
-See also: [KISS](/go/philosophy/no-pattern#kiss), [DRY](/go/philosophy/wrong-abstraction#dry).
+See also: [KISS](/philosophy/no-pattern#kiss), [DRY](/philosophy/wrong-abstraction#dry).
 
 ## KISS
 
@@ -118,4 +118,4 @@ The chain exists in case there are ever more steps. There aren't; when there are
 
 > **Smell:** You spend more time explaining *why* the code is shaped the way it is than what it does. A newcomer reads three files to understand a function that takes a string. The code has more abstraction layers than the problem has moving parts.
 
-See also: [YAGNI](/go/philosophy/no-pattern#yagni), [Separation of Concerns](/go/philosophy/keep-changes-local#separation-of-concerns).
+See also: [YAGNI](/philosophy/no-pattern#yagni), [Separation of Concerns](/philosophy/keep-changes-local#separation-of-concerns).

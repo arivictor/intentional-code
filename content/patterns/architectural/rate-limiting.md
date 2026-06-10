@@ -7,7 +7,7 @@ description: "Cap the rate of operations using a token bucket so a service prote
 
 **Buys a bounded load that respects a downstream quota; pays the shed-vs-throttle choice and a per-instance limiter that won't enforce a global cap.**
 
-Rate limiting caps how many operations are allowed per unit of time. Where a [Circuit Breaker](/go/patterns/architectural/circuit-breaker) reacts to a dependency that is *already* failing, a rate limiter is proactive: it bounds load before anything breaks. The canonical algorithm in Go is the **token bucket** — a bucket holds up to `capacity` tokens and refills at a steady rate; each operation costs one token, and when the bucket is empty, requests are rejected or made to wait. The burst capacity absorbs short spikes while the refill rate enforces the long-run average.
+Rate limiting caps how many operations are allowed per unit of time. Where a [Circuit Breaker](/patterns/architectural/circuit-breaker) reacts to a dependency that is *already* failing, a rate limiter is proactive: it bounds load before anything breaks. The canonical algorithm in Go is the **token bucket** — a bucket holds up to `capacity` tokens and refills at a steady rate; each operation costs one token, and when the bucket is empty, requests are rejected or made to wait. The burst capacity absorbs short spikes while the refill rate enforces the long-run average.
 
 Go's standard-library-adjacent `golang.org/x/time/rate` implements exactly this and is the production default. The hand-rolled version below exists to show the mechanism.
 
@@ -154,8 +154,8 @@ For limits that must be shared across many instances of your service, keep the c
 ## When Not to Use
 
 - The work is cheap and the resource is effectively unbounded. A limiter just adds latency and a failure mode you didn't need.
-- You actually need *bounded concurrency*, not a bounded rate — "at most 20 in flight at once" is a [Semaphore](/go/patterns/concurrency/semaphore), not a token bucket.
-- The constraint is a slow or failing dependency rather than too many calls. That's a [Circuit Breaker](/go/patterns/architectural/circuit-breaker).
+- You actually need *bounded concurrency*, not a bounded rate — "at most 20 in flight at once" is a [Semaphore](/patterns/concurrency/semaphore), not a token bucket.
+- The constraint is a slow or failing dependency rather than too many calls. That's a [Circuit Breaker](/patterns/architectural/circuit-breaker).
 - A single hard cap is too blunt for your fairness requirements and you'd be better served by a queue with priorities.
 
 ## Tradeoffs

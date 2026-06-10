@@ -75,8 +75,8 @@ func (b *EventBus) Publish(e Event) {
 }
 ```
 
-The first made a dozen architectural bets — retry policy, transport, schema registry — before a single message was sent, and most are wrong for the workload that actually emerges. The second ships, and then *tells* you what to add: which topics are hot, which handlers fail, whether you ever truly need cross-process transport. Complexity added on that evidence is earned. This is the Rule of Three from [DRY](/go/philosophy/wrong-abstraction#dry) at system scale, and it's why rewrites that throw away the working simple system tend to fail.
+The first made a dozen architectural bets — retry policy, transport, schema registry — before a single message was sent, and most are wrong for the workload that actually emerges. The second ships, and then *tells* you what to add: which topics are hot, which handlers fail, whether you ever truly need cross-process transport. Complexity added on that evidence is earned. This is the Rule of Three from [DRY](/philosophy/wrong-abstraction#dry) at system scale, and it's why rewrites that throw away the working simple system tend to fail.
 
 > **Smell:** A system that was never fully deployed. A design document more detailed than the code. An architecture that handles ten hypothetical failure modes but hasn't shipped to handle the first real one. A migration that requires moving everything at once.
 
-See also: [YAGNI](/go/philosophy/no-pattern#yagni), [KISS](/go/philosophy/no-pattern#kiss), [Event-Driven Architecture](/go/patterns/architectural/event-driven).
+See also: [YAGNI](/philosophy/no-pattern#yagni), [KISS](/philosophy/no-pattern#kiss), [Event-Driven Architecture](/patterns/architectural/event-driven).

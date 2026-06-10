@@ -149,11 +149,11 @@ func readFiles(ctx context.Context, paths <-chan string) <-chan []byte {
 }
 ```
 
-See the [Done Channel](/go/patterns/concurrency/done-channel) pattern for the full cancellation discipline.
+See the [Done Channel](/patterns/concurrency/done-channel) pattern for the full cancellation discipline.
 
 ## Error handling
 
-The simplified stages above discard errors. In production, propagate them out-of-band via a separate error channel, or use the [Errgroup](/go/patterns/concurrency/errgroup) pattern which cancels all goroutines on the first error.
+The simplified stages above discard errors. In production, propagate them out-of-band via a separate error channel, or use the [Errgroup](/patterns/concurrency/errgroup) pattern which cancels all goroutines on the first error.
 
 ```go
 type result struct {

@@ -9,7 +9,7 @@ description: "Decouple senders from receivers through named topics: publishers s
 
 Publish/Subscribe (pub/sub) is messaging organised around **topics**. A publisher sends a message to a named topic and is done; it does not know, and does not care, how many subscribers exist or who they are. Every subscriber to that topic receives its own copy of the message. This is the defining difference from a point-to-point queue (where each message goes to exactly one consumer) and from a direct call (where the sender knows the receiver): pub/sub is **one-to-many fan-out across a named channel**.
 
-It's worth distinguishing this page from two neighbours. From [Event-Driven Architecture](/go/patterns/architectural/event-driven): Event-Driven is the system-level *style* — designing around facts that have happened — while Pub/Sub is the concrete *messaging mechanism* (topics, subscriptions, and brokers) such systems are usually built on. And from [Observer](/go/patterns/behavioral/observer): Observer is the *in-process* answer to one-to-many notification, doing it with direct method calls inside a single program. Pub/Sub is what you reach for when that one-to-many fan-out has to cross process boundaries — and that means a broker-backed system (NATS, Kafka, Redis, Google Pub/Sub) for delivery, durability, and surviving restarts. The in-process example below exists only to make the topic mechanics visible; in real single-process code you'd use Observer, not a hand-rolled broker.
+It's worth distinguishing this page from two neighbours. From [Event-Driven Architecture](/patterns/architectural/event-driven): Event-Driven is the system-level *style* — designing around facts that have happened — while Pub/Sub is the concrete *messaging mechanism* (topics, subscriptions, and brokers) such systems are usually built on. And from [Observer](/patterns/behavioral/observer): Observer is the *in-process* answer to one-to-many notification, doing it with direct method calls inside a single program. Pub/Sub is what you reach for when that one-to-many fan-out has to cross process boundaries — and that means a broker-backed system (NATS, Kafka, Redis, Google Pub/Sub) for delivery, durability, and surviving restarts. The in-process example below exists only to make the topic mechanics visible; in real single-process code you'd use Observer, not a hand-rolled broker.
 
 ## Scenario
 
@@ -40,7 +40,7 @@ The handler publishes one message to a `user.signup` topic. Each interested part
                        each subscriber gets its own copy
 ```
 
-The example below builds a tiny in-process broker to make the topic-and-fan-out shape concrete. **It's a teaching aid, not production code** — if your publisher and subscribers live in the same process, you don't want a hand-rolled broker at all, you want the [Observer](/go/patterns/behavioral/observer) pattern, which does in-process notification directly and with less machinery. The reason to reach for pub/sub *proper* is the broker: durability, back-pressure, and crossing process boundaries (covered after the example). Read the code for the mental model, then use a real broker.
+The example below builds a tiny in-process broker to make the topic-and-fan-out shape concrete. **It's a teaching aid, not production code** — if your publisher and subscribers live in the same process, you don't want a hand-rolled broker at all, you want the [Observer](/patterns/behavioral/observer) pattern, which does in-process notification directly and with less machinery. The reason to reach for pub/sub *proper* is the broker: durability, back-pressure, and crossing process boundaries (covered after the example). Read the code for the mental model, then use a real broker.
 
 ```go:title="main.go":run=true:editable=true
 package main
@@ -149,7 +149,7 @@ nc.Subscribe("user.signup", func(m *nats.Msg) {
 nc.Publish("user.signup", []byte("alice"))
 ```
 
-A key broker decision is **fan-out vs. load-balancing**. Plain pub/sub gives every subscriber a copy (the email *and* analytics services both react). When you instead want a *group* of identical workers to share the load — each message handled once by the group — you use a queue group / consumer group, which is the [Competing Consumers](/go/patterns/concurrency/competing-consumers) pattern layered on top of a topic. Most brokers support both per topic.
+A key broker decision is **fan-out vs. load-balancing**. Plain pub/sub gives every subscriber a copy (the email *and* analytics services both react). When you instead want a *group* of identical workers to share the load — each message handled once by the group — you use a queue group / consumer group, which is the [Competing Consumers](/patterns/concurrency/competing-consumers) pattern layered on top of a topic. Most brokers support both per topic.
 
 ## When to Use
 
@@ -161,10 +161,10 @@ A key broker decision is **fan-out vs. load-balancing**. Plain pub/sub gives eve
 ## When Not to Use
 
 - The caller needs a response. Pub/sub is fire-and-forget; request/response wants an RPC, HTTP call, or a reply-topic correlation dance that's often not worth it.
-- Everything lives in one process. If you just need multiple in-process listeners to react to a change, use [Observer](/go/patterns/behavioral/observer) — it's direct method-call notification with no broker to stand up. Pub/sub is the answer once you actually cross a process boundary.
+- Everything lives in one process. If you just need multiple in-process listeners to react to a change, use [Observer](/patterns/behavioral/observer) — it's direct method-call notification with no broker to stand up. Pub/sub is the answer once you actually cross a process boundary.
 - There's exactly one consumer and one producer — a direct function call is simpler and easier to follow.
-- You need strong ordering and transactional coupling with the producer's database write; combine with a [Transactional Outbox](/go/patterns/architectural/outbox) rather than publishing naively.
-- The added broker is operational weight your problem doesn't justify yet. If you don't cross a process boundary, you don't need pub/sub's broker — reach for [Observer](/go/patterns/behavioral/observer) instead, and adopt a broker when the boundary actually appears.
+- You need strong ordering and transactional coupling with the producer's database write; combine with a [Transactional Outbox](/patterns/architectural/outbox) rather than publishing naively.
+- The added broker is operational weight your problem doesn't justify yet. If you don't cross a process boundary, you don't need pub/sub's broker — reach for [Observer](/patterns/behavioral/observer) instead, and adopt a broker when the boundary actually appears.
 
 ## Tradeoffs
 

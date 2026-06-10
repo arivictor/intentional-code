@@ -144,7 +144,7 @@ func NewPool(ctx context.Context, workers int, jobs <-chan Job) <-chan Result {
 
 ## Dynamic sizing with semaphore
 
-When you can't predetermine the right worker count, a [Semaphore](/go/patterns/concurrency/semaphore) gives you the same bound with a simpler structure: spawn one goroutine per job but limit how many run concurrently.
+When you can't predetermine the right worker count, a [Semaphore](/patterns/concurrency/semaphore) gives you the same bound with a simpler structure: spawn one goroutine per job but limit how many run concurrently.
 
 ```go
 // Semaphore alternative — simpler when job count is known at call time.
@@ -217,7 +217,7 @@ Go's `net/http` doesn't use a worker pool; it spawns `go serve(conn)` for every 
 Use a worker pool when jobs arrive in batches or as a stream, when the work is CPU- or I/O-bound in ways that exhaust a fixed resource, and when you need an explicit concurrency ceiling. Use goroutine-per-request when work is bounded by connection lifecycle and you trust the runtime to schedule efficiently.
 
 **Persistent pool vs. ephemeral semaphore-bounded spawn.**
-A worker pool pays goroutine startup cost once and amortises it across all jobs. This matters when you're processing a continuous stream of small jobs. A [semaphore](/go/patterns/concurrency/semaphore) spawns a goroutine per job but limits how many run simultaneously — simpler code, and the startup cost difference only matters when job count is large and job duration is short (a few hundred microseconds or less).
+A worker pool pays goroutine startup cost once and amortises it across all jobs. This matters when you're processing a continuous stream of small jobs. A [semaphore](/patterns/concurrency/semaphore) spawns a goroutine per job but limits how many run simultaneously — simpler code, and the startup cost difference only matters when job count is large and job duration is short (a few hundred microseconds or less).
 
 Rule of thumb: streaming jobs over the lifetime of the program → pool. A known batch processed once → semaphore.
 
@@ -227,9 +227,9 @@ An unbuffered jobs channel (`make(chan Job)`) means the producer blocks until a 
 A buffer of one to two times the worker count is a reasonable starting point: it absorbs temporary bursts without unbounded growth.
 
 **Error model.**
-The simple pool above collects errors into the results channel and lets the consumer decide. The [Errgroup](/go/patterns/concurrency/errgroup) pattern cancels the whole pool on the first error, which is appropriate when any failure makes the rest of the work pointless (batch imports, parallel validation steps). Choose based on whether your consumer needs to know which jobs failed independently, or just whether the whole operation succeeded.
+The simple pool above collects errors into the results channel and lets the consumer decide. The [Errgroup](/patterns/concurrency/errgroup) pattern cancels the whole pool on the first error, which is appropriate when any failure makes the rest of the work pointless (batch imports, parallel validation steps). Choose based on whether your consumer needs to know which jobs failed independently, or just whether the whole operation succeeded.
 
-Every one of these is the same move — [naming the trade-off](/go/philosophy/name-the-trade-off) before you reach for the pool. The ceiling, the amortised startup, and the back-pressure are real gains, but each is bought with channel plumbing and out-of-order results; if you can't say which one you're buying, goroutine-per-job is the honest default.
+Every one of these is the same move — [naming the trade-off](/philosophy/name-the-trade-off) before you reach for the pool. The ceiling, the amortised startup, and the back-pressure are real gains, but each is bought with channel plumbing and out-of-order results; if you can't say which one you're buying, goroutine-per-job is the honest default.
 
 ## Related Patterns
 

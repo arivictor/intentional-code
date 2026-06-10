@@ -7,7 +7,7 @@ description: "Build one deployable binary, but partition it internally into modu
 
 **Buys microservice-like boundaries with in-process speed and one deploy; pays in the discipline to stop `internal/` and import lints decaying back to mud.**
 
-A modular monolith is a single deployable application that is *internally* divided into well-bounded modules. It sits deliberately between the big-ball-of-mud monolith and full [Microservices](/go/patterns/architectural/microservices): one process, one database connection, one deploy — but inside, each module (billing, orders, catalog, notifications) owns its domain, exposes a small public contract, and hides its implementation. Modules talk to each other only through those published contracts, never by reaching into each other's internals.
+A modular monolith is a single deployable application that is *internally* divided into well-bounded modules. It sits deliberately between the big-ball-of-mud monolith and full [Microservices](/patterns/architectural/microservices): one process, one database connection, one deploy — but inside, each module (billing, orders, catalog, notifications) owns its domain, exposes a small public contract, and hides its implementation. Modules talk to each other only through those published contracts, never by reaching into each other's internals.
 
 Go is unusually well suited to this. The **package** is a real encapsulation boundary, and the `internal/` directory is enforced *by the compiler*: code under `foo/internal/` can only be imported by code rooted at `foo/`. That gives you architectural boundaries the build will defend, not just ones a code reviewer hopes everyone respects. The result keeps the operational simplicity of a monolith while staying genuinely decomposable — and any module you later need to extract into a service is already a clean seam.
 
@@ -245,7 +245,7 @@ A few things to keep consistent as the application layer grows:
 
 ## When Not to Use
 
-- Modules genuinely need independent scaling (one path is CPU-bound under load while others sit idle) or independent deploy cadences (one team ships hourly, another needs audited releases). That's the case for [Microservices](/go/patterns/architectural/microservices).
+- Modules genuinely need independent scaling (one path is CPU-bound under load while others sit idle) or independent deploy cadences (one team ships hourly, another needs audited releases). That's the case for [Microservices](/patterns/architectural/microservices).
 - Teams must deploy fully independently with separate release pipelines and ownership of runtime — a shared binary couples their release schedules.
 - The system is tiny and a single flat package is perfectly readable; modules would be ceremony.
 - Different parts demand different languages or runtimes; a single Go binary can't accommodate that.
