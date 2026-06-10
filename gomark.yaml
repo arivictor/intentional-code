@@ -1,16 +1,16 @@
 title: Intentional Code
 url: https://intentionalcode.com
 lang: en
-favicon: /favicon.ico
+favicon: /assets/favicon.ico
 
 logo:
-  light: /favicon-32x32.png
-  dark: /favicon-32x32.png
+  light: /assets/mark-ink-1024.png
+  dark: /assets/mark-paper-1024.png
 
 seo:
   description: Intentional Code is a collection of architectural patterns and best practices for Go projects, with a focus on maintainability, scalability, and developer experience.
-  og_image: /og-image.png
-  twitter_image: /og-image.png
+  og_image: /assets/og.png
+  twitter_image: /assets/og.png
   image_alt: Intentional Code — a collection of architectural patterns and best practices for Go projects, with a focus on maintainability, scalability, and developer experience.
 
 social:

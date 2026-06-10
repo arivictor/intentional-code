@@ -6,7 +6,7 @@ icon: house
 order: 0
 ---
 
-![Intentional Code](/og-image.svg)
+![Intentional Code](/assets/banner.png)
 
 Most pattern catalogues show you the code. This one shows you the call. Every pattern here—21 architectural, 11 behavioural, 8 concurrency, 5 creational, 7 structural, 8 synchronisation—comes with the trade-off it makes, the situation that earns it, and the situation where it's over-engineering.
 
