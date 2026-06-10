@@ -8,7 +8,7 @@ order: 0
 
 ![Intentional Code](/og-image.svg)
 
-Most pattern catalogues show you the code. This one shows you the call. Every pattern here—21 architectural, 11 behavioural, 8 concurrency, 5 creational, 7 structural, 8 synchronisation—comes with the trade-off it makes, the situation that earns it, and the situation where it's over-engineering. Written by [Ari Victor](https://github.com/arivictor), a security engineer building production Go in financial services, because the resources I wanted didn't exist: opinionated enough to disagree with, specific enough to be wrong about.
+Most pattern catalogues show you the code. This one shows you the call. Every pattern here—21 architectural, 11 behavioural, 8 concurrency, 5 creational, 7 structural, 8 synchronisation—comes with the trade-off it makes, the situation that earns it, and the situation where it's over-engineering.
 
 The goal is never a finished project. It's the ability to make a good structural call on a problem you've never seen—including the call to use no pattern at all.
 
