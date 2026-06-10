@@ -5,6 +5,8 @@ description: "Let many goroutines read shared state in parallel while writers ge
 
 # RWMutex
 
+**Buys parallel reads for read-dominated, contended state; pays heavier per-operation bookkeeping — slower than a plain Mutex unless reads truly dominate.**
+
 A `sync.RWMutex` is a lock with two modes. Any number of goroutines can hold the **read** lock at the same time, but the **write** lock is exclusive — while a writer holds it, no readers and no other writers get in. The payoff is parallel reads: if your data is read far more often than it's written, readers stop queuing behind each other and only block during the rare write. For read-heavy shared state — configuration, caches, routing tables — this can be a real throughput win over a plain [Mutex](/go/patterns/synchronisation/mutex).
 
 The catch: an `RWMutex` is heavier than a `Mutex`. It only pays off when reads genuinely dominate *and* the lock is contended. Otherwise the extra bookkeeping makes it the slower choice.

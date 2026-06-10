@@ -5,6 +5,8 @@ description: "Separate the model used for writing state (Commands) from the mode
 
 # CQRS
 
+**Buys independently shaped, separately evolvable read and write models; pays in doubled handlers and eventual consistency that surprises users reading their own write.**
+
 CQRS (Command Query Responsibility Segregation) separates every operation into one of two kinds: commands (mutate state, return nothing or an error) and queries (read state, return data, change nothing). The main reason is that read and write models want different shapes. Commands need rich domain validation, while queries usually want flat, denormalised views. Force one model to serve both jobs and you'll usually end up with either an anemic domain or bloated query results.
 
 Each command and query gets its own handler type, its own input struct, and sometimes its own data store when the workloads diverge far enough.
@@ -464,7 +466,7 @@ The version-aware approach requires the projection to store and expose a version
 ## When Not to Use
 
 - Simple CRUD. CQRS adds two handler types, two store interfaces, and two data shapes where one would do.
-- The read and write models are identical, so there are no distinct query shapes or read optimizations to justify the split.
+- The read and write models are identical, so there are no distinct query shapes or read optimisations to justify the split.
 - The team is small and the added structure costs more than it returns.
 
 ## The Decision

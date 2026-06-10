@@ -5,6 +5,8 @@ description: "Lock-free reads and writes on a single integer, flag, or pointer w
 
 # Atomic
 
+**Buys lock-free, fastest protection when shared state is exactly one word; pays by being useless for multi-variable invariants — two atomics aren't one transaction.**
+
 `sync/atomic` provides operations that the CPU guarantees to be indivisible: an atomic add, load, store, or compare-and-swap completes in one step that no other goroutine can interleave with. No lock, no critical section — just a single hardware-backed operation. When the shared state is exactly *one* thing — a counter, a flag, a pointer — atomics are the lightest and fastest way to make it safe. The moment you need to update two things together, atomics stop being enough and you want a [Mutex](/go/patterns/synchronisation/mutex).
 
 Since Go 1.19 there are typed atomic wrappers — `atomic.Int64`, `atomic.Bool`, `atomic.Pointer[T]` — that are clearer and harder to misuse than the older free functions. Prefer them.

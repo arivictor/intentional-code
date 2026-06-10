@@ -5,6 +5,8 @@ description: "Decouple senders from receivers through named topics: publishers s
 
 # Publish/Subscribe
 
+**Buys one-to-many fan-out that decouples publisher from subscribers across processes; pays in lost flow observability and at-least-once delivery needing idempotent consumers.**
+
 Publish/Subscribe (pub/sub) is messaging organised around **topics**. A publisher sends a message to a named topic and is done; it does not know, and does not care, how many subscribers exist or who they are. Every subscriber to that topic receives its own copy of the message. This is the defining difference from a point-to-point queue (where each message goes to exactly one consumer) and from a direct call (where the sender knows the receiver): pub/sub is **one-to-many fan-out across a named channel**.
 
 It's worth distinguishing this page from two neighbours. From [Event-Driven Architecture](/go/patterns/architectural/event-driven): Event-Driven is the system-level *style* — designing around facts that have happened — while Pub/Sub is the concrete *messaging mechanism* (topics, subscriptions, and brokers) such systems are usually built on. And from [Observer](/go/patterns/behavioral/observer): Observer is the *in-process* answer to one-to-many notification, doing it with direct method calls inside a single program. Pub/Sub is what you reach for when that one-to-many fan-out has to cross process boundaries — and that means a broker-backed system (NATS, Kafka, Redis, Google Pub/Sub) for delivery, durability, and surviving restarts. The in-process example below exists only to make the topic mechanics visible; in real single-process code you'd use Observer, not a hand-rolled broker.
@@ -166,7 +168,7 @@ A key broker decision is **fan-out vs. load-balancing**. Plain pub/sub gives eve
 
 ## Tradeoffs
 
-Pub/sub buys decoupling and scalability at the cost of **observability and reasoning**. With direct calls you can read the code and see what happens next; with pub/sub the flow is implicit — to know who reacts to `user.signup` you must know who subscribes. Distributed tracing and a documented topic/schema catalog become essential, not optional.
+Pub/sub buys decoupling and scalability at the cost of **observability and reasoning**. With direct calls you can read the code and see what happens next; with pub/sub the flow is implicit — to know who reacts to `user.signup` you must know who subscribes. Distributed tracing and a documented topic/schema catalogue become essential, not optional.
 
 Delivery semantics are the other sharp edge. In-process channel delivery can drop messages if a buffer fills or the process dies; broker delivery is typically at-least-once, so consumers must be idempotent. And a slow subscriber can apply back-pressure to the whole topic unless the broker buffers, drops, or isolates it — decide that policy deliberately.
 

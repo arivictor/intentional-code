@@ -5,6 +5,8 @@ description: "Define an object that encapsulates how a set of objects interact, 
 
 # Mediator
 
+**Buys O(n) decoupling so participants stay small and import nothing from each other; pays in a hub that absorbs all routing and risks becoming a god object.**
+
 In a system where every peer knows about every other peer, adding one participant requires updating every other participant's reference list: O(n²) connections growing as the system scales. Mediator collapses this to O(n). Each participant holds only a reference to the mediator, which routes messages to whoever needs them.
 
 In Go, the mediator is a struct that holds references to the participants. The participants' own types stay small and contain no cross-references to each other.
@@ -131,7 +133,7 @@ Bob sends: Hey Alice!
 
 ## Command Bus: The Go Backend Form
 
-In Go backends, Mediator most often appears as a **command/query bus**: callers dispatch commands through a shared bus without importing the handler package. The bus is the only shared dependency, which eliminates import cycles between adapters and domain handlers.
+In the Go backends I've worked on, Mediator usually shows up as a **command/query bus**: callers dispatch commands through a shared bus without importing the handler package. The bus is the only shared dependency, which eliminates import cycles between adapters and domain handlers.
 
 ```go:title="commandbus.go":run=true:editable=true
 package main
@@ -204,12 +206,12 @@ created order: item=item-1 customer=cust-42 amount=99
 cancelled order: id=ord-7 reason=duplicate
 ```
 
-The HTTP adapter imports `bus` and the command struct, but not the handler package. Handler packages can live in separate packages with no import cycles. This is the same O(n) decoupling the chat room example demonstrates, applied to request dispatching instead of peer messaging.
+The HTTP adapter imports `bus` and the command struct, but not the handler package. Handler packages can live separately with no import cycles — the decoupling the chat-room example showed earlier, now buying a clean boundary between adapters and domain logic.
 
 ## When to Use
 
 - Many objects communicate in complex ways, creating a web of dependencies.
-- You want to centralize communication logic so it's easy to change.
+- You want to centralise communication logic so it's easy to change.
 - You need to add filtering, logging, or routing of messages between participants.
 
 ## When Not to Use

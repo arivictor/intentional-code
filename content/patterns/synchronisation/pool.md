@@ -5,6 +5,8 @@ description: "Reuse short-lived allocations across goroutines with sync.Pool to 
 
 # Pool
 
+**Buys reduced GC pressure on a measured hot path by recycling scratch objects; pays in reset-bug risk — the GC can drop items at any time, so it's not a cache.**
+
 `sync.Pool` is a free list of reusable objects. Instead of allocating a fresh buffer (or struct, or slice) every time a hot function runs and throwing it away after, you borrow one from the pool, use it, and return it for the next caller. On a path that runs thousands of times a second, this turns a storm of short-lived allocations into a handful of reused objects, which is less work for the garbage collector and less memory churn.
 
 Unlike everything else in this section, `sync.Pool` is not about correctness — it won't fix a [data race](/go/patterns/synchronisation/data-races). It's a *performance* optimisation, and a situational one. Reach for it only when allocation pressure shows up in a profile.

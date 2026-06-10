@@ -1,13 +1,15 @@
 ---
 title: "Proxy"
-description: "Provide a surrogate or placeholder for another object to control access, add lazy initialization, logging, or caching."
+description: "Provide a surrogate or placeholder for another object to control access, add lazy initialisation, logging, or caching."
 ---
 
 # Proxy
 
-The Proxy pattern provides a surrogate or placeholder for another object to control access to it. The proxy implements the same interface as the real object, allowing clients to interact with it transparently. The proxy can add lazy initialization, access control, logging, caching, or other cross-cutting concerns without modifying the real object's code.
+**Buys transparent lazy-init, access control, and caching behind the same interface; pays in keeping the proxy in sync with that interface and first-call latency.**
 
-In Go, Proxy and Decorator look structurally identical (both wrap an interface). The distinction is intent: Decorator adds new behavior; Proxy controls access to existing behavior.
+The Proxy pattern provides a surrogate or placeholder for another object to control access to it. The proxy implements the same interface as the real object, allowing clients to interact with it transparently. The proxy can add lazy initialisation, access control, logging, caching, or other cross-cutting concerns without modifying the real object's code.
+
+In Go, Proxy and Decorator look structurally identical (both wrap an interface). The distinction is intent: Decorator adds new behaviour; Proxy controls access to existing behaviour.
 
 ## Scenario
 
@@ -131,16 +133,16 @@ Output:
 
 ## When to Use
 
-- You need lazy initialization: the real object is expensive to create and may not be needed.
+- You need lazy initialisation: the real object is expensive to create and may not be needed.
 - You need access control: check permissions before delegating to the real object.
 - You need caching around an interface without modifying the implementation.
 - You want a local representative for a remote object.
 
 ## When Not to Use
 
-- The real object is cheap to create. Lazy initialization adds complexity without benefit.
+- The real object is cheap to create. Lazy initialisation adds complexity without benefit.
 - Access control belongs at a higher level (HTTP middleware, gateway) rather than at the object level.
-- You're adding behavior without restricting access: that's [Decorator](/go/patterns/structural/decorator), not Proxy.
+- You're adding behaviour without restricting access: that's [Decorator](/go/patterns/structural/decorator), not Proxy.
 
 ## The Decision
 

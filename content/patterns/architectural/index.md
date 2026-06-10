@@ -15,7 +15,7 @@ Architecture becomes important when software stops being a personal sketch and s
 
 You will not need every pattern in this section. Some are too heavy for simple CRUD. Some only pay off when domain complexity or operational scale grows. That is normal. Pick what matches your pressure points.
 
-From here, the catalog gets concrete: layering, persistence boundaries, event flow, and failure handling.
+From here, the catalogue gets concrete: layering, persistence boundaries, event flow, and failure handling.
 
 Architectural patterns work at service/application scale. They describe system shape and dependency rules, not just one class or one small collaboration.
 

@@ -1,15 +1,17 @@
 ---
 title: "Memento"
-description: "Capture and externalize an object's internal state so it can be restored later, without violating encapsulation."
+description: "Capture and externalise an object's internal state so it can be restored later, without violating encapsulation."
 ---
 
 # Memento
+
+**Buys compiler-enforced opaque snapshots for undo and rollback; pays in memory — each snapshot is a full state copy — and deep-copy discipline for reference types.**
 
 The Memento pattern lets an object save a snapshot of its internal state and restore it later, without exposing that internal state to the rest of the program.
 
 In plain English: "save state now, restore it later, and do not let outside code peek inside the snapshot."
 
-This is useful for undo, checkpoints, and rollback behavior.
+This is useful for undo, checkpoints, and rollback behaviour.
 
 The important rule is that the snapshot (the memento) is opaque. The originator, the object that created the snapshot, is the only code that can read or change it.
 

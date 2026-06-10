@@ -5,6 +5,8 @@ description: "Place business logic at the centre, define ports (interfaces) for 
 
 # Hexagonal Architecture
 
+**Buys full application-logic tests with no real infrastructure via in-memory adapters; pays in port proliferation and steady domain-to-infrastructure mapping.**
+
 Hexagonal Architecture fixes a common problem with testability and change. When HTTP handlers, SQL code, and SMTP calls are mixed into business logic, even simple tests need real infrastructure running. Hexagonal creates a clear boundary: business logic stays inside, and infrastructure stays outside. HTTP, databases, queues, and email are all treated as adapters that connect through ports (interfaces).
 
 The terminology is important. **Driving adapters** (HTTP handlers, CLI commands, tests) call **driving ports** (the application's use-case API). The application then calls **driven ports** (for example repository and notifier interfaces), which are implemented by **driven adapters** (Postgres, SMTP, in-memory fakes). In short: adapters depend on the application; the application does not depend on adapters.
@@ -426,6 +428,8 @@ myapp/
 The main question Hexagonal Architecture answers is: "why are my tests slow and hard to run?" If you need a live database and a running HTTP server just to test one business rule, your rule is tied to infrastructure. Ports and adapters remove that tie. The application says what it needs through a port (interface), and infrastructure provides it through an adapter. An in-memory adapter is what lets you run domain tests in milliseconds. If fast, isolated domain tests are not important for your team, this extra port/adapter layer may be overhead without much return.
 
 The biggest benefit is simple: you can test full application logic without real infrastructure. Replace a driven adapter with an in-memory fake and run tests with no network, no database, and no external services. But the payoff only comes if you actually write those tests. The architecture by itself does not create test coverage. The main ongoing cost is interface growth: many small ports per aggregate can become noisy, especially when each aggregate gets its own repository port. Data mapping also adds steady work, for example converting protobuf payloads to domain types or SQL rows to domain objects. That mapping is necessary, but it grows with the model. New team members also need time to learn the port/adapter model before they can move quickly in the codebase.
+
+If you arrived here because the tests were slow, that's [the design talking](/go/philosophy/listen-to-the-tests) — ports exist precisely so application logic runs without real infrastructure. Adopt them to answer a testing pain you already feel, not as a default layer.
 
 ## Related Patterns
 

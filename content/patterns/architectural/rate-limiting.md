@@ -5,6 +5,8 @@ description: "Cap the rate of operations using a token bucket so a service prote
 
 # Rate Limiting
 
+**Buys a bounded load that respects a downstream quota; pays the shed-vs-throttle choice and a per-instance limiter that won't enforce a global cap.**
+
 Rate limiting caps how many operations are allowed per unit of time. Where a [Circuit Breaker](/go/patterns/architectural/circuit-breaker) reacts to a dependency that is *already* failing, a rate limiter is proactive: it bounds load before anything breaks. The canonical algorithm in Go is the **token bucket** — a bucket holds up to `capacity` tokens and refills at a steady rate; each operation costs one token, and when the bucket is empty, requests are rejected or made to wait. The burst capacity absorbs short spikes while the refill rate enforces the long-run average.
 
 Go's standard-library-adjacent `golang.org/x/time/rate` implements exactly this and is the production default. The hand-rolled version below exists to show the mechanism.

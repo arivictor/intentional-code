@@ -5,6 +5,8 @@ description: "Create new objects by cloning an existing instance, avoiding the c
 
 # Prototype
 
+**Buys correct, independent deep copies of reference fields; pays in manual `Clone()` upkeep — a forgotten field is a silent sharing bug the compiler won't catch.**
+
 The Prototype pattern creates new objects by cloning an existing instance, avoiding the cost of building from scratch and decoupling code from concrete types. In Go, this is typically implemented with a `Clone()` method that returns a copy of the object. The key value of Prototype in Go is correctness: Go's struct assignment does a shallow copy, which can lead to shared mutable state if your struct contains reference types (maps, slices, pointers). A `Clone()` method makes the deep-copy semantics explicit and localised, so you can ensure that each copy is truly independent.
 
 ## Scenario
@@ -131,6 +133,8 @@ users tags:      [v1 users]
 The `Clone()` method is the right tool when correctness requires truly independent copies of reference types, but it has to be maintained manually. Every time you add a slice, map, or pointer field to a struct, you must also update `Clone()` or you silently introduce a sharing bug. The Go compiler gives you no help here: a forgotten field passes all type checks and only fails at runtime when a mutation bleeds through.
 
 Deep-copying large object graphs is also proportionally expensive. If the object you're cloning contains many nested pointers, the clone walks all of them. For objects with circular references, you need to track visited nodes, which adds real complexity. If the primary goal is snapshotting state for undo rather than creating a new independent instance, [Memento](/go/patterns/behavioral/memento) is a more targeted fit.
+
+The standard library ships a Prototype you've already used: `(*http.Request).Clone(ctx)` deep-copies the header map and trailers so the copy can be mutated without disturbing the original — and it's a method precisely because a shallow struct copy would share those maps.
 
 ## Related Patterns
 

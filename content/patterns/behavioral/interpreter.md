@@ -5,6 +5,8 @@ description: "Define a grammar for a language and provide an interpreter that pr
 
 # Interpreter
 
+**Buys isolated, testable grammar rules where adding one is additive; pays in tree indirection and no parser errors — the wrong tool above small, stable grammars.**
+
 The Interpreter pattern is a way to execute a small language by turning its rules into code.
 
 Think of it as three steps:

@@ -5,6 +5,8 @@ description: "Signal goroutines to stop work by closing a shared channel or canc
 
 # Done Channel
 
+**Buys explicit, composable, testable cancellation that prevents goroutine leaks; pays in verbosity — every blocking operation needs a `select` on `ctx.Done()`.**
+
 The done channel pattern gives goroutines a way to stop when their work is no longer needed. A goroutine that outlives its caller is a goroutine leak: it holds memory, may hold resources, and can block other goroutines waiting on its output. The done channel pattern signals goroutines to exit by closing a shared `done` channel or (the modern form) by cancelling a `context.Context`.
 
 Apply this to any goroutine that isn't guaranteed to terminate on its own.

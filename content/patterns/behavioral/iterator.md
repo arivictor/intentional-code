@@ -5,6 +5,8 @@ description: "Provide a way to access elements of a collection sequentially with
 
 # Iterator
 
+**Buys write-once traversal with lazy evaluation and clean early-break; pays in per-level overhead and no bidirectional iteration without materialising a slice.**
+
 The Iterator pattern provides a way to access elements of a collection sequentially without exposing its underlying representation. In simple terms what that means is "give me a way to loop over the elements of this collection without knowing how it's implemented". For example, if you have a binary tree, you might want to iterate over its values in order, but you don't want to expose the tree structure or write the traversal logic every time.
 
 In Go, the most modern and idiomatic form of an iterator is the range-over-function approach introduced in Go 1.23: `iter.Seq[T]` is a function that takes a `yield func(T) bool` and produces values lazily. This integrates directly with for-range loops, allowing consumers to iterate over collections without needing explicit iterator structs or channels.
@@ -66,7 +68,7 @@ With Go 1.23's range-over-func, define an iterator that yields values. Consumers
   }
 ```
 
-On Go 1.23+ you'd return an `iter.Seq[int]` and consume it with `for v := range root.InOrder()`. The runnable version below makes the same idea explicit with a `yield func(int) bool` callback (the shape `iter.Seq` formalizes): the traversal is still written once, and returning `false` from `yield` stops it early. Run it to walk the tree, sum it, and stop after three values:
+On Go 1.23+ you'd return an `iter.Seq[int]` and consume it with `for v := range root.InOrder()`. The runnable version below makes the same idea explicit with a `yield func(int) bool` callback (the shape `iter.Seq` formalises): the traversal is still written once, and returning `false` from `yield` stops it early. Run it to walk the tree, sum it, and stop after three values:
 
 ```go:title="main.go":run=true:editable=true
 package main
@@ -134,7 +136,7 @@ Sum: 28
 First 3: 1 2 3
 ```
 
-> For simple collections, returning a `[]T` slice is perfectly idiomatic Go. Only reach for `iter.Seq` when you need lazy evaluation, custom traversal orders, or iteration over structures where materializing all values would be expensive.
+> For simple collections, returning a `[]T` slice is perfectly idiomatic Go. Only reach for `iter.Seq` when you need lazy evaluation, custom traversal orders, or iteration over structures where materialising all values would be expensive.
 
 ## When to Use
 
@@ -151,9 +153,9 @@ First 3: 1 2 3
 
 ## The Decision
 
-The range-over-func form integrates cleanly with Go's syntax and handles early termination via `break` naturally; the `yield` return value propagates the stop signal up the call stack. The main cost is that recursive iterators (like tree traversal) carry goroutine-free stack frames for each level of nesting, which adds overhead compared to a plain recursive function materializing a slice.
+The range-over-func form integrates cleanly with Go's syntax and handles early termination via `break` naturally; the `yield` return value propagates the stop signal up the call stack. The main cost is that recursive iterators (like tree traversal) carry goroutine-free stack frames for each level of nesting, which adds overhead compared to a plain recursive function materialising a slice.
 
-Before Go 1.23, channel-based iterators were the common workaround, but they leak goroutines if the consumer breaks early without draining the channel. That's a real production bug waiting to happen. The `iter.Seq` approach eliminates that hazard entirely. The trade-off that remains: if you need two-pointer traversal or bidirectional iteration, you'll need to materialize a slice or build an explicit cursor struct.
+Before Go 1.23, channel-based iterators were the common workaround, but they leak goroutines if the consumer breaks early without draining the channel. That's a real production bug waiting to happen. The `iter.Seq` approach eliminates that hazard entirely. The trade-off that remains: if you need two-pointer traversal or bidirectional iteration, you'll need to materialise a slice or build an explicit cursor struct.
 
 ## Related Patterns
 

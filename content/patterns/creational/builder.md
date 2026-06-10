@@ -5,6 +5,8 @@ description: "Construct complex objects step by step, separating construction fr
 
 # Builder
 
+**Buys defaults plus override-any-subset construction and non-breaking extensibility; pays one function per option and runtime-only validation.**
+
 The Builder pattern constructs complex objects step by step, separating the construction process from the final representation. This allows you to create different representations of an object using the same construction process. In Go, the functional options pattern is a common way to implement Builder: you define a set of option functions that modify a configuration struct, and a constructor that applies those options to build the final object. The classic chained builder pattern can also be used when construction has a meaningful order or when you want to reuse a partially configured builder across multiple similar objects.
 
 ## Scenario
@@ -38,7 +40,7 @@ The caller must remember the position of every argument. Zero values are ambiguo
 
 ## Solution
 
-The functional options pattern fixes this cleanly. Define an `Option` type as a function that modifies a config. The constructor accepts a variadic list of options. Set defaults inside the constructor, then pass only the options you care about. Run the example to compare a default client against a customized one:
+The functional options pattern fixes this cleanly. Define an `Option` type as a function that modifies a config. The constructor accepts a variadic list of options. Set defaults inside the constructor, then pass only the options you care about. Run the example to compare a default client against a customised one:
 
 ```
 ┌──────────────────────────────────┐
@@ -141,6 +143,8 @@ Client{url=https://api.example.com, timeout=30s, retries=5, ua=myapp/2.0}
 ## The Decision
 
 The functional options pattern costs almost nothing at the call site: callers only name what they care about, and adding a new option never breaks existing code. The cost is one extra function per option, which adds up in large APIs. A twenty-option type means twenty small functions to write and test. Option validation happens at runtime inside the constructor, not at compile time, so an invalid combination (mutually exclusive options, out-of-range values) won't be caught until the constructor runs. The pattern also doesn't compose naturally when you want to reuse a partially built object: each `NewClient` call starts fresh from defaults, so you can't cheaply stamp out five clients that share most settings without building a preset slice of options yourself.
+
+This is the Builder you've already met in Go: `grpc.Dial(target, opts...)` and the functional options that configure a `crypto/tls.Config`-style constructor let callers set any subset of fields and stay source-compatible as new options appear.
 
 ## Related Patterns
 

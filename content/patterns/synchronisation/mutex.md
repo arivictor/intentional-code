@@ -5,6 +5,8 @@ description: "Protect shared state with a sync.Mutex so only one goroutine enter
 
 # Mutex
 
+**Buys an obviously-correct critical section for any multi-word shared state; pays in serialised access, contention, and deadlock risk if you mishandle it.**
+
 A `sync.Mutex` is a lock. One goroutine holds it at a time; everyone else who calls `Lock()` waits until the holder calls `Unlock()`. The stretch of code between `Lock` and `Unlock` — the **critical section** — runs as if it were single-threaded, which is exactly what you need when several goroutines read and write the same data. It's the most general fix for a [data race](/go/patterns/synchronisation/data-races): when in doubt, a mutex is correct.
 
 ## Scenario

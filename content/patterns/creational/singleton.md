@@ -5,9 +5,9 @@ description: "Ensure a type has only one instance and provide a global point of 
 
 # Singleton
 
-The Singleton pattern ensures a type has only one instance and provides a global point of access to it. In Go, the standard implementation uses `sync.Once` to initialize a package-level variable safely across goroutines. However, this approach is often an anti-pattern in Go because it introduces global mutable state, which hides dependencies, makes tests unreliable, and forces every part of your application to use one specific concrete type that you can't swap out. Instead of using Singleton for shared resources like loggers and HTTP clients, it's usually better to pass the instance through constructors and let `main()` enforce uniqueness.
+**Buys one guaranteed shared instance; pays in hidden global dependencies, untestable swaps, and first-caller-wins configuration — in most Go code, prefer dependency injection.**
 
-However, the pattern has legitimate uses: hardware drivers, license managers, or immutable package-level values compiled at startup (a compiled regex, a frozen lookup table). For shared resources like loggers and HTTP clients, pass the instance through constructors and let `main()` enforce uniqueness.
+The Singleton pattern guarantees a type has exactly one instance and gives the whole program access to it. Go's standard implementation is `sync.Once` guarding a package-level variable — and in most Go code, it's the wrong tool. Global mutable state hides dependencies from function signatures, makes tests share state they can't reset, and welds every caller to one concrete type. For loggers, HTTP clients, and service clients, pass the instance through constructors and let `main()` enforce uniqueness; the constraint belongs to the application, not the type. The legitimate exceptions are narrow: hardware drivers, licence managers, and immutable package-level values like a compiled regex, where `sync.Once` is exactly right.
 
 ## Scenario
 
@@ -36,7 +36,7 @@ This global logger couples every consumer to a real log file. Tests produce nois
 
 ## Solution
 
-The Go-idiomatic singleton uses `sync.Once` for thread-safe lazy initialization. Then we'll show why dependency injection is almost always better.
+The Go-idiomatic singleton uses `sync.Once` for thread-safe lazy initialisation. Then we'll show why dependency injection is almost always better.
 
 ```
         sync.Once
@@ -128,8 +128,8 @@ In tests, pass `log.New(io.Discard, "", 0)` to silence the logger entirely: no g
 
 ## When to Use
 
-- You genuinely need exactly one instance of something (a hardware driver, a license manager) and dependency injection is impractical.
-- Package-level, immutable configuration (a compiled regex, a frozen lookup table): these are fine as package-level vars, and `sync.Once` is the right initialization tool.
+- You genuinely need exactly one instance of something (a hardware driver, a licence manager) and dependency injection is impractical.
+- Package-level, immutable configuration (a compiled regex, a frozen lookup table): these are fine as package-level vars, and `sync.Once` is the right initialisation tool.
 
 ## When Not to Use
 
@@ -143,7 +143,11 @@ In tests, pass `log.New(io.Discard, "", 0)` to silence the logger entirely: no g
 
 `sync.Once` does have one subtle trap: the first caller configures the instance, and all subsequent callers get whatever the first call set up, even if they pass different arguments. If call order matters for configuration, that's a bug waiting to happen.
 
+You've already used a Go singleton with exactly these foot-guns: `http.DefaultClient` is a package-level shared instance with no timeout by default, and any code that reassigns or mutates it changes behaviour for every caller in the process.
+
+This is [tenet #2 — name the trade-off](/go/philosophy/name-the-trade-off) in practice. The global isn't free; it's a dependency you took on without writing it into a single function signature. If you can't say out loud what the global buys you over an injected parameter, you didn't decide to use it — you defaulted into it.
+
 ## Related Patterns
 
-- **Factory Method**: A factory method can return the same cached instance on every call, giving Singleton-like behavior without a global variable; prefer this when the "one instance" constraint belongs to a specific use case, not to the type itself.
+- **Factory Method**: A factory method can return the same cached instance on every call, giving Singleton-like behaviour without a global variable; prefer this when the "one instance" constraint belongs to a specific use case, not to the type itself.
 - **Builder**: A Builder configured once and stored in a regular variable achieves the same "one well-configured instance" goal without global state, and lets tests substitute a differently-configured instance without any contortion.

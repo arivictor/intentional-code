@@ -5,6 +5,8 @@ description: "Model software around the business domain using Entities, Value Ob
 
 # Domain-Driven Design
 
+**Buys invariants enforced in one aggregate and code that speaks the business's language; pays dearly when aggregate boundaries are drawn wrong.**
+
 Domain-Driven Design (DDD) fixes a common problem where business rules end up scattered across many places. For example, a rule like *"a post must have a title before publish"* might be checked in one function but missed in another. That causes bugs.
 
 Over time, domain types become simple data holders, while the real rules live outside them (This is known as an anemic domain model). DDD puts the rules back inside the domain type, so there is one clear place to enforce them and it is harder for callers to break them.
@@ -590,7 +592,7 @@ Avoid organising by layer across contexts (`entities/`, `repositories/`, `servic
 
 The main benefit is clear: aggregates keep important business rules in one place, so callers cannot quietly skip them, and the ubiquitous language keeps code and business conversations aligned. The cost is real and ongoing. If you draw aggregate boundaries badly, fixing them later is expensive. If you split too much, you create too much cross-transaction coordination. If you group too much, you end up with giant structs that every feature touches. Mapping rich domain objects to flat database tables is also repetitive work that grows with each aggregate. For simple admin or reporting systems, DDD is often more structure than you need.
 
-Some practical rules help. An aggregate root should protect consistency that must hold in one database transaction. If you must load many other entities to enforce that consistency, the aggregate is probably too big. Refer to other aggregates by ID, not by direct pointer, so cross-aggregate work is explicit through a domain service or domain event. Use domain events for cross-aggregate behavior. For example, when an order is placed, emit an `OrderPlaced` event and let Inventory handle it separately, instead of calling Inventory directly from Order. If two aggregates are always loaded together, they may be one aggregate. If enforcing a rule in one aggregate always needs data from another, your boundary is probably wrong.
+Some practical rules help. An aggregate root should protect consistency that must hold in one database transaction. If you must load many other entities to enforce that consistency, the aggregate is probably too big. Refer to other aggregates by ID, not by direct pointer, so cross-aggregate work is explicit through a domain service or domain event. Use domain events for cross-aggregate behaviour. For example, when an order is placed, emit an `OrderPlaced` event and let Inventory handle it separately, instead of calling Inventory directly from Order. If two aggregates are always loaded together, they may be one aggregate. If enforcing a rule in one aggregate always needs data from another, your boundary is probably wrong.
 
 ## Related Patterns
 

@@ -5,6 +5,8 @@ description: "Structure an application as a collection of small, independently d
 
 # Microservices
 
+**Buys independent deploy and scaling per team; pays the distributed-systems tax from day one — failing calls, eventual consistency, and a high operational baseline.**
+
 Microservices is an architectural style in which an application is built as a collection of small, independently deployable services. Each service owns a single bounded domain, runs as a separate process, manages its own data store, and communicates with other services over a network API. Services are deployed, scaled, and failed independently.
 
 The promise of microservices is organisational as much as technical: teams can own, release, and scale their service without coordinating with other teams. The cost is the distributed systems tax. Network calls fail, services become unavailable, data is eventually consistent across service boundaries, and debugging a request that spans five services requires distributed tracing infrastructure.

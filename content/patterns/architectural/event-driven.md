@@ -5,6 +5,8 @@ description: "Decouple services by having producers emit domain events and consu
 
 # Event-Driven Architecture
 
+**Buys producer/consumer decoupling and fault isolation; pays in eventual consistency, mandatory consumer idempotency, and broker operational work.**
+
 Event-Driven Architecture helps you avoid chain-reaction failures from direct service calls. In a synchronous flow, if service `A` calls `B` and `C`, a failure in `C` can make `A` fail too. With events, `A` publishes a fact (for example, `FileUploaded`) and returns. `B` and `C` handle that event on their own. If notifications fail, the upload can still succeed.
 
 This pattern works in both small and large systems. Inside one service, you can use Go channels or a simple event bus struct. Across services, you can use Kafka, NATS, or SQS. A `Publisher` interface hides those transport details, so you can start with an in-process bus and move to a broker later without rewriting your core business logic.
@@ -473,7 +475,7 @@ At-least-once delivery is preserved: if the relay crashes after publishing but b
 
 Events are usually worth it for one of two reasons: downstream failures are breaking the producer (for example, a broken indexer causes upload to fail), or adding a new consumer forces you to edit producer code. If neither problem exists, direct calls are usually simpler. Events give you decoupling and fault isolation, but you pay with eventual consistency and more operational work. Make sure you need that trade before adopting the pattern.
 
-The biggest benefit is isolation. Producers can stay unchanged while you add consumers, and one bad consumer does not undo producer work. The biggest cost is eventual consistency. Consumers can run behind, so a just-uploaded file may not appear in search immediately. Users often notice this because they expect read-after-write behavior. Also, broker delivery is often at-least-once, so every consumer must be idempotent. That is straightforward to build, but easy to forget when adding new handlers.
+The biggest benefit is isolation. Producers can stay unchanged while you add consumers, and one bad consumer does not undo producer work. The biggest cost is eventual consistency. Consumers can run behind, so a just-uploaded file may not appear in search immediately. Users often notice this because they expect read-after-write behaviour. Also, broker delivery is often at-least-once, so every consumer must be idempotent. That is straightforward to build, but easy to forget when adding new handlers.
 
 Another ongoing cost is schema compatibility. Event schemas must stay backward compatible, or consumers can break without obvious errors. The safe rules are: only add fields, do not remove or rename existing fields, and treat structural changes as versioned changes. For optional new fields, use pointer types such as `*string` or `*int`, so older producers can omit them and consumers can still decode valid JSON. When you need a structural change, add a `Version` field and route to different decode paths. Go helps here because `json.Unmarshal` ignores unknown fields by default, so producers can add fields without coordinating deploys, as long as you do not remove fields consumers already use.
 
@@ -483,6 +485,6 @@ Another ongoing cost is schema compatibility. Event schemas must stay backward c
 - **CQRS:** Commands produce events, and read-side projections consume those events to build denormalised views. Together they give you a full write and read model with a useful audit history.
 - **Circuit Breaker:** Wrap message broker publish calls in a circuit breaker. If the broker is unavailable, fail fast and route events to a dead-letter queue instead of blocking the producer.
 - **Hexagonal Architecture:** The message broker is a driven adapter implementing a `Publisher` port, and the event handler function is another driven port implemented by the infrastructure layer.
-- **Observer:** Event-Driven Architecture is the distributed, cross-process form of the Observer pattern. Observer is in-process with direct method calls; Event-Driven adds a broker, serialization, and at-least-once delivery semantics.
+- **Observer:** Event-Driven Architecture is the distributed, cross-process form of the Observer pattern. Observer is in-process with direct method calls; Event-Driven adds a broker, serialisation, and at-least-once delivery semantics.
 - **Publish/Subscribe:** The concrete messaging mechanism most event-driven systems are built on — named topics with one-to-many fan-out. Event-Driven is the style; pub/sub is the how.
 - **Transactional Outbox:** Solves the producer's weakest link — reliably emitting an event in the same transaction as the state change, so the dual write between database and broker can't silently drop events.

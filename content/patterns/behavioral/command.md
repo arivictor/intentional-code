@@ -1,9 +1,11 @@
 ---
 title: "Command"
-description: "Encapsulate a request as an object (or function value), letting you parameterize clients, queue requests, and support undo operations."
+description: "Encapsulate a request as an object (or function value), letting you parameterise clients, queue requests, and support undo operations."
 ---
 
 # Command
+
+**Buys undo, queuing, and logging of operations; pays in per-command state snapshots that get expensive fast — use a plain `func()` until you need them.**
 
 The Command pattern is a behavioural design pattern that encapsulates a request as an object. This allows you parameterise clients with different requests, queue or log requests, and support undoable operations. In Go, the simplest form of a command is a function value (`func()`) that captures the necessary state in its closure. For more complex scenarios, a struct with `Execute()` and `Undo()` methods can be used to represent commands as first-class objects.
 
@@ -154,7 +156,7 @@ After undo:   Hello World
 
 - You need undo/redo functionality.
 - You want to queue, schedule, or log operations.
-- You need to parameterize objects with operations (callback-like patterns).
+- You need to parameterise objects with operations (callback-like patterns).
 - For simple one-off commands without undo, a plain function value is sufficient.
 
 ## When Not to Use
@@ -172,4 +174,4 @@ Undo logic is also where bugs hide. The `Execute` path gets tested constantly, b
 
 - **Chain of Responsibility:** Commands can be the handlers in a chain, combining pipeline composability with Command's undo and queuing capabilities.
 - **Memento:** Use Memento alongside Command when reversing an operation isn't enough and you need to restore a full state snapshot. Command records what happened; Memento records what was.
-- **Strategy:** Both encapsulate behavior as a value. Reach for Strategy when you need interchangeable algorithms; reach for Command when you also need undo, queuing, or logging of the operations.
+- **Strategy:** Both encapsulate behaviour as a value. Reach for Strategy when you need interchangeable algorithms; reach for Command when you also need undo, queuing, or logging of the operations.

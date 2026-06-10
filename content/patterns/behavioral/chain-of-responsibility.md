@@ -5,9 +5,11 @@ description: "Pass a request along a chain of handlers, where each handler decid
 
 # Chain of Responsibility
 
+**Buys composable, independently testable pipeline steps that can short-circuit; pays in debuggability — you must add logging to see where a request stopped.**
+
 Chain of Responsibility passes a request along a sequence of handlers. Each handler decides whether to process the request, short-circuit with a response, or pass it on. In Go, this is most commonly seen as HTTP middleware chains, but the pattern applies anywhere you need a composable pipeline of independent checks or transformations.
 
-The Go idiom favors a slice of handler functions over linked-list objects: simpler to construct, reorder, and test in isolation.
+The Go idiom favours a slice of handler functions over linked-list objects: simpler to construct, reorder, and test in isolation.
 
 ## Scenario
 

@@ -5,6 +5,8 @@ description: "Process a stream of data through a series of stages, each running 
 
 # Pipeline
 
+**Buys overlapping concurrent stages with sequential clarity and low memory; pays in cross-goroutine debugging — and over-buffering quietly hides back-pressure.**
+
 A pipeline is a series of stages connected by channels. Each stage consumes values from an upstream channel, applies a transformation, and sends results to a downstream channel. Each stage runs in its own goroutine, so all stages run concurrently: while one stage processes item N, the next stage processes item N-1, and the previous stage is already fetching item N+1.
 
 The pattern composes well. Stages are functions with a consistent signature, and you chain them by passing the output of one as the input to the next.

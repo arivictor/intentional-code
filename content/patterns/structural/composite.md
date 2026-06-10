@@ -5,6 +5,8 @@ description: "Compose objects into tree structures so clients can treat individu
 
 # Composite
 
+**Buys clean recursive code that treats leaves and trees uniformly; pays when the shared interface grows too coarse and new leaf types must stub methods that don't apply.**
+
 The Composite pattern composes objects into tree structures so clients can treat individual objects and compositions uniformly through a single interface. In Go, this is one interface implemented by both leaf and composite types; the composite holds a `[]InterfaceType` and recursion falls out naturally from each node calling the same method on its children.
 
 The canonical example is a file system: both files and directories satisfy the same interface, and a directory simply delegates its operations to its entries.
@@ -150,6 +152,6 @@ Debugging is the other pain point. An error buried six directories deep surfaces
 
 ## Related Patterns
 
-- **Decorator**: Decorator wraps exactly one object to add behavior; Composite holds a collection of the same interface type to aggregate behavior. If you're wrapping one, use Decorator; if you're aggregating many, use Composite.
+- **Decorator**: Decorator wraps exactly one object to add behaviour; Composite holds a collection of the same interface type to aggregate behaviour. If you're wrapping one, use Decorator; if you're aggregating many, use Composite.
 - **Iterator**: Composite creates the tree structure; Iterator gives you a consistent way to traverse it without the caller needing to know the tree's shape.
 - **Visitor**: Visitor lets you add new operations to a Composite tree without modifying the component types. Reach for it when you have a stable structure but frequently need new traversal operations.

@@ -5,6 +5,8 @@ description: "Publish events reliably by writing them to an outbox table in the 
 
 # Transactional Outbox
 
+**Buys an event recorded atomically with the state change, killing the dual-write; pays in delivery latency, a relay to operate, and at-least-once dedup downstream.**
+
 You change some state in your database and you need to tell the rest of the system about it — publish an `OrderPlaced` event to Kafka, NATS, or SQS. The trap is the **dual write**: writing to the database and publishing to the broker are two separate systems with no shared transaction. If the database commit succeeds but the publish fails (or the process crashes in between), the state changed but nobody heard about it. If you publish first and the commit fails, you announced something that never happened.
 
 The Transactional Outbox solves this by making the event part of the same database transaction as the state change. You write the business row and an `outbox` row atomically. A separate **relay** process then reads unpublished outbox rows and delivers them to the broker, marking each as published once the broker accepts it. The database is the single source of truth; the broker is eventually, reliably caught up. The mirror-image pattern on the consumer side — an **inbox** table that records processed message IDs to deduplicate redeliveries — gives you exactly-once *effects* on top of at-least-once delivery.

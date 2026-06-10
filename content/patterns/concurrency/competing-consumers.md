@@ -5,6 +5,8 @@ description: "Run several consumers against one shared queue so each message is 
 
 # Competing Consumers
 
+**Buys horizontal throughput and resilience as you add consumers; pays in lost global ordering and at-least-once redelivery you must make idempotent.**
+
 Competing Consumers runs multiple consumers against a **single shared queue**, where each message is delivered to exactly one consumer. The consumers *compete* for work: whichever is free grabs the next message. Add consumers and throughput rises; lose one and the others pick up its share. In Go, the queue is a channel and the consumers are goroutines ranging over it — the runtime hands each value to exactly one waiting receiver.
 
 The distinction that matters: this is **load distribution, not duplication**. It's the opposite of [Pub/Sub](/go/patterns/architectural/pub-sub) and [Fan-out](/go/patterns/concurrency/fan-out-fan-in), where *every* consumer receives a copy of *every* message. Here each message is handled once, by one consumer. If you've used a [Worker Pool](/go/patterns/concurrency/worker-pool), you've already used competing consumers in-process — this page names the pattern and extends it to consumers that may be separate processes draining a broker queue (SQS, a NATS queue group, a Kafka consumer group).
@@ -146,7 +148,7 @@ Finally, **scaling has a ceiling**. More consumers help only until you hit a sha
 
 ## Related Patterns
 
-- **Worker Pool:** The in-process realization of this pattern — a fixed set of goroutines competing over one jobs channel. Competing Consumers is the same idea generalised to consumers that may be separate processes on a broker queue.
+- **Worker Pool:** The in-process realisation of this pattern — a fixed set of goroutines competing over one jobs channel. Competing Consumers is the same idea generalised to consumers that may be separate processes on a broker queue.
 - **Fan-out / Fan-in:** The contrast to keep straight. Fan-out *distributes* work like competing consumers, but the broader fan-out/pub-sub family often *duplicates* messages to every consumer; competing consumers deliver each message exactly once.
 - **Pub/Sub:** The complementary delivery mode. Pub/sub broadcasts to all subscribers; competing consumers share work across a group. Brokers offer both, and a queue group is competing consumers layered on a topic.
 - **Semaphore:** An alternative way to bound concurrency when you don't want a persistent set of consumer goroutines — spawn per message but cap how many run at once.

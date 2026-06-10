@@ -5,6 +5,8 @@ description: "Process data through a sequence of independent, composable transfo
 
 # Pipe and Filter
 
+**Buys independently testable, reorderable, composable stages with optional concurrency; pays in hard-to-diagnose channel stalls and per-stage allocation pressure.**
+
 Pipe and Filter structures a processing workflow as a sequence of steps (filters) connected by data conduits (pipes). Each filter reads input, applies a single transformation, and writes output. Filters have no shared state and no knowledge of each other; they're connected by the pipe, not by direct calls.
 
 This is the shell pipeline model (`cat file | grep pattern | sort | uniq`) applied to application architecture. In Go, the pipe is often a channel (for concurrent filters), an `io.Reader` chain (for stream processing), or simply a sequence of function calls that transform a value through stages.

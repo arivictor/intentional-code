@@ -5,6 +5,8 @@ description: "Make goroutines wait for a shared condition to become true with sy
 
 # Cond
 
+**Buys efficient broadcast wakeups for many waiters on one predicate; pays by not composing with `select`, timeouts, or cancellation — a channel almost always wins.**
+
 A `sync.Cond` lets goroutines wait until some condition over shared state becomes true, and lets another goroutine wake them when it changes. A waiter holds a lock, checks the condition, and if it's not satisfied calls `Wait` — which atomically releases the lock and parks the goroutine. When another goroutine changes the state, it calls `Signal` (wake one waiter) or `Broadcast` (wake all), and the parked goroutines re-acquire the lock and re-check.
 
 Here's the honest framing up front: in Go, you usually don't want `sync.Cond`. A channel expresses "wait for something to happen" more clearly and composes with `select`, timeouts, and cancellation, none of which `Cond` does. `sync.Cond` earns its place in a narrow case — **many goroutines waiting on one shared condition**, where a channel would force you into awkward broadcast gymnastics. Know it exists, recognise the niche, and reach for a channel everywhere else.

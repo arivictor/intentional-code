@@ -5,6 +5,8 @@ description: "Wait for a set of goroutines to finish with sync.WaitGroup — com
 
 # WaitGroup
 
+**Buys simple block-until-the-batch-completes coordination; pays by doing only that — no error handling or cancellation (reach for errgroup), and no streaming.**
+
 A `sync.WaitGroup` answers one question: *have all my goroutines finished?* You tell it how many to expect with `Add`, each goroutine calls `Done` as it exits, and `Wait` blocks until the count hits zero. That's the whole job — it coordinates **completion**, not access. This is the distinction worth fixing in your head before anything else: a WaitGroup is not a lock. It does nothing to protect shared memory. If your goroutines write to the same variable, you still need a [Mutex](/go/patterns/synchronisation/mutex) or an [atomic](/go/patterns/synchronisation/atomic) — the WaitGroup just tells you when they're all done.
 
 You've already seen it in every example in this section; this page is the primitive itself.

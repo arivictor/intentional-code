@@ -5,6 +5,8 @@ description: "Run a piece of initialisation exactly once, no matter how many gor
 
 # Once
 
+**Buys correct-by-construction lazy, thread-safe initialisation with proper memory ordering; pays by being permanent — no retry on failure and no re-run.**
+
 `sync.Once` guarantees a function runs exactly one time, even if a hundred goroutines call it simultaneously. The first goroutine to arrive runs the function; everyone else blocks until it finishes, then proceeds — all of them now seeing the completed result. It's purpose-built for lazy initialisation: set up a connection pool, parse a config file, compile a regex the first time it's actually needed, and never worry that two goroutines will do it twice or that a caller will see a half-built value.
 
 ## Scenario

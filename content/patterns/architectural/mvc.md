@@ -5,6 +5,8 @@ description: "Separate presentation logic from business logic by dividing the UI
 
 # MVC / MVP / MVVM
 
+**Buys an independently testable, reusable service layer and a response shape that stops domain types leaking into the API; pays in indirection — more files, types, and wiring.**
+
 MVC, MVP, and MVVM are all ways to keep presentation code separate from business logic. That matters in Go too, but usually in a translated form. Most Go developers do not describe their services as strict MVC apps. They talk about handlers, services, domain packages, templates, and response DTOs. Still, the underlying idea is the same: request handling should coordinate, business logic should decide, and rendering should stay separate.
 
 For a Go web service, MVC is the most natural fit of the three. MVP is useful in CLI or terminal-style applications where the view is an interface you control. MVVM is the least direct fit for Go backends, because it depends on data-binding concepts that most Go server code does not use. What *is* useful in Go is the ViewModel idea: shape data for the view instead of exposing domain types directly.
@@ -221,10 +223,10 @@ func (v *captureView) ShowError(msg string)       { v.errMsg = msg }
 
 ## The Decision
 
-The separation makes the service layer independently testable, reusable across delivery mechanisms such as HTTP, gRPC, or CLI, and easier to reason about. The cost is indirection: more files, more types, and more wiring. The ViewModel or response DTO type (the `OrderResponse` above) often looks like boilerplate, but it solves a real problem. Without it, domain types tend to leak internal structure into the API. Avoid leakage in both directions: do not let `http.Request` reach the service layer, and do not let raw domain types fall straight through to the JSON serializer unless that is an intentional API design choice.
+The separation makes the service layer independently testable, reusable across delivery mechanisms such as HTTP, gRPC, or CLI, and easier to reason about. The cost is indirection: more files, more types, and more wiring. The ViewModel or response DTO type (the `OrderResponse` above) often looks like boilerplate, but it solves a real problem. Without it, domain types tend to leak internal structure into the API. Avoid leakage in both directions: do not let `http.Request` reach the service layer, and do not let raw domain types fall straight through to the JSON serialiser unless that is an intentional API design choice.
 
 ## Related Patterns
 
 - **Layered Architecture:** MVC is often implemented as one layer of a broader layered system. The Controller lives in the presentation layer; the Model lives in the service and data layers.
-- **Clean Architecture / Hexagonal Architecture:** Both formalize the inward dependency rule that MVC implies: the domain (Model) imports nothing from the outer layers. The HTTP handler is one of many possible adapters.
+- **Clean Architecture / Hexagonal Architecture:** Both formalise the inward dependency rule that MVC implies: the domain (Model) imports nothing from the outer layers. The HTTP handler is one of many possible adapters.
 - **Repository:** The Model's data access layer. The service calls the repository interface; the handler never touches persistence directly.

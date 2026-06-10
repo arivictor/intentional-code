@@ -11,6 +11,8 @@ order: 8
 
 That thicket is more expensive than the duplication ever was. Repeated code is a small, visible cost: you can see all the copies, and updating them is mechanical. The wrong abstraction is a large, hidden one: it actively resists the change you now need, and un-welding it is far harder than copy-paste would have been. So when you're unsure, prefer the duplication. It keeps your options open; a premature abstraction spends them.
 
+The phrasing is Sandi Metz's, from her 2016 essay [*The Wrong Abstraction*](https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction). The idea predates Go, but it lands hardest here, where implicit interfaces make an abstraction cheap to reach for and just as quietly expensive to unwind.
+
 Read correctly, the principle was never about repeated *lines*. It's about repeated *knowledge* — a single business rule, a single source of truth — that genuinely has one home. The practical test isn't "do these look the same?" but "when this rule changes, how many places must I touch?" One is right. More than one is a liability. But two things that change for different reasons are not one rule, however alike they look today.
 
 ## DRY

@@ -5,6 +5,8 @@ description: "Define the skeleton of an algorithm in a base operation, deferring
 
 # Template Method
 
+**Buys a fixed skeleton with pluggable steps via injected funcs; pays when hooks multiply — a struct of funcs risks nil panics, so an interface enforces completeness.**
+
 Template Method defines the skeleton of an algorithm in a base class, letting subclasses override specific steps. In Go, this pattern fights the language: there's no inheritance, no abstract classes, no method overriding. But the problem it solves is real. You need a fixed algorithm structure with pluggable steps.
 
 The Go solution: pass the variable steps as function values or interfaces via composition. Same result, without fighting the language.
@@ -144,7 +146,7 @@ Charlie
 
 Function injection is lightweight in Go. No new types required, and the variable steps are explicit in the function signature.
 
-The cost appears when there are many hooks: a `Formatter` struct with five or six fields of type `func() string` becomes hard to initialize correctly, and callers must fill every field or get a nil panic at runtime. An interface enforces completeness at compile time, so prefer an interface over a struct-of-functions when the number of hooks grows beyond two or three. The fixed steps in the skeleton are deliberately non-overridable (that's the whole point), but this can feel limiting when a caller needs a slightly different skeleton. At that point, reach for Strategy, which replaces the whole algorithm rather than plugging in pieces.
+The cost appears when there are many hooks: a `Formatter` struct with five or six fields of type `func() string` becomes hard to initialise correctly, and callers must fill every field or get a nil panic at runtime. An interface enforces completeness at compile time, so prefer an interface over a struct-of-functions when the number of hooks grows beyond two or three. The fixed steps in the skeleton are deliberately non-overridable (that's the whole point), but this can feel limiting when a caller needs a slightly different skeleton. At that point, reach for Strategy, which replaces the whole algorithm rather than plugging in pieces.
 
 ## Related Patterns
 

@@ -35,7 +35,7 @@ If you can't answer these questions, the goroutine will eventually leak.
 
 **[Pipeline](/go/patterns/concurrency/pipeline)** is the foundation: data flowing through goroutine stages connected by channels. Understanding Pipeline gives you the mental model for all the other patterns.
 
-**[Worker Pool](/go/patterns/concurrency/worker-pool)** is the most common pattern in production Go code. A fixed number of goroutines processing a shared job queue. Start here when you need bounded concurrency.
+**[Worker Pool](/go/patterns/concurrency/worker-pool)** is the one you'll reach for most often. A fixed number of goroutines processing a shared job queue. Start here when you need bounded concurrency.
 
 **[Fan-out / Fan-in](/go/patterns/concurrency/fan-out-fan-in)** distributes work across goroutines and collects results. It's the natural extension of Pipeline when a single stage needs parallelism.
 

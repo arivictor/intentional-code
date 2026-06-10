@@ -5,6 +5,8 @@ description: "Minimise memory usage by sharing as much data as possible between 
 
 # Flyweight
 
+**Buys large memory savings by interning shared intrinsic state; pays in a package-level cache needing a mutex and an intern map that can leak by never shrinking.**
+
 The Flyweight pattern is a structural design pattern that minimises memory usage by sharing as much data as possible between similar objects. It separates intrinsic state (shared, immutable data) from extrinsic state (unique, mutable data). In Go, this is typically implemented with a cache or registry that interns the shared state: when you request an object with certain intrinsic properties, the cache returns the existing instance if it exists, or creates and stores a new one if it doesn't. The key value of Flyweight is memory efficiency: when you have thousands of similar objects, sharing the common data can save significant memory.
 
 ## Scenario
@@ -135,7 +137,7 @@ Unique styles: 2 (shared across 5 characters)
 ## When to Use
 
 - You have a large number of objects that share significant amounts of identical data.
-- Memory usage is a measurable problem. Profile before optimizing.
+- Memory usage is a measurable problem. Profile before optimising.
 - The shared state is immutable (or can be made immutable).
 - You can clearly separate intrinsic (shared) from extrinsic (unique) state.
 

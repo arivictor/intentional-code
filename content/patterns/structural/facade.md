@@ -5,6 +5,8 @@ description: "Provide a simple, unified interface to a complex subsystem, shield
 
 # Facade
 
+**Buys one entry point so a sequence change propagates everywhere at once; pays by becoming a god-object magnet unless you keep it to a single workflow.**
+
 The Facade pattern is a structural design pattern that provides a simple, unified interface to a complex subsystem, shielding clients from internal complexity. In Go, this is typically implemented as a struct that composes several subsystem interfaces and exposes a small API that orchestrates calls to them. The facade simplifies the client's interaction with the subsystem by hiding the details of how the subsystem's components work together.
 
 ## Scenario
