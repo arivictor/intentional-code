@@ -16,9 +16,9 @@ The goal is never a finished project. It's the ability to make a good structural
 
 A tutorial answers "how do I build X?" and hands you the one true path. You cannot disagree with it.
 
-Intentional Code answers "why would you structure X this way, and when wouldn't you?" Every pattern here comes with the trade-off it makes, the situation that earns it, and the situation where it is just over-engineering. It takes positions you could argue with. That is the point.
+Intentional Code answers "why would you structure X this way, and when wouldn't you?" It takes positions you could argue with. That is the point.
 
-Good architecture is not knowing the patterns. It is knowing which one the problem in front of you actually needs, and having the judgment to reach for none of them when that is the right call.
+Good architecture is knowing which pattern the problem in front of you actually needs, and having the judgment to reach for none of them when that is the right call.
 
 ## The Tenets
 

@@ -150,7 +150,7 @@ func LookupDNS(host, recordType string) ([]DNSRecord, error) {
 }
 ```
 
-This is arguably cleaner — the map replaces the switch, and adding a new type means adding one map entry. Both approaches apply Strategy; the map version makes the extension point more visible.
+This is arguably cleaner — the map replaces the switch, and adding a new type means adding one map entry. Both approaches apply Strategy.
 
 The choice between a switch and a map for dispatch is worth discussing: the switch is more familiar, the map is more extensible. When you're likely to add new cases, the map signals that more clearly.
 

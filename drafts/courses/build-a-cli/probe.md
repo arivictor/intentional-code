@@ -69,7 +69,7 @@ func (nd *NetDialer) DialContext(ctx context.Context, network, address string) (
 }
 ```
 
-This is the [Strategy pattern](/patterns/behavioral/strategy) in its minimal form — but we're not introducing it to vary behaviour at runtime. We're introducing it so that tests don't touch the network.
+This is the [Strategy pattern](/patterns/behavioral/strategy) in its minimal form, introduced so that tests don't touch the network.
 
 In tests:
 

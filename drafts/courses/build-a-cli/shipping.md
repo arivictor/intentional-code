@@ -8,8 +8,6 @@ order: 14
 
 One of Go's best features for CLI tools: you compile to a single binary with no runtime dependencies. No Python virtual environment. No Node modules directory. No JVM. Users download one file, make it executable, run it.
 
-This module covers the practical steps to get there.
-
 ## Build basics
 
 ```bash

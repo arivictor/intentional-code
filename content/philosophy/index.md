@@ -5,9 +5,9 @@ icon: scroll
 order: 2
 ---
 
-Architecture is more philosophy than pattern. It is a way of thinking about code, not a checklist to apply — and the principles here are lenses, not a rulebook.
+Architecture is more philosophy than pattern. It is a way of thinking about code — and the principles here are lenses.
 
-These are **the Tenets**: ten positions on how to decide, not what to type. They're ordered so the first frames the rest and the last keeps the whole set honest. Each one carries the field's well-known laws inside it — DRY, SOLID, YAGNI, KISS, Gall's Law, and the others — not as separate commandments but as worked examples of the judgment the tenet describes. The tenet is the principle; the named law is what it looks like in practice.
+These are **the Tenets**: ten positions on how to decide, not what to type. They're ordered so the first frames the rest and the last keeps the whole set honest. Each one carries the field's well-known laws inside it — DRY, SOLID, YAGNI, KISS, Gall's Law, and the others — as worked examples of the judgment the tenet describes. The tenet is the principle; the named law is what it looks like in practice.
 
 Read them in order the first time. After that, jump to whichever one matches the pressure you're under.
 

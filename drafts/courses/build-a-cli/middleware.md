@@ -12,7 +12,7 @@ Here's the moment that forces this pattern. You've written the `host` command. I
 
 You copy the code. Fine for two commands. Then you write `subnet`, `dns`, `watch`. Same boilerplate, five times.
 
-A rule: **when two commands share code, it belongs in neither command**. That's not just cleanliness — code repeated in five commands has to be maintained five times. Change the help format once and you'll forget to update command number four.
+A rule: **when two commands share code, it belongs in neither command**. Code repeated in five commands has to be maintained five times. Change the help format once and you'll forget to update command number four.
 
 The extracted concern needs somewhere to live. That somewhere is middleware.
 
