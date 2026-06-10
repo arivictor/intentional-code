@@ -1,7 +1,7 @@
 ---
 title: Hard to test is the design talking — listen to it
 nav_title: Listen to the tests
-description: A test is the first real client of your code. When it fights you, the problem is the design, not the test.
+description: TDD is a design discipline first; the tests it leaves behind are a byproduct.
 order: 7
 ---
 
@@ -9,7 +9,7 @@ order: 7
 
 Tests call your function with nothing but the public surface, no insider knowledge, no sympathy for how the internals happen to work. So when a test is miserable to write, when it needs a wall of setup, or a mock for every collaborator, or a database spun up to check a pricing rule, that pain is the design speaking plainly: the boundaries are in the wrong place, this unit knows too much, the dependencies are concrete where they should be abstract.
 
-> [!IMPORTANT] The test is the first real client of your code. When it fights you, the problem is the design, not the test.
+> [!IMPORTANT] If you find yourself struggling to write a test, the problem is the design, not the test.
 
 The mistake is to treat the symptom. Reaching for a heavier mocking framework to subdue a stubborn test is like turning up the radio to drown out the engine noise. The fix is upstream, in the design. Shrink the interface. Pull the side effect out of the calculation. Pass the dependency in instead of reaching for it. Do that and the test gets easy — because the design got better.
 
@@ -17,9 +17,19 @@ That's the whole reason testability is worth caring about: "easy to test" and "e
 
 ## Test-Driven Development
 
-The tightest way to keep this feedback loop running is to write the test first — to let the difficulty of the test push on the design *before* the code hardens around a bad shape. TDD is a design discipline that happens to leave tests behind, and its discipline is the order: **red** (write a failing test for behaviour that doesn't exist yet), **green** (the smallest code that makes it pass), **refactor** (clean up under the safety of a green test). You never write production code without a failing test; you never refactor without green.
+The tightest way to keep this feedback loop running is to write the test first: let the difficulty of the test push on the design before the code hardens around a bad shape. The common framing is that TDD is a testing practice: you do it to end up with good test coverage. That is only half true. The real product of TDD is the design pressure, the act of writing the test first forces you to shape the code well (small interfaces, injectable dependencies, clear behaviour boundaries). The test suite you end up with is a side effect, a byproduct 
 
-Because Go interfaces are satisfied implicitly, the pressure shows up immediately. Where you need a seam, you define a small interface and write a plain struct for it in the test — no mocking framework, no codegen.
+TDD is a design discipline and the discipline is the order. 
+
+1. Red (write a failing test for behaviour that doesn't exist yet),
+2. Green (the smallest code that makes it pass),
+3. Refactor (clean up under the safety of a green test).
+
+You must never write production code without a failing test first; and you must never refactor without green.
+
+> The real product of TDD is the design pressure, the act of writing the test first forces you to shape the code well
+
+Because Go interfaces are satisfied implicitly, the pressure shows up immediately. Where you need a seam, you define a small interface and write a plain struct for it in the test. No mocking framework, no codegen.
 
 ```go
 // In production code — accept a small interface where you need a seam.

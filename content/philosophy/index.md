@@ -5,9 +5,11 @@ icon: scroll
 order: 2
 ---
 
-Architecture is more philosophy than pattern. It is a way of thinking about code, how it iteracts, how it changes. We call these **the Tenets**: ten positions on how to make architectural decisions with intention. The tenets make reference to well-known laws of software design — DRY, SOLID, YAGNI, KISS, Gall's Law, and the others, as worked examples of the judgment the tenet describes. The tenet is the principle; the named law is what it looks like in practice.
+Architecture is more philosophy than pattern.
 
-Read them in order the first time. After that, jump to whichever one matches the pressure you're under.
+When I was learning to write software, I could read the code but not the decision behind it. I could see the pattern, but not the call. Even with the well-known principles, SOLID and the rest, I kept asking "why is that right here?" and "when would it be wrong?" Nobody was writing down the judgment, only the rules.
+
+The Tenets are my answer: ten positions on how to make architectural decisions with intention. They reference the named laws, DRY, YAGNI, KISS, Gall's Law, as worked examples. The tenet is the principle; the law is what it looks like in practice.
 
 1. [Architecture is a philosophy, not a rule](/philosophy/architecture-is-a-philosophy) — the shape is always there; the only question is whether you chose it. *(Clean Code)*
 2. [If you can't name the trade-off, you didn't decide — you defaulted](/philosophy/name-the-trade-off) — every choice gives something up; you must be able to say what.

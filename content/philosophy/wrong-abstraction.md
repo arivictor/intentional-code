@@ -1,11 +1,28 @@
 ---
 title: Duplication is cheaper than the wrong abstraction
 nav_title: The wrong abstraction
-description: Repeated code is a small, visible cost. The wrong abstraction is a large, hidden one — and far harder to undo.
+description: Repeated code is a small, visible cost. Two things that change for different reasons are not one rule, however alike they look today.
 order: 8
 ---
 
 # Duplication is cheaper than the wrong abstraction
+
+"Don't repeat yourself" gets taught as a reflex: see two similar blocks, merge them. But the reflex skips the only question that matters. Do these two things represent the same knowledge, or do they just happen to look alike right now? The moment you extract a shared abstraction from two things that merely resemble each other, you weld their futures together. When one needs to change and the other doesn't, you're stuck adding a flag, then a branch, then a second flag, slowly turning a clean function into a thicket of special cases.
+
+That thicket is more expensive than the duplication may have been. Repeated code is a small, visible cost: you can see all the copies, and updating them is mechanical. The wrong abstraction is a large, hidden one: it actively resists the change you now need, and un-welding it is far harder than copy-paste would have been. So when you're unsure, prefer the duplication. It keeps your options open; a premature abstraction spends them.
+
+The phrasing is Sandi Metz's, from her 2016 essay [The Wrong Abstraction](https://sandimetz.com/blog/2016/1/20/the-wrong-abstraction). The idea predates Go, but it still serves its purpose, where implicit interfaces make an abstraction cheap to reach for and just as quietly expensive to unwind.
+
+Read correctly, the principle targets repeated knowledge: a single business rule, a single source of truth, something that genuinely has one home. Repeated lines were never the point. The practical test is "when this rule changes, how many places must I touch?" One is right. More than one is a liability. But two things that change for different reasons are not one rule, however alike they look today.
+
+
+
+
+
+
+
+
+
 
 "Don't repeat yourself" gets taught as a reflex: see two similar blocks, merge them. But the reflex skips the only question that matters — *do these two things represent the same knowledge, or do they just happen to look alike right now?* Because the moment you extract a shared abstraction from two things that merely resemble each other, you weld their futures together. When one needs to change and the other doesn't, you're stuck adding a flag, then a branch, then a second flag — slowly turning a clean function into a thicket of special cases.
 
