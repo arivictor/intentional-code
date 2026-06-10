@@ -215,7 +215,7 @@ Wire it up at startup (the only place that needs to know about all services):
 
 ```go
 // main.go
-package gomark
+package main
 
 import "myapp/eventbus"
 

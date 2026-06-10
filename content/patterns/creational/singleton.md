@@ -36,7 +36,7 @@ This global logger couples every consumer to a real log file. Tests produce nois
 
 ## Solution
 
-The Go-idiomatic singleton uses `sync.Once` for thread-safe lazy initialisation. Then we'll show why dependency injection is almost always better.
+The Go-idiomatic singleton uses `sync.Once` for thread-safe lazy initialisation. That version comes first below; the dependency-injection alternative that usually beats it comes second.
 
 ```
         sync.Once
@@ -139,7 +139,7 @@ In tests, pass `log.New(io.Discard, "", 0)` to silence the logger entirely: no g
 
 ## The Decision
 
-`sync.Once` is genuinely correct: zero-cost after the first call, safe across goroutines, and no more fragile than a plain global var. The problem isn't the mechanism; it's what it produces. Any function that calls `GetLogger()` implicitly depends on the global, but that dependency doesn't show up in the function's signature, so callers can't see it, tests can't replace it, and linters can't enforce it. The moment you need two loggers (one for the app, one for a library) or a silent logger in tests, the global becomes a liability.
+`sync.Once` is genuinely correct: zero-cost after the first call, safe across goroutines, and no more fragile than a plain global var. The mechanism is sound; what it produces is the problem. Any function that calls `GetLogger()` implicitly depends on the global, but that dependency doesn't show up in the function's signature, so callers can't see it, tests can't replace it, and linters can't enforce it. The moment you need two loggers (one for the app, one for a library) or a silent logger in tests, the global becomes a liability.
 
 `sync.Once` does have one subtle trap: the first caller configures the instance, and all subsequent callers get whatever the first call set up, even if they pass different arguments. If call order matters for configuration, that's a bug waiting to happen.
 

@@ -130,7 +130,7 @@ func main() {
 ## When Not to Use
 
 - There's only one algorithm and no expectation of alternatives. Just call the function directly.
-- The algorithms are trivially different. Abstracting them adds ceremony without value.
+- The algorithms are trivially different. Wrapping them in a Strategy interface is overhead you won't recoup.
 
 ## The Decision
 

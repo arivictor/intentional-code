@@ -11,7 +11,7 @@ Microservices is an architectural style in which an application is built as a co
 
 The promise of microservices is organisational as much as technical: teams can own, release, and scale their service without coordinating with other teams. The cost is the distributed systems tax. Network calls fail, services become unavailable, data is eventually consistent across service boundaries, and debugging a request that spans five services requires distributed tracing infrastructure.
 
-**Start with a monolith.** Extract services when independent scaling or deployment becomes a real constraint, not a hypothetical one. A monolith built with clean internal boundaries (hexagonal architecture, domain packages) is much easier to decompose than one that isn't.
+**Start with a monolith.** Extract services once independent scaling or deployment is a constraint you can measure today. A monolith built with clean internal boundaries — hexagonal architecture, domain packages — decomposes far more easily than a tangled one.
 
 ## Scenario
 
@@ -51,7 +51,7 @@ Each service is a standalone Go binary:
 
 ```go
 // cmd/order-service/main.go
-package gomark
+package main
 
 import (
     "myapp/internal/orderservice/app"
@@ -306,11 +306,11 @@ type OrderPlacedEvent struct {
 
 ## The Decision
 
-Before choosing microservices, ask one direct question: what specific coordination problem is this solving? "Team A deploys twenty times a day, Team B needs a two-week audit review, and both teams block each other" is a real reason. "We may need to scale later" or "microservices are the standard now", "I saw Spotify do it" are not good enough reasons on their own. Distributed-systems complexity starts on day one and does not go away. The reason for the move needs to be concrete enough to justify paying that cost immediately.
+Before choosing microservices, ask one direct question: what specific coordination problem is this solving? "Team A deploys twenty times a day, Team B needs a two-week audit review, and both teams block each other" is a concrete answer. "We may need to scale later," "microservices are the standard now," and "I saw Spotify do it" are wishes dressed up as reasons. Distributed-systems complexity starts on day one and never goes away; the reason to take it on has to be that concrete.
 
-Independent deployment and independent scaling are real benefits. Teams that own one service end to end, design, build, and operate it, usually move faster than teams sharing one large monolith with heavy release coordination. But the distributed-systems tax is also real. Every network call can fail, time out, or return stale data. Services need circuit breakers. Work that crosses service boundaries needs sagas instead of normal database transactions. Data consistency becomes eventual across those boundaries. 
+Independent deployment and independent scaling are genuine benefits. A team that owns one service end to end — designing, building, and operating it — usually moves faster than teams sharing a large monolith under heavy release coordination. The distributed-systems tax is just as real. Every network call can fail, time out, or return stale data; services need circuit breakers; work that crosses service boundaries needs sagas in place of ordinary database transactions; and data consistency goes eventual across those boundaries. 
 
-The operational baseline is also much higher: from the beginning, you need container orchestration, service discovery, distributed tracing, centralised logging, and health checks. The tooling is mature now, Kubernetes, Jaeger, and OpenTelemetry are all strong examples, but it still adds real cognitive load. Teams that do well with microservices usually have strong platform engineering support. Teams without that support often build a distributed monolith instead: they pay most of the complexity cost, but get little of the isolation benefit.
+The operational baseline is also much higher: from the outset you need container orchestration, service discovery, distributed tracing, centralised logging, and health checks. The tooling is mature — Kubernetes, Jaeger, and OpenTelemetry are all strong examples — but it still adds cognitive load. Teams that do well with microservices usually have strong platform-engineering support behind them. Teams without it often build a distributed monolith: they pay most of the complexity cost and get little of the isolation benefit.
 
 ## Related Patterns
 

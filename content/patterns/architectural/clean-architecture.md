@@ -1,6 +1,6 @@
 ---
 title: "Clean Architecture"
-description: "Structure code in concentric rings — Entities, Use Cases, Interface Adapters, Frameworks — with a strict inward dependency rule, so the domain never imports infrastructure."
+description: "Clean Architecture organises code into concentric rings and lets dependencies point only inward, so the domain never imports its database, framework, or transport."
 ---
 
 # Clean Architecture
@@ -60,7 +60,7 @@ Enforce the Dependency Rule: source code in an inner ring never names, imports, 
 
 
 
-**Entities:** pure domain types, no imports beyond the standard library. This ensures that the core business logic is independent of any framework, database, or delivery mechanism. The domain is the core asset, and the infrastructure is the variable.
+**Entities:** pure domain types, no imports beyond the standard library. This ensures that the core business logic is independent of any framework, database, or delivery mechanism.
 
 ```go
 // domain/note.go
@@ -347,7 +347,7 @@ The inward dependency rule answers a specific question: "why can't my domain typ
 
 ## When Not to Use
 
-- Simple CRUD services with little or no domain logic. The layers add ceremony without payoff.
+- Simple CRUD services with little or no domain logic. The rings add structure the work never uses.
 - Rapid prototypes where the cost of structure outweighs the benefit of isolation.
 - Small tools or scripts. Clean Architecture is optimised for change over time, so it's overkill for throwaway code.
 
