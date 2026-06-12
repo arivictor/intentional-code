@@ -15,11 +15,11 @@ These primitives compose well, but raw goroutines fail in ways that are easy to 
 
 **Channels** are the synchronisation mechanism. An unbuffered channel forces sender and receiver to meet: it's a handshake. A buffered channel allows the sender to proceed without waiting, up to the buffer size. Choosing the wrong kind is a common source of subtle bugs and deadlocks.
 
-**`select`** multiplexes channel operations. It waits until one of several channel operations can proceed, then executes it. With a `default` case it becomes non-blocking. With a done channel or `context.Done()`, it becomes cancellable.
+`select` multiplexes channel operations. It waits until one of several channel operations can proceed, then executes it. With a `default` case it becomes non-blocking. With a done channel or `context.Done()`, it becomes cancellable.
 
-**`sync.WaitGroup`** coordinates goroutine completion without channels. Use it when you launch N goroutines and need to wait for all of them to finish, but don't need to stream results back.
+`sync.WaitGroup` coordinates goroutine completion without channels. Use it when you launch N goroutines and need to wait for all of them to finish, but don't need to stream results back.
 
-**`context.Context`** is the standard cancellation carrier. Pass it as the first argument to any function that starts goroutines or performs I/O. When the context is cancelled, everything downstream should stop.
+`context.Context` is the standard cancellation carrier. Pass it as the first argument to any function that starts goroutines or performs I/O. When the context is cancelled, everything downstream should stop.
 
 ## Goroutine lifecycle discipline
 
