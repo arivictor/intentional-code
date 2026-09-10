@@ -1,183 +1,181 @@
 ---
 title: "Publish/Subscribe"
-description: "Decouple senders from receivers through named topics: publishers send messages to a topic without knowing who listens, and any number of subscribers receive their own copy — broker-backed fan-out, distinct from in-process event handling."
+description: "A signal bus autoload — typed signals or named topics — that lets a HUD, a level, and an enemy talk without holding references to each other, and how to keep track of who is talking once they do."
 ---
 
 # Publish/Subscribe
 
-**Buys one-to-many fan-out that decouples publisher from subscribers across processes; pays in lost flow observability and at-least-once delivery needing idempotent consumers.**
+**Buys one-to-many fan-out across scenes that never reference each other; pays in lost observability — the bus hides who talks to whom.**
 
-Publish/Subscribe (pub/sub) is messaging organised around **topics**. A publisher sends a message to a named topic and is done; it does not know, and does not care, how many subscribers exist or who they are. Every subscriber to that topic receives its own copy of the message. This is the defining difference from a point-to-point queue (where each message goes to exactly one consumer) and from a direct call (where the sender knows the receiver): pub/sub is **one-to-many fan-out across a named channel**.
+Publish/Subscribe is the mechanism under [Event-Driven](/patterns/architectural/event-driven): a place both sides can reach, where a publisher emits without a reference to any subscriber and each subscriber connects without a reference to any publisher. In Godot that place is an Autoload, and the "topics" are either **typed signals** declared on it — `signal enemy_died(enemy: Enemy)` — or **named channels** keyed by a `StringName` with a generic payload. The choice between those two is most of this page.
 
-It's worth distinguishing this page from two neighbours. From [Event-Driven Architecture](/patterns/architectural/event-driven): Event-Driven is the system-level *style* — designing around facts that have happened — while Pub/Sub is the concrete *messaging mechanism* (topics, subscriptions, and brokers) such systems are usually built on. And from [Observer](/patterns/behavioral/observer): Observer is the *in-process* answer to one-to-many notification, doing it with direct method calls inside a single program. Pub/Sub is what you reach for when that one-to-many fan-out has to cross process boundaries — and that means a broker-backed system (NATS, Kafka, Redis, Google Pub/Sub) for delivery, durability, and surviving restarts. The in-process example below exists only to make the topic mechanics visible; in real single-process code you'd use Observer, not a hand-rolled broker.
+The distinction from [Observer](/patterns/behavioral/observer) is only where the signal lives. Observer is a signal on the node that owns the state; whoever connects must have a reference to that node, which is easy for a parent and hard for a HUD three scenes away. Pub/Sub moves the signal to a bus so the reference is never needed. That is the whole gain, and it is also the whole cost: a signal on a node tells you who emits it (the node) and where to find the listeners (its connections); a signal on a bus tells you neither.
 
 ## Scenario
 
-When a user signs up, several unrelated things must happen: send a welcome email, kick off analytics, provision a workspace. Wiring the signup handler to call each one directly couples it to every consumer, and adding a new reaction means editing the handler.
+The HUD needs the player's health. The HUD is a `CanvasLayer` under `Game`; the player is inside whatever level is loaded. The first attempt reaches across:
 
-```go
-// The signup handler knows about — and must not fail because of — every consumer.
-func (h *SignupHandler) Handle(ctx context.Context, u User) error {
-    if err := h.emailer.SendWelcome(ctx, u); err != nil {
-        return err // a flaky email service now blocks signup
-    }
-    h.analytics.Track(ctx, "signup", u.ID)
-    h.provisioner.CreateWorkspace(ctx, u.ID)
-    // Add a fourth reaction? Edit this function again.
-    return nil
-}
+```gdscript:title="res://ui/hud.gd"
+extends CanvasLayer
+
+@onready var _player: Player = get_node("/root/Game/CurrentScene/Level/Player")
+
+func _ready() -> void:
+	_player.health_changed.connect(_on_health_changed)
 ```
+
+That path is a promise about the whole tree. Rename `Level`, load a different level scene, open the HUD on its own, or add a level that spawns the player a frame late, and `get_node` returns null. The next attempt polls — `_process` reads `_player.health` every frame — which fixes nothing about the path and adds a per-frame cost. The one after that puts `health` on a `Global` Autoload the player writes to and the HUD reads from, which works and means the player is now writing UI state.
 
 ## Solution
 
-The handler publishes one message to a `user.signup` topic. Each interested party subscribes independently. Publisher and subscribers know only the topic name and the message schema.
-
-```text:title="diagram"
-                    topic: "user.signup"
-   publisher ─────────────►┌───────────┐────────► subscriber A (email)
-   (signup handler)        │  broker   │────────► subscriber B (analytics)
-                           └───────────┘────────► subscriber C (provisioning)
-                       each subscriber gets its own copy
-```
-
-The example below builds a tiny in-process broker to make the topic-and-fan-out shape concrete. **It's a teaching aid, not production code** — if your publisher and subscribers live in the same process, you don't want a hand-rolled broker at all, you want the [Observer](/patterns/behavioral/observer) pattern, which does in-process notification directly and with less machinery. The reason to reach for pub/sub *proper* is the broker: durability, back-pressure, and crossing process boundaries (covered after the example). Read the code for the mental model, then use a real broker.
-
-```go:title="main.go":run=true:editable=true
-package main
-
-import (
-	"fmt"
-	"sort"
-	"sync"
-)
-
-// Broker is an in-process, topic-based pub/sub hub. Publishers send to a topic
-// without knowing who subscribes; each subscriber gets its own channel and
-// receives every message published to topics it subscribes to (fan-out).
-type Broker struct {
-	mu   sync.RWMutex
-	subs map[string][]chan string
-}
-
-func NewBroker() *Broker {
-	return &Broker{subs: map[string][]chan string{}}
-}
-
-func (b *Broker) Subscribe(topic string) <-chan string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	ch := make(chan string, 8)
-	b.subs[topic] = append(b.subs[topic], ch)
-	return ch
-}
-
-func (b *Broker) Publish(topic, msg string) {
-	b.mu.RLock()
-	defer b.mu.RUnlock()
-	for _, ch := range b.subs[topic] {
-		ch <- msg // buffered; a real broker handles slow/absent consumers
-	}
-}
-
-func (b *Broker) Close() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	for _, chans := range b.subs {
-		for _, ch := range chans {
-			close(ch)
-		}
-	}
-}
-
-func main() {
-	broker := NewBroker()
-
-	// Two independent subscribers to the same topic. Both see every message.
-	emailFeed := broker.Subscribe("user.signup")
-	analyticsFeed := broker.Subscribe("user.signup")
-
-	var wg sync.WaitGroup
-	var mu sync.Mutex
-	var log []string
-
-	consume := func(name string, feed <-chan string) {
-		defer wg.Done()
-		for msg := range feed {
-			mu.Lock()
-			log = append(log, fmt.Sprintf("%s handled %q", name, msg))
-			mu.Unlock()
-		}
-	}
-
-	wg.Add(2)
-	go consume("email", emailFeed)
-	go consume("analytics", analyticsFeed)
-
-	broker.Publish("user.signup", "alice")
-	broker.Publish("user.signup", "bob")
-	broker.Close() // closing channels lets the consumers' range loops finish
-	wg.Wait()
-
-	sort.Strings(log) // stable output regardless of goroutine scheduling
-	for _, line := range log {
-		fmt.Println(line)
-	}
-}
-```
+Put a signal where both can reach it.
 
 ```
-// Output:
-// analytics handled "alice"
-// analytics handled "bob"
-// email handled "alice"
-// email handled "bob"
+Player (in Level)                 EventBus (Autoload)                 Subscribers
+─────────────────                 ──────────────────                 ───────────
+take_damage() ──emit──► signal player_health_changed(cur, max) ──► Hud._on_health
+                                                                 ──► LowHealthVignette
+                                                                 ──► Companion._on_health
+                                                                 ──► AudioReactor (heartbeat)
+   publisher holds no reference          bus holds connections          subscribers hold none
 ```
 
-That in-process broker is deliberately naive: it loses every message on restart, can't reach another service, and silently drops to a buffer when a consumer stalls. Don't ship it. The moment pub/sub earns its keep, you want a real broker-backed system that handles delivery, durability, and back-pressure for you. With NATS, for example, the topic-and-subscribe shape is identical, but messages cross the network and survive process boundaries:
+### Typed signals
 
-```go
-// using github.com/nats-io/nats.go
-nc, _ := nats.Connect(nats.DefaultURL)
-defer nc.Close()
+One signal per fact, with typed arguments, declared on the bus:
 
-// Subscriber: every subscriber on this subject gets its own copy.
-nc.Subscribe("user.signup", func(m *nats.Msg) {
-    log.Printf("welcome email for %s", string(m.Data))
-})
+```gdscript:title="res://autoload/event_bus.gd"
+extends Node
 
-// Publisher: fire-and-forget to the subject.
-nc.Publish("user.signup", []byte("alice"))
+signal player_health_changed(current: int, maximum: int)
+signal enemy_died(enemy: Enemy)
+signal coin_collected(value: int, at: Vector2)
 ```
 
-A key broker decision is **fan-out vs. load-balancing**. Plain pub/sub gives every subscriber a copy (the email *and* analytics services both react). When you instead want a *group* of identical workers to share the load — each message handled once by the group — you use a queue group / consumer group, which is the [Competing Consumers](/patterns/concurrency/competing-consumers) pattern layered on top of a topic. Most brokers support both per topic.
+```gdscript:title="res://player/player.gd"
+func take_damage(amount: int) -> void:
+	health = maxi(health - amount, 0)
+	EventBus.player_health_changed.emit(health, max_health)
+```
+
+```gdscript:title="res://ui/hud.gd"
+extends CanvasLayer
+
+func _ready() -> void:
+	EventBus.player_health_changed.connect(_on_health_changed)
+
+func _on_health_changed(current: int, maximum: int) -> void:
+	%HealthBar.max_value = maximum
+	%HealthBar.value = current
+```
+
+The editor autocompletes `EventBus.player_health_changed`, the parser rejects a connection whose handler takes the wrong number of arguments, and `emit` with the wrong types fails at the call. A typo in the signal name is an error at parse time. Every one of those is a bug caught before the game runs, and it is why typed signals should be the default.
+
+### Named channels
+
+The alternative is a generic bus keyed by topic name:
+
+```gdscript:title="res://autoload/topic_bus.gd"
+extends Node
+
+var _subscribers: Dictionary[StringName, Array] = {}
+
+func subscribe(topic: StringName, handler: Callable) -> void:
+	if not _subscribers.has(topic):
+		_subscribers[topic] = []
+	_subscribers[topic].append(handler)
+
+func unsubscribe(topic: StringName, handler: Callable) -> void:
+	if _subscribers.has(topic):
+		_subscribers[topic].erase(handler)
+
+func publish(topic: StringName, payload: Dictionary = {}) -> void:
+	if not _subscribers.has(topic):
+		return
+	for handler: Callable in _subscribers[topic].duplicate():
+		if handler.is_valid():
+			handler.call(payload)
+		else:
+			_subscribers[topic].erase(handler)
+```
+
+```gdscript
+TopicBus.publish(&"player.health_changed", {"current": health, "maximum": max_health})
+TopicBus.subscribe(&"player.health_changed", _on_health_changed)
+```
+
+Topics can be created at runtime, which is the one thing typed signals cannot do. A mod, a dialogue script, or a data file can publish `&"quest.the_lost_ring.completed"` without anyone having declared it. The price is that nothing is checked: a misspelt topic is a silent no-op, a payload is a `Dictionary` whose keys are a convention, and the `duplicate()` in `publish` exists because a handler that unsubscribes mid-iteration would otherwise corrupt the loop — a bug class typed signals do not have.
+
+Reach for named channels only when the set of topics is genuinely open — mod support, scripting, data-driven quests. For everything the project itself emits, declare a typed signal. The two can coexist on one Autoload, with the typed signals as the API and a single `custom(topic, payload)` signal for the open set.
+
+### When a direct signal is better
+
+If the subscriber can get a reference to the publisher without a global path, connect directly and skip the bus:
+
+- **Parent and child.** `HealthComponent` emits `died`; `Enemy` connects in the editor or in `_ready`. That is "signal up", and it should never go through a bus.
+- **Same scene.** A level that owns its `Player` and its `ExitDoor` wires them itself.
+- **One subscriber.** A bus with one listener is a global variable with extra steps.
+
+The bus is for the cases that remain: publisher and subscriber in different scenes, loaded at different times, with no owner in common that could introduce them. In practice that is UI listening to gameplay, cross-cutting systems (achievements, audio, analytics), and module-to-module facts.
+
+## The observability problem
+
+Open `hud.gd` and read `EventBus.player_health_changed.connect(...)`. Who emits it? The bus does not know. Open `player.gd` and read the `emit`. Who listens? The bus knows, but the editor's signal panel shows nothing, because the connection was made in code on an Autoload. This is the tax, and there are three ways to pay it.
+
+**Search.** `EventBus.player_health_changed.emit` is a string; grep the project. This is the honest answer most of the time, and it argues for a naming convention that makes the search precise — one signal name, never emitted via a variable.
+
+**Ask the bus.** At runtime, `get_signal_connection_list` lists every subscriber of a signal, and each `Callable` knows its object and method:
+
+```gdscript:title="res://autoload/event_bus.gd"
+func debug_dump(signal_name: StringName) -> void:
+	for c in get_signal_connection_list(signal_name):
+		var cb: Callable = c["callable"]
+		print("%s ← %s.%s" % [signal_name, cb.get_object(), cb.get_method()])
+```
+
+**Log the emitter.** For "who emitted this" — the question that comes up when a health bar flickers and three scripts might be responsible — wrap the emit in debug builds and print the stack:
+
+```gdscript:title="res://autoload/event_bus.gd"
+func emit_traced(sig: Signal, args: Array) -> void:
+	if OS.is_debug_build():
+		var frame: Dictionary = get_stack()[1]
+		print("%s emitted from %s:%d" % [sig.get_name(), frame["source"], frame["line"]])
+	sig.emit.callv(args)
+```
+
+`get_stack()` only works in debug builds with the debugger attached, which is exactly where you want it. Do not ship a bus that walks the stack on every emit.
+
+### The subscriber that arrived late
+
+A bus signal is not state. If the player emits `player_health_changed` in its `_ready` and the HUD connects in *its* `_ready` a frame later, the HUD has missed it and will show the wrong value until the next hit. Two fixes: the subscriber pulls the current value once on connect (it needs a reference for that — sometimes the right answer is that the bus was the wrong tool here), or the publisher re-emits after the tree settles with `call_deferred`. What you must not do is make the bus remember last values for every signal; that turns it into a state store that every scene depends on and nothing owns.
 
 ## When to Use
 
-- One event has multiple independent reactions, and you want to add or remove reactions without touching the publisher.
-- Producers and consumers are (or will become) separate processes or services that shouldn't call each other directly.
-- You want temporal decoupling: the publisher proceeds immediately, and consumers process at their own pace.
-- You need durable, replayable, or persistent message streams (with a broker like Kafka or NATS JetStream).
+- Publisher and subscriber live in different scenes with no common owner to wire them.
+- Several subscribers with different lifetimes react to one fact.
+- A scene must run alone: it emits into a bus that swallows the signal when nobody is listening.
+- Topics are data-defined and must be created at runtime — the named-channel case.
 
 ## When Not to Use
 
-- The caller needs a response. Pub/sub is fire-and-forget; request/response wants an RPC, HTTP call, or a reply-topic correlation dance that's often not worth it.
-- Everything lives in one process. If you just need multiple in-process listeners to react to a change, use [Observer](/patterns/behavioral/observer) — it's direct method-call notification with no broker to stand up. Pub/sub is the answer once you actually cross a process boundary.
-- There's exactly one consumer and one producer — a direct function call is simpler and easier to follow.
-- You need strong ordering and transactional coupling with the producer's database write; combine with a [Transactional Outbox](/patterns/architectural/outbox) rather than publishing naively.
-- The added broker is operational weight your problem doesn't justify yet. If you don't cross a process boundary, you don't need pub/sub's broker — reach for [Observer](/patterns/behavioral/observer) instead, and adopt a broker when the boundary actually appears.
+- A parent and child, or two nodes in one scene. Wire them directly; the editor will even show you the connection.
+- The subscriber needs the publisher's current state, not just changes. Give it a reference, or make the fact a property on a model it can read.
+- The event must be batched, rate-limited, or delivered later. That is an [Event Queue](/patterns/architectural/event-queue).
+- There is one publisher and one subscriber and there always will be. A bus buys nothing.
 
-## Tradeoffs
+## The Decision
 
-Pub/sub buys decoupling and scalability at the cost of **observability and reasoning**. With direct calls you can read the code and see what happens next; with pub/sub the flow is implicit — to know who reacts to `user.signup` you must know who subscribes. Distributed tracing and a documented topic/schema catalogue become essential, not optional.
+The pattern trades a reference for a name. The reference was the coupling — the HUD knowing where the player lives — and removing it is what lets scenes be loaded, swapped, and tested independently. The name is a coupling too, just a looser one: every script that emits or connects agrees on `player_health_changed` and its argument list, and the compiler enforces that agreement only for typed signals. Choose typed signals and the trade is close to free. Choose named channels and you have moved the contract from the parser to a `Dictionary` and a comment.
 
-Delivery semantics are the other sharp edge. In-process channel delivery can drop messages if a buffer fills or the process dies; broker delivery is typically at-least-once, so consumers must be idempotent. And a slow subscriber can apply back-pressure to the whole topic unless the broker buffers, drops, or isolates it — decide that policy deliberately.
+What is lost is the ability to read the flow. A signal on a node has an owner; a signal on a bus has a name and a search. Budget for that: keep the bus to declarations, forbid emitting a bus signal via an alias, and write the `debug_dump` before the first "why did the health bar change" bug rather than during it. And keep the bus flat. The moment `EventBus` has forty signals, split it by module — `CombatEvents`, `UiEvents`, `EconomyEvents` — so that a search for subscribers is a search through one file's worth of names.
 
-Finally, the schema *is* the contract. Because publisher and subscriber never call each other, the message format is the only coupling left, and changing it carelessly breaks consumers silently. Version your message schemas and evolve them additively.
+This is [tenet #2 — if you can't name the trade-off, you didn't decide](/philosophy/name-the-trade-off): the bus is worth it exactly when the reference it removes would have crossed a scene boundary, and not otherwise.
 
 ## Related Patterns
 
-- **Event-Driven Architecture:** The system-level style; pub/sub is the messaging mechanism it's usually implemented with. Event-Driven answers *why* (decouple via facts); pub/sub answers *how* (topics and subscriptions).
-- **Competing Consumers:** The complementary delivery mode. Pub/sub fans a message out to *every* subscriber; competing consumers share messages across a *group* so each is handled once. Brokers offer both via consumer/queue groups.
-- **Observer:** The in-process counterpart, and the right tool whenever your listeners share a process. Observer notifies registered objects directly via method calls — no broker, no topics. Pub/sub is what Observer becomes once notification must cross process boundaries: the broker replaces the direct references, and named topics replace the observer list. Don't hand-roll an in-process broker; if you're not crossing a boundary, you want Observer.
-- **Transactional Outbox:** Solves reliable *publishing* into a pub/sub topic, closing the dual-write gap between the producer's database and the broker.
-- **Fan-out / Fan-in:** The concurrency primitive behind in-process fan-out; pub/sub is the messaging-level expression of the same one-to-many shape.
+- **[Observer (Signals)](/patterns/behavioral/observer)**: The same signal, on the node that owns the state. Prefer it whenever a reference is available; Pub/Sub is what Observer becomes when the reference is the problem.
+- **[Event-Driven](/patterns/architectural/event-driven)**: The style that Pub/Sub delivers. That page covers payload shape, handler order, and re-entrancy; this one covers the bus itself.
+- **[Event Queue](/patterns/architectural/event-queue)**: Delivery later and in batches. A subscriber that pushes into a queue is the common combination.
+- **[Mediator](/patterns/behavioral/mediator)**: A hub that *knows* the participants and routes with logic, versus a bus that knows only names. When subscribers start needing to be told about each other, you wanted a Mediator.
+- **[Singleton (Autoload)](/patterns/creational/singleton)**: The bus is one. The scenes-that-can't-run-alone cost does not apply — a bus with no listeners is harmless — but the hidden-dependency cost does.
+- **[MVC / MVP / MVVM](/patterns/architectural/mvc)**: The HUD-reads-player problem has a second answer: a model the UI observes. Use that when the UI needs current state, and the bus when it needs only changes.

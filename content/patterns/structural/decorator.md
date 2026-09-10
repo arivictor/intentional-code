@@ -229,7 +229,7 @@ static func apply(base: float, modifiers: Array[StatModifier]) -> float:
 
 The order problem is now a visible integer on each Resource, the whole set of active modifiers is an Array you can print or show in a debug panel, and a new buff is a new `.tres` with no code. For arithmetic, this wins.
 
-Decorator earns its place when a modifier has to change *behaviour*, not just a number: a `Dodge` link that returns `0.0` without calling inward, a `Reflect` link that damages the attacker as a side effect, a `Lifesteal` link that reads the final number and heals. Those need to sit around the calculation, see its result, and sometimes refuse to run it. A loop over enum kinds cannot express "skip the rest", and an enum that grows a `DODGE`, `REFLECT`, `LIFESTEAL` entry is the scenario's `if` chain wearing a different hat.
+Decorator earns its place when a modifier has to change *behaviour*, not just a number: a `Dodge` link that returns `0.0` without calling inward, a `Reflect` link that damages the attacker as a side effect, a `Lifesteal` link that reads the final number and heals. Those need to sit around the calculation, see its result, and sometimes refuse to perform it at all. A loop over enum kinds cannot express "skip the rest", and an enum that grows a `DODGE`, `REFLECT`, `LIFESTEAL` entry is the scenario's `if` chain wearing a different hat.
 
 ## When to Use
 
@@ -240,7 +240,7 @@ Decorator earns its place when a modifier has to change *behaviour*, not just a 
 
 ## When Not to Use
 
-- Every modifier is `+n` or `×n`. A sorted `Array[StatModifier]` and a loop is simpler, inspectable, and editable in the inspector.
+- Every modifier is `+n` or `×n`. A sorted `Array[StatModifier]` and a loop is simpler, inspectable, and tuned in the inspector.
 - The modifier needs the weapon's private state. A decorator that reaches into what it wraps is a refactor waiting to happen, not a decorator.
 - The chain is rebuilt every frame for thousands of entities. Each link is an allocation; build once per buff change and cache it.
 - One fixed stack, never varied. Write the calculation inline and move on.

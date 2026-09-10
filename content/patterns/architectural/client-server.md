@@ -116,6 +116,9 @@ var _last_seq: int = 0
 
 func _physics_process(delta: float) -> void:
 	if multiplayer.is_server():
+		if _is_local_player():
+			# Listen-server host: no round trip, read input straight into the sim.
+			_last_input = Input.get_vector("left", "right", "up", "down")
 		velocity = _last_input * SPEED
 		move_and_slide()
 		# Tell the owning client which input this state corresponds to.
@@ -229,7 +232,11 @@ func request_attack(target_name: StringName) -> void:
 		return                            # out of reach on the server: ignore, don't trust the client
 	target.health -= 10                   # replicated by the synchroniser
 	if target.health <= 0:
-		target.died.rpc()                 # authority → all, for effects
+		target.show_death.rpc()           # authority → all, for effects only
+
+@rpc("authority", "call_local", "reliable")
+func show_death() -> void:
+	%AnimationPlayer.play("die")          # cosmetic; the state already changed on the server
 ```
 
 The client may *display* the swing immediately. Whether it landed is the server's call.
