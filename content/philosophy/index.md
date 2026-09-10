@@ -7,13 +7,13 @@ order: 2
 
 **Architecture is more about philosophy than it is about patterns.**
 
-When I was learning to write software, I could read the code but not the decision behind it. I could see the pattern, but not the call. Even with the well-known principles, SOLID and the rest, I kept asking: 
+When I was learning to build games, I could read the code but not the decision behind it. I could see the state machine, the Autoload, the component node, but not the call that put it there. Even with the well-known principles, SOLID and the rest, I kept asking:
 
 _"why is that there?"_, _"why did they do it this way?"_, and _"when would it be wrong?"_
 
-Nobody was writing down the thought process behind the decisions, only the rules.
+Nobody was writing down the thought process behind the decisions, only the rules. And game projects punish that gap harder than most: a prototype that grew into a shipping title, a save format that can't change, a player script that reaches into the HUD. The shape of the project is decided long before anyone calls it architecture.
 
-**The Tenets are my answer:** ten positions on how to make architectural decisions with intention. They reference the named laws, DRY, YAGNI, KISS, Gall's Law, as worked examples. The tenet is the principle; the law is what it looks like in practice.
+**The Tenets are my answer:** ten positions on how to make architectural decisions with intention. They reference the named laws, DRY, YAGNI, KISS, Gall's Law, as worked examples, with the examples drawn from the things a Godot project is actually made of: scenes, nodes, signals, and Resources. The tenet is the principle; the law is what it looks like in practice.
 
 ## The Tenets
 

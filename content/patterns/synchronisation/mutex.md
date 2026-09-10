@@ -1,177 +1,219 @@
 ---
 title: "Mutex"
-description: "Protect shared state with a sync.Mutex so only one goroutine enters the critical section at a time — the default tool for any data touched by more than one goroutine."
+description: "Guard state that a worker thread shares with the main thread behind a Mutex bundled with the data, so the lock can't be forgotten and the critical section stays small."
 ---
 
 # Mutex
 
-**Buys an obviously-correct critical section for any multi-word shared state; pays in serialised access, contention, and deadlock risk if you mishandle it.**
+**Buys an obviously-correct critical section for any state a worker thread shares with the main thread; pays in serialised access, contention, and deadlock risk if you mishandle it.**
 
-A `sync.Mutex` is a lock. One goroutine holds it at a time; everyone else who calls `Lock()` waits until the holder calls `Unlock()`. The stretch of code between `Lock` and `Unlock` — the **critical section** — runs as if it were single-threaded, which is exactly what you need when several goroutines read and write the same data. It's the most general fix for a [data race](/patterns/synchronisation/data-races): when in doubt, a mutex is correct.
+A `Mutex` is a lock. One thread holds it at a time; every other thread that calls `lock()` blocks until the holder calls `unlock()`. The code between those two calls — the **critical section** — runs as if the game were single-threaded, which is exactly what you need when a `Thread` or a `WorkerThreadPool` task writes something the main thread reads. It is the most general fix for a [data race](/patterns/synchronisation/data-races) in GDScript, and the only general-purpose one: there are no atomics and no read-write lock in the language, so when state is genuinely shared and genuinely mutable, this is the tool.
+
+Godot's `Mutex` is re-entrant — the same thread can lock it twice as long as it unlocks it twice. That removes one classic deadlock but not the others, and GDScript has no `finally` or `defer`, so unlocking on every exit path is a discipline you keep by hand.
 
 ## Scenario
 
-You have a value that more than one goroutine updates — a counter, a cache, a map of sessions. A plain field is a race. Reaching for a `Mutex` is right, but the *placement* of the lock is where people slip:
+A chunked open world generates terrain on a background thread so the frame never stalls. The generator writes finished chunks into a Dictionary; the main thread pulls them out each frame and builds meshes. The first version shares the Dictionary directly:
 
-```go
-// BAD — the lock and the data it protects are separate, unrelated variables.
-var sessions = map[string]Session{}
-var mu sync.Mutex
+```gdscript:title="res://world/chunk_generator.gd"
+class_name ChunkGenerator extends Node
 
-// Nothing forces a caller to hold mu before touching sessions.
-// Six months later, someone writes to sessions without the lock and it compiles fine.
+var ready_chunks: Dictionary[Vector2i, PackedByteArray] = {}
+var _thread: Thread
+
+func _ready() -> void:
+	_thread = Thread.new()
+	_thread.start(_generate_forever)
+
+func _generate_forever() -> void:
+	for coord: Vector2i in _pending_coords():
+		ready_chunks[coord] = _generate(coord)  # BAD: written on the worker...
+
+func _process(_delta: float) -> void:
+	for coord: Vector2i in ready_chunks.keys():  # ...and read on the main thread
+		_build_mesh(coord, ready_chunks[coord])
+		ready_chunks.erase(coord)
 ```
 
-> **Smell:** A `sync.Mutex` lives next to the data it guards but nothing *binds* them. If a reader of your code can't tell which lock protects which field, neither can the next person who adds a method — and they'll forget the lock.
+A Dictionary is not safe to mutate from two threads. The worker's insert can rehash the table while `_process` iterates it; the symptom is an occasional crash, a chunk that vanishes, or a mesh built from half-written bytes — and it only reproduces on the tester's eight-core machine, never on yours.
+
+> **Smell:** A container is written from a `Thread` callable and read from `_process`, and you can't point at the lock that orders those two accesses. "The generator is slow, they'll never overlap" is timing, not synchronisation.
 
 ## Solution
 
-Bundle the mutex with the data it protects inside a struct, and expose access only through methods that take the lock. Now the lock isn't optional — it's the only door in. This program hammers a shared counter with 100 goroutines and always prints `100000`:
+Bundle the mutex with the data it guards inside one class, and expose the data only through methods that take the lock. Now the lock isn't optional — it's the only door in.
 
-```go:title="main.go":run=true:editable=true
-package main
-
-import (
-	"fmt"
-	"sync"
-)
-
-// Counter bundles the mutex with the value it protects. Callers can only
-// reach `value` through methods that take the lock, so the lock can't be
-// forgotten.
-type Counter struct {
-	mu    sync.Mutex
-	value int
-}
-
-func (c *Counter) Inc() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.value++
-}
-
-func (c *Counter) Value() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	return c.value
-}
-
-func main() {
-	var c Counter
-	var wg sync.WaitGroup
-
-	for i := 0; i < 100; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for j := 0; j < 1000; j++ {
-				c.Inc()
-			}
-		}()
-	}
-
-	wg.Wait()
-	fmt.Println(c.Value()) // always 100000
-}
+```
+ChunkGenerator (Node)              main thread
+  └── owns ChunkCache (RefCounted) ── Mutex + Dictionary
+           ▲                 ▲
+   store() │                 │ take_ready()
+   worker thread         main thread, once per frame
 ```
 
-Two details make this solid:
+```gdscript:title="res://world/chunk_cache.gd"
+class_name ChunkCache extends RefCounted
+## Thread-safe holder for chunks that are generated but not yet built.
+## Every access to _chunks goes through the mutex. Nothing else touches it.
 
-- **`defer c.mu.Unlock()` right after `Lock()`.** The unlock fires however the method returns — normal return, early return, or panic. Without `defer`, an early return or a panic mid-section leaves the mutex locked forever and the next caller deadlocks.
-- **Reads take the lock too.** `Value()` looks harmless, but reading `value` while another goroutine writes it is still a race. Every access to guarded data — read *and* write — goes through the lock.
+var _mutex := Mutex.new()
+var _chunks: Dictionary[Vector2i, PackedByteArray] = {}
 
-## Guarding a map
+## Called from the generator thread.
+func store(coord: Vector2i, data: PackedByteArray) -> void:
+	_mutex.lock()
+	_chunks[coord] = data
+	_mutex.unlock()
 
-A map is the classic thing to wrap, because concurrent map writes crash the runtime outright (`fatal error: concurrent map writes`). The pattern is identical — lock around every operation:
+## Called from the main thread. Hands back everything ready and clears the
+## cache in one step, so the caller never holds a reference we still mutate.
+func take_ready() -> Dictionary[Vector2i, PackedByteArray]:
+	_mutex.lock()
+	var taken := _chunks
+	_chunks = {}
+	_mutex.unlock()
+	return taken
 
-```go
-type SafeMap struct {
-	mu sync.Mutex
-	m  map[string]int
-}
-
-func NewSafeMap() *SafeMap {
-	return &SafeMap{m: make(map[string]int)}
-}
-
-func (s *SafeMap) Set(k string, v int) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.m[k] = v
-}
-
-func (s *SafeMap) Get(k string) (int, bool) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	v, ok := s.m[k]
-	return v, ok
-}
+func has(coord: Vector2i) -> bool:
+	_mutex.lock()
+	var found := _chunks.has(coord)
+	_mutex.unlock()
+	return found
 ```
 
-If your map is read far more than it's written, the [RWMutex](/patterns/synchronisation/rwmutex) lets readers run in parallel. For a write-heavy map, a plain `Mutex` like this is the right call.
+```gdscript:title="res://world/chunk_generator.gd"
+class_name ChunkGenerator extends Node
 
-## Reducing contention: striped locks
+@export var view_distance: int = 4
 
-A single mutex serialises *everything*. If a million operations a second all funnel through one lock, the lock itself becomes the bottleneck — goroutines spend their time waiting, not working. **Lock striping** splits the data into N shards, each with its own mutex, so unrelated keys don't block each other:
+var _cache := ChunkCache.new()
+var _thread := Thread.new()
+var _quit := false
 
-```go
-type StripedMap struct {
-	shards [16]struct {
-		mu sync.Mutex
-		m  map[string]int
-	}
-}
+func _ready() -> void:
+	_thread.start(_generate_forever)
 
-func (s *StripedMap) shard(key string) *struct {
-	mu sync.Mutex
-	m  map[string]int
-} {
-	h := fnv32(key) % uint32(len(s.shards))
-	return &s.shards[h]
-}
+func _generate_forever() -> void:
+	while not _quit:
+		var coord := _next_coord()
+		if not _cache.has(coord):
+			_cache.store(coord, _generate(coord))
+
+func _process(_delta: float) -> void:
+	var ready := _cache.take_ready()
+	for coord: Vector2i in ready:
+		_build_mesh(coord, ready[coord])
+
+func _exit_tree() -> void:
+	_quit = true
+	_thread.wait_to_finish()
 ```
 
-A write to key `"a"` and a write to key `"b"` likely land on different shards and proceed in parallel. Striping only helps when access spreads across keys — if every goroutine hammers the same hot key, they still collide on that shard's lock. Measure before adding the complexity; most maps are nowhere near the contention where this pays off.
+Three details carry the weight:
+
+- **Reads lock too.** `has()` looks harmless, but reading a Dictionary while another thread inserts is the same race as writing. Every access — read *and* write — goes through the lock.
+- **`take_ready()` swaps the container instead of returning it.** If it returned `_chunks` directly, the main thread would hold a reference to the very Dictionary the worker keeps inserting into, outside the lock. Swapping in a fresh Dictionary means the returned one is now owned by exactly one thread. Arrays and Dictionaries are references in GDScript; a mutex around the *lookup* does nothing for a reference that escapes.
+- **The critical section is three lines.** The lock is held for an insert or a swap, never across `_generate()`. Generation takes milliseconds; the lock is held for microseconds.
+
+### Unlocking on every path
+
+GDScript has no `defer` and no `try`/`finally`. If a function locks, then takes an early `return` before it unlocks, the mutex is held forever and the next `lock()` anywhere hangs the game. Two shapes keep you honest.
+
+The first is a single exit: compute the answer under the lock, unlock, then branch on it.
+
+```gdscript
+func try_claim(coord: Vector2i) -> bool:
+	_mutex.lock()
+	var already := _claimed.has(coord)
+	if not already:
+		_claimed[coord] = true
+	_mutex.unlock()
+	return not already
+```
+
+The second is an explicit unlock on every branch, when a single exit would twist the logic. Make each `return` sit directly beneath its `unlock()` so a reviewer can pair them by eye.
+
+```gdscript
+func pop_nearest(origin: Vector2i) -> Variant:
+	_mutex.lock()
+	if _chunks.is_empty():
+		_mutex.unlock()
+		return null
+	var best: Vector2i = _chunks.keys()[0]
+	for coord: Vector2i in _chunks:
+		if origin.distance_squared_to(coord) < origin.distance_squared_to(best):
+			best = coord
+	var data: PackedByteArray = _chunks[best]
+	_chunks.erase(best)
+	_mutex.unlock()
+	return data
+```
+
+The same discipline rules out calling anything you don't control while the lock is held. A script error inside the critical section does not unwind the stack the way an exception would — the engine reports it, the function returns `null`, and your `unlock()` never runs.
+
+### `try_lock` on the main thread
+
+`lock()` blocks. On the main thread that means a stalled frame if the worker happens to be inside the critical section — brief when the section is small, but a hitch nonetheless if you lock a hundred times per frame. `try_lock()` returns `false` immediately instead of waiting; the main thread can skip this frame and try again next one.
+
+```gdscript:title="res://world/chunk_cache.gd"
+## Non-blocking variant for the main thread. Returns false if the worker
+## holds the lock right now; the caller simply tries again next frame.
+func try_take_ready(into: Dictionary[Vector2i, PackedByteArray]) -> bool:
+	if not _mutex.try_lock():
+		return false
+	into.merge(_chunks)
+	_chunks.clear()
+	_mutex.unlock()
+	return true
+```
+
+```gdscript:title="res://world/chunk_generator.gd"
+func _process(_delta: float) -> void:
+	if not _cache.try_take_ready(_pending):
+		return  # worker was mid-insert; the chunks will still be there next frame
+	for coord: Vector2i in _pending:
+		_build_mesh(coord, _pending[coord])
+	_pending.clear()
+```
+
+Use it when the main thread can tolerate "not now", which is most of the time. A worker thread, which has nothing better to do, should just `lock()`.
+
+## Deadlocks
+
+Godot's re-entrant mutex means a method holding the lock can call another method that locks the same mutex. The deadlocks that remain are the ones no primitive can prevent:
+
+- **A lock never released.** The early-return bug above. Every `lock()` needs an `unlock()` on every path, including error paths.
+- **Two mutexes in opposite order.** Thread A locks the chunk cache then the entity list; thread B locks the entity list then the chunk cache. Each waits for the other forever. Fix by ordering: if you ever need two locks at once, every thread takes them in the same order, always. Better: never hold two.
+- **Locking while waiting for the main thread.** A worker holds the mutex and calls `call_deferred()` then waits for a result; the main thread's deferred handler tries to lock the same mutex. Nobody moves. Never block on another thread inside a critical section.
+
+When the game freezes with no error, pause the debugger and look at which thread is sitting in `lock()`. That stack is the answer.
 
 ## When to Use
 
-- Any data structure touched by more than one goroutine where the access is more than a single machine word (a struct, a map, a slice, a multi-field invariant).
-- A critical section that must stay consistent across several statements — "read the balance, check it, then subtract" must be one atomic step, which a mutex gives you and an [atomic](/patterns/synchronisation/atomic) does not.
-- You want the simplest thing that's obviously correct. A mutex is harder to get subtly wrong than lock-free code.
+- A `Thread` or `WorkerThreadPool` task writes a container, a counter, or a multi-field object that the main thread (or another worker) also reads or writes.
+- An invariant spans several statements — "if the chunk isn't claimed, claim it" must be one indivisible step, and only a lock gives you that.
+- You want the simplest thing that is obviously correct. A three-line critical section is easier to verify than any lock-free trick, and in GDScript there are no lock-free tricks anyway.
 
 ## When Not to Use
 
-- The shared state is a single integer, flag, or pointer — [`sync/atomic`](/patterns/synchronisation/atomic) is lighter and lock-free.
-- The data is read constantly and written rarely — an [RWMutex](/patterns/synchronisation/rwmutex) lets readers run concurrently.
-- You can avoid sharing entirely by passing data through channels — prefer that; no lock means no deadlock. See the [concurrency patterns](/patterns/concurrency).
-
-## Common Mistakes
-
-**Forgetting to unlock on an early return.** Any `return`, `break`, or `panic` between `Lock()` and a manual `Unlock()` skips the unlock and deadlocks the next caller. `defer mu.Unlock()` immediately after `Lock()` makes this impossible. Only drop the `defer` when you've measured that the deferred-call overhead matters and the critical section has exactly one exit.
-
-**Copying a mutex.** A `sync.Mutex` must not be copied after first use — a copy has its own independent lock state, so two goroutines "locking" what they think is the same mutex actually lock different ones. This is why methods that touch the lock take a pointer receiver (`func (c *Counter)`), and why you pass `*Counter`, never `Counter`, around. `go vet` catches most copies.
-
-**Holding the lock during slow work.** A mutex held across a network call or disk I/O serialises every other goroutine behind that latency. Take the lock, grab or update what you need, release it, *then* do the slow work. Keep critical sections short.
-
-**Locking at the wrong granularity.** One lock for an entire large struct means an update to field A blocks a read of unrelated field B. If that contention shows up in a profile, split into finer-grained locks (or stripe). But start coarse — one lock is easy to reason about, and most code never hits the contention that justifies splitting.
-
-**Recursive locking.** `sync.Mutex` is not reentrant. If a method holding the lock calls another method that tries to take the *same* lock, it deadlocks against itself. Structure your code so locked methods call only lock-free helpers.
+- The state is a node or anything in the scene tree. Locks don't make the tree thread-safe; only the main thread touches it — see [Main-Thread Ownership](/patterns/synchronisation/main-thread-ownership).
+- Readers vastly outnumber writers — publish an immutable [Snapshot](/patterns/synchronisation/snapshot) so readers never lock at all.
+- The sharing is a hand-off, not shared ownership: the worker produces a value, the main thread consumes it. Return it from the thread and pick it up with `wait_to_finish()`, or push it through a [Thread-Safe Queue](/patterns/synchronisation/thread-safe-queue). Data that only one thread owns at a time needs no lock.
+- The work fits in one frame. Threads exist for work that would stall the frame; a mutex on single-threaded code is pure overhead.
 
 ## The Decision
 
-**Mutex vs. atomic.**
-If the shared state is exactly one integer, pointer, or boolean, [`sync/atomic`](/patterns/synchronisation/atomic) does the job lock-free and faster. The moment you need to update *two* things together, or keep an invariant across several statements ("if balance ≥ amount, subtract amount"), atomics can't help — the check and the update would be two separate atomic operations with a race in the gap. That's a critical section, and a critical section needs a mutex.
+**Mutex vs. not sharing.** Before you add a lock, ask whether the worker could return its result instead. `Thread.wait_to_finish()` gives you the callable's return value; `call_deferred()` delivers a value to the main thread; a queue hands values one at a time. All three move *ownership* rather than sharing it, and none can deadlock. A mutex is for the case where both threads legitimately need the same mutable state over time — a cache, a claimed-set, a progress tally. That case is real but rarer than it first looks.
 
-**Mutex vs. RWMutex.**
-An [RWMutex](/patterns/synchronisation/rwmutex) allows many concurrent readers, which sounds strictly better but isn't: it's a heavier lock, and if your workload isn't genuinely read-dominated and contended, the extra bookkeeping makes it *slower* than a plain `Mutex`. Default to `Mutex`. Switch to `RWMutex` only when a profile shows readers contending on a lock that writes rarely touch.
+**Mutex vs. Snapshot.** A mutex serialises everyone, readers included. If the HUD, the minimap, and three AI tasks all read the world map every frame while one thread rewrites it every few seconds, they will queue on a lock for no reason. A [Snapshot](/patterns/synchronisation/snapshot) makes the writer pay for a copy so the readers pay nothing. Start with the mutex; switch when the profiler shows readers waiting.
 
-**Mutex vs. channels.**
-The Go proverb says *share memory by communicating*, but a mutex around a small piece of shared state is often simpler and clearer than routing every access through a goroutine and channel. Use channels for *transferring ownership* of data and for coordinating *flow*; use a mutex for *protecting* a piece of state that several goroutines legitimately share. Neither is a code smell — picking the wrong one for the job is.
+**Lock scope.** The trade-off inside the pattern is contention against correctness. A lock held across `_generate()` is trivially correct and serialises the whole game behind the generator. A lock held for one insert is nearly free but forces you to think about which references escape. Keep the section small, swap containers rather than return them, and never call out of the section into code you don't own. This is [tenet #2 — name the trade-off](/philosophy/name-the-trade-off) in miniature: every extra line under the lock is a line the rest of the game waits on.
 
 ## Related Patterns
 
-- **[Data Races](/patterns/synchronisation/data-races)**: the problem a mutex solves; start there if "critical section" isn't yet second nature.
-- **[RWMutex](/patterns/synchronisation/rwmutex)**: the read-optimised variant for read-heavy state.
-- **[Atomic](/patterns/synchronisation/atomic)**: lighter, lock-free protection for a single word of state.
-- **[Once](/patterns/synchronisation/once)**: built on a mutex internally; the right tool when the critical section is one-time initialisation.
-- **[Singleton](/patterns/creational/singleton)**: uses a mutex (or `Once`) to make lazy construction safe under concurrency.
+- **[Data Races](/patterns/synchronisation/data-races)**: the problem a mutex solves; read it first if "critical section" isn't yet second nature.
+- **[Snapshot](/patterns/synchronisation/snapshot)**: lock-free reads for read-dominated state, at the price of a copy per write.
+- **[Main-Thread Ownership](/patterns/synchronisation/main-thread-ownership)**: the discipline that keeps nodes out of critical sections entirely.
+- **[Thread-Safe Queue](/patterns/synchronisation/thread-safe-queue)**: a mutex plus a semaphore, packaged as the standard producer/consumer hand-off.
+- **[Once](/patterns/synchronisation/once)**: the one-time-initialisation case, guarded by a mutex only when threads may race.
+- **[Worker Thread Pool](/patterns/concurrency/worker-thread-pool)**: where the worker threads that contend for this lock usually come from.

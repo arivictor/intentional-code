@@ -8,10 +8,10 @@ logo:
   dark: /assets/mark-paper-1024.png
 
 seo:
-  description: Intentional Code is a collection of architectural patterns and best practices for Go projects, with a focus on maintainability, scalability, and developer experience.
+  description: Intentional Code is a collection of design, concurrency, and architecture patterns for Godot 4 and GDScript, each with the trade-off behind it — when to use it, and when it's over-engineering.
   og_image: /assets/og.png
   twitter_image: /assets/og.png
-  image_alt: Intentional Code — a collection of architectural patterns and best practices for Go projects, with a focus on maintainability, scalability, and developer experience.
+  image_alt: Intentional Code — design, concurrency, and architecture patterns for Godot 4 and GDScript, each with the trade-off behind it.
 
 social:
   - label: GitHub
@@ -25,7 +25,7 @@ build:
   content_dir: content
   output_dir: /out/site
   public_dir: public
-  runner: true
+  runner: false
   sitemap: true
   robots: true
 
