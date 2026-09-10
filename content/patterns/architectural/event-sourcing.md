@@ -1,425 +1,262 @@
 ---
 title: "Event Sourcing"
-description: "Store state as an append-only log of domain events, and derive current state by replaying them, rather than storing only the current snapshot."
+description: "Record the seed and every input as the source of truth and rebuild game state by replaying them through a deterministic simulation, giving you replays, ghosts, and desync debugging from one small file."
 ---
 
 # Event Sourcing
 
-**Buys a built-in audit trail and time-travel via replay; pays in projection complexity, eventually consistent reads, and forever-backward-compatible event schemas.**
+**Buys replays, ghosts, and debuggable desyncs by recording inputs and events as the source of truth; pays in strict determinism and forever-compatible event formats.**
 
-Most systems store only the latest state of an entity. Event Sourcing stores the full history of changes, then rebuilds the current state by replaying that history. Instead of one row that says `balance = 420`, an account has an event stream like `AccountOpened`, `MoneyDeposited(500)`, `MoneyWithdrawn(80)`. The current balance is calculated from those events.
+Event Sourcing stores *what happened* rather than *what things are*. In a game the events are almost always inputs: on tick 412 the player pressed jump; on tick 413 the stick was at (0.7, 0). Give a deterministic simulation the same seed and the same inputs in the same order, and it produces the same state on every tick — so the recording *is* the state, compressed to a few bytes per tick. A replay is playback. A ghost is a second simulation stepping through the same recording beside the live one. A desync in lockstep multiplayer is two machines whose recordings match but whose state does not, and the tick where they diverge is exactly the tick to look at.
 
-This gives you an audit trail by default. It also gives you built-in time-travel debugging, because you can rebuild state as it looked at an earlier point in time. You can also replay old events into a new projection to answer questions you did not plan for when the system was first designed. But there are real costs: reads are more complex (you usually need projection tables), replay can be slow for long streams unless you use snapshots, and event schema changes need careful versioning.
-
-Event Sourcing fits naturally with [CQRS](/patterns/architectural/cqrs): commands append events to the stream, and the query side consumes that stream to build denormalised read models.
+The guarantee is total reproducibility, and it is only as good as your determinism. Everything the simulation reads must come from the recording or be derived from it. That rules out `randf()`, `Time.get_ticks_msec()`, `delta` from `_process`, and — usually — the engine's physics servers. In Godot that pushes you towards a simulation you own, stepped at a fixed tick, that nodes only *display* (see [Simulation / Presentation Split](/patterns/architectural/simulation-presentation)). Event Sourcing is what that split is for.
 
 ## Scenario
 
-A bank account stores only its current balance. When a dispute arises, there's no record of how that balance was reached. Adding an audit log after the fact is a separate system to maintain. Replaying "what would the balance have been at 3pm on Tuesday?" requires either expensive queries across an audit table or simply isn't possible.
+A time-trial racer wants ghost cars and shareable replays. The first implementation records the car's transform every frame:
 
-```go
-// account.go — current-state model; history is gone
-type Account struct {
-    ID      string
-    Balance int
-}
+```gdscript:title="res://replay/frame_recorder.gd"
+extends Node
 
-func (a *Account) Deposit(amount int) {
-    a.Balance += amount
-    // What happened, when, and why? Lost forever.
-}
+var frames: Array[Transform2D] = []
 
-func (a *Account) Withdraw(amount int) error {
-    if amount > a.Balance {
-        return errors.New("insufficient funds")
-    }
-    a.Balance -= amount
-    return nil
-}
+func _process(_delta: float) -> void:
+	frames.append(%Car.global_transform)   # ~60 transforms a second, forever
+
+func save(path: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_var(frames)
 ```
+
+It works for a ghost, badly: two minutes of racing is 7,200 transforms, and the ghost stutters if the replay runs at a different frame rate from the recording. It does not work at all for the thing the team actually needed next. A bug report says "the car clipped through the barrier on lap three"; the transforms show the car on one side and then the other, and nothing about *why*. Later the game adds two-player lockstep and the two clients slowly drift apart; there is no way to tell which one is wrong, or when it went wrong, because neither has anything but its own current state.
+
+> **Smell:** A replay system that records outputs (positions, health, scores) instead of inputs, or a bug that reproduces "sometimes" with the same actions.
 
 ## Solution
 
-Define domain events as immutable value types. The aggregate applies events to update in-memory state, and appends those events to the store.
+Record the seed and the inputs. Derive everything else.
 
 ```
-Command           Aggregate              Event Store
-   │                  │                      │
-Deposit(100)──────►Apply──────AppendEvent──►[AccountOpened]
-                    │                       [MoneyDeposited(500)]
-                    │                       [MoneyWithdrawn(80)]
-                    │                       [MoneyDeposited(100)]
-                    │
-                  State: balance=520
+Live play                                   Replay / ghost
+────────────────────────────────            ──────────────────────────────
+Input.get_vector(...) ──► InputFrame        recording.frames[tick] ─► InputFrame
+        │                     │                                          │
+        │        Recording.append(frame)                                 │
+        ▼                     ▼                                          ▼
+   Simulation.step(frame)  ──────── same code, same seed ────────  Simulation.step(frame)
+        │                                                                │
+   CarView reads sim.car_state                                   GhostView reads sim.car_state
 ```
 
-Define the events and the aggregate:
+An input frame is a value object. Keep it tiny; it is written once per tick:
 
-```go
-// domain/events.go
-package domain
+```gdscript:title="res://sim/input_frame.gd"
+class_name InputFrame extends RefCounted
 
-import "time"
+const ACCEL := 1
+const BRAKE := 2
+const HANDBRAKE := 4
 
-type EventType string
+var steer: float = 0.0       # -1..1
+var buttons: int = 0
 
-const (
-    EventAccountOpened   EventType = "AccountOpened"
-    EventMoneyDeposited  EventType = "MoneyDeposited"
-    EventMoneyWithdrawn  EventType = "MoneyWithdrawn"
-)
-
-type Event struct {
-    Type      EventType
-    OccuredAt time.Time
-    Data      any
-}
-
-type AccountOpenedData  struct{ InitialBalance int }
-type MoneyDepositedData struct{ Amount int }
-type MoneyWithdrawnData struct{ Amount int }
+static func capture() -> InputFrame:
+	var f := InputFrame.new()
+	f.steer = Input.get_axis("steer_left", "steer_right")
+	if Input.is_action_pressed("accelerate"):
+		f.buttons |= ACCEL
+	if Input.is_action_pressed("brake"):
+		f.buttons |= BRAKE
+	if Input.is_action_pressed("handbrake"):
+		f.buttons |= HANDBRAKE
+	return f
 ```
 
-```go
-// domain/account.go
-package domain
+The recording is a Resource so it can be saved with `ResourceSaver`, loaded with `load`, and inspected. Packed arrays keep it compact — one float and one int per tick:
 
-import (
-    "errors"
-    "time"
-)
+```gdscript:title="res://replay/recording.gd"
+class_name Recording extends Resource
 
-type Account struct {
-    ID      string
-    Balance int
-    changes []Event // uncommitted events
-}
+const FORMAT_VERSION := 1
 
-func NewAccount(id string, initial int) *Account {
-    a := &Account{ID: id}
-    a.apply(Event{
-        Type:      EventAccountOpened,
-        OccuredAt: time.Now(),
-        Data:      AccountOpenedData{InitialBalance: initial},
-    })
-    return a
-}
+@export var format_version: int = FORMAT_VERSION
+@export var game_version: String = ""
+@export var track_id: StringName
+@export var seed: int = 0
+@export var steer: PackedFloat32Array = PackedFloat32Array()
+@export var buttons: PackedInt32Array = PackedInt32Array()
 
-func (a *Account) Deposit(amount int) {
-    a.apply(Event{
-        Type:      EventMoneyDeposited,
-        OccuredAt: time.Now(),
-        Data:      MoneyDepositedData{Amount: amount},
-    })
-}
+func append(frame: InputFrame) -> void:
+	steer.append(frame.steer)
+	buttons.append(frame.buttons)
 
-func (a *Account) Withdraw(amount int) error {
-    if amount > a.Balance {
-        return errors.New("insufficient funds")
-    }
-    a.apply(Event{
-        Type:      EventMoneyWithdrawn,
-        OccuredAt: time.Now(),
-        Data:      MoneyWithdrawnData{Amount: amount},
-    })
-    return nil
-}
+func frame_at(tick: int) -> InputFrame:
+	var f := InputFrame.new()
+	f.steer = steer[tick]
+	f.buttons = buttons[tick]
+	return f
 
-// apply updates in-memory state and records the event for persistence.
-func (a *Account) apply(e Event) {
-    switch d := e.Data.(type) {
-    case AccountOpenedData:
-        a.Balance = d.InitialBalance
-    case MoneyDepositedData:
-        a.Balance += d.Amount
-    case MoneyWithdrawnData:
-        a.Balance -= d.Amount
-    }
-    a.changes = append(a.changes, e)
-}
-
-func (a *Account) Changes() []Event { return a.changes }
-func (a *Account) ClearChanges()    { a.changes = nil }
+func tick_count() -> int:
+	return steer.size()
 ```
 
-Here's the core idea as one runnable program — commands append events, and the current balance is derived by replaying the stored stream rather than reading a saved total:
+The simulation is plain code. No nodes, no `delta`, no engine physics. It owns its random number generator and is seeded once:
 
-```go:title="main.go":run=true:editable=true
-package main
+```gdscript:title="res://sim/race_simulation.gd"
+class_name RaceSimulation extends RefCounted
 
-import (
-	"errors"
-	"fmt"
-	"time"
-)
+const TICK_RATE := 60
+const DT := 1.0 / TICK_RATE
 
-// --- Domain events: immutable facts ---
+var tick: int = 0
+var car: CarState
+var track: TrackData
+var _rng := RandomNumberGenerator.new()
 
-type EventType string
+func _init(p_track: TrackData, seed: int) -> void:
+	track = p_track
+	_rng.seed = seed
+	car = CarState.new()
+	car.position = track.start_position
 
-const (
-	EventAccountOpened  EventType = "AccountOpened"
-	EventMoneyDeposited EventType = "MoneyDeposited"
-	EventMoneyWithdrawn EventType = "MoneyWithdrawn"
-)
+func step(input: InputFrame) -> void:
+	car.apply_input(input, DT)
+	car.integrate(DT)
+	_resolve_track_collision()
+	if car.on_gravel:
+		car.velocity *= 1.0 - _rng.randf_range(0.01, 0.03)   # seeded: replays match
+	tick += 1
 
-type Event struct {
-	Type       EventType
-	OccurredAt time.Time
-	Amount     int
-}
+func snapshot() -> Dictionary:
+	return {"tick": tick, "car": car.to_dict(), "rng": _rng.state}
 
-// --- Aggregate: applies events to derive state ---
+func restore(snap: Dictionary) -> void:
+	tick = snap["tick"]
+	car = CarState.from_dict(snap["car"])
+	_rng.state = snap["rng"]
+```
 
-type Account struct {
-	ID      string
-	Balance int
-	changes []Event
-}
+The recorder samples input at the physics tick, appends it, and steps the simulation. The car node reads the simulation's state and draws it:
 
-func NewAccount(id string, initial int) *Account {
-	a := &Account{ID: id}
-	a.apply(Event{Type: EventAccountOpened, OccurredAt: time.Now(), Amount: initial})
-	return a
-}
+```gdscript:title="res://race/race.gd"
+extends Node2D
 
-func (a *Account) Deposit(amount int) {
-	a.apply(Event{Type: EventMoneyDeposited, OccurredAt: time.Now(), Amount: amount})
-}
+var _sim: RaceSimulation
+var _recording: Recording
 
-func (a *Account) Withdraw(amount int) error {
-	if amount > a.Balance {
-		return errors.New("insufficient funds")
-	}
-	a.apply(Event{Type: EventMoneyWithdrawn, OccurredAt: time.Now(), Amount: amount})
-	return nil
-}
+func _ready() -> void:
+	_recording = Recording.new()
+	_recording.track_id = track.id
+	_recording.seed = randi()                        # the only unseeded call
+	_recording.game_version = ProjectSettings.get_setting("application/config/version")
+	_sim = RaceSimulation.new(track, _recording.seed)
 
-// apply mutates in-memory state and records the event for persistence.
-func (a *Account) apply(e Event) {
-	switch e.Type {
-	case EventAccountOpened:
-		a.Balance = e.Amount
-	case EventMoneyDeposited:
-		a.Balance += e.Amount
-	case EventMoneyWithdrawn:
-		a.Balance -= e.Amount
-	}
-	a.changes = append(a.changes, e)
-}
+func _physics_process(_delta: float) -> void:
+	var frame := InputFrame.capture()
+	_recording.append(frame)
+	_sim.step(frame)
+	%CarView.present(_sim.car)
+```
 
-func (a *Account) Changes() []Event { return a.changes }
+### Replay and ghost
 
-// ReplayAccount rebuilds current state from a stored event stream.
-func ReplayAccount(id string, events []Event) *Account {
-	a := &Account{ID: id}
-	for _, e := range events {
-		a.apply(e)
-	}
-	return a
-}
+A replay is the same loop with input read from the recording instead of the keyboard. A ghost is a second simulation running that loop alongside the live one:
 
-func main() {
-	// Commands append events to the stream.
-	acc := NewAccount("acc-1", 0)
-	acc.Deposit(500)
-	if err := acc.Withdraw(80); err != nil {
-		fmt.Println("error:", err)
+```gdscript:title="res://race/ghost.gd"
+extends Node2D
+
+var _sim: RaceSimulation
+var _recording: Recording
+
+func setup(recording: Recording, track: TrackData) -> void:
+	_recording = recording
+	_sim = RaceSimulation.new(track, recording.seed)
+
+func _physics_process(_delta: float) -> void:
+	if _sim.tick >= _recording.tick_count():
 		return
-	}
-	acc.Deposit(100)
-
-	// The event log is the source of truth; persist the changes.
-	log := acc.Changes()
-	fmt.Printf("stored %d events:\n", len(log))
-	for _, e := range log {
-		fmt.Printf("  %s amount=%d\n", e.Type, e.Amount)
-	}
-
-	// Current state is derived by replaying the log — no stored balance row.
-	rebuilt := ReplayAccount("acc-1", log)
-	fmt.Printf("replayed balance: %d\n", rebuilt.Balance)
-}
+	_sim.step(_recording.frame_at(_sim.tick))
+	%GhostView.present(_sim.car)
 ```
 
-```
-// Output:
-// stored 4 events:
-//   AccountOpened amount=0
-//   MoneyDeposited amount=500
-//   MoneyWithdrawn amount=80
-//   MoneyDeposited amount=100
-// replayed balance: 520
-```
+The ghost file for a two-minute lap is about 60 KB — a float and an int per tick — and it plays back correctly at any frame rate, because playback is by tick, not by frame.
 
-The event store persists and loads events:
+### Snapshots for seeking
 
-```go
-// store/event_store.go
-package store
+Replaying from tick zero to reach tick 6,000 is 6,000 steps; fast, but not free, and a scrubbing timeline wants to seek constantly. Store a snapshot every N ticks and replay from the nearest one:
 
-import "myapp/domain"
+```gdscript:title="res://replay/replay_player.gd"
+const SNAPSHOT_INTERVAL := 300   # every five seconds at 60 Hz
 
-type EventStore interface {
-    Append(ctx context.Context, aggregateID string, events []domain.Event) error
-    Load(ctx context.Context, aggregateID string) ([]domain.Event, error)
-}
+var _snapshots: Array[Dictionary] = []
 
-func ReplayAccount(events []domain.Event) *domain.Account {
-    a := &domain.Account{}
-    for _, e := range events {
-        a.ApplyEvent(e) // version of apply that doesn't record to changes
-    }
-    return a
-}
+func build_snapshots(recording: Recording, track: TrackData) -> void:
+	var sim := RaceSimulation.new(track, recording.seed)
+	for t in recording.tick_count():
+		if t % SNAPSHOT_INTERVAL == 0:
+			_snapshots.append(sim.snapshot())
+		sim.step(recording.frame_at(t))
+
+func seek(sim: RaceSimulation, recording: Recording, target_tick: int) -> void:
+	var index := target_tick / SNAPSHOT_INTERVAL
+	sim.restore(_snapshots[index])
+	while sim.tick < target_tick:
+		sim.step(recording.frame_at(sim.tick))
 ```
 
-Command handler: load by replaying, execute command, persist new events:
+Snapshots are derived data. They can be rebuilt from the recording at any time, so they are never saved with it and never trusted over it. Note that `snapshot()` includes the generator's `state`: a snapshot that restores the car but not the RNG desyncs on the next gravel patch.
 
-```go
-// app/account_commands.go
-package app
+### Debugging a desync
 
-import "myapp/domain"
+With inputs as the source of truth, a desync is a precise question: on which tick did two simulations that received the same inputs stop agreeing? Hash the state every tick and compare:
 
-type DepositCommand struct {
-    AccountID string
-    Amount    int
-}
-
-type AccountCommandHandler struct {
-    store store.EventStore
-}
-
-func (h *AccountCommandHandler) HandleDeposit(ctx context.Context, cmd DepositCommand) error {
-    events, err := h.store.Load(ctx, cmd.AccountID)
-    if err != nil {
-        return err
-    }
-    account := store.ReplayAccount(events)
-    account.Deposit(cmd.Amount)
-    return h.store.Append(ctx, cmd.AccountID, account.Changes())
-}
+```gdscript:title="res://sim/race_simulation.gd"
+func state_hash() -> int:
+	return hash(snapshot())
 ```
 
-Snapshots cap replay cost when event histories grow long:
+In lockstep multiplayer each peer sends its `state_hash()` alongside its input for the tick. The first tick where the hashes differ is the bug's address. Attach both peers' recordings to the report, replay both locally to that tick, and diff the snapshots field by field. The same tool finds the barrier clip: replay to the tick the position crosses the wall and step through `_resolve_track_collision` with the exact state that broke it.
 
-```go
-// store/snapshot.go — store a state snapshot every N events
-type Snapshot struct {
-    AggregateID string
-    Balance     int
-    EventCount  int
-}
+## Determinism requirements
 
-func (h *AccountCommandHandler) HandleDepositWithSnapshot(ctx context.Context, cmd DepositCommand) error {
-    snap, _ := h.snapshots.Load(ctx, cmd.AccountID)
-    events, err := h.store.LoadFrom(ctx, cmd.AccountID, snap.EventCount)
-    if err != nil {
-        return err
-    }
-    account := &domain.Account{Balance: snap.Balance}
-    for _, e := range events {
-        account.ApplyEvent(e)
-    }
-    account.Deposit(cmd.Amount)
-    if err := h.store.Append(ctx, cmd.AccountID, account.Changes()); err != nil {
-        return err
-    }
-    if len(events)+len(account.Changes()) > 100 {
-        h.snapshots.Save(ctx, Snapshot{
-            AggregateID: cmd.AccountID,
-            Balance:     account.Balance,
-            EventCount:  snap.EventCount + len(events) + len(account.Changes()),
-        })
-    }
-    return nil
-}
-```
+Every one of these has caused a replay to drift in a real project:
 
-## Concurrency and Optimistic Locking
-
-When two commands modify the same aggregate concurrently, the second write must detect that the first has already changed the stream. Without a check, both commands load the same events, both produce new events at the same version, and both append. The second write silently overwrites the first.
-
-The fix is optimistic locking: `Append` accepts an `expectedVersion` (the length of events loaded), and the store rejects writes where the stream has advanced beyond that version:
-
-```go
-// store/event_store.go
-var ErrVersionConflict = errors.New("optimistic lock conflict: stream was modified")
-
-type EventStore interface {
-    // expectedVersion is the number of events loaded before the command ran.
-    // Append fails with ErrVersionConflict if the stream has more events than that.
-    Append(ctx context.Context, aggregateID string, expectedVersion int, events []domain.Event) error
-    Load(ctx context.Context, aggregateID string) ([]domain.Event, error)
-}
-```
-
-The command handler passes `len(events)` as the expected version:
-
-```go
-func (h *AccountCommandHandler) HandleDeposit(ctx context.Context, cmd DepositCommand) error {
-    events, err := h.store.Load(ctx, cmd.AccountID)
-    if err != nil {
-        return err
-    }
-    account := store.ReplayAccount(events)
-    account.Deposit(cmd.Amount)
-
-    err = h.store.Append(ctx, cmd.AccountID, len(events), account.Changes())
-    if errors.Is(err, store.ErrVersionConflict) {
-        // Another command won the race. Retry from the top.
-        return h.HandleDeposit(ctx, cmd)
-    }
-    return err
-}
-```
-
-The store checks the current stream length before appending:
-
-```go
-// postgres implementation — append atomically if version matches
-func (s *PostgresEventStore) Append(ctx context.Context, aggregateID string, expectedVersion int, events []domain.Event) error {
-    var currentVersion int
-    err := s.db.QueryRowContext(ctx,
-        "SELECT COUNT(*) FROM events WHERE aggregate_id = $1",
-        aggregateID,
-    ).Scan(&currentVersion)
-    if err != nil {
-        return err
-    }
-    if currentVersion != expectedVersion {
-        return store.ErrVersionConflict
-    }
-    // insert new events...
-    return nil
-}
-```
-
-Optimistic locking works well when conflicts are rare. A deposit and a withdrawal hitting the same account within milliseconds is uncommon. For high-contention aggregates, a retry loop is acceptable; for truly write-heavy paths, consider sharding or a different aggregate boundary.
+- **Fixed tick, no `delta`.** The simulation uses `DT`; it is stepped from `_physics_process` (or a loop of your own) and never from `_process`. `Engine.time_scale` and frame drops must not change the number of steps per recorded tick.
+- **Seeded randomness, per system.** One `RandomNumberGenerator` per simulation, seeded from the recording. The global `randf()` and `randi_range()` are unseeded and shared with everything else in the game; a particle effect calling `randf()` would perturb your gameplay rolls.
+- **No wall clock.** `Time.get_ticks_msec()` and friends are for presentation only.
+- **Deterministic iteration.** Iterating a `Dictionary` is insertion-ordered in Godot, so it is fine *if* insertion order is itself deterministic. `get_tree().get_nodes_in_group()` returns tree order, which depends on when nodes were added; do not iterate nodes in the simulation at all.
+- **No engine physics in the simulation.** `move_and_slide` and the physics servers are not guaranteed bit-identical across platforms or versions. Use them for presentation collision or write your own integration for the state that matters.
+- **Same floats.** A replay recorded on one platform can diverge on another through floating-point differences in `sin`, `pow`, and fused multiply-add. Integer or fixed-point maths removes the risk; if you stay with floats, treat cross-platform replays as best-effort and cross-platform lockstep as a project in itself.
 
 ## When to Use
 
-- You need a full audit trail as a first-class requirement (financial systems, healthcare records, legal contracts).
-- You need temporal queries: "what was the state at time T?"
-- You have multiple read models with different shapes that evolve over time and can be rebuilt by replaying the log.
-- You're using [CQRS](/patterns/architectural/cqrs) and want the event log to drive read-side projections.
+- You want replays, ghosts, or a kill-cam and the game is (or can be made) deterministic.
+- Lockstep multiplayer, where exchanging inputs instead of state is the whole design.
+- Bug reports that say "sometimes". A recording attached to the report is a reproduction.
+- Automated testing of gameplay: a recorded run is an integration test that checks the final state hash.
 
 ## When Not to Use
 
-- Simple CRUD where history doesn't matter. An accounts table is simpler than an event log.
-- The team isn't ready for eventual consistency in read models and the operational complexity of projection rebuilds.
-- The aggregate's event history grows unboundedly fast (millions of events per aggregate per day); snapshots alone won't save you.
-- You need simple point-in-time queries and a soft-delete column would do the job.
+- The simulation cannot be made deterministic without rewriting it, and the payoff is only a cosmetic replay. Record outputs at a low rate and interpolate; it is a worse replay and a far cheaper one.
+- The game leans on engine physics for gameplay and has no appetite to own its own.
+- You need a save system. Replaying every input since the player installed the game is not how to load a save; snapshot state instead ([Memento](/patterns/behavioral/memento), [Repository](/patterns/architectural/repository)).
+- Balance changes ship weekly and old replays must keep working. See the format cost below; it may be more than the feature is worth.
 
 ## The Decision
 
-The biggest advantage is that audit history is built in. You do not need a separate logging system, and you cannot accidentally forget to record important changes. Time-travel debugging is also practical, and you can rebuild projections for new reporting or analytics needs.
+The price is determinism, and determinism is a discipline, not a feature. One unseeded `randf()` in a status effect, one `delta` used in the simulation, one physics query, and replays drift — usually not on the developer's machine, and usually after a patch. Teams that succeed with Event Sourcing treat "the simulation reads only the recording" as a rule enforced in review, and keep the simulation in `RefCounted` classes with no access to the tree, so the tempting APIs are simply not in scope. That constraint is also why those classes test well: a GUT test builds a `RaceSimulation`, feeds it thirty frames, and asserts the state hash.
 
-The costs are also real. To load one aggregate, you usually run a query and replay events, not just fetch one current-state row (snapshots help reduce this replay cost). Read models are eventually consistent, so a projection can lag behind the event stream by milliseconds or seconds. Event schemas must stay backward compatible for a long time, because past events are part of your source of truth and cannot be edited. Evolving schemas with techniques like upcasting old events at read time, or introducing explicit event versions, adds operational discipline that current-state storage often does not require.
+The second price is the one people underestimate: the recording format is only half the compatibility problem. A replay is reproducible with the *simulation that recorded it*. Change the car's grip constant and every existing ghost is now a lie — it will replay the inputs faithfully into a different track position. Either version the simulation rules alongside the recording (keep the old constants selectable by `game_version`), invalidate recordings on balance changes and tell players, or accept that ghosts are for the current patch only. Pick one before shipping the first replay, because the choice is very hard to change after players have saved thousands of them.
+
+The Godot-specific gotcha is `.tres` from `user://`. Loading a Resource can execute a script embedded in it, so never `load()` a replay another player sent. Store recordings as your own binary layout via `FileAccess.store_var` with `full_objects` left false, or as JSON, and validate the size and version on read.
+
+This is [tenet #7 — hard to test is the design talking](/philosophy/listen-to-the-tests#functional-programming) taken seriously: a simulation that can be replayed is a simulation that is a pure function of its inputs, and that property is what buys everything above.
 
 ## Related Patterns
 
-- **CQRS:** The natural partner. Commands produce events appended to the store; read-side projections consume those events to build query-optimised views. Event Sourcing gives CQRS its event log.
-- **Event-Driven Architecture:** Event Sourcing focuses on aggregate state inside a bounded context; Event-Driven Architecture focuses on asynchronous communication between services. The two are complementary: an aggregate's persisted events can also be published to a broker for cross-service consumption.
-- **Domain-Driven Design:** Domain Events in DDD are the events in Event Sourcing. Aggregates emit events during state transitions; the application layer persists and dispatches them.
+- **[Simulation / Presentation Split](/patterns/architectural/simulation-presentation)**: The precondition. Event Sourcing needs a simulation with no nodes in it; that page is how to get one.
+- **[Command](/patterns/behavioral/command)**: An `InputFrame` is a Command that is data rather than an object. Use Command proper when events need to undo or carry behaviour.
+- **[Memento](/patterns/behavioral/memento)**: The snapshot. Memento covers the deep-copy discipline that `snapshot()` and `restore()` depend on.
+- **[Client-Server Multiplayer](/patterns/architectural/client-server)**: Server-authoritative games send state; lockstep games send inputs. Event Sourcing is the lockstep half, and the desync tooling above is its debugger.
+- **[Event-Driven](/patterns/architectural/event-driven)**: Different "event". Event-Driven is about reacting to facts now; Event Sourcing is about storing the facts that produced the state. A game can do both, and they should not share a bus.
+- **[Repository](/patterns/architectural/repository)**: Where recordings live on disk and how they are listed and versioned. The Repository is also where a `format_version` check belongs.

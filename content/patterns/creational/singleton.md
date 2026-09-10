@@ -51,7 +51,7 @@ func _physics_process(_delta: float) -> void:
 	move_and_slide()
 ```
 
-Open `enemy.tscn` and run it on its own with F6. It crashes in the first physics frame: `GameManager.player` is null because nothing set it. The enemy scene *looks* self-contained — a body, a sprite, a collision shape, a script — but it has two dependencies that appear nowhere in the scene tree or the inspector. The level has the same problem in reverse: `GameManager` reaches into `current_level.hud`, so the manager can't be exercised without a level either.
+Open `enemy.tscn` and play it alone with F6. It crashes in the first physics frame: `GameManager.player` is null because nothing set it. The enemy scene *looks* self-contained — a body, a sprite, a collision shape, a script — but it has two dependencies that appear nowhere in the scene tree or the inspector. The level has the same problem in reverse: `GameManager` reaches into `current_level.hud`, so the manager can't be exercised without a level either.
 
 Tests are worse. A GUT test that instantiates three enemies and kills one leaves `enemies_alive == 2` and `score == 10` sitting in the Autoload for every test that runs afterwards. Each test now needs a teardown that knows the manager's internals, and the moment two suites run in one process, order matters.
 

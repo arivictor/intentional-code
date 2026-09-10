@@ -1,142 +1,150 @@
 ---
 title: "Prototype"
-description: "Create new objects by cloning an existing instance, avoiding the cost of building from scratch and decoupling code from concrete types."
+description: "Create new nodes and Resources by copying a configured one with duplicate(), and know exactly which parts of the copy are still shared with the original."
 ---
 
 # Prototype
 
-**Buys correct, independent deep copies of reference fields; pays in manual `Clone()` upkeep — a forgotten field is a silent sharing bug the compiler won't catch.**
+**Buys cheap, independent copies of configured nodes and Resources via `duplicate()`; pays in shallow-versus-deep copy rules the engine won't check for you.**
 
-The Prototype pattern creates new objects by cloning an existing instance, avoiding the cost of building from scratch and decoupling code from concrete types. In Go, this is typically implemented with a `Clone()` method that returns a copy of the object. The key value of Prototype in Go is correctness: Go's struct assignment does a shallow copy, which can lead to shared mutable state if your struct contains reference types (maps, slices, pointers). A `Clone()` method makes the deep-copy semantics explicit and localised, so you can ensure that each copy is truly independent.
+Prototype makes a new object by copying a configured one instead of building it from scratch. Godot ships the pattern twice: `Node.duplicate()` copies a node and its subtree, `Resource.duplicate()` copies a data object. `PackedScene.instantiate()` is a prototype too — a scene file is a serialised template, and every instance is a copy of it. Most of the time you don't think about that, which is exactly the problem: copying is so easy in Godot that the interesting question is never *how* to copy but *what got shared*.
+
+The guarantee the pattern offers is a new object that starts where a tuned original left off. The guarantee it does not offer is that the copy is independent. A node's `@export var stats: EnemyStats` is a reference, and `duplicate()` copies the reference, not the Resource. Whether that's what you want depends on the field, and only you know.
 
 ## Scenario
 
-You have an HTTP request template: a base request with preset headers and query parameters that many parts of the code build on. The template has nested structures (a header map, a slice of query parameters). You need independent copies per request, but Go's assignment operator only does a shallow copy. Modifying the "copy" mutates the template.
+A designer builds an `EliteGrunt` directly in the arena scene: a grunt with a red `modulate`, a heavier weapon child, and an `EnemyStats` Resource edited inline with `max_health = 300`. The arena should spawn four more, each a little tougher.
 
-```go
-// shallow_bug.go
-package main
+```gdscript:title="res://levels/arena.gd"
+extends Node2D
 
-type Request struct {
-    Method  string
-    URL     string
-    Headers map[string]string
-    Tags    []string
-}
+@onready var _elite: Enemy = %EliteGrunt
 
-func main() {
-    base := &Request{
-        Method:  "GET",
-        Headers: map[string]string{"Accept": "application/json"},
-        Tags:    []string{"v1"},
-    }
-
-    // WRONG: shallow copy — map and slice share underlying memory
-    req := *base
-    req.URL = "/users"
-    req.Headers["Authorization"] = "Bearer token" // DANGER: mutates base!
-    req.Tags = append(req.Tags, "auth")            // DANGER: may mutate base!
-}
+func _ready() -> void:
+	for i in 4:
+		var clone := _elite.duplicate() as Enemy
+		clone.position = _elite.position + Vector2(64 * (i + 1), 0)
+		clone.stats.max_health += 50 * i      # "scale the later ones up"
+		add_child(clone)
+	print("template: %d" % _elite.stats.max_health)
 ```
 
-The struct assignment copies fields by value, but maps and slices hold references. The "copy" and the template share the same underlying data. This is a common source of subtle bugs in Go, especially when templates are reused concurrently.
+```text
+template: 600
+```
+
+Every clone shares one `EnemyStats`. The loop adds 0, then 50, then 100, then 150 to the *same* object, so all five enemies — including the designer's template — read 600. Nothing crashed, nothing warned, and the arena is twice as hard as it was tuned to be. The tell is that the change appeared somewhere it wasn't made.
+
+> **Smell:** You change a value on one instance and a different instance changes too. That's a shared Resource, and `duplicate()` didn't make it yours.
 
 ## Solution
 
-Implement a `Clone()` method that explicitly deep-copies every reference type. Making it a method ensures the copy logic lives with the type rather than scattered across callers. Run the example to confirm each clone is fully independent of the base:
+Copy the node, then explicitly copy the Resources you intend to mutate. Keep the template out of play so it can't be hit, and let the clone's own `_ready` initialise runtime state from its own copy.
 
 ```
-┌───────────────────┐    Clone()    ┌───────────────────┐
-│      base         │──────────────►│      copy         │
-│───────────────────│               │───────────────────│
-│ Method: "GET"     │               │ Method: "GET"     │
-│ Headers ────────►{Accept:json}    │ Headers ────────►{Accept:json}  ◄── new map
-│ Tags ───────────►["v1"]           │ Tags ───────────►["v1"]         ◄── new slice
-└───────────────────┘               └───────────────────┘
+_elite ─── stats ──► EnemyStats#1 (max_health 300)
+clone_a ── stats ──► EnemyStats#1        ← Node.duplicate() copied the reference
+clone_b ── stats ──► EnemyStats#1
+
+after clone.stats = template.stats.duplicate(true):
+
+clone_a ── stats ──► EnemyStats#2 (300)   ← its own; mutate freely
+clone_b ── stats ──► EnemyStats#3 (300)
 ```
 
-```go:title="main.go":run=true:editable=true
-package main
+```gdscript:title="res://enemies/enemy_stats.gd"
+class_name EnemyStats extends Resource
 
-import "fmt"
+@export var max_health: int = 30
+@export var speed: float = 80.0
+@export var loot: Array[ItemData] = []
+```
 
-type Request struct {
-	Method  string
-	URL     string
-	Headers map[string]string
-	Tags    []string
-}
+```gdscript:title="res://enemies/enemy.gd"
+class_name Enemy extends CharacterBody2D
 
-func (r *Request) Clone() *Request {
-	clone := &Request{Method: r.Method, URL: r.URL}
-	if r.Headers != nil {
-		clone.Headers = make(map[string]string, len(r.Headers))
-		for k, v := range r.Headers {
-			clone.Headers[k] = v
-		}
-	}
-	if r.Tags != nil {
-		clone.Tags = make([]string, len(r.Tags))
-		copy(clone.Tags, r.Tags)
-	}
+@export var stats: EnemyStats
+
+var health: int      # runtime state: NOT copied by duplicate(), set in _ready
+
+func _ready() -> void:
+	health = stats.max_health
+```
+
+```gdscript:title="res://levels/arena.gd"
+extends Node2D
+
+@onready var _elite: Enemy = %EliteGrunt
+
+func _ready() -> void:
+	remove_child(_elite)      # an off-tree template can't be seen or hit
+
+	for i in 4:
+		var clone := clone_template(_elite, i + 1)
+		clone.stats.max_health += 50 * i
+		clone.position = _elite.position + Vector2(64 * (i + 1), 0)
+		add_child(clone)      # _ready runs here: health = its own max_health
+		print("%s: max %d, health %d" % [clone.name, clone.stats.max_health, clone.health])
+	print("template: %d" % _elite.stats.max_health)
+
+func _exit_tree() -> void:
+	_elite.queue_free()       # nodes outside the tree aren't freed with the scene
+
+func clone_template(template: Enemy, index: int) -> Enemy:
+	var clone := template.duplicate() as Enemy
+	clone.stats = template.stats.duplicate(true)    # own Resource, own loot Array
+	clone.name = "Elite%d" % index
 	return clone
-}
-
-func main() {
-	base := &Request{
-		Method:  "GET",
-		Headers: map[string]string{"Accept": "application/json"},
-		Tags:    []string{"v1"},
-	}
-
-	users := base.Clone()
-	users.URL = "/users"
-	users.Headers["Authorization"] = "Bearer token-a"
-	users.Tags = append(users.Tags, "users")
-
-	metrics := base.Clone()
-	metrics.URL = "/metrics"
-	metrics.Headers["Authorization"] = "Bearer token-b"
-
-	fmt.Printf("base headers:    %v\n", base.Headers)
-	fmt.Printf("users headers:   %v\n", users.Headers)
-	fmt.Printf("metrics headers: %v\n", metrics.Headers)
-	fmt.Printf("base tags:       %v\n", base.Tags)
-	fmt.Printf("users tags:      %v\n", users.Tags)
-}
 ```
 
-Output:
+```text
+Elite1: max 300, health 300
+Elite2: max 350, health 350
+Elite3: max 400, health 400
+Elite4: max 450, health 450
+template: 300
+```
 
-```
-base headers:    map[Accept:application/json]
-users headers:   map[Accept:application/json Authorization:Bearer token-a]
-metrics headers: map[Accept:application/json Authorization:Bearer token-b]
-base tags:       [v1]
-users tags:      [v1 users]
-```
+The template stays at 300 and each clone owns its numbers. Two details carry the correctness. `template.stats.duplicate(true)` gives the clone its own `EnemyStats` *and* its own `loot` Array, so a clone that drops an item doesn't shorten the template's loot. And `health` is assigned in `_ready`, after the stats were replaced and after `add_child`, so it reads the clone's value rather than whatever the template had.
+
+### What `duplicate()` copies, and what it doesn't
+
+`Node.duplicate()` copies the node, its children, its built-in properties, and the script properties that have storage — which in practice means `@export` variables. A plain `var health` is not storage, so the clone gets the script's initialiser, not the template's current value. Groups are copied. Signal connections made in the editor are copied; connections made in code are not, so a template whose `died` was wired by a spawner produces clones nobody is listening to. `_ready` runs on the clone when it enters the tree, and `@onready` variables resolve against the clone's own children, which is what you want.
+
+`Resource.duplicate()` with no argument is shallow: exported values are copied, sub-Resources are shared. `duplicate(true)` copies the sub-Resources held directly in properties. Resources nested inside Arrays and Dictionaries have behaved differently across 4.x minor versions; if a clone's independence depends on one, write a gdUnit4 test that mutates the copy and asserts the original is untouched, and let it tell you.
+
+### `resource_local_to_scene`
+
+For scenes rather than in-tree templates, the inspector offers a shortcut. Tick **Local to Scene** on the `EnemyStats` sub-resource in `grunt.tscn` and every `instantiate()` of that scene gets its own copy of the Resource automatically. This is how materials and shaders are usually handled, and it's the right default for any Resource a node writes to during play. It applies to instantiation, not to `duplicate()` — for a `duplicate()`d node, copy the Resource yourself as above and don't rely on the flag.
+
+The flag has a cost worth naming: a Resource that is local to scene can no longer be shared, so a thousand grunts hold a thousand `EnemyStats`. If the data is read-only, leave the flag off and let them share it — that's [Flyweight](/patterns/structural/flyweight), and it's the cheaper design.
 
 ## When to Use
 
-- You need to create objects that are variations of an existing instance, and construction from scratch is expensive or complex.
-- You want to decouple code from the concrete types it copies: work with a `Cloneable` interface.
-- Your types contain reference types (slices, maps, pointers) and you need truly independent copies.
+- A designer has tuned an instance in a scene and you want more of it — the configured node is a better template than the scene file plus code that re-applies the tweaks.
+- Construction from scratch is expensive or fiddly and a copy of an existing instance is most of the way there.
+- You need independent copies of a Resource to mutate per instance: per-enemy stats, per-player inventories, a save-game snapshot.
+- Variants differ from a base by a few fields, and copy-then-tweak is clearer than a constructor with a dozen parameters.
 
 ## When Not to Use
 
-- Your type is simple and has only value fields. Plain struct assignment is the correct copy mechanism.
-- Deep copying is too expensive for your use case. Consider immutable shared state ([Flyweight](/patterns/structural/flyweight)) instead.
-- You only need a few variations. A constructor with parameters is simpler than cloning and modifying.
+- The copies don't mutate their shared data. Then sharing is the feature, and `duplicate(true)` just costs memory.
+- The template is a scene file, not an in-tree node. `instantiate()` is the same pattern with better tooling.
+- You're copying to save state for undo. That's [Memento](/patterns/behavioral/memento), which wants an opaque snapshot rather than a live peer.
+- The object graph is large and deeply nested. `duplicate(true)` walks all of it, on the main thread, in the frame you call it.
 
 ## The Decision
 
-The `Clone()` method is the right tool when correctness requires truly independent copies of reference types, but it has to be maintained manually. Every time you add a slice, map, or pointer field to a struct, you must also update `Clone()` or you silently introduce a sharing bug. The Go compiler gives you no help here: a forgotten field passes all type checks and only fails at runtime when a mutation bleeds through.
+`duplicate()` is cheap to call and expensive to trust. It copies exactly what the engine considers a property and shares exactly what the engine considers a reference, and neither rule is visible at the call site. A node that works perfectly as a single instance can be duplicated into four that silently share a stats block, a `Tween` that isn't there, or a signal connection that only the original had. The fix is never clever: decide, field by field, what a copy should own, and write the `duplicate(true)` or the re-connect for each one.
 
-Deep-copying large object graphs is also proportionally expensive. If the object you're cloning contains many nested pointers, the clone walks all of them. For objects with circular references, you need to track visited nodes, which adds real complexity. If the primary goal is snapshotting state for undo rather than creating a new independent instance, [Memento](/patterns/behavioral/memento) is a more targeted fit.
+The Godot-specific version of that discipline is to make Resources either shared-and-immutable or local-and-owned, and to know which each one is. `resource_local_to_scene` handles the second case for instanced scenes; explicit copying handles it for everything else. Mixing the two — a mutable Resource that some instances share and others don't — is how the arena ended up at 600.
 
-The standard library ships a Prototype you've already used: `(*http.Request).Clone(ctx)` deep-copies the header map and trailers so the copy can be mutated without disturbing the original — and it's a method precisely because a shallow struct copy would share those maps.
+This is [tenet #2 — name the trade-off](/philosophy/name-the-trade-off) in practice: a copy is cheap because it shares, and every field you decide to un-share is a cost you chose to pay for independence.
 
 ## Related Patterns
 
-- **Factory Method**: Use Factory Method when creating an object from scratch is straightforward and the choice of which concrete type matters; use Prototype when the existing state of an instance is the right starting point for a new independent copy.
-- **Memento**: Memento also copies object state, but for undo/restore rather than creating new independent instances. The distinction is purpose: Memento saves a snapshot to roll back to, Prototype creates a new peer to build on separately.
+- **[Factory Method](/patterns/creational/factory-method)**: creates from a scene or data by id. Prototype creates from a live instance; reach for it when the configured node is the truth.
+- **[Object Pool](/patterns/creational/object-pool)**: a pool often fills itself by duplicating one configured template, then relies on a `reset()` contract instead of fresh copies.
+- **[Builder](/patterns/creational/builder)**: a builder's `build()` that returns `duplicate(true)` of its draft is Prototype used to make the builder a reusable preset.
+- **[Flyweight](/patterns/structural/flyweight)**: the case where you deliberately *don't* copy — share the immutable Resource across every instance.
+- **[Memento](/patterns/behavioral/memento)**: copying for undo and checkpoints, where the copy is a snapshot to restore rather than a new peer to play with.

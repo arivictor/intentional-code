@@ -1,142 +1,153 @@
 ---
 title: "Data Races"
-description: "What a data race actually is, why counter++ isn't atomic, and how to find races with the -race detector before they find you in production."
+description: "What a data race is in GDScript terms, why count += 1 is three steps, what Godot's debug thread guards do and don't catch, and how to reproduce a race on purpose with a stress test."
 ---
 
 # Data Races
 
-**Buys near-zero-false-positive race detection when you run the suite under `-race` in CI; pays a test-time CPU and memory multiplier, and catches only the interleavings it actually observes.**
+**Buys early, loud failure by keeping thread-safety checks on in debug builds; pays in a detector that catches only the interleavings it observes — the discipline is yours.**
 
-A data race happens when two goroutines touch the same memory at the same time, and at least one of them is writing. The result is undefined: you might get the right answer, a wrong answer, a torn value, or a crash — and which one you get can change between runs, between machines, and between compiler versions. Races are the single most common concurrency bug in Go, and the most expensive to debug, because the symptom rarely shows up where the cause lives.
+A data race is two threads touching the same memory at the same time, with at least one of them writing. The result is undefined: the right answer, a wrong answer, a torn value, or a crash — and which one you get changes between runs, machines, and builds. Races are the most expensive bug in threaded code because the symptom almost never appears where the cause lives, and because the interleaving that triggers it may not happen on your machine at all.
 
-This page is the foundation for the rest of this section. Every other pattern here — [Mutex](/patterns/synchronisation/mutex), [RWMutex](/patterns/synchronisation/rwmutex), [Atomic](/patterns/synchronisation/atomic) — exists to make a data race impossible.
+This page is the foundation for the rest of the family. [Mutex](/patterns/synchronisation/mutex), [Snapshot](/patterns/synchronisation/snapshot), [Main-Thread Ownership](/patterns/synchronisation/main-thread-ownership), [Thread-Safe Queue](/patterns/synchronisation/thread-safe-queue) — each exists to make a race impossible. It also names what Godot does for you: the debug builds check that nodes are touched from the right thread, and that is all. There is no race detector for your own variables. The discipline is the tool.
 
 ## Scenario
 
-Three goroutines each increment a shared counter 3000 times. You expect 9000. Run this and you'll often get less:
+A loot roll runs across the [Worker Thread Pool](/patterns/concurrency/worker-thread-pool) — four hundred tasks, each rolling one drop and counting rare results into a shared tally:
 
-```go
-// BAD — three goroutines write `counter` with no synchronisation.
-var counter int
-var wg sync.WaitGroup
+```gdscript:title="res://loot/loot_stats.gd"
+class_name LootStats extends RefCounted
 
-for i := 0; i < 3; i++ {
-    wg.Add(1)
-    go func() {
-        defer wg.Done()
-        for j := 0; j < 3000; j++ {
-            counter++ // data race
-        }
-    }()
-}
-wg.Wait()
-fmt.Println(counter) // 9000? sometimes. 7421? also.
+var rare_count: int = 0
+
+func roll_all(rolls: int) -> int:
+	var gid := WorkerThreadPool.add_group_task(_roll_one, rolls)
+	WorkerThreadPool.wait_for_group_task_completion(gid)
+	return rare_count
+
+func _roll_one(_index: int) -> void:
+	if randf() < 0.1:
+		rare_count += 1   # data race
 ```
 
-The bug hides in plain sight. `counter++` *looks* like one step, but it's three: read the current value, add one, write it back. When two goroutines read `8` at the same time, both compute `9`, and both write `9`. Two increments, one result. The lost update is invisible in the source — there's no line you can point at and say "the race is here," because the race is in the *interleaving*, not the code.
+Ten percent of four hundred rolls is forty, give or take the dice. Call `roll_all(400)` and the count is right most of the time, and every so often it's thirty-eight. The dice didn't change; two increments were lost.
 
-> **Smell:** A variable is read or written from more than one goroutine and you can't point to the lock, channel, or atomic that orders those accesses. If the only thing keeping it correct is "the goroutines probably won't collide," it's a race — it just hasn't lost yet.
+`rare_count += 1` looks like one step. It's three: read the current value into a temporary, add one, write the temporary back. When two pool threads read `12` at the same moment, both compute `13`, and both write `13`. Two increments, one result. There's no line you can point at and say "the race is here" — the race is in the interleaving, not the source.
 
-## The fix
+> **Smell:** A variable is read or written from a `Thread` callable or a pool task *and* from anywhere else, and you can't point at the Mutex, the deferred call, or the ownership rule that orders the two. "They'll probably never collide" is a probability, not a guarantee, and four hundred tasks is a lot of trials.
 
-Make the read-modify-write indivisible. A [`sync.Mutex`](/patterns/synchronisation/mutex) does exactly that: only one goroutine holds the lock at a time, so the three steps of `counter++` can't be interleaved with anyone else's. This version always prints `9000`:
+## Solution
 
-```go:title="main.go":run=true:editable=true
-package main
+Make the read-modify-write indivisible. A [Mutex](/patterns/synchronisation/mutex) does exactly that — one thread in the critical section at a time, so the three steps of `+= 1` can't interleave with another thread's:
 
-import (
-	"fmt"
-	"sync"
-)
+```gdscript:title="res://loot/loot_stats.gd"
+class_name LootStats extends RefCounted
 
-func main() {
-	var counter int
-	var mu sync.Mutex
-	var wg sync.WaitGroup
+var _mutex := Mutex.new()
+var _rare_count: int = 0
 
-	for i := 0; i < 3; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done() // put this first — it's a guarantee, not an afterthought
-			for j := 0; j < 3000; j++ {
-				mu.Lock()
-				counter++
-				mu.Unlock()
-			}
-		}()
-	}
+func roll_all(rolls: int) -> int:
+	var gid := WorkerThreadPool.add_group_task(_roll_one, rolls)
+	WorkerThreadPool.wait_for_group_task_completion(gid)
+	return _rare_count   # safe: every task has finished; the join orders it
 
-	wg.Wait()
-	fmt.Println(counter) // always 9000
-}
+func _roll_one(_index: int) -> void:
+	if randf() < 0.1:
+		_mutex.lock()
+		_rare_count += 1
+		_mutex.unlock()
 ```
 
-This is essentially the code you'd write by hand, with two small corrections worth calling out.
+Better still is to not share the counter at all. Give each task its own slot and add them up after the [join](/patterns/synchronisation/join):
 
-**`defer wg.Done()` goes at the top of the goroutine, not the bottom.** `defer` runs when the function *returns*, regardless of where the statement sits. Writing it at the end (after the loop) still works, but it reads as if `Done` happens at that line — it doesn't. Putting `defer wg.Done()` as the first line states the contract up front: *this goroutine signals completion when it exits, no matter how it exits.* If a future edit adds an early `return` or a panic-recover, the deferred `Done` still fires and `wg.Wait()` won't hang.
-
-**The loop counter and the launch loop are independent.** A common version starts the inner loop at `1` and runs `<= 3000`; starting at `0` and running `< 3000` is the same count and the more idiomatic Go form.
-
-## Finding races: the `-race` detector
-
-You don't have to spot races by eye. Go ships a race detector built into the toolchain. Add `-race` to `run`, `test`, or `build` and the runtime instruments every memory access, then reports any unsynchronised read/write pair it observes at runtime:
-
-```bash
-go run -race main.go     # run a program with the detector on
-go test -race ./...      # the important one — run your whole suite under -race
-go build -race -o app .  # build an instrumented binary
+```gdscript:title="res://loot/loot_stats.gd"
+func roll_all(rolls: int) -> int:
+	var hits: Array[int] = []
+	hits.resize(rolls)                         # sized BEFORE the tasks start
+	var gid := WorkerThreadPool.add_group_task(
+		func(i: int) -> void: hits[i] = 1 if randf() < 0.1 else 0, rolls)
+	WorkerThreadPool.wait_for_group_task_completion(gid)
+	return hits.reduce(func(sum: int, h: int) -> int: return sum + h, 0)
 ```
 
-On the broken version above, the detector prints exactly where the conflicting accesses happened, with both goroutine stacks:
+Each task writes `hits[i]` — its own index — and nothing else. No lock, no race, and no contention on a hot path. Resizing *before* the tasks start is the detail: `resize()` during the batch would be a write to the Array itself, racing with every task. The order of preference for any race is the same as here: don't share; if you must share, hand off; if you must genuinely share over time, lock.
 
-```
-==================
-WARNING: DATA RACE
-Read at 0x00c0000140a0 by goroutine 8:
-  main.main.func1()
-      /tmp/main.go:14 +0x...
-Previous write at 0x00c0000140a0 by goroutine 7:
-  main.main.func1()
-      /tmp/main.go:14 +0x...
-==================
+## What Godot checks for you
+
+Debug builds and the editor carry **thread guards** on Node methods and on the servers behind them. Call `add_child`, `queue_free`, `get_node`, or a property setter that reaches the rendering or physics server from a thread that isn't the main thread, and you get:
+
+```text
+ERROR: Caller thread can't call this function in this node (/root/Level/Enemies/Grunt3). Use call_deferred() or call_thread_group() instead.
+   at: (scene/main/node.cpp)
 ```
 
-Two things to internalise about the detector:
+The call is skipped, the node path is in the message, and you can fix it in a minute. Keep these checks on. `Thread.set_thread_safety_checks_enabled(false)` disables them for the calling thread; the only reason to call it is that you have read the engine source for a specific call and know it's safe from that specific thread. Calling it to silence an error is disabling the smoke alarm because it went off.
 
-- **It only catches races it actually observes.** If a particular interleaving doesn't happen during the run, it won't be reported. That's why you run your *whole test suite* under `-race` in CI, not a one-off — more code paths exercised means more races caught.
-- **It has no false positives.** If `-race` reports a race, it is a real race. There is no "but it works on my machine" rebuttal.
+Be precise about what the guard is. It checks *which thread is calling a node*. It does not check *whether two threads touch the same variable*. The `rare_count` race above triggers nothing — `LootStats` is a `RefCounted`, `rare_count` is a script variable, and no guard exists for script variables. The same is true of a Dictionary shared between a worker and `_process`, an Array appended from two tasks, or a `bool` flag used as a hand-off. Godot catches the crossing into the tree; races on your own data are yours to prevent.
 
-Wire it into CI once and it pays for itself: run `go test -race ./...` in your Makefile and GitHub Actions, and treat a race report as a build failure rather than a flaky test to retry.
+Release builds compile the guards out. A thread that touched a node "harmlessly" in debug because the guard skipped the call will actually perform the call in release, on a structure the main thread is using. This is why the fix for a guard error is always to move the call, never to disable the guard.
 
-## When you have a race
+## Discipline in place of a detector
 
-The fix is always one of: stop sharing the memory, or synchronise the access. In rough order of preference:
+With no race detector for script data, correctness comes from three rules, applied in order:
 
-- **Don't share it.** Give each goroutine its own copy and combine results at the end. No shared write, no race. This is the channels model — see the [concurrency patterns](/patterns/concurrency).
-- **Make the access atomic.** For a single integer or pointer, [`sync/atomic`](/patterns/synchronisation/atomic) is lock-free and the lightest fix.
-- **Guard it with a lock.** For anything more than one word — a struct, a map, a multi-field update — a [`sync.Mutex`](/patterns/synchronisation/mutex) around the critical section is the standard tool.
+1. **Main-thread ownership for nodes.** Only the main thread reads or writes anything in the scene tree. Workers take plain values in and hand plain values out through `call_deferred()`. The debug guard backs this rule up; nothing backs up the next two. See [Main-Thread Ownership](/patterns/synchronisation/main-thread-ownership).
+2. **Immutable hand-off for data.** A value crosses threads once, and the sender never touches it again. Return it from the `Thread` callable, deliver it with `call_deferred()`, push it through a [Thread-Safe Queue](/patterns/synchronisation/thread-safe-queue), or publish a [Snapshot](/patterns/synchronisation/snapshot). If you `duplicate()` before sending and never mutate after, there is nothing to race on.
+3. **A Mutex for the rest.** State that both sides genuinely need to mutate over time — a cache, a tally, a claimed-set — lives in a class that bundles the [Mutex](/patterns/synchronisation/mutex) with the data, and every access goes through the lock.
 
-## Common Mistakes
+Two things to internalise: **a single statement is not atomic.** `count += 1`, `dict[key] = value`, `array.append(x)`, and `flag = true` are all several operations at the machine level, and GDScript makes no promise about any of them across threads. And **there are no atomics to reach for.** Other languages offer an atomic integer for the counter case; GDScript's answer is the mutex, or not sharing.
 
-**Thinking a single statement is atomic.** `counter++`, `m[k] = v`, `slice = append(slice, x)`, and `p = newPtr` are all multiple machine operations. None of them are safe to run concurrently without synchronisation. "It's just one line" is not a correctness argument.
+## Reproducing a race on purpose
 
-**Believing a race that "always gives the right answer" is fine.** Undefined behaviour includes *happening to work today*. The same code can corrupt memory after a compiler upgrade, on a different CPU architecture, or under load you haven't tested. A race the detector finds is a bug whether or not you've seen it misbehave.
+A race that "works on my machine" is still a race. Since no tool will find it, write a test that gives it the best possible chance to fail. The recipe: many threads, a tight loop, a shared variable, and an assertion on the exact expected result.
 
-**Reaching for a longer sleep to "fix" it.** `time.Sleep` doesn't synchronise anything; it just changes the timing so the race is harder to reproduce. The bug is still there, now better hidden.
+```gdscript:title="res://tests/test_loot_stats.gd"
+extends GutTest
 
-**Racing on a map.** Concurrent map writes are special: the Go runtime detects them directly and crashes the program with `fatal error: concurrent map writes`, even without `-race`. Guard the map with a [Mutex](/patterns/synchronisation/mutex), or use `sync.Map` for the specific access patterns it's built for.
+const TASKS := 8
+const ITERATIONS := 20_000
+
+var _stats: SharedCounter   # the class under test, Mutex inside
+
+func test_counter_survives_contention() -> void:
+	_stats = SharedCounter.new()
+	var gid := WorkerThreadPool.add_group_task(_hammer, TASKS)
+	WorkerThreadPool.wait_for_group_task_completion(gid)
+	assert_eq(_stats.value(), TASKS * ITERATIONS)
+
+func _hammer(_task_index: int) -> void:   # pool thread
+	for _n: int in ITERATIONS:
+		_stats.increment()
+```
+
+Point this test at a version of `SharedCounter` with the lock removed and it fails within a few attempts — 160,000 increments across eight threads lose updates almost every time. Point it at the locked version a hundred times and it passes a hundred times. That is the closest thing to a race detector you have: a stress test, kept in the suite, that turns "probably fine" into a number.
+
+Repeat it. A race is probabilistic, and a test that passed once proves only that one interleaving was fine. Both GUT and gdUnit4 can repeat a test; make the contention tests loop, and treat a single failure in a hundred runs as a real bug, not a flake.
+
+## When to Use
+
+- Every time a `Thread` or a pool task touches anything it didn't create itself. Ask which of the three rules covers each access; if none does, it's a race.
+- Any new thread-safe class. Write the stress test first, watch it fail without the lock, then add the lock.
+- Reviewing a threading change. "Where's the lock, the deferred call, or the ownership rule for this variable?" is the whole review.
+
+## When Not to Use
+
+- Coroutines. `await` yields to the engine, but everything before and after it runs on the main thread. Two coroutines interleave only at `await` points, and there's no race between them — just ordering questions, which are [Coroutines](/patterns/concurrency/coroutines) territory.
+- Code that never spawns a thread. If your game uses `await`, signals, and `call_deferred` and nothing else, nothing on this page applies, and adding a Mutex "to be safe" is noise.
+- `WorkerThreadPool` group tasks that write disjoint slots and are joined before anyone reads. That's the no-share rule already applied; there is nothing left to guard.
 
 ## The Decision
 
-**Race detector in CI vs. catching races by review.**
-You cannot reliably find races by reading code — the whole problem is that the bug lives in interleavings you can't see in source. `-race` is cheap (a CPU and memory multiplier on test runs, nothing in production since you ship the uninstrumented binary) and decisive. Running the suite under `-race` in CI is the single highest-leverage thing you can do for concurrent Go. Treat a `-race` failure as a build failure, not a warning.
+**Disable the guards vs. fix the call.** The guard error is a precise, cheap, early report of a crossing that will crash a release build. Every time the temptation to disable it wins, a bug moves from "fixed in a minute in the editor" to "reproduced on one tester's phone next month". Keep them on in every debug build and treat the error as a failing test. The only cost is the plumbing to move the call, which is a `call_deferred` away.
 
-**Synchronise vs. don't share.**
-The fastest, simplest, most bug-resistant fix for a race is to not have shared mutable state at all. Before adding a lock, ask whether each goroutine could own its own data and hand results back through a channel or a `wg.Wait()`-then-combine step. Locks are correct, but they add contention and a new way to deadlock; unshared data has neither problem. Share memory only when the alternative is genuinely more complex — then guard every access to it.
+**Lock vs. don't share.** The fastest, simplest, most reviewable fix for a race is to not have shared mutable state. Before you add a mutex, ask whether each task could own its slot, whether the worker could return its result, whether the state could be a snapshot. Locks are correct, and they add contention and a new way to deadlock; unshared data has neither problem. Reach for the mutex when both sides genuinely need the same state over time, and then guard every access to it.
+
+**Test or trust.** With no detector, you either write the stress test or you trust your reading of the code. Reading finds the obvious races; the ones that ship are the non-obvious ones. This is [listen to the tests](/philosophy/listen-to-the-tests) applied where it is hardest to hear them: a threading test that passes a hundred times in a row is evidence, and a threading change without one is a guess.
 
 ## Related Patterns
 
-- **[Mutex](/patterns/synchronisation/mutex)**: the default fix — mutual exclusion around a critical section.
-- **[Atomic](/patterns/synchronisation/atomic)**: the lock-free fix for a single integer, flag, or pointer.
-- **[WaitGroup](/patterns/synchronisation/waitgroup)**: coordinates *completion* (used above) but does **not** protect shared memory — a common point of confusion.
-- **[Concurrency Patterns](/patterns/concurrency)**: the channel-first model that avoids shared memory in the first place.
+- **[Mutex](/patterns/synchronisation/mutex)**: the general fix — mutual exclusion around the critical section.
+- **[Main-Thread Ownership](/patterns/synchronisation/main-thread-ownership)**: the rule the debug guard enforces, and the plumbing that satisfies it.
+- **[Snapshot](/patterns/synchronisation/snapshot)** and **[Thread-Safe Queue](/patterns/synchronisation/thread-safe-queue)**: the two hand-off shapes that avoid shared mutation.
+- **[Join](/patterns/synchronisation/join)**: orders completion — used above to read results safely after the batch — but does **not** protect memory during it.
+- **[Concurrency Patterns](/patterns/concurrency)**: the coroutine-first model that keeps most game logic on the main thread, where none of this applies.

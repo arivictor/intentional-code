@@ -41,7 +41,7 @@ Every new enemy means editing this file, and the boss arena has its own copy of 
 
 ## Solution
 
-Put the mapping in one Resource. `Dictionary[String, PackedScene]` is editable in the inspector, so the registry is a `.tres` file a designer can extend by dragging scenes into it. The factory owns the only `instantiate()` call and the only place an unknown id is reported.
+Put the mapping in one Resource. `Dictionary[String, PackedScene]` is edited in the inspector, so the registry is a `.tres` file a designer can extend by dragging scenes into it. The factory owns the only `instantiate()` call and the only place an unknown id is reported.
 
 ```
 WaveSpawner ──"archer"──► EnemyFactory ──► scenes["archer"].instantiate()
@@ -160,7 +160,7 @@ Not every product is a `PackedScene`. Status effects, AI behaviours, and dialogu
 
 ## The Decision
 
-The registry buys open-ended extension — a new enemy is a new entry, not a new branch — and it buys a single place to report unknown ids. What it costs is that reading the code no longer tells you what gets spawned. To learn what `"brute"` is you open the `.tres`, and to learn whether a wave is valid you run it. A `match` over `preload`s is a closed set the script parser checks for you; a `Dictionary` is an open set nobody checks until it's used. Validation in `_ready` narrows that gap but doesn't close it, because the data can still change after the scene loaded.
+The registry buys open-ended extension — a new enemy is a new entry, not a new branch — and it buys a single place to report unknown ids. What it costs is that reading the code no longer tells you what gets spawned. To learn what `"brute"` is you open the `.tres`, and to learn whether a wave is valid you play it. A `match` over `preload`s is a closed set the script parser checks for you; a `Dictionary` is an open set nobody checks until it's used. Validation in `_ready` narrows that gap but doesn't close it, because the data can still change after the scene loaded.
 
 The Godot-specific consideration is load time. A `preload` in a `const` is resolved when the script is parsed, so a spawner that preloads twelve enemy scenes pays for all twelve when the level loads. An `EnemyFactory.tres` holding twelve `PackedScene`s pays the same cost when the Resource loads. Neither is lazy. If the boss scene is heavy, keep it out of the registry and use `ResourceLoader.load_threaded_request` behind a [Proxy](/patterns/structural/proxy) instead.
 

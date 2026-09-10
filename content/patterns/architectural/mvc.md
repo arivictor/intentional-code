@@ -68,8 +68,10 @@ signal died
 @export var max_health: int = 100:
 	set(value):
 		max_health = maxi(value, 1)
-		health = mini(health, max_health)
-		health_changed.emit(health, max_health)
+		if health > max_health:
+			health = max_health          # the health setter emits
+		else:
+			health_changed.emit(health, max_health)
 
 @export var health: int = 100:
 	set(value):
@@ -159,8 +161,6 @@ extends GutTest
 class FakeHud extends Hud:
 	var health_calls: Array = []
 	var gold_text: String = ""
-	func _ready() -> void:
-		pass   # no %HealButton in a fake
 	func show_health(current: int, maximum: int, low: bool) -> void:
 		health_calls.append([current, maximum, low])
 	func show_gold(text: String) -> void:
@@ -187,7 +187,7 @@ func test_heal_costs_ten_gold() -> void:
 	view.free()
 ```
 
-`FakeHud` is a `CanvasLayer` that is never added to a tree, so it must be freed by hand — `queue_free` needs a tree to defer to. A `RefCounted` view interface avoids even that; the price is losing `class_name Hud` as the view's type.
+`FakeHud` is a `CanvasLayer` that is never added to a tree: its `_ready` (and the `%HealButton` lookup inside it) never runs, and it must be freed by hand because `queue_free` needs a tree to defer to. A `RefCounted` view interface avoids even that; the price is losing `class_name Hud` as the view's type.
 
 ### Wiring and the controller (MVC)
 

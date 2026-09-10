@@ -1,47 +1,49 @@
 ---
 title: Synchronisation Patterns
-description: The shared-memory side of Go concurrency — mutexes, atomics, and the primitives that keep state correct when several goroutines touch it at once.
+description: The shared-memory side of threading in Godot — Mutex, Semaphore, and the disciplines that stand in for the primitives GDScript doesn't have.
 ---
 
-Go's [concurrency patterns](/patterns/concurrency) follow one slogan: *"Do not communicate by sharing memory; instead, share memory by communicating."* Channels first, shared state avoided. But Go fully supports the other model too, and sometimes it's the simpler one: several goroutines legitimately sharing a piece of state, coordinated by a lock. This section is that other half — the `sync` and `sync/atomic` primitives, and the [data race](/patterns/synchronisation/data-races) they exist to prevent.
+Most Godot games never need a thread. Coroutines, signals, and deferred calls cover multi-frame logic on the main thread, and the [concurrency patterns](/patterns/concurrency) show how far that gets you. This section is for the moment it isn't enough: chunk generation, pathfinding over a large grid, serialising a save, parsing a network stream — work that would stall a frame, so it moves to a `Thread` or the `WorkerThreadPool`. The instant it does, two threads can touch the same memory, and everything here exists to make that safe.
 
-## When channels, when locks
+## What Godot gives you, and what it doesn't
 
-This is the question that routes you here versus to the concurrency patterns:
+GDScript ships exactly two primitives: **`Mutex`** (`lock`, `unlock`, `try_lock`) and **`Semaphore`** (`post`, `wait`, `try_wait`). There is no read-write lock, no atomic integer, no condition variable, and no race detector. Every other language's toolbox item has a stand-in here, and knowing the mapping is half the job:
 
-- **Use channels** to *transfer ownership* of data and to coordinate *flow* — a value moves from one goroutine to another, hand-off by hand-off. After the send, the sender doesn't touch it. The channel patterns ([pipeline](/patterns/concurrency/pipeline), [worker pool](/patterns/concurrency/worker-pool), [fan-out/fan-in](/patterns/concurrency/fan-out-fan-in)) are built on this.
-- **Use a lock** to *protect* a piece of state that several goroutines genuinely share and all need to read and write in place — a counter, a cache, a config struct, a map of sessions. Routing every access to such state through a channel and a single owner goroutine is often more machinery than a small mutex around the state.
+- A **read-write lock** becomes a [Snapshot](/patterns/synchronisation/snapshot): the writer publishes an immutable copy, readers never lock.
+- An **atomic flag or counter** becomes a [Mutex](/patterns/synchronisation/mutex) around three lines, or not sharing at all. There is no lock-free write in GDScript, and a "harmless" `bool` across threads is still a race.
+- A **condition variable** becomes a [Semaphore](/patterns/synchronisation/semaphore) posted once per change, usually wrapped in a [Thread-Safe Queue](/patterns/synchronisation/thread-safe-queue).
+- A **race detector** becomes a stress test you write yourself, plus the engine's debug thread guards — which catch nodes touched from the wrong thread, and nothing else. [Data Races](/patterns/synchronisation/data-races) draws that line precisely.
 
-Neither is a code smell. Picking the wrong one for the job is. A counter incremented from ten goroutines is a mutex or an atomic, not a channel. A stream of jobs flowing through stages is channels, not a shared slice under a lock.
+And one rule that is not a primitive but outranks all of them: **only the main thread touches the scene tree.** Nodes are never guarded by locks, because they are never shared. Workers compute values; the main thread applies them. That is [Main-Thread Ownership](/patterns/synchronisation/main-thread-ownership), and the debug builds enforce it loudly.
 
 ## The building blocks
 
-**`sync.Mutex`** — the general-purpose lock. One goroutine in the critical section at a time. The default fix for any shared state bigger than a single machine word. Start [here](/patterns/synchronisation/mutex).
+**[Mutex](/patterns/synchronisation/mutex)** — the general-purpose lock, bundled in a class with the data it guards. One thread in the critical section at a time. GDScript has no `defer`, so unlocking on every path is a discipline the page spells out. The default for any plain state a worker and the main thread both mutate.
 
-**`sync.RWMutex`** — a mutex that lets many readers run in parallel and writers go exclusive. Pays off for read-heavy, contended state; otherwise heavier than a plain `Mutex`. See [RWMutex](/patterns/synchronisation/rwmutex).
+**[Semaphore](/patterns/synchronisation/semaphore)** — a counted wake-up. A worker thread `wait()`s and sleeps at no cost; a producer `post()`s once per item and the worker wakes exactly that many times. Miss a post and the worker sleeps forever, which is the whole risk.
 
-**`sync/atomic`** — lock-free operations on a single integer, boolean, or pointer. The lightest fix when the shared state is exactly one word. See [Atomic](/patterns/synchronisation/atomic).
+**[Snapshot](/patterns/synchronisation/snapshot)** — lock-free reads for state that is read constantly and rewritten rarely. The writer builds a fresh copy and swaps it in under a lock held for one assignment; readers hold their copy as long as they like.
 
-**`sync.Once`** — run an initialiser exactly once, no matter how many goroutines race to trigger it. Lazy, thread-safe setup. See [Once](/patterns/synchronisation/once).
+**[Main-Thread Ownership](/patterns/synchronisation/main-thread-ownership)** — the rule that keeps the scene tree out of every critical section. `call_deferred`, `call_thread_safe`, and `set_thread_safe` are the hand-offs; the page covers when each applies and why a shared flag isn't one.
 
-**`sync.WaitGroup`** — wait until a set of goroutines finishes. Coordinates *completion*, not access — it does **not** protect shared memory. See [WaitGroup](/patterns/synchronisation/waitgroup).
+**[Once](/patterns/synchronisation/once)** — lazy, exactly-once construction of expensive shared state with a `static var` and a static accessor, guarded by a Mutex when workers may race to trigger it. Permanent by design: no retry, no re-run.
 
-**`sync.Pool`** — reuse short-lived objects to cut GC pressure on hot paths. A performance tool, not a correctness one. See [Pool](/patterns/synchronisation/pool).
+**[Join](/patterns/synchronisation/join)** — waiting for a batch to finish with `wait_to_finish()` or `wait_for_group_task_completion()`, and polling `is_alive()` / `is_task_completed()` per frame so the wait never stalls the main thread. Coordinates *completion*; protects nothing.
 
-**`sync.Cond`** — wait for a shared condition to become true. Rarely the right tool in Go (a channel usually wins), but the fit when many goroutines wait on one predicate. See [Cond](/patterns/synchronisation/cond).
+**[Thread-Safe Queue](/patterns/synchronisation/thread-safe-queue)** — Mutex plus Semaphore plus Array, assembled once into a class with `push`, `pop_blocking`, and `try_pop`. The standard hand-off between producers and consumers, with a capacity cap and a shutdown sentinel.
+
+**[Data Races](/patterns/synchronisation/data-races)** — what a race is, why `count += 1` is three steps, what the debug guards do and don't catch, and how to reproduce a race deliberately in a GUT or gdUnit4 stress test.
 
 ## Where to start
 
-**[Data Races](/patterns/synchronisation/data-races)** is the foundation. What a race actually is, why `counter++` isn't atomic, and how the `-race` detector finds them. Read this first — every other page here is a way to prevent what this page describes.
+**[Data Races](/patterns/synchronisation/data-races)** first. Every other page is a way to prevent what it describes, and it is where the engine's checks end and your discipline begins.
 
-**[Mutex](/patterns/synchronisation/mutex)** is the workhorse. Bundle a lock with the data it guards and expose access only through methods. When in doubt about shared state, this is the correct default.
+**[Main-Thread Ownership](/patterns/synchronisation/main-thread-ownership)** second, because it is the rule you cannot opt out of. Get the hand-off plumbing right once and most threading bugs never get the chance to exist.
 
-**[Atomic](/patterns/synchronisation/atomic)** is the lightweight alternative when the shared state is a single counter, flag, or pointer — lock-free and fast.
+**[Mutex](/patterns/synchronisation/mutex)** and **[Thread-Safe Queue](/patterns/synchronisation/thread-safe-queue)** are the workhorses. The queue is what you will actually write most often; the mutex is what it's made of, and what guards anything that doesn't fit a queue.
 
-**[WaitGroup](/patterns/synchronisation/waitgroup)** is how you wait for a batch of goroutines to finish before using their results. You'll use it constantly, often alongside one of the locks above.
-
-The rest — [RWMutex](/patterns/synchronisation/rwmutex), [Once](/patterns/synchronisation/once), [Pool](/patterns/synchronisation/pool), [Cond](/patterns/synchronisation/cond) — are specialists for read-heavy state, one-time setup, allocation pressure, and condition-waiting respectively. Reach for them when their specific situation shows up.
+The rest — [Semaphore](/patterns/synchronisation/semaphore), [Snapshot](/patterns/synchronisation/snapshot), [Once](/patterns/synchronisation/once), [Join](/patterns/synchronisation/join) — are specialists for waking a sleeping worker, read-heavy state, one-time setup, and collecting a batch. Reach for each when its shape shows up, and reach for a plain `await` on the main thread before reaching for any of them.
 
 ---
 
-Whichever primitive you choose, verify it: run your tests under the race detector (`go test -race ./...`). It has no false positives, and it catches the interleaving bugs you cannot find by reading code.
+Whichever primitive you pick, keep the thread-safety checks on in every debug build, and keep a stress test in the suite for every class that claims to be thread-safe. A race that passes a hundred runs is evidence; a race you reasoned about is a guess.

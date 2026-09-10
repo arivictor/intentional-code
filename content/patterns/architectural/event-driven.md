@@ -1,490 +1,197 @@
 ---
-title: "Event-Driven Architecture"
-description: "Decouple services by having producers emit domain events and consumers react to them asynchronously, without either knowing about the other."
+title: "Event-Driven"
+description: "Let gameplay announce facts — an enemy died, an item was picked up, a level was cleared — on an EventBus autoload or through groups, so achievements, audio, analytics, and tutorials react without the emitter knowing they exist."
 ---
 
-# Event-Driven Architecture
+# Event-Driven
 
-**Buys producer/consumer decoupling and fault isolation; pays in eventual consistency, mandatory consumer idempotency, and broker operational work.**
+**Buys producer/consumer decoupling so achievements, audio, and analytics react without the emitter knowing; pays in flow you can't read top-to-bottom and handlers that must tolerate any order.**
 
-Event-Driven Architecture helps you avoid chain-reaction failures from direct service calls. In a synchronous flow, if service `A` calls `B` and `C`, a failure in `C` can make `A` fail too. With events, `A` publishes a fact (for example, `FileUploaded`) and returns. `B` and `C` handle that event on their own. If notifications fail, the upload can still succeed.
+Event-Driven is the decision that gameplay code announces *what happened* and stops there. An enemy dies and says so. It does not know that an achievement counts kills, that the tutorial is waiting for the first one, that analytics wants the weapon used, or that a quest needs three more. Those systems listen, and the enemy's script is the same length whether there are zero of them or twelve.
 
-This pattern works in both small and large systems. Inside one service, you can use Go channels or a simple event bus struct. Across services, you can use Kafka, NATS, or SQS. A `Publisher` interface hides those transport details, so you can start with an in-process bus and move to a broker later without rewriting your core business logic.
+In Godot the mechanism is a signal on something everyone can reach — an `EventBus` Autoload with one typed signal per fact — or a group call, where the group name is the topic and every member implements a handler. Both are in-process and synchronous: `emit` runs every connected handler before it returns. There is no broker, no queue, and no persistence. The style is Event-Driven; the delivery is a plain function call the emitter cannot see.
 
 ## Scenario
 
-A file-processing service calls the notification service, the search indexer, and the audit logger directly when a file is uploaded. Every new downstream concern means a new import and a new call site in the upload service. If the notification service is down, the upload fails. Testing the upload service requires all downstream services to be running.
+An action RPG's enemy started with a `die` function that freed itself. Six months later it looks like this:
 
-```go
-// UploadService knows about every downstream concern — tight coupling
-func (s *UploadService) ProcessUpload(ctx context.Context, fileID string) error {
-    if err := s.store.Save(ctx, fileID); err != nil {
-        return err
-    }
-    // Notification failure causes the whole upload to fail
-    if err := s.notifier.SendConfirmation(ctx, fileID); err != nil {
-        return err
-    }
-    // Must index synchronously even though the user doesn't need it immediately
-    s.indexer.Index(ctx, fileID)
-    s.audit.Log(ctx, fileID)
-    return nil
-}
+```gdscript:title="res://enemies/enemy.gd"
+func die() -> void:
+	AchievementTracker.on_enemy_killed(data.id)
+	QuestLog.progress_kill(data.id)
+	Analytics.track(&"enemy_killed", {"id": data.id, "weapon": last_hit.weapon_id})
+	if TutorialFlow.is_active():
+		TutorialFlow.enemy_killed()
+	AudioManager.play(data.death_sound, global_position)
+	LootSpawner.drop(data.drop_table, global_position)
+	get_parent().on_child_enemy_died(self)   # the arena counts survivors
+	queue_free()
 ```
+
+Eight systems, and the enemy names every one. Adding "the companion character comments on kills" means editing `enemy.gd` — and `boss.gd`, and `turret.gd`, which have their own copies of this list, each slightly out of date. The enemy scene cannot run alone: open `enemy.tscn` and press play and it errors on the first Autoload it reaches for. Tests for the enemy need the achievement system quiet. And the arena's `get_parent().on_child_enemy_died(self)` means the enemy only works under a parent with that method.
+
+> **Smell:** A function whose body is a list of calls to systems that do not need each other, or a `queue_free` at the end of a paragraph of notifications.
 
 ## Solution
 
-The upload service emits a `FileUploaded` event. Notifications, indexing, and audit log subscribe independently. Producers and consumers are decoupled at the event schema boundary.
+The enemy emits one fact. Everything else subscribes.
 
 ```
-Producer                     Event Bus / Queue                Consumers
-┌──────────────┐           ┌───────────────────┐       ┌──────────────────┐
-│ UploadService│──Event───►│                   ├──────►│ NotifierService  │
-└──────────────┘           │  (channel / NATS  │       └──────────────────┘
-                           │   / Kafka / SQS)  ├──────►┌──────────────────┐
-                           │                   │       │  IndexerService  │
-                           └───────────────────┘       └──────────────────┘
-                                                ──────►┌──────────────────┐
-                                                       │  AuditService    │
-                                                       └──────────────────┘
+Enemy.die() ──► EventBus.enemy_died.emit(event) ──┬──► AchievementSystem._on_enemy_died
+                                                  ├──► QuestSystem._on_enemy_died
+                                                  ├──► AnalyticsSystem._on_enemy_died
+                                                  ├──► TutorialSystem._on_enemy_died  (one-shot)
+                                                  ├──► AudioReactor._on_enemy_died
+                                                  └──► Arena._on_enemy_died
+                          the emitter knows none of these exist
 ```
 
-**In-process event bus:** zero dependencies, good for a single service with internal decoupling:
+The bus is an Autoload with typed signals and nothing else. Its whole job is to exist and be reachable:
 
-```go
-// eventbus/bus.go
-package eventbus
+```gdscript:title="res://autoload/event_bus.gd"
+extends Node
 
-import "sync"
-
-type Handler func(event interface{})
-
-type Bus struct {
-    mu       sync.RWMutex
-    handlers map[string][]Handler
-}
-
-func New() *Bus {
-    return &Bus{handlers: make(map[string][]Handler)}
-}
-
-func (b *Bus) Subscribe(eventType string, h Handler) {
-    b.mu.Lock()
-    defer b.mu.Unlock()
-    b.handlers[eventType] = append(b.handlers[eventType], h)
-}
-
-func (b *Bus) Publish(eventType string, event interface{}) {
-    b.mu.RLock()
-    defer b.mu.RUnlock()
-    for _, h := range b.handlers[eventType] {
-        h(event)
-    }
-}
+signal enemy_died(event: EnemyDiedEvent)
+signal item_picked_up(item: ItemData, by: Node2D)
+signal level_completed(level_id: StringName, time: float)
+signal player_damaged(amount: int, source: StringName)
 ```
 
-Define typed events:
+The payload is a value, not the emitter. The enemy is about to be freed; a handler that stores the node or defers work on it would be holding a corpse. Copy what listeners need:
 
-```go
-// events/file_events.go
-package events
+```gdscript:title="res://events/enemy_died_event.gd"
+class_name EnemyDiedEvent extends RefCounted
 
-import "time"
+var enemy_id: StringName
+var position: Vector2
+var weapon_id: StringName
+var was_boss: bool
 
-const FileUploaded = "file.uploaded"
-const FileDeleted  = "file.deleted"
-
-type FileUploadedEvent struct {
-    FileID     string
-    OwnerID    string
-    SizeBytes  int64
-    OccurredAt time.Time
-}
-
-type FileDeletedEvent struct {
-    FileID     string
-    OccurredAt time.Time
-}
+static func from(enemy: Enemy) -> EnemyDiedEvent:
+	var e := EnemyDiedEvent.new()
+	e.enemy_id = enemy.data.id
+	e.position = enemy.global_position
+	e.weapon_id = enemy.last_hit.weapon_id if enemy.last_hit else &""
+	e.was_boss = enemy.data.is_boss
+	return e
 ```
 
-Producer publishes with no knowledge of consumers:
-
-```go
-// service/upload.go
-package service
-
-import (
-    "context"
-    "time"
-    "myapp/eventbus"
-    "myapp/events"
-)
-
-type FileStore interface {
-    Save(ctx context.Context, fileID string, data []byte) error
-}
-
-type UploadService struct {
-    store FileStore
-    bus   *eventbus.Bus
-}
-
-func NewUploadService(store FileStore, bus *eventbus.Bus) *UploadService {
-    return &UploadService{store: store, bus: bus}
-}
-
-func (s *UploadService) ProcessUpload(ctx context.Context, ownerID, fileID string, data []byte) error {
-    if err := s.store.Save(ctx, fileID, data); err != nil {
-        return err
-    }
-    s.bus.Publish(events.FileUploaded, events.FileUploadedEvent{
-        FileID:     fileID,
-        OwnerID:    ownerID,
-        SizeBytes:  int64(len(data)),
-        OccurredAt: time.Now(),
-    })
-    return nil
-}
+```gdscript:title="res://enemies/enemy.gd"
+func die() -> void:
+	EventBus.enemy_died.emit(EnemyDiedEvent.from(self))
+	queue_free()
 ```
 
-Consumers subscribe and react:
+Each consumer is its own node, connects in `_ready`, and knows nothing about the others:
 
-```go
-// service/notifier.go
-package service
+```gdscript:title="res://systems/achievement_system.gd"
+class_name AchievementSystem extends Node
 
-import (
-    "log"
-    "myapp/eventbus"
-    "myapp/events"
-)
+var _kills: Dictionary[StringName, int] = {}
 
-type Mailer interface {
-    SendUploadConfirmation(ownerID, fileID string) error
-}
+func _ready() -> void:
+	EventBus.enemy_died.connect(_on_enemy_died)
 
-type NotifierService struct {
-    mailer Mailer
-}
-
-func (s *NotifierService) RegisterHandlers(bus *eventbus.Bus) {
-    bus.Subscribe(events.FileUploaded, func(raw interface{}) {
-        evt, ok := raw.(events.FileUploadedEvent)
-        if !ok {
-            return
-        }
-        if err := s.mailer.SendUploadConfirmation(evt.OwnerID, evt.FileID); err != nil {
-            log.Printf("notifier: send failed for file %s: %v", evt.FileID, err)
-        }
-    })
-}
+func _on_enemy_died(event: EnemyDiedEvent) -> void:
+	_kills[event.enemy_id] = _kills.get(event.enemy_id, 0) + 1
+	if _kills[event.enemy_id] == 100:
+		Services.achievements.unlock(&"centurion_" + event.enemy_id)
 ```
 
-```go
-// service/indexer.go
-package service
+```gdscript:title="res://systems/tutorial_system.gd"
+class_name TutorialSystem extends Node
 
-import (
-    "log"
-    "myapp/eventbus"
-    "myapp/events"
-)
+func _ready() -> void:
+	EventBus.enemy_died.connect(_on_first_kill, CONNECT_ONE_SHOT)
 
-type SearchIndex interface {
-    Index(fileID string) error
-}
-
-type IndexerService struct {
-    index SearchIndex
-}
-
-func (s *IndexerService) RegisterHandlers(bus *eventbus.Bus) {
-    bus.Subscribe(events.FileUploaded, func(raw interface{}) {
-        evt, ok := raw.(events.FileUploadedEvent)
-        if !ok {
-            return
-        }
-        if err := s.index.Index(evt.FileID); err != nil {
-            log.Printf("indexer: index failed for file %s: %v", evt.FileID, err)
-        }
-    })
-}
+func _on_first_kill(_event: EnemyDiedEvent) -> void:
+	%Prompt.show_text("Enemies drop loot. Walk over it to collect.")
 ```
 
-Wire it up at startup (the only place that needs to know about all services):
+```gdscript:title="res://systems/analytics_system.gd"
+class_name AnalyticsSystem extends Node
 
-```go
-// main.go
-package main
-
-import "myapp/eventbus"
-
-func main() {
-    bus := eventbus.New()
-
-    // ... construct services ...
-
-    notifier.RegisterHandlers(bus)
-    indexer.RegisterHandlers(bus)
-    auditor.RegisterHandlers(bus)
-
-    // ...
-}
+func _ready() -> void:
+	EventBus.enemy_died.connect(func(e: EnemyDiedEvent) -> void:
+		Services.analytics.track(&"enemy_killed", {"id": e.enemy_id, "weapon": e.weapon_id}))
+	EventBus.level_completed.connect(func(id: StringName, t: float) -> void:
+		Services.analytics.track(&"level_completed", {"id": id, "time": t}))
 ```
 
-Here's the whole flow as one runnable program — the bus, a typed event, a producer that knows nothing about its consumers, and two independent subscribers:
+The arena, which used to require a specific parent method, now listens like everyone else:
 
-```go:title="main.go":run=true:editable=true
-package main
+```gdscript:title="res://levels/arena.gd"
+func _ready() -> void:
+	EventBus.enemy_died.connect(_on_enemy_died)
 
-import (
-	"fmt"
-	"sync"
-	"time"
-)
-
-// --- Event bus ---
-
-type Handler func(event interface{})
-
-type Bus struct {
-	mu       sync.RWMutex
-	handlers map[string][]Handler
-}
-
-func NewBus() *Bus {
-	return &Bus{handlers: make(map[string][]Handler)}
-}
-
-func (b *Bus) Subscribe(eventType string, h Handler) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	b.handlers[eventType] = append(b.handlers[eventType], h)
-}
-
-func (b *Bus) Publish(eventType string, event interface{}) {
-	// Copy the handler slice under the lock, then release it before invoking
-	// handlers: a handler that subscribes (needs the write lock) would deadlock
-	// otherwise, and we don't want to hold the lock for the duration of their work.
-	b.mu.RLock()
-	handlers := append([]Handler(nil), b.handlers[eventType]...)
-	b.mu.RUnlock()
-	for _, h := range handlers {
-		h(event)
-	}
-}
-
-// --- Typed event ---
-
-const FileUploaded = "file.uploaded"
-
-type FileUploadedEvent struct {
-	FileID     string
-	OwnerID    string
-	SizeBytes  int64
-	OccurredAt time.Time
-}
-
-// --- Producer: knows nothing about its consumers ---
-
-type UploadService struct {
-	bus *Bus
-}
-
-func (s *UploadService) ProcessUpload(ownerID, fileID string, data []byte) {
-	// ... persist the file, then publish a fact and return ...
-	s.bus.Publish(FileUploaded, FileUploadedEvent{
-		FileID:     fileID,
-		OwnerID:    ownerID,
-		SizeBytes:  int64(len(data)),
-		OccurredAt: time.Now(),
-	})
-}
-
-func main() {
-	bus := NewBus()
-
-	// Two independent consumers subscribe to the same fact.
-	bus.Subscribe(FileUploaded, func(raw interface{}) {
-		evt := raw.(FileUploadedEvent)
-		fmt.Printf("notifier: emailing owner %s about file %s\n", evt.OwnerID, evt.FileID)
-	})
-	bus.Subscribe(FileUploaded, func(raw interface{}) {
-		evt := raw.(FileUploadedEvent)
-		fmt.Printf("indexer: indexing file %s (%d bytes)\n", evt.FileID, evt.SizeBytes)
-	})
-
-	upload := &UploadService{bus: bus}
-	upload.ProcessUpload("owner-7", "file-42", []byte("hello world"))
-}
+func _on_enemy_died(event: EnemyDiedEvent) -> void:
+	_alive -= 1
+	if _alive == 0:
+		EventBus.level_completed.emit(level_id, _elapsed)
 ```
 
-```
-// Output:
-// notifier: emailing owner owner-7 about file file-42
-// indexer: indexing file file-42 (11 bytes)
-```
+Godot removes signal connections when the receiving object is freed, so a node that connected a method in `_ready` does not need to disconnect in `_exit_tree`. Lambdas are the exception: a lambda that captured `self` keeps the connection alive only as long as the bus does, and the bus is an Autoload. If a lambda-connected node can be freed, connect a method instead, or disconnect explicitly.
 
-**Cross-service with an interface:** swap the in-process bus for NATS or Kafka without changing producers or consumers:
+### The group variant
 
-```go
-// eventbus/publisher.go
-package eventbus
+Groups are Event-Driven with no Autoload. The group name is the topic and the method name is the contract:
 
-import "context"
-
-type Publisher interface {
-    Publish(ctx context.Context, topic string, payload []byte) error
-}
-
-type Subscriber interface {
-    Subscribe(ctx context.Context, topic string, handler func([]byte) error) error
-}
+```gdscript:title="res://enemies/enemy.gd"
+func die() -> void:
+	get_tree().call_group(&"enemy_died_listeners", &"on_enemy_died", EnemyDiedEvent.from(self))
+	queue_free()
 ```
 
-```go
-// infra/nats/publisher.go
-package nats
+```gdscript:title="res://systems/quest_system.gd"
+func _ready() -> void:
+	add_to_group(&"enemy_died_listeners")
 
-import (
-    "context"
-    "github.com/nats-io/nats.go"
-)
-
-type Publisher struct{ conn *nats.Conn }
-
-func (p *Publisher) Publish(_ context.Context, topic string, payload []byte) error {
-    return p.conn.Publish(topic, payload)
-}
+func on_enemy_died(event: EnemyDiedEvent) -> void:
+	_progress_kill_objectives(event.enemy_id)
 ```
 
-Idempotent consumers protect against at-least-once delivery:
+Groups are worth it when the listeners are scene-local (every enemy in the level reacting to an alarm) or when you want zero global state. They cost you static typing: `call_group` takes a method name as a string, misspell it and nothing happens, and there is no signature check. For project-wide facts the typed bus wins; for "tell everything in this room", groups win.
 
-```go
-// service/indexer.go
-func (s *IndexerService) HandleFileUploaded(ctx context.Context, evt events.FileUploadedEvent) error {
-    // Check if already processed (deduplication table or idempotency key)
-    if s.index.AlreadyIndexed(evt.FileID) {
-        return nil // safe to re-process
-    }
-    return s.index.Index(evt.FileID)
-}
-```
+## Handlers must tolerate any order
 
-## Reliable Event Publishing: The Outbox Pattern
+Signals call handlers in connection order, and connection order is `_ready` order, which is tree order, which changes when someone reorders nodes in the editor. Three rules keep that from mattering:
 
-Publishing an event after writing to the database creates a dual-write problem: if the process crashes after the database commit but before the broker publish, the event is lost. If you publish to the broker first, a subsequent database failure leaves an event in the broker for a write that never persisted.
+1. **A handler never depends on another handler having run.** The achievement system must not read a kill count the quest system maintains. Each derives what it needs from the event.
+2. **A handler does not mutate the event.** It is shared with every listener after it.
+3. **A handler that emits another event should expect re-entrancy.** `enemy_died` → `Arena` emits `level_completed` → a listener of that spawns the next wave → enemies are added while `enemy_died` handlers are still running. It works, and it surprises. Use `call_deferred` to emit from inside a handler when the chain touches the tree.
 
-The Outbox Pattern solves this by writing the event to a database table in the same transaction as the main write. A separate relay process reads unpublished events and publishes them to the broker.
-
-```sql
-CREATE TABLE outbox_events (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    topic        TEXT NOT NULL,
-    payload      JSONB NOT NULL,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    published_at TIMESTAMPTZ -- NULL means unpublished
-);
-```
-
-Write to the outbox in the same transaction as the main change:
-
-```go
-// service/upload.go
-func (s *UploadService) ProcessUpload(ctx context.Context, ownerID, fileID string, data []byte) error {
-    tx, err := s.db.BeginTx(ctx, nil)
-    if err != nil {
-        return err
-    }
-    defer tx.Rollback()
-
-    if _, err := tx.ExecContext(ctx, "INSERT INTO files (id, owner_id) VALUES ($1, $2)", fileID, ownerID); err != nil {
-        return err
-    }
-
-    payload, _ := json.Marshal(FileUploadedEvent{
-        FileID: fileID, OwnerID: ownerID, SizeBytes: int64(len(data)),
-    })
-    if _, err := tx.ExecContext(ctx,
-        "INSERT INTO outbox_events (topic, payload) VALUES ($1, $2)",
-        FileUploaded, payload,
-    ); err != nil {
-        return err
-    }
-
-    return tx.Commit()
-}
-```
-
-A relay goroutine polls for unpublished events and publishes them to the broker:
-
-```go
-// relay/outbox_relay.go
-func (r *OutboxRelay) Run(ctx context.Context) {
-    ticker := time.NewTicker(500 * time.Millisecond)
-    defer ticker.Stop()
-    for {
-        select {
-        case <-ticker.C:
-            r.publishPending(ctx)
-        case <-ctx.Done():
-            return
-        }
-    }
-}
-
-func (r *OutboxRelay) publishPending(ctx context.Context) {
-    rows, err := r.db.QueryContext(ctx,
-        "SELECT id, topic, payload FROM outbox_events WHERE published_at IS NULL ORDER BY created_at LIMIT 100",
-    )
-    if err != nil {
-        return
-    }
-    defer rows.Close()
-    for rows.Next() {
-        var id, topic string
-        var payload []byte
-        rows.Scan(&id, &topic, &payload)
-        if err := r.broker.Publish(ctx, topic, payload); err != nil {
-            continue // retry next tick
-        }
-        r.db.ExecContext(ctx,
-            "UPDATE outbox_events SET published_at = NOW() WHERE id = $1", id,
-        )
-    }
-}
-```
-
-At-least-once delivery is preserved: if the relay crashes after publishing but before updating `published_at`, the event is re-published on restart. Consumers must be idempotent. For production use, consider a CDC (change data capture) tool like Debezium that reads the Postgres write-ahead log directly, avoiding the polling overhead.
+If order genuinely matters — the save system must snapshot *after* the quest updates — that is one listener that does both in sequence, not two listeners and a prayer.
 
 ## When to Use
 
-- Downstream failures are rolling back the producer's work. A broken notification service failing an upload is the canonical forcing function — events let the upload complete regardless of what consumers do.
-- Multiple consumers react to the same fact and the producer shouldn't know who they are. Adding a consumer means subscribing, not modifying the producer.
-- Workloads are naturally async: emails, search indexing, analytics, audit logs. None of these need to complete before the user's operation returns.
-- You need the producer to remain stable as new consumers are added — events make this open/closed by default.
+- One fact has several independent reactions, and the emitter should not change when a reaction is added.
+- Reactions are cross-cutting: achievements, audio, analytics, tutorial, telemetry, screen shake.
+- Scenes must run alone. The enemy scene emits into a bus that swallows the event when nobody listens.
+- Feature modules need to react to each other without referencing each other.
 
 ## When Not to Use
 
-- You need a synchronous response: the caller must know the result before proceeding (use direct calls or request/reply).
-- The domain is simple and only one thing reacts to each action, so the indirection adds complexity for no gain.
-- Operational overhead of a message broker (Kafka, NATS) isn't justified. In-process channels or direct calls are enough.
-- Debugging and tracing distributed events is more than the team can manage.
+- One producer, one consumer, and they are parent and child. A direct signal on the child — "signal up" — is the same decoupling with no global.
+- The caller needs a result. Events are fire-and-forget; a function that must know whether the pickup was accepted calls a method.
+- The reaction must happen at a bounded rate or in batches. That is an [Event Queue](/patterns/architectural/event-queue).
+- The event must survive a scene change or a crash. That is a save. Nothing on a bus persists.
 
 ## The Decision
 
-Events are usually worth it for one of two reasons: downstream failures are breaking the producer (for example, a broken indexer causes upload to fail), or adding a new consumer forces you to edit producer code. If neither problem exists, direct calls are usually simpler. Events give you decoupling and fault isolation, but you pay with eventual consistency and more operational work. Make sure you need that trade before adopting the pattern.
+The trade is legibility for locality. Before, you could read `die()` and know everything that happens when an enemy dies. After, you cannot; you have to find every connection to `enemy_died`, and the editor will not show you connections made in code. Adding a reaction became a one-file change, and understanding the whole reaction became a project-wide search. That is a good trade when reactions are many and independent, and a bad one when the flow is a sequence someone needs to reason about — a boss fight's phase transitions should be a [State](/patterns/behavioral/state) machine you can read, not six listeners on `boss_health_changed`.
 
-The biggest benefit is isolation. Producers can stay unchanged while you add consumers, and one bad consumer does not undo producer work. The biggest cost is eventual consistency. Consumers can run behind, so a just-uploaded file may not appear in search immediately. Users often notice this because they expect read-after-write behaviour. Also, broker delivery is often at-least-once, so every consumer must be idempotent. That is straightforward to build, but easy to forget when adding new handlers.
+The Godot-specific gotchas are about lifetime. The emitter is usually about to `queue_free`, so payloads must be values. Handlers run synchronously inside `emit`, so a handler that adds or removes nodes during a physics callback trips the engine's "flushing queries" error — defer those. And the bus is an Autoload, which means every emitter and every listener depends on it; keep it to signal declarations so that dependency stays trivial. A bus that grows methods, state, or a `Dictionary` of "last values" has become the god object the pattern was meant to prevent.
 
-Another ongoing cost is schema compatibility. Event schemas must stay backward compatible, or consumers can break without obvious errors. The safe rules are: only add fields, do not remove or rename existing fields, and treat structural changes as versioned changes. For optional new fields, use pointer types such as `*string` or `*int`, so older producers can omit them and consumers can still decode valid JSON. When you need a structural change, add a `Version` field and route to different decode paths. Go helps here because `json.Unmarshal` ignores unknown fields by default, so producers can add fields without coordinating deploys, as long as you do not remove fields consumers already use.
+Everything here is in-process and synchronous. There is no persistence, no retry, no delivery guarantee beyond "every connected handler ran before `emit` returned". That is a feature. The moment the game needs events to cross a network, they are messages with a schema, and [Client-Server Multiplayer](/patterns/architectural/client-server) is the page.
+
+This is [tenet #9 — make the next change local](/philosophy/keep-changes-local#separation-of-concerns): the next achievement should be one new script, and `enemy.gd` should not know it was added.
 
 ## Related Patterns
 
-- **Domain-Driven Design:** Domain Events are a natural producer for an event-driven system. Aggregates record events as facts during state transitions, and the application layer dispatches them after the transaction commits.
-- **CQRS:** Commands produce events, and read-side projections consume those events to build denormalised views. Together they give you a full write and read model with a useful audit history.
-- **Circuit Breaker:** Wrap message broker publish calls in a circuit breaker. If the broker is unavailable, fail fast and route events to a dead-letter queue instead of blocking the producer.
-- **Hexagonal Architecture:** The message broker is a driven adapter implementing a `Publisher` port, and the event handler function is another driven port implemented by the infrastructure layer.
-- **Observer:** Event-Driven Architecture is the distributed, cross-process form of the Observer pattern. Observer is in-process with direct method calls; Event-Driven adds a broker, serialisation, and at-least-once delivery semantics.
-- **Publish/Subscribe:** The concrete messaging mechanism most event-driven systems are built on — named topics with one-to-many fan-out. Event-Driven is the style; pub/sub is the how.
-- **Transactional Outbox:** Solves the producer's weakest link — reliably emitting an event in the same transaction as the state change, so the dual write between database and broker can't silently drop events.
+- **[Observer (Signals)](/patterns/behavioral/observer)**: The primitive. A signal on one node observed by nodes that have a reference to it. Event-Driven is Observer with the reference replaced by a well-known bus.
+- **[Publish/Subscribe](/patterns/architectural/pub-sub)**: The bus itself — how to shape it, typed versus named signals, and how to find out who emitted what. Event-Driven is the style; Pub/Sub is the mechanism.
+- **[Event Queue](/patterns/architectural/event-queue)**: Same decoupling, different timing. When handlers must run later, in batches, or under a budget.
+- **[Mediator](/patterns/behavioral/mediator)**: The alternative when reactions need coordinating rather than just notifying. A Mediator knows the participants; a bus does not.
+- **[Event Sourcing](/patterns/architectural/event-sourcing)**: Records events as the source of truth. Do not confuse the two: a bus event is a notification, not a stored fact, and a replay system should not be listening to `EventBus`.
+- **[Feature Modules](/patterns/architectural/feature-modules)**: The bus is how modules talk without importing each other. It is also how they quietly couple through payload shapes, so version those with care.
+- **[Singleton (Autoload)](/patterns/creational/singleton)**: The bus is one. Read that page for the cost, and keep the bus to signals so the cost stays small.

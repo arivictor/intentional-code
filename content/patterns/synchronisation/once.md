@@ -9,7 +9,7 @@ description: "Build expensive shared state lazily and exactly once with a static
 
 Once is the pattern for "build this the first time anyone asks, then hand out the same one forever." A lookup table that takes a second to compute, a Dictionary indexing every item Resource under `res://items/`, a noise permutation table, a compiled `Expression` list for dialogue conditions. None of it should be built at startup if the player may never reach the screen that needs it, and none of it should be built twice.
 
-In GDScript the mechanism is a `static var` holding the instance and a `static func` that builds it on the first call. That is enough on the main thread, where calls can't interleave. When worker threads may also ask, a `Mutex` around the check-and-build turns "probably once" into "exactly once". The permanence is the cost either way: a failed build is cached as failed, and there is no "run it again" without adding a reset you then have to make thread-safe too.
+In GDScript the mechanism is a `static var` holding the instance and a `static func` that builds it on the first call. That is enough on the main thread, where calls can't interleave. When worker threads may also ask, a `Mutex` around the check-and-build turns "probably once" into "exactly once". The permanence is the cost either way: a failed build is cached as failed, and there is no re-running it without adding a reset you then have to make thread-safe too.
 
 ## Scenario
 
