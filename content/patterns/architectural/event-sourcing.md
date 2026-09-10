@@ -148,7 +148,7 @@ func _ready() -> void:
 	_recording = Recording.new()
 	_recording.track_id = track.id
 	_recording.seed = randi()                        # the only unseeded call
-	_recording.game_version = ProjectSettings.get_setting("application/config/version")
+	_recording.game_version = str(ProjectSettings.get_setting("application/config/version"))
 	_sim = RaceSimulation.new(track, _recording.seed)
 
 func _physics_process(_delta: float) -> void:

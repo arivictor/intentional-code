@@ -100,6 +100,8 @@ func _replace(old: AudioService, new: AudioService) -> void:
 	if old.is_inside_tree():
 		remove_child(old)
 		old.queue_free()
+	else:
+		old.free()   # never entered the tree, so free() is safe here
 	if not new.is_inside_tree():
 		add_child(new)
 ```

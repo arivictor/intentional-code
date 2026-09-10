@@ -140,7 +140,7 @@ func _carve_downhill(map: MapData, from: Vector2i) -> void:
 	while map.biomes[map.index(p.x, p.y)] != MapData.Biome.OCEAN:
 		map.rivers.append(p)
 		map.biomes[map.index(p.x, p.y)] = MapData.Biome.WATER
-		var next := _lowest_neighbour(map, p)
+		var next := _lowest_neighbour(map, p)   # lowest of the 4 neighbours, or p itself
 		if next == p:
 			break
 		p = next

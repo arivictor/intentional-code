@@ -95,7 +95,7 @@ func _ready() -> void:
 func _on_enemy_died(event: EnemyDiedEvent) -> void:
 	_kills[event.enemy_id] = _kills.get(event.enemy_id, 0) + 1
 	if _kills[event.enemy_id] == 100:
-		Services.achievements.unlock(&"centurion_" + event.enemy_id)
+		Services.achievements.unlock(StringName("centurion_%s" % event.enemy_id))
 ```
 
 ```gdscript:title="res://systems/tutorial_system.gd"

@@ -95,7 +95,7 @@ func start_run(character: CharacterData) -> void:
 
 func go_to_level(ctx: LevelContext) -> void:
 	var path := _levels.path_for(ctx.level_index)
-	var packed := await _load_with_screen(path)
+	var packed: PackedScene = await _load_with_screen(path)
 	if packed == null:
 		push_error("Could not load level %s" % path)
 		go_to_menu()

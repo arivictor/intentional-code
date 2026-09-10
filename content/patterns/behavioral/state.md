@@ -1,204 +1,313 @@
 ---
 title: "State"
-description: "Let an object alter its behaviour when its internal state changes, appearing to change its type."
+description: "Give each player or enemy state its own script under a StateMachine node, with enter/exit/update hooks and transitions by name."
 ---
 
 # State
 
-**Buys isolated per-state behaviour so adding a state is one new struct; pays in type proliferation and a state-context cycle that surprises newcomers.**
+**Buys isolated per-state behaviour so adding a state is one new script; pays in class proliferation and a state–owner cycle that surprises newcomers.**
 
-The State pattern models an object that changes its behaviour based on its internal state. Instead of using conditionals to check the current state and decide what to do, you define a `State` interface and create separate types for each state. The context object holds a reference to the current state and delegates method calls to it. When a state transition occurs, the current state returns the next state, which the context then adopts.
+State lets a node change its behaviour when its internal state changes, by delegating to a separate object per state instead of branching on a flag in every method. In Godot the idiomatic shape is a `StateMachine` node with one `State` child per state. Each child gets the same four hooks — `enter`, `exit`, `update`, `physics_update` — and the machine forwards the engine's callbacks to whichever child is current. Transitions are requested by name, so a state knows the *names* of its neighbours and nothing else about them.
 
-The telltale sign you need this pattern is a type with switch statements in every method, all checking the same state field. Adding a new state means adding a case to every switch across the entire type. State replaces those switches with one interface and one struct per state: each state's behaviour is isolated, and transitions are explicit field assignments on the context.
-
-In Go, the context struct holds a `State` interface value and delegates method calls to it. Transition logic lives inside the state that initiates the change, not scattered across the context's methods.
+The guarantee is that everything the player does while jumping lives in `jump.gd`, and adding a wall-slide is a new file and a new child node, not a new branch in five methods. The engine's own `AnimationTree` state machine is the same idea applied to animation, and the two work best side by side rather than one standing in for the other.
 
 ## Scenario
 
-You're modeling a network connection. Its behaviour depends on whether it's disconnected, connecting, or connected. A single type with string-based state and switch statements at every method becomes unmanageable.
+A platformer's player started with a `match` and grew a few booleans.
 
-```go
-// switches.go
-package conn
+```gdscript:title="res://player/player.gd"
+class_name Player extends CharacterBody2D
 
-type Connection struct {
-    state string
-}
+enum Mode { IDLE, RUN, JUMP, FALL }
 
-func (c *Connection) Connect() {
-    switch c.state {
-    case "disconnected":
-        c.state = "connecting"
-        dial()
-    case "connecting":
-        // already connecting, ignore
-    case "connected":
-        // already connected
-    }
-    // Every method repeats this switch.
-    // A new state ("reconnecting") adds a case everywhere.
-}
+var mode := Mode.IDLE
+var is_dashing := false
+var is_attacking := false
+var can_double_jump := true
+
+func _physics_process(delta: float) -> void:
+	velocity += get_gravity() * delta
+	match mode:
+		Mode.IDLE:
+			if not is_attacking and Input.is_action_just_pressed("jump"):
+				mode = Mode.JUMP
+				velocity.y = -jump_speed
+			elif not is_dashing and Input.get_axis("move_left", "move_right") != 0.0:
+				mode = Mode.RUN
+		Mode.RUN:
+			# ... the same jump check, copied
+		Mode.JUMP:
+			if is_dashing:
+				pass  # dashing while jumping? nobody decided
+	move_and_slide()
+
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("attack") and mode != Mode.JUMP and not is_dashing:
+		is_attacking = true
+	# ...
 ```
 
-State logic is scattered across every method. Adding a new state means adding a case to every switch in every method. The transitions are implicit; you have to read all the switches to understand the machine.
+The `match` in `_physics_process` is one of three: `_unhandled_input` has another, the animation update has a third. The booleans combine in ways nobody designed. `is_dashing and is_attacking and mode == Mode.JUMP` is a state, it's just one that has no name and no code. Every new ability adds a flag, and every flag has to be checked in every branch of every `match`. The transitions are implicit: to learn when the player leaves `RUN`, you read the whole file.
+
+> **Smell:** booleans named `is_*` that have to be checked against each other before any of them can be set.
 
 ## Solution
 
-Define a `State` interface. Each state is a struct implementing the interface. The connection delegates to the current state, and transitions happen by replacing the state field.
+One node per state, one script per state, one machine that forwards to the current one.
 
 ```
-┌──────────────────┐
-│   Connection     │
-│──────────────────│
-│ state State      │──► current state
-│ Connect()        │
-│ Send(data)       │
-│ Disconnect()     │
-└──────────────────┘
-
-<<interface>> State
-├── DisconnectedState
-├── ConnectingState
-└── ConnectedState
+Player (CharacterBody2D)
+├── Sprite2D
+├── CollisionShape2D
+├── AnimationPlayer
+└── StateMachine (Node)       initial_state → Idle
+    ├── Idle (State)
+    ├── Run (State)
+    ├── Jump (State)
+    └── Fall (State)
 ```
 
-```go:title="main.go":run=true:editable=true
-package main
+```gdscript:title="res://player/states/state.gd"
+class_name State extends Node
 
-import "fmt"
+signal transition_requested(to: StringName)
 
-type State interface {
-	Connect(c *Connection)
-	Send(c *Connection, data string)
-	Disconnect(c *Connection)
-	String() string
-}
+var player: Player
 
-type Connection struct {
-	state State
-}
+func enter(_previous: StringName) -> void:
+	pass
 
-func NewConnection() *Connection {
-	return &Connection{state: &DisconnectedState{}}
-}
+func exit() -> void:
+	pass
 
-func (c *Connection) SetState(s State) {
-	fmt.Printf("  → %s\n", s.String())
-	c.state = s
-}
+func handle_input(_event: InputEvent) -> void:
+	pass
 
-func (c *Connection) Connect()         { c.state.Connect(c) }
-func (c *Connection) Send(data string) { c.state.Send(c, data) }
-func (c *Connection) Disconnect()      { c.state.Disconnect(c) }
+func update(_delta: float) -> void:
+	pass
 
-type DisconnectedState struct{}
-
-func (s *DisconnectedState) Connect(c *Connection) {
-	fmt.Println("Dialing...")
-	c.SetState(&ConnectingState{})
-}
-
-func (s *DisconnectedState) Send(c *Connection, data string) {
-	fmt.Println("Cannot send: not connected.")
-}
-
-func (s *DisconnectedState) Disconnect(c *Connection) {
-	fmt.Println("Already disconnected.")
-}
-
-func (s *DisconnectedState) String() string {
-	return "disconnected"
-}
-
-type ConnectingState struct{}
-
-func (s *ConnectingState) Connect(c *Connection) {
-	fmt.Println("Already connecting.")
-}
-
-func (s *ConnectingState) Send(c *Connection, data string) {
-	fmt.Println("Cannot send: still connecting.")
-}
-
-func (s *ConnectingState) Disconnect(c *Connection) {
-	fmt.Println("Aborting connection.")
-	c.SetState(&DisconnectedState{})
-}
-
-func (s *ConnectingState) String() string {
-	return "connecting"
-}
-
-type ConnectedState struct{}
-
-func (s *ConnectedState) Connect(c *Connection) {
-	fmt.Println("Already connected.")
-}
-
-func (s *ConnectedState) Send(c *Connection, data string) {
-	fmt.Printf("Sending: %q\n", data)
-}
-
-func (s *ConnectedState) Disconnect(c *Connection) {
-	fmt.Println("Closing connection.")
-	c.SetState(&DisconnectedState{})
-}
-
-func (s *ConnectedState) String() string {
-	return "connected"
-}
-
-func main() {
-	c := NewConnection()
-
-	c.Send("hello")
-	c.Connect()
-	c.Connect()
-	c.Send("hello")
-
-	c.SetState(&ConnectedState{})
-
-	c.Send("hello")
-	c.Send("world")
-	c.Disconnect()
-	c.Send("hello")
-}
+func physics_update(_delta: float) -> void:
+	pass
 ```
 
-Run it to watch the connection move through its states (and reject illegal operations along the way):
+```gdscript:title="res://player/states/state_machine.gd"
+class_name StateMachine extends Node
 
+signal state_changed(from: StringName, to: StringName)
+
+@export var initial_state: State
+
+var _current: State
+var _states: Dictionary[StringName, State] = {}
+
+## Called by the owner from its _ready, so the owner's @onready vars are set.
+func start(player: Player) -> void:
+	for child in get_children():
+		var state := child as State
+		if state == null:
+			continue
+		_states[state.name] = state
+		state.player = player
+		state.transition_requested.connect(_change_state)
+	_change_state(initial_state.name)
+
+func _unhandled_input(event: InputEvent) -> void:
+	if _current:
+		_current.handle_input(event)
+
+func _process(delta: float) -> void:
+	if _current:
+		_current.update(delta)
+
+func _physics_process(delta: float) -> void:
+	if _current:
+		_current.physics_update(delta)
+
+func _change_state(to: StringName) -> void:
+	assert(_states.has(to), "Unknown state: %s" % to)
+	var from: StringName = _current.name if _current else &""
+	if _current:
+		_current.exit()
+	_current = _states[to]
+	_current.enter(from)
+	state_changed.emit(from, to)
 ```
-Cannot send: not connected.
-Dialing...
-  → connecting
-Already connecting.
-Cannot send: still connecting.
-  → connected
-Sending: "hello"
-Sending: "world"
-Closing connection.
-  → disconnected
-Cannot send: not connected.
+
+The machine is the only thing that calls `enter` and `exit`, so they always pair. States ask for a transition by emitting `transition_requested` with a node name; the machine looks it up. That is "signal up": a state never holds a reference to the machine.
+
+```gdscript:title="res://player/states/idle.gd"
+extends State
+
+func enter(_previous: StringName) -> void:
+	player.animation_player.play(&"idle")
+	player.velocity.x = 0.0
+
+func physics_update(delta: float) -> void:
+	player.velocity += player.get_gravity() * delta
+	player.move_and_slide()
+	if not player.is_on_floor():
+		transition_requested.emit(&"Fall")
+	elif Input.is_action_just_pressed(&"jump"):
+		transition_requested.emit(&"Jump")
+	elif Input.get_axis(&"move_left", &"move_right") != 0.0:
+		transition_requested.emit(&"Run")
 ```
+
+```gdscript:title="res://player/states/jump.gd"
+extends State
+
+func enter(_previous: StringName) -> void:
+	player.animation_player.play(&"jump")
+	player.velocity.y = -player.jump_speed
+
+func physics_update(delta: float) -> void:
+	player.velocity.x = Input.get_axis(&"move_left", &"move_right") * player.speed
+	player.velocity += player.get_gravity() * delta
+	player.move_and_slide()
+	if player.velocity.y >= 0.0:
+		transition_requested.emit(&"Fall")
+```
+
+```gdscript:title="res://player/states/fall.gd"
+extends State
+
+func enter(_previous: StringName) -> void:
+	player.animation_player.play(&"fall")
+
+func physics_update(delta: float) -> void:
+	player.velocity.x = Input.get_axis(&"move_left", &"move_right") * player.speed
+	player.velocity += player.get_gravity() * delta
+	player.move_and_slide()
+	if player.is_on_floor():
+		transition_requested.emit(&"Run" if player.velocity.x != 0.0 else &"Idle")
+```
+
+Emitting a transition calls `_change_state` synchronously, so `exit` and the next state's `enter` run *inside* the emitting state's `physics_update`. Put transition checks last, or `return` straight after emitting; code after the emit runs in a state that has already exited.
+
+The player owns the data the states share and starts the machine once its own `@onready` references exist.
+
+```gdscript:title="res://player/player.gd"
+class_name Player extends CharacterBody2D
+
+@export var speed: float = 200.0
+@export var jump_speed: float = 420.0
+
+@onready var animation_player: AnimationPlayer = $AnimationPlayer
+@onready var state_machine: StateMachine = $StateMachine
+
+func _ready() -> void:
+	state_machine.state_changed.connect(_on_state_changed)
+	state_machine.start(self)
+
+func _on_state_changed(from: StringName, to: StringName) -> void:
+	print("%s -> %s" % [from, to])
+```
+
+Output:
+
+```text
+ -> Idle
+Idle -> Run
+Run -> Jump
+Jump -> Fall
+Fall -> Idle
+```
+
+### The enum variant
+
+For a machine with a handful of states and one line of behaviour each, four scripts is too many. An enum plus a single `_enter_state` function keeps the transitions explicit without the node tree.
+
+```gdscript:title="res://world/door.gd"
+class_name Door extends StaticBody2D
+
+enum State { CLOSED, OPENING, OPEN, CLOSING }
+
+var _state := State.CLOSED
+
+@onready var _anim: AnimationPlayer = $AnimationPlayer
+
+func interact() -> void:
+	match _state:
+		State.CLOSED:
+			_enter_state(State.OPENING)
+		State.OPEN:
+			_enter_state(State.CLOSING)
+
+func _enter_state(next: State) -> void:
+	_state = next
+	match _state:
+		State.OPENING:
+			_anim.play(&"open")
+		State.CLOSING:
+			_anim.play_backwards(&"open")
+
+func _on_animation_player_animation_finished(_name: StringName) -> void:
+	match _state:
+		State.OPENING:
+			_enter_state(State.OPEN)
+		State.CLOSING:
+			_enter_state(State.CLOSED)
+```
+
+The rule for graduating from this to the node version: when a state's behaviour stops fitting in one `match` arm, or when a third `match` on the same enum appears in the file.
+
+### `AnimationTree`
+
+`AnimationTree` with an `AnimationNodeStateMachine` is a state machine for *presentation*: it blends between clips with travel paths and cross-fade times. It is tempting to make it the gameplay machine as well, reading `get_current_node()` to decide whether the player may jump. Don't. Animation transitions take time and follow paths; gameplay transitions are instant. Keep the gameplay machine authoritative and let it drive the animation one:
+
+```gdscript:title="res://player/player.gd"
+@onready var _playback: AnimationNodeStateMachinePlayback = $AnimationTree.get("parameters/playback")
+
+func _on_state_changed(_from: StringName, to: StringName) -> void:
+	_playback.travel(to.to_lower())
+```
+
+### Hierarchical states
+
+`Idle` and `Run` above duplicate the "fall if not on floor, jump if pressed" checks. Give them a shared parent class and the duplication goes away:
+
+```gdscript:title="res://player/states/grounded_state.gd"
+class_name GroundedState extends State
+
+## Returns true if a transition was requested; callers should return.
+func check_grounded_transitions() -> bool:
+	if not player.is_on_floor():
+		transition_requested.emit(&"Fall")
+		return true
+	if Input.is_action_just_pressed(&"jump"):
+		transition_requested.emit(&"Jump")
+		return true
+	return false
+```
+
+`Idle` and `Run` then `extends GroundedState` and call `if check_grounded_transitions(): return` before their own checks. This is a hierarchy by inheritance, which covers most games. A hierarchy by nesting — `Grounded` as a node with `Idle` and `Run` as *its* children, and the machine calling `enter` on the whole ancestor path — is worth it around ten states with several layers, not before.
 
 ## When to Use
 
-- An object's behaviour changes sharply based on its current state.
-- You have large switch/if-else blocks checking a state field in every method.
-- State transitions are complex and you want them explicitly modeled.
+- A node's behaviour differs sharply by state, and there are more than three states or more than a line or two of behaviour per state.
+- The same `match` on a state field appears in `_physics_process`, `_unhandled_input`, and somewhere else.
+- Booleans like `is_dashing` and `is_attacking` are being checked against each other before either can be set.
+- Designers or other programmers add states regularly: bosses with phases, NPCs with schedules, a player with an expanding move set.
 
 ## When Not to Use
 
-- There are only two or three states with trivial behaviour differences. A boolean or enum is simpler.
-- The state machine is better expressed as a state-transition table (a map of state × event → next state).
+- Two or three states with trivial behaviour. A `bool` or the enum variant is [the simplest thing](/philosophy/no-pattern#kiss).
+- The states are really a sequence with no branching (intro → play → outro). A [coroutine](/patterns/concurrency/coroutines) with `await` reads as the sequence it is.
+- The transitions are a table, not code: `Dictionary[State, Dictionary[Event, State]]`. When behaviour per state is uniform and only the graph varies, a table beats a script per state.
+- What's changing is selected from outside (a designer picks the movement). That's [Strategy](/patterns/behavioral/strategy).
 
 ## The Decision
 
-Each state's behaviour is isolated in its own type, which makes adding a new state cheap. You write one new struct and don't touch any existing state. The cost is type proliferation: a machine with seven states produces seven structs plus the interface, which can feel heavy for a relatively simple machine.
+Each state is one file that can be read in isolation, and adding one touches nothing else. The costs are the ones in the one-liner. A player with twelve moves is twelve scripts plus the machine, and someone new to the project has to learn that `player` on a state points back at the node that owns the machine that owns the state. That cycle is normal for the pattern and it's the first thing that surprises people.
 
-States that initiate transitions hold a `*Connection` reference, creating a circular-looking dependency between the state and its context. This is normal for the pattern but surprises developers who encounter it for the first time. For machines with many states and mostly uniform behaviour differences, a table-driven approach (a `map[State]map[Event]State`) is often more readable than the full struct-per-state form.
+The Godot-specific gotchas are about timing. States run inside the machine's `_physics_process`, so a transition emitted mid-function runs `exit` and `enter` before the function returns; check transitions last. `Input.is_action_just_pressed` inside `physics_update` can miss presses between physics ticks; route input through `handle_input` from `_unhandled_input`, or buffer it as a [Command](/patterns/behavioral/command). And an `await` inside a state (a dash that lasts 0.2 seconds) keeps running after the state has exited, unless you check that you're still current when it resumes; counting `delta` in `physics_update` is duller and safer.
+
+Node-based states are also testable: `Idle.new()` with a bare `Player.new()` assigned to `player` can have `physics_update` called directly under GUT, no tree needed, as long as the state doesn't read `Input`. That's an argument for passing input into states rather than reading it globally, which is [tenet #2 — name the trade-off](/philosophy/name-the-trade-off): global `Input` is convenient in the state and expensive in the test.
 
 ## Related Patterns
 
-- **Strategy**: Both delegate behaviour to an interchangeable implementation. The distinction is control: Strategy is selected and set by an external caller; State transitions internally in response to events within the object itself.
-- **Command**: Commands can trigger state transitions. Combine them when each transition needs to be undoable: the Command holds the transition logic and the previous state to restore.
+- **[Strategy](/patterns/behavioral/strategy)**: Both delegate to an interchangeable object. Strategy is chosen from outside; a State decides for itself when to hand over. If the objects know their successors, it's State.
+- **[Command](/patterns/behavioral/command)**: Buffered commands feed a state machine cleanly: the state drains the buffer in `physics_update` and decides which commands apply in this state.
+- **[Template Method](/patterns/behavioral/template-method)**: `State` is a template class: the machine owns the skeleton (`enter`/`physics_update`/`exit`), the subclasses fill in the hooks.
+- **[Observer (Signals)](/patterns/behavioral/observer)**: `transition_requested` and `state_changed` are the pattern's whole wiring. The HUD and the `AnimationTree` listen to `state_changed` without the states knowing.
+- **[Coroutines](/patterns/concurrency/coroutines)**: For linear sequences, `await` beats a machine; for a machine, avoid `await` inside states.

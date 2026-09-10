@@ -69,8 +69,8 @@ func _init(p_sound: StringName, p_position: Vector2) -> void:
 
 The queue is a ring buffer over a fixed-size Array. An `Array.pop_front()` is O(n) — it shifts every remaining element — which is fine for ten items and not for a queue that fills during a burst. Head and tail indices cost nothing:
 
-```gdscript:title="res://audio/audio_queue.gd"
-class_name AudioQueue extends Node
+```gdscript:title="res://autoload/audio_queue.gd"
+extends Node
 
 const CAPACITY := 64
 const PER_FRAME_BUDGET := 4
@@ -137,7 +137,7 @@ The enemy's `die` becomes a one-line request and returns before any sound exists
 
 ```gdscript:title="res://enemies/enemy.gd"
 func die() -> void:
-	%AudioQueue.request(&"enemy_death", global_position)
+	AudioQueue.request(&"enemy_death", global_position)
 	queue_free()
 ```
 

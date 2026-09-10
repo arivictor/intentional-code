@@ -140,7 +140,7 @@ func emit_traced(sig: Signal, args: Array) -> void:
 	if OS.is_debug_build():
 		var frame: Dictionary = get_stack()[1]
 		print("%s emitted from %s:%d" % [sig.get_name(), frame["source"], frame["line"]])
-	sig.emit.callv(args)
+	callv(&"emit_signal", [sig.get_name()] + args)
 ```
 
 `get_stack()` only works in debug builds with the debugger attached, which is exactly where you want it. Do not ship a bus that walks the stack on every emit.
