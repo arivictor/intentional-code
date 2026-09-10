@@ -7,22 +7,22 @@ order: 6
 
 # Design for the change you can see, not the change you imagine
 
-There are two kinds of future. There's the change you can *see*, the requirement that's already been asked for, the load you've actually measured, the second use case sitting in the backlog. And there's the change you *imagine*, which is  the "what if we someday," the "this might need to," the extensibility that exists only in your head. Both feel like the same prudent instinct. They are not. The first is information; the second is a guess you start paying for the moment you build to it.
+There are two kinds of future. There's the change you can *see*, the second enemy type already in the design doc, the frame time you've actually profiled, the level the designer is building right now. And there's the change you *imagine*, which is the "what if we add co-op someday," the "this might need to be moddable," the extensibility that exists only in your head. Both feel like the same prudent instinct. They are not. The first is information; the second is a guess you start paying for the moment you build to it.
 
 Design for the change you can see. When the change you imagined finally shows up wearing real requirements, it almost never looks like what you guessed, and the scaffolding you built for the guess is now in the way.
 
-This is  an argument against *designing* ahead. Decisions that are genuinely hard to reverse, data formats, wire protocols, public APIs, all deserve real upfront thought, because changing them later is disproportionately expensive. Operational concerns such as scaling, sharding, distribution, and retries should be added in response to evidence, because you can only learn their real shape by running the system.
+This is an argument against *designing* ahead, not against thinking. Decisions that are genuinely hard to reverse, the save file format, whether the game is multiplayer at all, the shape of the Resources a hundred `.tres` files depend on, all deserve real upfront thought, because changing them later is disproportionately expensive. Operational concerns such as object pooling, threaded loading, and chunk streaming should be added in response to evidence from the profiler, because you can only learn their real shape by running the game.
 
 ## Good enough first, better over time
 
-Perfect architecture stays out of reach, and that's fine. Ship something stable enough to be real, then listen for evidence that the shape is wrong:
+Perfect architecture stays out of reach, and that's fine. Ship a build that's playable enough to be real, then listen for evidence that the shape is wrong:
 
-- changes take longer than they should
-- regressions keep appearing in the same place
-- a feature ripples through modules that shouldn't care
-- people can't confidently decide where new code goes
+- adding an enemy takes longer than it should
+- regressions keep appearing in the same scene
+- a feature ripples through scripts that shouldn't care — a new pickup edits the HUD
+- people can't confidently decide where new code goes, so it goes in the Autoload
 
-When those signals keep showing up, adjust the boundaries, one seam at a time, kept close to the pain. That's letting the system tell you what it needs instead of guessing in advance.
+When those signals keep showing up, adjust the boundaries, one seam at a time, kept close to the pain. That's letting the game tell you what it needs instead of guessing in advance.
 
 ## Gall's Law
 
@@ -30,53 +30,51 @@ This tenet has an older, sharper statement, and it's an observation rather than 
 
 *"A complex system that works is invariably found to have evolved from a simple system that worked. A complex system designed from scratch never works and cannot be made to work. You have to start over with a working simple system."* (John Gall, *Systemantics*, 1975)
 
-A complex system has too many interacting parts to predict before you run it: assumptions made while designing turn out wrong, and interactions that looked independent turn out coupled. Compare a system designed for every future requirement on day one with the simple one that actually ships:
+A complex system has too many interacting parts to predict before you run it: assumptions made while designing turn out wrong, and interactions that looked independent turn out coupled. Compare a game framework designed for every future requirement on day one with the prototype that actually gets played:
 
-```go
-// BAD — designed to handle every future requirement on day one.
-// Never finished, never tested end-to-end, never shipped.
+```gdscript:title="res://autoload/game_manager.gd"
+# BAD — designed on day one to run every game this studio will ever make.
+# Never finished, never played end-to-end, never shipped.
 
-type EventBus struct {
-    handlers    map[string][]HandlerFunc
-    middleware  []MiddlewareFunc
-    deadLetter  Queue
-    retryPolicy RetryPolicy
-    tracing     TracingProvider
-    metrics     MetricsCollector
-    serializer  Serializer
-    transport   Transport
-    router      Router
-    schema      SchemaRegistry
-    auth        AuthProvider
-}
+extends Node
+
+var save_system: SaveSystem
+var mod_loader: ModLoader
+var localisation: LocalisationService
+var analytics: AnalyticsSink
+var netcode: NetworkLayer
+var replay_recorder: ReplayRecorder
+var achievements: AchievementTracker
+var difficulty: DifficultyDirector
+var event_bus: EventBus
+var scene_router: SceneRouter
+var settings: SettingsRegistry
 ```
 
-```go
-// GOOD — day one: a simple in-process dispatcher.
-// It works, it's in production, it handles real load.
+```gdscript:title="res://main.gd"
+# GOOD — day one: one level, one player, one enemy type.
+# It's playable, it's been handed to testers, it's telling you what's fun.
 
-type EventBus struct {
-    mu       sync.RWMutex
-    handlers map[string][]func(Event)
-}
+extends Node2D
 
-func (b *EventBus) Subscribe(topic string, fn func(Event)) {
-    b.mu.Lock()
-    defer b.mu.Unlock()
-    b.handlers[topic] = append(b.handlers[topic], fn)
-}
+const GRUNT := preload("res://enemies/grunt.tscn")
 
-func (b *EventBus) Publish(e Event) {
-    b.mu.RLock()
-    defer b.mu.RUnlock()
-    for _, fn := range b.handlers[e.Topic] {
-        fn(e)
-    }
-}
+@onready var player: Player = %Player
+@onready var spawn_points: Array[Node] = $SpawnPoints.get_children()
+
+func _ready() -> void:
+	for point: Node2D in spawn_points:
+		var grunt := GRUNT.instantiate() as Node2D
+		grunt.position = point.position
+		add_child(grunt)
+	player.died.connect(_on_player_died)
+
+func _on_player_died() -> void:
+	get_tree().reload_current_scene()
 ```
 
-The first made a dozen architectural bets — retry policy, transport, schema registry — before a single message was sent, and most are wrong for the workload that actually emerges. The second ships, and then *tells* you what to add: which topics are hot, which handlers fail, whether you ever truly need cross-process transport. Complexity added on that evidence is earned. This is the Rule of Three from [DRY](/philosophy/wrong-abstraction#dry) at system scale, and it's why rewrites that throw away the working simple system tend to fail.
+The first made a dozen architectural bets — a mod loader, a replay recorder, a difficulty director — before a single enemy was on screen, and most are wrong for the game that actually emerges. The second ships to testers, and then *tells* you what to add: that the fun is in the swarm, so the spawner needs waves; that reloading the whole scene on death is fine for three levels and unbearable at ten, so a [scene flow](/patterns/architectural/scene-flow) owner is now a change you can see; that the HUD reading player health by node path breaks the moment the level is restructured, so a signal is earned. Complexity added on that evidence is earned. This is the Rule of Three from [DRY](/philosophy/wrong-abstraction#dry) at system scale, and it's why rewrites that throw away the working prototype to "do it properly" tend to fail.
 
-> **Smell:** A system that was never fully deployed. A design document more detailed than the code. An architecture that handles ten hypothetical failure modes but hasn't shipped to handle the first real one. A migration that requires moving everything at once.
+> **Smell:** A game that has never been played start to finish. A design document more detailed than the project. An engine layer that handles ten hypothetical genres but hasn't shipped the first level. A rewrite that requires moving every scene at once.
 
-See also: [YAGNI](/philosophy/no-pattern#yagni), [KISS](/philosophy/no-pattern#kiss), [Event-Driven Architecture](/patterns/architectural/event-driven).
+See also: [YAGNI](/philosophy/no-pattern#yagni), [KISS](/philosophy/no-pattern#kiss), [Event-Driven](/patterns/architectural/event-driven), [Scene Flow](/patterns/architectural/scene-flow).

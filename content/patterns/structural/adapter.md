@@ -1,129 +1,188 @@
 ---
 title: "Adapter"
-description: "Convert the interface of an existing type into another interface clients expect, letting incompatible types work together."
+description: "Wrap a platform SDK or third-party addon behind a class you own so game code never imports the vendor API, with a null version for the editor and tests."
 ---
 
 # Adapter
 
-**Buys one-place translation isolating a third-party API from your domain; pays in a layer of indirection and silent information loss when a rich type is flattened.**
+**Buys one-place translation isolating a platform SDK or third-party addon from your game code; pays in indirection and silent information loss when a rich API is flattened.**
 
-The Adapter pattern converts the interface of an existing type into another interface clients expect, letting incompatible types work together. In Go, any wrapper struct that makes one package's type compatible with another's interface is an Adapter: one of the most common patterns in the language, frequently written without being recognised as one. The formal structure is a struct that holds a reference to the incompatible type (the "adaptee") and implements the target interface by delegating calls with whatever translation is needed.
+An Adapter converts the interface of something you cannot change into the interface your code wants. In Godot the "something you cannot change" is usually a platform SDK or an addon under `res://addons/`: Steamworks, a mobile ads plugin, a console achievements API, an analytics service. Each arrives with its own naming, its own quirks about call order, and its own idea of what an id looks like. The Adapter is a small class you own that speaks your vocabulary on one side and the vendor's on the other, so the translation exists in exactly one script.
 
-The pattern is especially common when integrating third-party packages. You can't modify the package, and you don't want to modify your domain interface everywhere it's used, so you build a thin wrapper that translates between them once, in one place.
+The pattern earns a second benefit in game projects that the textbook version rarely mentions: once game code depends on your class rather than the vendor's singleton, you can substitute a `Null` version that does nothing. The editor runs without the platform. GUT or gdUnit4 runs without the platform. An itch.io build ships without the platform. That substitution is the reason to wrap, even when there is only one vendor today.
 
 ## Scenario
 
-Your application writes log lines through a `Logger` interface. A third-party structured logging library is available, but it has a completely different method signature: it takes key-value pairs rather than a formatted string. You can't modify the library, and you don't want to change your `Logger` interface everywhere it's used.
+You are shipping on Steam first, using a Steamworks addon that registers a `SteamAPI` singleton. Unlocking an achievement is two calls, and they are sprinkled wherever an achievement happens:
 
-```go
-// mismatch.go
-package log
-
-// Your application's interface.
-type Logger interface {
-    Log(msg string)
-}
-
-// Third-party library — you can't change this.
-type StructuredLogger struct{}
-
-func (l *StructuredLogger) LogFields(fields map[string]string) {
-    // Accepts a map, not a string.
-    // These two signatures are incompatible.
-}
+```gdscript:title="res://bosses/forest_guardian.gd"
+func _on_died() -> void:
+	SteamAPI.set_achievement("ACH_FOREST_GUARDIAN")
+	SteamAPI.store_stats()
+	_drop_loot()
 ```
 
-The library's method takes a map. Your interface takes a string. Without an adapter, you'd scatter conversion code throughout the codebase: every call site would need to build the map before calling the library.
+```gdscript:title="res://quests/quest_tracker.gd"
+func _on_quest_completed(quest: QuestData) -> void:
+	if quest.id == &"tutorial" and SteamAPI.is_steam_running():
+		SteamAPI.set_achievement("ACH_TUTORIAL")
+		SteamAPI.store_stats()
+```
+
+Three months later the publisher wants a console port and a mobile build. Every one of those call sites needs a branch per platform. Running a boss scene in the editor with no Steam client prints a wall of errors, or crashes, depending on the addon's mood. The rule that `store_stats()` must follow `set_achievement()` is copied by hand into a dozen scripts and forgotten in two of them. And the vendor's ids — `"ACH_FOREST_GUARDIAN"` — are strings scattered through gameplay code, so renaming one on the partner site is a project-wide search.
+
+> **Smell:** `grep -r SteamAPI res://` returns files outside `res://platform/`.
 
 ## Solution
 
-Create a wrapper struct that holds the library client and implements your interface, translating between the two APIs in one place.
+Define the contract your game wants, in your terms. Write one adapter per vendor, one null adapter for everything else, and choose between them in one place at startup.
 
 ```
-┌──────────────────────────┐
-│    Logger                │
-│    <<interface>>         │
-│──────────────────────────│
-│ Log(msg string)          │
-└────────────┬─────────────┘
-             │ implements
-     ┌───────▼───────┐         ┌──────────────────────┐
-     │StructuredAdap.│────────►│  StructuredLogger    │
-     │               │ has-a   │  (third-party)       │
-     │ Log(msg)      │         │  LogFields(map)      │
-     └───────────────┘         └──────────────────────┘
+                 ┌────────────────────────────────┐
+  game code ────►│ AchievementService (RefCounted)│
+  (bosses,       │ unlock(id: StringName)         │
+   quests, HUD)  │ is_unlocked(id) -> bool        │
+                 └───────────────┬────────────────┘
+                                 │ extends
+          ┌──────────────────────┼──────────────────────┐
+          │                      │                      │
+┌─────────▼─────────┐  ┌─────────▼─────────┐  ┌─────────▼─────────┐
+│ SteamAchievements │  │ LocalAchievements │  │ NullAchievements  │
+│ wraps SteamAPI    │  │ ConfigFile under  │  │ records calls,    │
+│ (addon singleton) │  │ user://           │  │ does nothing else │
+└───────────────────┘  └───────────────────┘  └───────────────────┘
 ```
 
-Run it to see both loggers satisfy the same `Logger` interface:
+The base class is the target interface. GDScript has no interface keyword, so a base class with default bodies does the job; a subclass that forgets a method gets the default rather than a compile error, which is one of the costs.
 
-```go:title="main.go":run=true:editable=true
-package main
+```gdscript:title="res://platform/achievement_service.gd"
+class_name AchievementService extends RefCounted
+## The contract game code sees. Ids are ours, not the vendor's.
 
-import "fmt"
+signal unlocked(id: StringName)
 
-type Logger interface {
-	Log(msg string)
-}
+func unlock(_id: StringName) -> void:
+	push_error("unlock() not implemented on %s" % get_script().get_global_name())
 
-// Third-party library — you can't change this.
-type StructuredLogger struct{}
-
-func (l *StructuredLogger) LogFields(fields map[string]string) {
-	fmt.Println("[structured]", fields)
-}
-
-// Adapter makes StructuredLogger satisfy Logger.
-type StructuredAdapter struct {
-	logger *StructuredLogger
-}
-
-func NewStructuredAdapter() *StructuredAdapter {
-	return &StructuredAdapter{logger: &StructuredLogger{}}
-}
-
-func (a *StructuredAdapter) Log(msg string) {
-	a.logger.LogFields(map[string]string{"msg": msg})
-}
-
-// ConsoleLogger is a simple Logger for tests or development.
-type ConsoleLogger struct{}
-
-func (c *ConsoleLogger) Log(msg string) { fmt.Println(msg) }
-
-func run(logger Logger) {
-	logger.Log("server started")
-	logger.Log("request received")
-}
-
-func main() {
-	run(NewStructuredAdapter())
-	run(&ConsoleLogger{})
-}
+func is_unlocked(_id: StringName) -> bool:
+	return false
 ```
+
+The Steam adapter holds the id mapping and the call-order rule. Both now live in one script.
+
+```gdscript:title="res://platform/steam_achievements.gd"
+class_name SteamAchievements extends AchievementService
+## Adapter over the Steamworks addon. Nothing outside res://platform/ touches SteamAPI.
+
+const VENDOR_IDS: Dictionary[StringName, String] = {
+	&"tutorial": "ACH_TUTORIAL",
+	&"forest_guardian": "ACH_FOREST_GUARDIAN",
+	&"no_damage_run": "ACH_NO_DAMAGE",
+}
+
+func unlock(id: StringName) -> void:
+	if not VENDOR_IDS.has(id):
+		push_warning("No Steam achievement mapped for %s" % id)
+		return
+	if is_unlocked(id):
+		return
+	SteamAPI.set_achievement(VENDOR_IDS[id])
+	SteamAPI.store_stats()  # the addon needs this after every set; one place remembers
+	unlocked.emit(id)
+
+func is_unlocked(id: StringName) -> bool:
+	if not VENDOR_IDS.has(id):
+		return false
+	return SteamAPI.get_achievement(VENDOR_IDS[id])
+```
+
+The null adapter is the one you will use most often, because it is what runs every time you press F6 on a scene.
+
+```gdscript:title="res://platform/null_achievements.gd"
+class_name NullAchievements extends AchievementService
+## Stands in when no platform service exists: the editor, tests, a DRM-free build.
+## Remembers what was asked of it so tests can assert on it.
+
+var calls: Array[StringName] = []
+var _unlocked: Dictionary[StringName, bool] = {}
+
+func unlock(id: StringName) -> void:
+	calls.append(id)
+	_unlocked[id] = true
+	unlocked.emit(id)
+
+func is_unlocked(id: StringName) -> bool:
+	return _unlocked.get(id, false)
+```
+
+One Autoload decides which adapter the game gets. This is the only script that knows what platform it is running on; `OS.has_feature` reads the custom feature tags you set per export preset.
+
+```gdscript:title="res://autoload/platform.gd"
+extends Node
+## Autoload "Platform". The composition root for platform services.
+
+var achievements: AchievementService
+
+func _ready() -> void:
+	if OS.has_feature("steam") and SteamAPI.is_steam_running():
+		achievements = SteamAchievements.new()
+	else:
+		achievements = NullAchievements.new()
+	print("Achievements via ", achievements.get_script().get_global_name())
+```
+
+Game code now speaks in its own ids and never mentions a vendor:
+
+```gdscript:title="res://bosses/forest_guardian.gd"
+func _on_died() -> void:
+	Platform.achievements.unlock(&"forest_guardian")
+	_drop_loot()
+```
+
+Reaching for the Autoload directly is fine at the edges, but anything with logic worth testing should take the service as a constructor argument, so a test can hand it a `NullAchievements` and read `calls` back:
+
+```gdscript:title="res://test/unit/test_quest_tracker.gd"
+extends GutTest
+
+func test_finishing_the_tutorial_unlocks_the_achievement() -> void:
+	var achievements := NullAchievements.new()
+	var tracker := QuestTracker.new(achievements)
+	tracker.complete(&"tutorial")
+	assert_eq(achievements.calls, [&"tutorial"])
+```
+
+No scene tree, no Steam client, no export preset. The test runs in milliseconds because `QuestTracker` and both adapters are `RefCounted`.
+
+### What the adapter throws away
+
+Steamworks can report incremental progress on an achievement and show an overlay notification with a percentage. `AchievementService.unlock()` cannot express that. This is the information loss in the one-liner, and it is a decision, not an accident: the adapter's interface is the lowest common denominator of every platform you intend to support. When a designer asks for progress bars, add `set_progress(id, current, total)` to the base class with a no-op default, implement it on the adapters that can, and let the rest ignore it. What you must not do is let gameplay code reach around the adapter for the one feature it lacks, because that first reach-around is where the next platform port starts hurting.
 
 ## When to Use
 
-- You need to use a type whose interface doesn't match what your code expects.
-- You're integrating a third-party library and want to isolate its API from your domain.
-- You're writing a compatibility layer between two subsystems with different conventions.
+- Game code would otherwise call a vendor singleton (Steam, an ads SDK, a console API, analytics) directly.
+- You need to run scenes in the editor or under GUT/gdUnit4 without the platform present.
+- Two subsystems of your own were written with different vocabularies (an old save format and a new inventory) and you want the translation in one file.
+- You expect to swap or add a vendor: a second store, a second analytics provider.
 
 ## When Not to Use
 
-- You can change the target interface to match. Modifying the interface is simpler than wrapping.
-- The adaptation is trivial (just renaming a method). Go's implicit interface satisfaction might mean you don't need a wrapper at all.
-- You're adapting for hypothetical future flexibility. Only adapt when the mismatch is real.
+- You own both sides. Change the interface to match instead of wrapping.
+- The mismatch is one method name. A wrapper that only renames is indirection with no translation.
+- You are wrapping for a port that may never happen. Wrap when the second platform is scheduled, not when it is imagined.
 
 ## The Decision
 
-The benefit is concentrated: translation logic lives in one place, not scattered across every call site. Swapping the adapted library requires updating one struct rather than dozens of callers. The cost is a layer of indirection: one more file to open when tracing a call.
+What you buy is a single script to open when the vendor changes their API, renames an id, or adds a mandatory initialisation call. What you pay is one more hop when tracing a call, and an interface that is deliberately smaller than the thing it wraps. GDScript adds a specific gotcha here: a base class with default method bodies does not force subclasses to implement anything, so a new adapter that forgets `is_unlocked()` silently returns `false` forever. From 4.5 `@abstract` lets the engine refuse to instantiate an incomplete adapter; before that, a `push_error` in the base body is the best warning you get.
 
-If the adapted API changes (new parameters, changed return types), the adapter must be updated. The compiler will catch this immediately, which is actually a feature. Adapters can also silently lose information: translating a rich structured log entry down to a plain string means callers can never get that structure back. Be deliberate about what the adapter discards.
+The other decision is where the adapter lives. A `RefCounted` adapter held by one Autoload is the right default: it has no scene-tree dependency, it can be constructed in a test, and the Autoload is the only place that reads the platform. The tempting alternative — registering the adapter itself as an Autoload named `Achievements` — works until you want two of them (a real one and a recording one in the same test run), which is exactly when you find out how many scripts reach for the global name.
 
-You meet adapters constantly in the standard library: `strings.NewReader`, `bufio.NewReader`, and `io.NopCloser` each wrap one type so it satisfies an interface a caller expects, such as `io.Reader` or `io.ReadCloser`. That framing makes the trade-off clear — an adapter is [an abstraction borrowed against the future](/philosophy/borrowed-abstraction): worth it to quarantine a foreign API, wasteful when you wrap a type you already own.
+Wrapping an API you do not own is [an abstraction borrowed against the future](/philosophy/borrowed-abstraction): worth it to quarantine a vendor, wasteful when you wrap a class you already own.
 
 ## Related Patterns
 
-- **Bridge**: Bridge designs two interfaces to vary independently from the start; Adapter is a retrofit that reconciles two existing interfaces that were never designed to work together.
-- **Decorator**: Decorator preserves the same interface and adds behaviour; Adapter changes the interface to resolve a mismatch. If your wrapper changes the API, it's an Adapter; if it adds to the same API, it's a Decorator.
-- **Facade**: Facade simplifies a whole subsystem's API into fewer entry points; Adapter makes one specific type compatible with one specific interface.
-- **Proxy**: Proxy preserves the same interface to control access to the real object; Adapter provides a different interface to bridge an incompatibility.
+- **[Facade](/patterns/structural/facade)**: Facade simplifies a whole subsystem into one workflow; Adapter makes one specific vendor speak one specific contract. If the problem is "too many calls in sequence", Facade; if it is "the wrong vocabulary", Adapter.
+- **[Proxy](/patterns/structural/proxy)**: Proxy keeps the same interface and controls access; Adapter changes the interface. A `NullAchievements` is an Adapter with nothing behind it, not a Proxy.
+- **[Decorator](/patterns/structural/decorator)**: Decorator preserves the interface and adds behaviour. If your wrapper changes the API, it is an Adapter; if it enriches the same API, it is a Decorator.
+- **[Bridge](/patterns/structural/bridge)**: Bridge designs two independent axes up front; Adapter is a retrofit over something that already exists and was never designed to fit.
+- **[Service Locator](/patterns/architectural/service-locator)**: The `Platform` Autoload above is a small Service Locator. Adapter is what it hands out; the locator is how callers find it.
+- **[Hexagonal](/patterns/architectural/hexagonal)**: Hexagonal is Adapter applied at every edge of the game — input, storage, platform — with the same null-implementation trick for tests.
