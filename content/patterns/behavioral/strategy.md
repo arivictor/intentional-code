@@ -1,148 +1,207 @@
 ---
 title: "Strategy"
-description: "Define a family of algorithms, encapsulate each one, and make them interchangeable at runtime."
+description: "Swap an enemy's movement, targeting, or AI by assigning a Resource or Callable, without editing the node that runs it."
 ---
 
 # Strategy
 
-**Buys runtime-interchangeable algorithms at near-zero cost via function types; pays because the selection switch doesn't vanish — it relocates to the caller.**
+**Buys swappable behaviour (movement, targeting, AI) via Resources or Callables without touching the node that uses them; pays because the selection logic moves to whoever assigns the strategy rather than vanishing.**
 
-Strategy defines a family of algorithms and makes them interchangeable. In Go, the most idiomatic form is a function type: pass a function value rather than creating an interface with a single method. Use the interface form when the strategy has multiple methods or carries state.
+Strategy defines a family of interchangeable behaviours and lets the thing that runs them stay ignorant of which one is plugged in. In Godot the natural container for a strategy is a `Resource` subclass: it can carry tuning data, it can be saved as a `.tres` and picked in the inspector, and one instance can be shared by every node that uses it. When the strategy is pure logic with no data, a `Callable` does the same job with less ceremony.
 
-This is the [Open/Closed Principle](/philosophy/keep-changes-local#solid) applied to algorithms. The context is open to new behaviours without modifying existing code. It's also one of the patterns that becomes nearly invisible in Go. When someone passes a `func` to a constructor or a `sort.Slice` call, they're using Strategy without naming it.
+The guarantee is that the node running the strategy never changes when a new one is added. An `Enemy` with `@export var movement: MovementStrategy` doesn't know whether it's chasing, patrolling, or fleeing; a designer decides that per instance, or code decides it at runtime. That is the [Open/Closed Principle](/philosophy/keep-changes-local#solid) applied to behaviour, and it is the pattern that falls out most naturally from [data-driven design](/patterns/architectural/data-driven).
 
 ## Scenario
 
-You need to send notifications through different channels. The current approach switches on a channel name inside the sending function. Every new channel means editing that function, and you can't test one channel's logic without compiling in all the others.
+An enemy chooses how to move with a `match` on an enum inside `_physics_process`.
 
-```go
-func Notify(channel, msg string) error {
-    switch channel {
-    case "email":
-        return sendEmail(msg)
-    case "sms":
-        return sendSMS(msg)
-    case "slack":
-        return sendSlack(msg)
-    default:
-        return fmt.Errorf("unknown channel: %s", channel)
-    }
-}
+```gdscript:title="res://enemies/enemy.gd"
+class_name Enemy extends CharacterBody2D
+
+enum Movement { CHASE, PATROL, FLEE }
+
+@export var movement: Movement = Movement.PATROL
+@export var speed: float = 90.0
+@export var panic_multiplier: float = 1.5  # only FLEE reads this
+
+var target: Node2D
+var facing: int = 1
+
+func _physics_process(_delta: float) -> void:
+	match movement:
+		Movement.CHASE:
+			if target:
+				velocity = global_position.direction_to(target.global_position) * speed
+		Movement.PATROL:
+			if is_on_wall():
+				facing = -facing
+			velocity.x = facing * speed
+		Movement.FLEE:
+			if target:
+				var away := target.global_position.direction_to(global_position)
+				velocity = away * speed * panic_multiplier
+	move_and_slide()
 ```
 
-The switch is stringly typed. Adding a new channel means modifying `Notify`. Testing email logic requires the SMS and Slack code to compile too.
+For three variants in one file this is fine, and I'd leave it alone. It stops being fine when each variant wants its own tuning (a chase acceleration curve, a patrol distance, the flee multiplier), when a designer wants to pick a variant per instance without a code change, or when the fourth and fifth variants arrive and `enemy.gd` becomes a catalogue of unrelated movement code. Every variant's data is a field on `Enemy` whether or not the current variant reads it, and there is no way to test the patrol logic without running the whole enemy script.
+
+> **Smell:** an `@export` enum whose only job is to feed a `match`, sitting next to a growing pile of `@export` floats that only one branch reads.
 
 ## Solution
 
-Pull the "how to send" out of `Notify` and pass it in as a value. In Go, the simplest form is a function type.
+Pull each branch into its own Resource. The base class declares the contract; subclasses implement it and carry their own data.
 
 ```
-type NotifyFunc func(msg string) error
-
-Notify(msg, Email)   ──► func(string) error
-Notify(msg, SMS)     ──► func(string) error
-Notify(msg, Console) ──► func(string) error
+Enemy (CharacterBody2D)
+├── Sprite2D
+├── CollisionShape2D
+└── movement: MovementStrategy   ← @export, a .tres picked in the inspector
+        │
+        ├── ChaseMovement   (speed)
+        ├── PatrolMovement  (speed)
+        └── FleeMovement    (speed, panic_multiplier)
 ```
 
-The function-type approach, idiomatic Go. Run it to send the same kind of message through three interchangeable strategies:
+```gdscript:title="res://enemies/movement/movement_strategy.gd"
+class_name MovementStrategy extends Resource
 
-```go:title="func_strategy.go":run=true:editable=true
-package main
-
-import "fmt"
-
-type NotifyFunc func(msg string) error
-
-func Email(msg string) error {
-	fmt.Println("email:", msg)
-	return nil
-}
-
-func SMS(msg string) error {
-	fmt.Println("sms:", msg)
-	return nil
-}
-
-func Console(msg string) error {
-	fmt.Println(msg)
-	return nil
-}
-
-func Notify(msg string, send NotifyFunc) error {
-	return send(msg)
-}
-
-func main() {
-	Notify("server started", Console)
-	Notify("order placed", Email)
-	Notify("login alert", SMS)
-}
+## Contract for every movement behaviour. Kept stateless so one .tres can be
+## shared by every enemy that uses it; per-instance state lives on the Enemy.
+func move(enemy: Enemy, _delta: float) -> void:
+	enemy.velocity = Vector2.ZERO
 ```
 
-When a strategy needs configuration or multiple methods, use an interface instead. Run this version to see two configured notifiers handle the same event:
+```gdscript:title="res://enemies/movement/chase_movement.gd"
+class_name ChaseMovement extends MovementStrategy
 
-```go:title="interface_strategy.go":run=true:editable=true
-package main
+@export var speed: float = 120.0
 
-import "fmt"
-
-type Notifier interface {
-	Send(msg string) error
-}
-
-type EmailNotifier struct {
-	From string
-	To   string
-}
-
-func (n *EmailNotifier) Send(msg string) error {
-	fmt.Printf("[email] %s → %s: %s\n", n.From, n.To, msg)
-	return nil
-}
-
-type SlackNotifier struct {
-	Channel string
-}
-
-func (n *SlackNotifier) Send(msg string) error {
-	fmt.Printf("[slack] #%s: %s\n", n.Channel, msg)
-	return nil
-}
-
-func main() {
-	email := &EmailNotifier{From: "ops@example.com", To: "team@example.com"}
-	slack := &SlackNotifier{Channel: "alerts"}
-
-	email.Send("deploy complete")
-	slack.Send("deploy complete")
-}
+func move(enemy: Enemy, _delta: float) -> void:
+	if enemy.target == null:
+		enemy.velocity = Vector2.ZERO
+		return
+	enemy.velocity = enemy.global_position.direction_to(enemy.target.global_position) * speed
 ```
 
-> In Go, a function type IS a strategy. `sort.Slice(data, func(i, j int) bool { ... })` is Strategy. You don't need an interface for single-method strategies; a `func` type is simpler and more idiomatic.
+```gdscript:title="res://enemies/movement/patrol_movement.gd"
+class_name PatrolMovement extends MovementStrategy
+
+@export var speed: float = 60.0
+
+func move(enemy: Enemy, _delta: float) -> void:
+	if enemy.is_on_wall():
+		enemy.facing = -enemy.facing
+	enemy.velocity.x = enemy.facing * speed
+```
+
+```gdscript:title="res://enemies/movement/flee_movement.gd"
+class_name FleeMovement extends MovementStrategy
+
+@export var speed: float = 90.0
+@export_range(1.0, 3.0) var panic_multiplier: float = 1.5
+
+func move(enemy: Enemy, _delta: float) -> void:
+	if enemy.target == null:
+		enemy.velocity = Vector2.ZERO
+		return
+	var away := enemy.target.global_position.direction_to(enemy.global_position)
+	enemy.velocity = away * speed * panic_multiplier
+```
+
+The enemy shrinks to the parts every variant shares: the physics step, and the per-instance state the strategies read and write.
+
+```gdscript:title="res://enemies/enemy.gd"
+class_name Enemy extends CharacterBody2D
+
+const FLEE_STRATEGY := preload("res://enemies/movement/flee.tres")
+
+@export var movement: MovementStrategy
+
+var target: Node2D
+var facing: int = 1
+
+func _physics_process(delta: float) -> void:
+	if movement:
+		movement.move(self, delta)
+	move_and_slide()
+
+func _on_health_changed(current: int, maximum: int) -> void:
+	if current < maximum / 4 and not movement is FleeMovement:
+		movement = FLEE_STRATEGY
+```
+
+Notice the split. Tuning that belongs to the *kind* of movement (`speed`, `panic_multiplier`) lives in the Resource; state that belongs to *this* enemy (`facing`, `target`) lives on the node. That split is what lets one `patrol.tres` be shared by forty enemies. Put `facing` on the Resource and all forty turn around together.
+
+Swapping at runtime is a single assignment, as `_on_health_changed` shows. Whoever makes that assignment — the enemy's own health handler, a spawner, a [Factory Method](/patterns/creational/factory-method) reading a wave definition — now owns the selection logic the `match` used to hold.
+
+### The Callable variant
+
+For targeting, the strategy is a pure function: given a position and some candidates, return one. That needs no data and no inspector, so a `Callable` is enough.
+
+```gdscript:title="res://enemies/target_pickers.gd"
+class_name TargetPickers
+
+static func nearest(from: Vector2, candidates: Array[Node]) -> Node2D:
+	var best: Node2D = null
+	var best_distance := INF
+	for node in candidates:
+		var candidate := node as Node2D
+		if candidate == null:
+			continue
+		var distance := from.distance_squared_to(candidate.global_position)
+		if distance < best_distance:
+			best_distance = distance
+			best = candidate
+	return best
+
+static func weakest(_from: Vector2, candidates: Array[Node]) -> Node2D:
+	var best: Node2D = null
+	var lowest := INF
+	for node in candidates:
+		var health := node.get_node_or_null("HealthComponent") as HealthComponent
+		if health and health.health < lowest:
+			lowest = health.health
+			best = node as Node2D
+	return best
+```
+
+```gdscript:title="res://enemies/turret.gd"
+class_name Turret extends Node2D
+
+var pick_target: Callable = TargetPickers.nearest
+
+func _physics_process(_delta: float) -> void:
+	var candidates := get_tree().get_nodes_in_group(&"player_units")
+	var target: Node2D = pick_target.call(global_position, candidates)
+	if target:
+		look_at(target.global_position)
+```
+
+Assigning `turret.pick_target = TargetPickers.weakest` changes the turret's behaviour with no new class. A lambda works as well for one-off rules. What a Callable can't do is appear in the inspector or be saved in a `.tres`, so the choice is simple: Resource when designers assign it or it carries data, Callable when code assigns it and it's stateless.
 
 ## When to Use
 
-- You see a switch or if/else selecting an algorithm based on a type or configuration.
-- The algorithm should be interchangeable at runtime.
-- You want to test business logic independently of the algorithm choice.
-- In Go: if the strategy is a single function, use a function type. If it has state or multiple methods, use an interface.
+- A `match` on an enum selects between behaviours, and the branches are growing or want their own tuning data.
+- Designers should choose the behaviour per instance in the inspector, or per wave in a data file, without a code change.
+- You want to test a behaviour in GUT or gdUnit4 by calling `PatrolMovement.new().move(enemy, 0.016)` against a bare `Enemy.new()` — no scene tree, no physics server.
+- The behaviour must change at runtime: an enemy that flees when hurt, a turret that switches targeting when upgraded.
 
 ## When Not to Use
 
-- There's only one algorithm and no expectation of alternatives. Just call the function directly.
-- The algorithms are trivially different. Wrapping them in a Strategy interface is overhead you won't recoup.
+- There are two or three variants with no per-variant data and no runtime swap. The `match` is [the simplest thing](/philosophy/no-pattern#kiss); a Resource per branch is ceremony.
+- The variants are trivially different (one number). A single `@export var speed` beats three classes that each hold a speed.
+- The behaviour needs to reach deep into the node's internals. If the strategy touches twelve fields on `Enemy`, it's not a plug-in behaviour, it's half the enemy in a separate file.
 
 ## The Decision
 
-The function-type form costs almost nothing in Go. Passing a `func` is idiomatic and adds no boilerplate. The interface form adds a little more structure but buys you config state and the ability to introspect the strategy (for example, a `Name()` method for logging).
+The Resource form costs one script per variant and buys inspector editing, `.tres` reuse, and isolated tests. Its Godot-specific trap is sharing: a Resource loaded from disk is one object, and every enemy with the same `.tres` holds the same instance. That's a feature for tuning data and a bug the moment a strategy stores per-instance state like a cooldown or a patrol origin. Either keep the strategy stateless and store that state on the node (as above), or set `resource_local_to_scene` on the Resource, or `duplicate()` it in `_ready`. The engine won't warn you; forty enemies sharing a cooldown will.
 
-The cost that never goes away is that the switch doesn't disappear; it moves to the caller. If every call site does `if userType == "premium" { send = PremiumNotifier{} }`, you've relocated the problem rather than solved it. Centralise strategy selection in a factory or constructor, not scattered across call sites.
-
-That near-zero cost is the point: a function value *is* the whole pattern, so [the abstraction you borrow is almost free](/philosophy/borrowed-abstraction). The only debt is where the selection switch lives — keep it in one place and Strategy stays cheap.
+The cost that never goes away is that the selection logic doesn't disappear, it relocates. If every spawner does `if wave > 5: enemy.movement = CHASE_STRATEGY`, you've moved the `match` into six places instead of one. Centralise it: a spawn table Resource that pairs enemy scenes with strategies, or a factory that assigns them. This is [tenet #2 — name the trade-off](/philosophy/name-the-trade-off) in practice: Strategy trades one `match` you can read for an assignment you have to find.
 
 ## Related Patterns
 
-- **Bridge**: Strategy varies one interchangeable algorithm; Bridge separates two independent dimensions of variation simultaneously. If you have two axes (abstraction + implementation), use Bridge. If you have one (algorithm selection), use Strategy.
-- **State**: Both swap behaviour at runtime. The distinction is who controls the swap: Strategy is chosen and set by an external caller; State transitions internally in response to events.
-- **Template Method**: Template Method holds the algorithm skeleton fixed and plugs in one or two steps; Strategy replaces the whole algorithm. Prefer Template Method when the structure matters, Strategy when it doesn't.
-- **Command**: Both encapsulate behaviour as a value; Command adds undo and queuing on top. If you need those capabilities, use Command. If you only need interchangeability, Strategy is simpler.
+- **[State](/patterns/behavioral/state)**: Both swap behaviour at runtime. Strategy is chosen from outside (a designer, a spawner, a health handler); State transitions itself in response to events. If the behaviours know when to hand over to each other, it's State.
+- **[Template Method](/patterns/behavioral/template-method)**: Template Method fixes the skeleton in a base `Enemy` and lets subclasses override one step; Strategy replaces the whole step with an object. Prefer Strategy when the same behaviour should be shared across unrelated node types.
+- **[Command](/patterns/behavioral/command)**: Both wrap behaviour in an object; Command adds undo, queuing, and replay. If you only need interchangeability, Strategy is lighter.
+- **[Bridge](/patterns/structural/bridge)**: Strategy varies one axis; Bridge varies two independently (every weapon × every wielder). Reach for Bridge when you find yourself with strategies of strategies.
+- **[Data-Driven Design](/patterns/architectural/data-driven)**: Strategy Resources are the behavioural half of data-driven content: the same inspector-editable `.tres` files, carrying logic as well as numbers.

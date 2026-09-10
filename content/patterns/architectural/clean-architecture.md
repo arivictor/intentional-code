@@ -1,367 +1,297 @@
 ---
 title: "Clean Architecture"
-description: "Clean Architecture organises code into concentric rings and lets dependencies point only inward, so the domain never imports its database, framework, or transport."
+description: "Keep the game's rules in plain RefCounted classes that never touch a Node, and treat scenes, input, and files as an outer ring that maps to and from them."
 ---
 
 # Clean Architecture
 
-**Buys domain independence from infrastructure and a second delivery mechanism almost for free; pays in inter-ring mapping boilerplate and a rule the compiler won't enforce.**
+**Buys a simulation independent of nodes and the engine loop, testable without a scene tree; pays in mapping boilerplate between plain classes and nodes and a rule the engine won't enforce.**
 
-Popularised by Robert C. Martin ("Uncle Bob"), Clean Architecture is a software design pattern designed to separate your core business logic from your technical framework, database, and user interface. The ultimate goal is Separation of Concerns so that your application is easy to test, maintain, and change over time. Clean Architecture is imagined as concentric layers of code. It is as much a philosophy as it is a pattern. The pattern hinges around one rule, which is that each source code layer can only point inward. By "point inward" we mean the outer most layer can import inner layers, but inner layers cannot import outer layers. 
+Clean Architecture, as Robert C. Martin described it, arranges code in concentric rings and allows dependencies to point only inward. The innermost ring holds the entities — the things the game is *about*: a combatant, an inventory, a turn order. The next ring holds use cases — what the game *does*: resolve an attack, pick up an item, end the turn. Outside those sit adapters that translate between the rules and the engine, and outermost sits the engine itself: nodes, `Input`, `FileAccess`, the scene tree.
 
-The innermost ring contains the Entities, which are pure domain types with no imports beyond the standard library. The next ring contains Use Cases, which define application-specific business rules and interfaces (ports) for everything they need, but implement nothing that belongs in an outer ring. The next ring contains Interface Adapters, which implement the ports defined by the use cases to translate between the domain's pure types and the infrastructure's impure ones. The outermost ring contains Frameworks and Drivers, which are things like HTTP handlers, frameworks, database clients, and CLI commands that depend on third-party libraries but know nothing about the domain.
+In Godot the rule has a blunt practical reading: **the inner rings never reference a `Node`.** They are `RefCounted` classes (and `Resource` classes for data) that know nothing about `_process`, `get_tree()`, `$Sprite2D`, or which frame it is. A node script can `preload` a use case; a use case never `preload`s a scene. That one constraint is what makes the guarantee real: a combat rule that never touches a node can be constructed and exercised in a GUT or gdUnit4 test with no scene tree at all, and the same rule can drive a 2D scene today, a 3D scene next year, and a headless server in between.
 
-```Clean
-┌───────────────────────────────────────────┐
-│          Frameworks & Drivers             │  HTTP handlers, sql.DB,
-│     (outermost, nothing imports this)     │  SMTP clients, CLI
-│  ┌─────────────────────────────────────┐  │
-│  │       Interface Adapters            │  │  Controllers, Presenters,
-│  │  (converts between rings)           │  │  Repository implementations
-│  │  ┌───────────────────────────────┐  │  │
-│  │  │        Use Cases              │  │  │  Application business rules
-│  │  │  (application logic)          │  │  │  orchestrate entities
-│  │  │  ┌─────────────────────────┐  │  │  │
-│  │  │  │       Entities          │  │  │  │  Enterprise business rules
-│  │  │  │  (domain types & rules) │  │  │  │  pure Go, zero imports
-│  │  │  └─────────────────────────┘  │  │  │
-│  │  └───────────────────────────────┘  │  │
-│  └─────────────────────────────────────┘  │
-└───────────────────────────────────────────┘
-            ← dependencies point inward
+```
+┌───────────────────────────────────────────────┐
+│           Frameworks & Drivers                │  Node2D, Control, Input,
+│    scenes, the main loop, FileAccess, RPC     │  AnimationPlayer, FileAccess
+│  ┌─────────────────────────────────────────┐  │
+│  │          Interface Adapters             │  │  BattleScene maps sim ↔ nodes,
+│  │   scripts that map sim ↔ nodes/files    │  │  FileBattleRepository
+│  │  ┌───────────────────────────────────┐  │  │
+│  │  │           Use Cases               │  │  │  ResolveAttack, EndTurn
+│  │  │    RefCounted; define ports       │  │  │  (RefCounted)
+│  │  │  ┌─────────────────────────────┐  │  │  │
+│  │  │  │         Entities            │  │  │  Combatant, Battle
+│  │  │  │  RefCounted / Resource data │  │  │  (no Node anywhere)
+│  │  │  └─────────────────────────────┘  │  │  │
+│  │  └───────────────────────────────────┘  │  │
+│  └─────────────────────────────────────────┘  │
+└───────────────────────────────────────────────┘
+              ← dependencies point inward
 ```
 
 ## Scenario
 
-You're three years into a project. Switching databases requires touching service logic. Adding a gRPC endpoint means duplicating validation that lives in the HTTP handler. Your domain types import `database/sql`. The framework has become load-bearing, and you can't reason about business logic without understanding the infrastructure first.
+A turn-based tactics game. The combat rules grew up inside the enemy scene, because that is where the collision signal arrives:
 
-```go
-// Typical symptom: domain types coupled to infrastructure
-package notes
+```gdscript:title="res://enemies/enemy.gd"
+extends CharacterBody2D
 
-import (
-    "database/sql"    // domain importing infrastructure
-    "net/http"        // domain importing HTTP
-    "encoding/json"
-)
+@export var max_hp: int = 10
+@export var attack: int = 3
+@export var defence: int = 1
+var hp: int
 
-type Note struct {
-    ID string `json:"id" db:"id"`   // JSON and DB tags on domain type
-}
+func _ready() -> void:
+	hp = max_hp
+	$Hurtbox.area_entered.connect(_on_hurtbox_area_entered)
 
-func CreateNote(db *sql.DB, w http.ResponseWriter, r *http.Request) {
-    // HTTP, DB, and domain logic all in one place
-}
+func _on_hurtbox_area_entered(area: Area2D) -> void:
+	var attacker := area.owner as Node2D
+	var raw: int = attacker.get("attack")
+	# Critical hit rule, defence rule and death rule all live here.
+	if randf() < 0.1:
+		raw *= 2
+		$AnimationPlayer.play("crit_flash")
+	var dealt := maxi(raw - defence, 1)
+	hp -= dealt
+	$HealthBar.value = hp
+	if hp <= 0:
+		$AnimationPlayer.play("die")
+		await $AnimationPlayer.animation_finished
+		queue_free()
 ```
+
+The rule "damage is attack minus defence, minimum one, doubled on a crit" is the single most important thing in the game, and there is no way to check it without instantiating a `CharacterBody2D`, adding it to a running tree, spawning something with a hitbox, and waiting for physics to notice. When the player character needs the same rule it gets copy-pasted into `player.gd`, and the two copies drift. The server build, when it comes, cannot run the rule at all without a display.
+
+> **Smell:** a game rule whose only entry point is a signal handler on a node. If you cannot call it from a plain function, you cannot test it from one either.
 
 ## Solution
 
-Enforce the Dependency Rule: source code in an inner ring never names, imports, or knows about anything in an outer ring.
+Move the rule inward until it depends on nothing the scene tree provides, then let the scene be the thing that calls it.
 
+**Entities** are plain `RefCounted` classes holding state and the invariants that must always hold. A `Combatant` is not a node; it is the *idea* of a combatant.
 
+```gdscript:title="res://sim/combatant.gd"
+class_name Combatant extends RefCounted
 
-**Entities:** pure domain types, no imports beyond the standard library. This ensures that the core business logic is independent of any framework, database, or delivery mechanism.
+var id: StringName
+var max_hp: int
+var hp: int
+var attack: int
+var defence: int
 
-```go
-// domain/note.go
-package domain
+func _init(p_id: StringName, p_max_hp: int, p_attack: int, p_defence: int) -> void:
+	id = p_id
+	max_hp = p_max_hp
+	hp = p_max_hp
+	attack = p_attack
+	defence = p_defence
 
-import (
-    "fmt"
-    "time"
-)
+func is_alive() -> bool:
+	return hp > 0
 
-type Note struct {
-    ID        string
-    Title     string
-    Body      string
-    CreatedAt time.Time
-}
-
-func NewNote(id, title, body string) (*Note, error) {
-    if title == "" {
-        return nil, fmt.Errorf("title is required")
-    }
-    return &Note{
-        ID:        id,
-        Title:     title,
-        Body:      body,
-        CreatedAt: time.Now(),
-    }, nil
-}
-
-func (n *Note) UpdateBody(body string) {
-    n.Body = body
-}
+## Applies raw damage through defence. Returns the amount actually dealt.
+func take_damage(raw: int) -> int:
+	var dealt := maxi(raw - defence, 1)
+	hp = maxi(hp - dealt, 0)
+	return dealt
 ```
 
-**Use Cases:** define the intent of the user. They reference interfaces (ports) for everything they need, but implement nothing that belongs in an outer ring. This allows you to test use cases without starting any infrastructure, and to change the delivery mechanism without touching the application logic.
+**Use cases** orchestrate entities to do one thing the game does. They define **ports** — the things they need from the outside world — as small base classes, and depend only on those. Here the use case needs randomness, and it must not call `randf()` directly, because a test needs to force a crit.
 
-```go
-// usecase/save_note.go
-package usecase
+```gdscript:title="res://sim/ports/random_source.gd"
+class_name RandomSource extends RefCounted
 
-import (
-    "context"
-    "fmt"
-    "myapp/domain"
-)
-
-// Ports — defined by the use case and implemented by outer rings.
-type NoteRepository interface {
-    Save(ctx context.Context, n *domain.Note) error
-}
-
-type IDGenerator interface {
-    NewID() string
-}
-
-type SaveNoteInput struct {
-    Title string
-    Body  string
-}
-
-type SaveNoteOutput struct {
-    NoteID string
-}
-
-type SaveNoteUseCase struct {
-    notes   NoteRepository
-    ids     IDGenerator
-}
-
-func NewSaveNoteUseCase(notes NoteRepository, ids IDGenerator) *SaveNoteUseCase {
-    return &SaveNoteUseCase{notes: notes, ids: ids}
-}
-
-func (uc *SaveNoteUseCase) Execute(ctx context.Context, in SaveNoteInput) (SaveNoteOutput, error) {
-    note, err := domain.NewNote(uc.ids.NewID(), in.Title, in.Body)
-    if err != nil {
-        return SaveNoteOutput{}, err
-    }
-    if err := uc.notes.Save(ctx, note); err != nil {
-        return SaveNoteOutput{}, fmt.Errorf("saving note: %w", err)
-    }
-    return SaveNoteOutput{NoteID: note.ID}, nil
-}
+## Port. The outer ring supplies a real generator; tests supply a fixed one.
+func next_float() -> float:
+	push_error("RandomSource.next_float() not implemented")
+	return 0.0
 ```
 
-**Interface Adapters:** implement the previously defined ports to translate between the domain's pure types and the infrastructure's impure ones. For example, the HTTP handler converts from JSON to the use case's input struct, and the repository implementation converts from domain types to SQL rows. This ensures that the domain knows nothing about HTTP, databases, or frameworks, so you can change those things without touching the core business logic.
+```gdscript:title="res://sim/resolve_attack.gd"
+class_name ResolveAttack extends RefCounted
 
-```go
-// adapter/http/note_handler.go
-package httpadapter
+const CRIT_CHANCE := 0.1
 
-import (
-    "encoding/json"
-    "myapp/usecase"
-    "net/http"
-)
+class Result extends RefCounted:
+	var damage: int = 0
+	var critical: bool = false
+	var target_died: bool = false
 
-type NoteHandler struct {
-    saveNote *usecase.SaveNoteUseCase
-}
+var _rng: RandomSource
 
-func (h *NoteHandler) Create(w http.ResponseWriter, r *http.Request) {
-    var req struct {
-        Title string `json:"title"`
-        Body  string `json:"body"`
-    }
-    if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-        http.Error(w, "bad request", 400)
-        return
-    }
-    out, err := h.saveNote.Execute(r.Context(), usecase.SaveNoteInput{
-        Title: req.Title,
-        Body:  req.Body,
-    })
-    if err != nil {
-        http.Error(w, err.Error(), 422)
-        return
-    }
-    json.NewEncoder(w).Encode(map[string]string{"note_id": out.NoteID})
-}
+func _init(rng: RandomSource) -> void:
+	_rng = rng
+
+func execute(attacker: Combatant, target: Combatant) -> Result:
+	assert(attacker.is_alive(), "a dead combatant cannot attack")
+	var result := Result.new()
+	result.critical = _rng.next_float() < CRIT_CHANCE
+	var raw := attacker.attack * (2 if result.critical else 1)
+	result.damage = target.take_damage(raw)
+	result.target_died = not target.is_alive()
+	return result
 ```
 
-```go
-// adapter/postgres/note_repo.go
-package postgres
+Nothing in `res://sim/` references `Node`, `Input`, `get_tree()`, or a frame. It can run anywhere GDScript runs — including `godot --headless`.
 
-import (
-    "context"
-    "database/sql"
-    "myapp/domain"
-)
+**Adapters** are where the engine meets the rules. The battle scene owns the mapping between `Combatant` objects and the nodes that draw them, supplies the real port implementations, and turns a `Result` into animation.
 
-type NoteRepo struct{ db *sql.DB }
+```gdscript:title="res://adapters/godot_random.gd"
+class_name GodotRandom extends RandomSource
 
-func (r *NoteRepo) Save(ctx context.Context, n *domain.Note) error {
-    _, err := r.db.ExecContext(ctx,
-        "INSERT INTO notes (id, title, body, created_at) VALUES ($1,$2,$3,$4)",
-        n.ID, n.Title, n.Body, n.CreatedAt,
-    )
-    return err
-}
+var _rng := RandomNumberGenerator.new()
+
+func _init(seed_value: int = 0) -> void:
+	if seed_value != 0:
+		_rng.seed = seed_value
+
+func next_float() -> float:
+	return _rng.randf()
 ```
 
-Here's the whole flow as one runnable program, the Entities ring, a Use Case that depends only on ports, and in-memory adapters that satisfy them:
+```gdscript:title="res://battle/battle_scene.gd"
+extends Node2D
 
-```go:title="main.go":run=true:editable=true
-package main
+const COMBATANT_VIEW := preload("res://battle/combatant_view.tscn")
 
-import (
-	"context"
-	"fmt"
-	"time"
-)
+var _resolve_attack := ResolveAttack.new(GodotRandom.new())
+var _combatants: Dictionary[StringName, Combatant] = {}
+var _views: Dictionary[StringName, CombatantView] = {}
 
-// --- Entities ring: pure domain, no infrastructure imports ---
+func _ready() -> void:
+	_spawn(Combatant.new(&"hero", 20, 6, 1), Vector2(100, 200))
+	_spawn(Combatant.new(&"slime", 10, 2, 2), Vector2(400, 200))
 
-type Note struct {
-	ID        string
-	Title     string
-	Body      string
-	CreatedAt time.Time
-}
+func _spawn(combatant: Combatant, at: Vector2) -> void:
+	_combatants[combatant.id] = combatant
+	var view: CombatantView = COMBATANT_VIEW.instantiate()
+	view.position = at
+	%Units.add_child(view)
+	view.show_combatant(combatant)   # view reads hp/max_hp for its bar
+	_views[combatant.id] = view
 
-func NewNote(id, title, body string) (*Note, error) {
-	if title == "" {
-		return nil, fmt.Errorf("title is required")
-	}
-	return &Note{ID: id, Title: title, Body: body, CreatedAt: time.Now()}, nil
-}
+func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("attack"):
+		_attack(&"hero", &"slime")
+		get_viewport().set_input_as_handled()
 
-// --- Use Cases ring: application logic + ports (interfaces) ---
-
-type NoteRepository interface {
-	Save(ctx context.Context, n *Note) error
-}
-
-type IDGenerator interface {
-	NewID() string
-}
-
-type SaveNoteInput struct {
-	Title string
-	Body  string
-}
-
-type SaveNoteOutput struct {
-	NoteID string
-}
-
-type SaveNoteUseCase struct {
-	notes NoteRepository
-	ids   IDGenerator
-}
-
-func NewSaveNoteUseCase(notes NoteRepository, ids IDGenerator) *SaveNoteUseCase {
-	return &SaveNoteUseCase{notes: notes, ids: ids}
-}
-
-func (uc *SaveNoteUseCase) Execute(ctx context.Context, in SaveNoteInput) (SaveNoteOutput, error) {
-	note, err := NewNote(uc.ids.NewID(), in.Title, in.Body)
-	if err != nil {
-		return SaveNoteOutput{}, err
-	}
-	if err := uc.notes.Save(ctx, note); err != nil {
-		return SaveNoteOutput{}, fmt.Errorf("saving note: %w", err)
-	}
-	return SaveNoteOutput{NoteID: note.ID}, nil
-}
-
-// --- Interface Adapters ring: in-memory repository + fixed ID generator ---
-
-type memNoteRepo struct{ notes map[string]*Note }
-
-func (r *memNoteRepo) Save(_ context.Context, n *Note) error {
-	r.notes[n.ID] = n
-	return nil
-}
-
-type seqIDs struct{ n int }
-
-func (g *seqIDs) NewID() string {
-	g.n++
-	return fmt.Sprintf("note-%d", g.n)
-}
-
-func main() {
-	ctx := context.Background()
-	repo := &memNoteRepo{notes: map[string]*Note{}}
-	uc := NewSaveNoteUseCase(repo, &seqIDs{})
-
-	out, err := uc.Execute(ctx, SaveNoteInput{Title: "Hello", Body: "First note"})
-	if err != nil {
-		fmt.Println("error:", err)
-		return
-	}
-	fmt.Println("saved:", out.NoteID, "->", repo.notes[out.NoteID].Title)
-
-	// Domain invariant enforced in the Entities ring, not the handler.
-	if _, err := uc.Execute(ctx, SaveNoteInput{Title: "", Body: "no title"}); err != nil {
-		fmt.Println("rejected:", err)
-	}
-}
+func _attack(attacker_id: StringName, target_id: StringName) -> void:
+	var result := _resolve_attack.execute(_combatants[attacker_id], _combatants[target_id])
+	# The rule has already run. Everything below is presentation.
+	var target_view := _views[target_id]
+	target_view.show_combatant(_combatants[target_id])
+	target_view.play_hit(result.critical)
+	if result.target_died:
+		await target_view.play_death()
+		_views.erase(target_id)
+		_combatants.erase(target_id)
+		target_view.queue_free()
 ```
 
+The scene is deliberately dull. It reads input, calls a use case, and maps the outcome onto nodes. It makes no decision about damage. If a designer asks "what happens when defence exceeds attack?", the answer is in `combatant.gd` and nowhere else.
+
+### Testing without a scene tree
+
+Because the inner rings are `RefCounted`, a test constructs them directly. No `add_child`, no `await get_tree().process_frame`, no scene to instantiate.
+
+```gdscript:title="res://test/unit/test_resolve_attack.gd"
+extends GutTest
+
+class FixedRandom extends RandomSource:
+	var value: float
+	func _init(p_value: float) -> void:
+		value = p_value
+	func next_float() -> float:
+		return value
+
+func test_defence_never_reduces_damage_below_one() -> void:
+	var hero := Combatant.new(&"hero", 20, 1, 0)
+	var wall := Combatant.new(&"wall", 50, 0, 99)
+	var result := ResolveAttack.new(FixedRandom.new(0.9)).execute(hero, wall)
+	assert_eq(result.damage, 1)
+	assert_false(result.critical)
+
+func test_critical_doubles_attack_before_defence() -> void:
+	var hero := Combatant.new(&"hero", 20, 6, 0)
+	var slime := Combatant.new(&"slime", 10, 2, 2)
+	var result := ResolveAttack.new(FixedRandom.new(0.05)).execute(hero, slime)
+	assert_true(result.critical)
+	assert_eq(result.damage, 10)
+	assert_true(result.target_died)
 ```
-// Output:
-// saved: note-1 -> Hello
-// rejected: title is required
-```
 
-## Folder Structure
+These run in milliseconds, run under `--headless` in CI, and fail with a line number instead of a screenshot.
 
-Each ring maps to a package or package group:
+### Folder structure
 
 ```
-myapp/
-├── cmd/
-│   └── server/
-│       └── main.go         # outermost: assembles all rings
-├── domain/                 # Entities ring: pure types, no project imports
-│   └── note.go
-├── usecase/                # Use Cases ring: application logic and port interfaces
-│   ├── save_note.go
-│   └── save_note_test.go   # tested without any infrastructure
-├── adapter/                # Interface Adapters ring: translates between rings
-│   ├── http/
-│   │   └── note.go         # HTTP → use case
-│   └── postgres/
-│       └── note.go         # use case port → PostgreSQL
-└── infrastructure/         # Frameworks & Drivers ring: sql.DB, server config
-    └── db.go
+res://
+├── sim/                      # Entities + Use Cases: RefCounted/Resource only
+│   ├── combatant.gd
+│   ├── battle.gd
+│   ├── resolve_attack.gd
+│   └── ports/
+│       ├── random_source.gd
+│       └── battle_repository.gd
+├── adapters/                 # Implement the ports with engine APIs
+│   ├── godot_random.gd
+│   └── file_battle_repository.gd   # FileAccess + JSON
+├── battle/                   # Frameworks & Drivers: scenes and node scripts
+│   ├── battle_scene.tscn
+│   ├── battle_scene.gd
+│   └── combatant_view.tscn
+├── data/                     # Resources: .tres files designers edit
+│   └── units/
+└── test/
+    └── unit/                 # no scene tree needed
 ```
 
-The Dependency Rule in package terms: `domain` imports nothing from this project. `usecase` imports `domain`. `adapter/*` imports `usecase` ports. `infrastructure` imports only third-party drivers. `cmd/server` imports everything and assembles the application. Any import that crosses inward-to-outward breaks the guarantee.
+The dependency rule in file terms: nothing under `res://sim/` may `preload`, `load`, or type-hint anything under `res://adapters/`, `res://battle/`, or any `Node` subclass. `res://adapters/` may reference `res://sim/`. `res://battle/` may reference both. Godot will not stop you breaking this — `get_tree()` is reachable from any script through `Engine.get_main_loop()` — so a grep in CI for `Node`, `get_tree`, `Input.` and `preload("res://battle` inside `res://sim/` is the closest thing you have to a compiler check.
 
-The inward dependency rule answers a specific question: "why can't my domain type import `database/sql`?" Because the domain is the core asset, and the infrastructure is the variable. Today it's PostgreSQL but 12 months from now it might not be. The rule structurally prevents the infrastructure from becoming load-bearing — so you can change it without breaking the domain. If you're not protecting something that genuinely needs to outlast its infrastructure, the rings are overhead.
+### Data in the inner ring
+
+Designers still need the inspector. A `Resource` subclass with `@export`s is allowed in the entities ring — it is data, not a node — so unit definitions can be `.tres` files while the rules stay pure:
+
+```gdscript:title="res://sim/unit_data.gd"
+class_name UnitData extends Resource
+
+@export var id: StringName
+@export_range(1, 999) var max_hp: int = 10
+@export_range(0, 99) var attack: int = 3
+@export_range(0, 99) var defence: int = 1
+
+func make_combatant() -> Combatant:
+	return Combatant.new(id, max_hp, attack, defence)
+```
+
+Keep the `Resource` as a template and the `RefCounted` as the live state. Mutating a shared `.tres` at runtime is the [Flyweight](/patterns/structural/flyweight) trap: every enemy using that file changes with it.
 
 ## When to Use
 
-- You're building a long-lived service where the domain rules are the core asset and need to outlast infrastructure choices.
-- Your delivery mechanism is a variable, not a constant — adding gRPC, a CLI, or a background worker shouldn't require touching domain rules. The inward dependency rule structurally enforces that independence.
-- The domain is complex enough to justify the structure: multiple aggregates, non-trivial invariants, rules that change independently of infrastructure.
-- You need to test use cases without starting any infrastructure, and that testability is a real requirement not a nice-to-have.
+- The game has rules that matter more than the scenes that display them: combat maths, economy, turn order, procedural generation, puzzle validity. The rules are the asset; the presentation is replaceable.
+- You want the same simulation to run under a 2D scene, a 3D scene, a replay viewer, and a dedicated server. Only an inner ring that never touches a node can do all four.
+- Testing a rule currently requires a running scene, and the test suite is slow, flaky, or non-existent because of it.
+- Designers ask "what exactly happens when…" and the honest answer is "let me trace six signal handlers."
 
 ## When Not to Use
 
-- Simple CRUD services with little or no domain logic. The rings add structure the work never uses.
-- Rapid prototypes where the cost of structure outweighs the benefit of isolation.
-- Small tools or scripts. Clean Architecture is optimised for change over time, so it's overkill for throwaway code.
+- A jam game or a prototype where the whole "simulation" is `velocity = direction * speed` and a health integer. The rings add three files where one script would do.
+- Physics-driven games where the rules *are* the physics. If `move_and_slide()` and collision layers are the simulation, pulling them out of nodes means re-implementing the physics engine.
+- The presentation and the simulation change together, always, and you have no second delivery mechanism in sight. Then the mapping layer costs and never pays.
 
 ## The Decision
 
-The inward dependency rule is the entire point, and the architecture only works if the team enforces it. A single `import "database/sql"` in a use case package silently breaks the concept, and Go's toolchain won't catch it. Data mapping between rings is mechanical but unavoidable: domain types need to be converted to DTOs for the HTTP response, to row types for the database, and back again, which adds boilerplate even for small features. 
+The whole pattern is one rule, and the engine will not enforce it for you. Godot makes putting state on nodes *pleasant* — `@export` gives you an inspector, `%Unique` gives you a reference, signals give you reactions — and every one of those conveniences pulls logic outward. The moment a use case calls `get_tree().get_nodes_in_group("enemies")` the inner ring has a scene-tree dependency and the guarantee is gone, silently. Holding the line takes a folder convention, a grep, and the willingness to say "no" in review.
 
-In older Go codebases without generics, many small interfaces and converter functions compound this cost. The payoff arrives when you add a second delivery mechanism (gRPC, a worker, a CLI) without touching any domain code, or when you swap a database by replacing one adapter package. If you never do either of those things, the pattern is overhead.
-
-Those rings only earn their cost once you can [name the trade-off](/philosophy/name-the-trade-off) they buy. Impose them by default and you've paid the mapping boilerplate for boundaries you never use; reach for them when a second delivery mechanism or a database swap is a change you can actually see coming.
+The other cost is mapping. Every stat now exists as a field on a `RefCounted`, a property on a view node, and a line in the adapter that copies one to the other. For a combatant with four stats that is trivial. For a city-builder with two hundred, the mapping layer is a real subsystem with its own bugs, and you will want [Simulation / Presentation Split](/patterns/architectural/simulation-presentation) to make the sync step explicit rather than ad hoc. The payoff is a simulation you can run ten thousand times in a test, or on a server with no GPU, or against a recorded input log to reproduce a bug report exactly. If none of those is a change you can see coming, the rings are overhead. This is [tenet #2 — name the trade-off](/philosophy/name-the-trade-off) in practice: the mapping boilerplate is the price, and it is only worth paying for a rule that must outlive its scene.
 
 ## Related Patterns
 
-- **Hexagonal Architecture:** Same goals, different vocabulary. Clean Architecture uses "concentric rings," Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule. They work well together, and many codebases use both terms interchangeably.
-- **Layered Architecture:** Clean Architecture is a stricter version of layered thinking. Layered gives you the tier structure, while Clean Architecture adds an explicit Dependency Rule and forbids inner rings from naming outer ones. Reach for it when you need that rule to hold under pressure.
-- **Repository:** Repository is the idiomatic Go implementation of the persistence port in Clean Architecture's Use Case ring. The interface belongs in Use Cases, the SQL implementation belongs in the outermost Frameworks and Drivers ring, and the inward dependency rule tells you exactly where each piece lives.
-- **Domain-Driven Design:** Clean Architecture's Entity ring maps directly to DDD's domain model. The two pair naturally: DDD gives you the modeling discipline for what belongs in the inner rings, and Clean Architecture gives you the structural rule that keeps it there.
+- **[Hexagonal](/patterns/architectural/hexagonal)**: the same dependency rule described as ports and adapters instead of rings. Prefer its vocabulary when the interesting edges are input, storage, and platform services rather than the ring structure itself.
+- **[Layered](/patterns/architectural/layered)**: a looser cousin — Presentation → Game logic → Data with downward dependencies but no hard ban on the logic layer knowing about nodes. Start there if full ring discipline feels like too much.
+- **[Simulation / Presentation Split](/patterns/architectural/simulation-presentation)**: the game-specific shape of the inner ring: a fixed-tick `RefCounted` world and node views that interpolate it. Clean Architecture says *where* the boundary goes; that pattern says how to keep the two sides in step every frame.
+- **[Repository](/patterns/architectural/repository)**: the canonical port. `BattleRepository` is declared in `res://sim/ports/` and implemented with `FileAccess` in `res://adapters/`.
+- **[Domain-Driven Design](/patterns/architectural/domain-driven-design)**: tells you what belongs in the entities ring — aggregates, value objects, invariants — where Clean Architecture only tells you that ring must not import a `Node`.

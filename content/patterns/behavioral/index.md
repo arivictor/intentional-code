@@ -1,34 +1,36 @@
 ---
 title: Behavioural Patterns
-description: Patterns for how objects communicate, distribute responsibility, and select behaviour at runtime.
+description: Patterns for how nodes communicate, hand off responsibility, and select behaviour at runtime in a Godot project.
 ---
 
 ## What Are Behavioural Patterns?
 
-Behavioural patterns are about communication. They answer the question: **how should these objects communicate and distribute responsibility?** Where structural patterns are about composition (fitting types together), behavioural patterns are about runtime flow: who calls whom, how algorithms are selected, how state changes are tracked.
+Behavioural patterns are about communication. They answer the question: **how should these nodes talk to each other, and who decides what happens next?** Where structural patterns are about how scenes and Resources fit together, behavioural patterns are about runtime flow: who calls whom, how an algorithm is chosen, how a change in one node reaches the others, how history is tracked.
 
-Behavioural patterns are closely related to the [SOLID Principles](/philosophy/keep-changes-local#solid): Open/Closed drives Strategy and Observer; Single Responsibility drives Command and Mediator.
+Godot ships with several of these built in. Signals are Observer. `_ready` and `_process` are Template Method hooks. Input propagation from `_input` through `_gui_input` to `_unhandled_input` is a Chain of Responsibility. `UndoRedo` is Command. `AnimationTree` carries a State machine. Knowing the pattern behind the feature tells you what it guarantees and where it will bite. The rule that runs through the whole family is "call down, signal up": a parent calls methods on its children, a child emits signals its parent may connect to, and nothing reaches sideways with `get_node("../")`.
+
+Behavioural patterns lean on the [SOLID principles](/philosophy/keep-changes-local#solid): Open/Closed drives Strategy and Observer; Single Responsibility drives Command and Mediator.
 
 ## The Building Blocks
 
-**Start with [Strategy](/patterns/behavioral/strategy)** if you have a switch statement that selects an algorithm. Strategy is the simplest behavioural pattern in Go, often just a function type or a single-method interface, and it's the pattern [TDD](/philosophy/listen-to-the-tests#test-driven-development) most reliably drives you toward.
+**Start with [Strategy](/patterns/behavioral/strategy)** if you have a `match` on an enum choosing between movement or targeting behaviours. In Godot a strategy is a Resource subclass assigned via `@export`, so designers pick a `.tres` in the inspector, or a Callable when it carries no data. The `match` doesn't vanish; it moves to whoever assigns the strategy.
 
-**[Observer](/patterns/behavioral/observer)** is for one-to-many notification: one thing changes, many things need to know. Go gives you three subscriber mechanisms (interface values, function values, and channels), each with different lifecycle and concurrency tradeoffs. Pick wrong and you get goroutine leaks.
+**[Observer (Signals)](/patterns/behavioral/observer)** is the pattern you already use every day: a signal is a subject, a connection is an observer. The page covers what the engine does and doesn't guarantee — `CONNECT_ONE_SHOT`, `CONNECT_DEFERRED`, connections that outlive their nodes, and firing order — and when a direct signal beats an autoload signal bus.
 
-**[Command](/patterns/behavioral/command)** wraps an operation as a value: a function in a queue, a struct with an `Execute()` method, a task with undo support. If you need to queue, log, or reverse operations, Command is the right frame.
+**[Command](/patterns/behavioral/command)** turns an action (jump, attack, move a unit) into an object. That's the price of admission for undo via `UndoRedo`, input buffering, replays, and remapping which behaviour an action triggers. Until you need one of those, a method call is the command.
 
-**[State](/patterns/behavioral/state)** replaces a type with switch statements in every method with a set of state objects, each implementing the shared interface. Use it when the number of states is stable but the behaviour per state is complex and growing.
+**[Chain of Responsibility](/patterns/behavioral/chain-of-responsibility)** passes a request down a list of handlers until one claims it. Godot's input system works exactly this way, ending with `set_input_as_handled()`. The same shape resolves damage through invulnerability, shields and resistances, or picks the next dialogue line from a list of conditions.
 
-**[Chain of Responsibility](/patterns/behavioral/chain-of-responsibility)** passes a request along a chain of handlers until one handles it. Go HTTP middleware is the canonical example. Use it when multiple objects might handle a request and the sender shouldn't care which one does.
+**[State](/patterns/behavioral/state)** replaces booleans that combine illegally (`is_jumping and is_dashing`) with one script per state under a `StateMachine` node. Each state gets `enter`, `exit`, `update` and `physics_update`; adding a state is one new child node.
 
-**[Iterator](/patterns/behavioral/iterator)** provides a standard way to traverse a collection. Since Go 1.23, `iter.Seq[T]` is the first-class form: a function that takes a `yield` callback and is consumed with `range`. Prefer the standard form over custom `Next()`/`Value()` pairs.
+**[Template Method](/patterns/behavioral/template-method)** is how `Node` itself works: the engine owns the loop and calls your `_ready`, `_process` and `_physics_process`. Apply it to a base `Enemy` whose `_physics_process` is fixed and whose `_choose_target()` and `_attack()` are hooks. When the hooks multiply, switch to composition.
 
-**[Mediator](/patterns/behavioral/mediator)** routes messages between objects that shouldn't know about each other directly. Use it when direct peer-to-peer connections would create O(n²) coupling. If only one thing reacts to each event, [Observer](/patterns/behavioral/observer) is simpler.
+**[Iterator](/patterns/behavioral/iterator)** puts a traversal (a spiral search outward from a cell, a lazy walk of the scene tree) behind `_iter_init`, `_iter_next` and `_iter_get`, so every consumer is a plain `for` loop with `break`. For a handful of children, `get_children()` and an Array are fine.
 
-**[Template Method](/patterns/behavioral/template-method)** defines a skeleton algorithm with steps that subclasses override. In Go, this is done with function values or interfaces, not inheritance; the "template" is a function that accepts the variable steps as parameters.
+**[Mediator](/patterns/behavioral/mediator)** is the parent scene (`Arena`, `Level`) wiring its children together so siblings never reach for each other. Its cost is a hub that absorbs all the routing; keep it to routing and it stays readable.
 
-**[Memento](/patterns/behavioral/memento)** saves and restores an object's state. Go's package visibility rules give Memento a clean implementation: the unexported fields are captured as a snapshot type defined in the same package, inaccessible from outside.
+**[Memento](/patterns/behavioral/memento)** snapshots state for checkpoints, undo, and saves. The Godot-specific discipline is deep copying: Arrays and Dictionaries need `duplicate(true)`, and Resources inside them need a `duplicate()` of their own.
 
-**[Visitor](/patterns/behavioral/visitor)** separates operations from the types they operate on, letting you add new operations without modifying the type hierarchy. Go's lack of method overloading means Visitor uses explicit type switches or double-dispatch, which is more verbose than in languages with overloading, but still useful for stable type hierarchies with evolving operations.
+**[Visitor](/patterns/behavioral/visitor)** adds operations (a stats summary, a validator, an exporter) across heterogeneous node types without editing them. GDScript has no method overloading, so double dispatch is spelled out by hand; a chain of `is` checks usually wins.
 
-**[Interpreter](/patterns/behavioral/interpreter)** defines a grammar as a set of types (one per grammar rule) and evaluates a sentence by walking the resulting tree. Each node implements a shared `Interpret` interface. Use it for small DSLs and rule engines; for large or performance-critical grammars, reach for a parser generator or bytecode VM instead.
+**[Interpreter](/patterns/behavioral/interpreter)** evaluates a tiny language — `has_item(key) and flag(met_king)` — through a tokenizer, a parser, and an AST of `RefCounted` nodes. Godot's built-in `Expression` class covers most of the same ground with no parser to maintain; the page compares them.

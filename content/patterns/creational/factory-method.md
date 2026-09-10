@@ -1,150 +1,175 @@
 ---
 title: "Factory Method"
-description: "Define an interface for creating an object, but let the calling code decide which concrete type to instantiate via constructor functions returning an interface."
+description: "Spawn scenes by string id or by a data Resource through one registry, so spawners never preload the concrete scene they create."
 ---
 
 # Factory Method
 
-**Buys open/closed extension — add implementations without touching callers; pays in indirection and runtime-only failure on an unknown name.**
+**Buys spawning by name or data so callers never `preload` a concrete scene; pays in indirection and runtime-only failure on an unknown id.**
 
-The Factory Method pattern defines an interface for creating an object, but lets the calling code decide which concrete type to instantiate. In Go, this is simply a constructor function that returns an interface. The "factory" is the constructor; the "method" is its return type. The pattern is useful when you have a growing switch statement that selects which type to create based on a runtime value. By moving that selection logic into a constructor function, you can add new implementations without modifying existing code, adhering to the Open/Closed Principle.
+Factory Method separates *deciding which scene to make* from *making it*. The raw material in Godot is `PackedScene.instantiate()`, and every spawner already has something factory-shaped: a function that returns a node. The pattern earns its name when the choice is made from data rather than code — a string id from a wave file, a Resource a designer authored, a tile id from a map. The caller says "give me an archer here" and never learns which `.tscn` an archer is.
 
-This is the [Open/Closed Principle](/philosophy/keep-changes-local#solid) in practice.
+The guarantee is that one place maps ids to scenes. Adding an enemy type touches that registry — a `.tres` in the inspector, ideally — and nothing else. The cost is that the mapping is now data, and data can be wrong in ways the parser will never see: a misspelt id fails when the wave spawns, not when the script loads.
 
 ## Scenario
 
-You're building a logging library. Initially you only write plain text logs, so you hardcode a text formatter. Then you need JSON for structured logging. Then logfmt for log aggregators. Every new format means editing the same function, retesting everything, and risking breakage in formats that were already working.
+A wave spawner picks enemies by name. Every enemy type is a `preload` and a branch of a `match`.
 
-```go
-// log_naive.go
-package log
+```gdscript:title="res://levels/wave_spawner.gd"
+extends Node2D
 
-import "fmt"
+const GRUNT := preload("res://enemies/grunt.tscn")
+const ARCHER := preload("res://enemies/archer.tscn")
+const BRUTE := preload("res://enemies/brute.tscn")
 
-func Format(format, level, msg string) string {
-    switch format {
-    case "text":
-        return fmt.Sprintf("%s: %s", level, msg)
-    case "json":
-        return fmt.Sprintf(`{"level":%q,"msg":%q}`, level, msg)
-    // Every new format: add a case, redeploy, re-test everything.
-    default:
-        return msg
-    }
-}
+func spawn(kind: String, at: Vector2) -> void:
+	var enemy: Enemy
+	match kind:
+		"grunt":
+			enemy = GRUNT.instantiate()
+		"archer":
+			enemy = ARCHER.instantiate()
+		"brute":
+			enemy = BRUTE.instantiate()
+	enemy.global_position = at
+	add_child(enemy)
 ```
 
-This switch is a magnet for change. Every new format requires modifying this function. You can't add formats from outside the package. Testing one format means loading the code for all of them.
+Every new enemy means editing this file, and the boss arena has its own copy of the same `match` because it spawns differently. Each spawner preloads every enemy at scene load, including the brute that only appears on level nine. The wave data lives in a JSON file that names enemies by string, so a designer adding `"shaman"` to a wave gets nothing until a programmer adds a branch. And an unknown id doesn't fail as "unknown enemy" — `enemy` stays null and the crash is `Invalid assignment of property 'global_position' on a null instance`, three lines away from the cause.
+
+> **Smell:** Two or more scripts contain the same `match kind:` over the same set of scenes, and adding a scene means finding all of them.
 
 ## Solution
 
-Define a `Formatter` interface with a single method. Each format implements it independently. A constructor function selects the right implementation and returns the interface. The caller never sees the concrete types. Run the example to see each registered formatter produce its own output:
+Put the mapping in one Resource. `Dictionary[String, PackedScene]` is editable in the inspector, so the registry is a `.tres` file a designer can extend by dragging scenes into it. The factory owns the only `instantiate()` call and the only place an unknown id is reported.
 
 ```
-┌─────────────────────────┐
-│     <<interface>>       │
-│       Formatter         │
-│─────────────────────────│
-│ + Format(level, msg)    │
-│   string                │
-└────────────┬────────────┘
-             │ implements
-     ┌───────┼────────┐
-     │       │        │
-┌────▼──┐ ┌──▼───┐ ┌──▼────┐
-│ Text  │ │ JSON │ │Logfmt │
-│       │ │      │ │       │
-└───────┘ └──────┘ └───────┘
-
-NewFormatter(name) ──► Formatter
+WaveSpawner ──"archer"──► EnemyFactory ──► scenes["archer"].instantiate()
+                              │
+                              └── unknown id → push_error, return null
 ```
 
-```go:title="main.go":run=true:editable=true
-package main
+```gdscript:title="res://enemies/enemy_factory.gd"
+class_name EnemyFactory extends Resource
 
-import "fmt"
+## Spawn id → scene. Saved as res://enemies/enemy_factory.tres and
+## edited in the inspector; no code changes to add an enemy.
+@export var scenes: Dictionary[String, PackedScene] = {}
 
-type Formatter interface {
-	Format(level, msg string) string
-}
+func has(id: String) -> bool:
+	return scenes.has(id)
 
-type textFormatter struct{}
-
-func (f *textFormatter) Format(level, msg string) string {
-	return fmt.Sprintf("%s: %s", level, msg)
-}
-
-type jsonFormatter struct{}
-
-func (f *jsonFormatter) Format(level, msg string) string {
-	return fmt.Sprintf(`{"level":%q,"msg":%q}`, level, msg)
-}
-
-type logfmtFormatter struct{}
-
-func (f *logfmtFormatter) Format(level, msg string) string {
-	return fmt.Sprintf("level=%s msg=%q", level, msg)
-}
-
-type constructor func() Formatter
-
-var registry = map[string]constructor{
-	"text":   func() Formatter { return &textFormatter{} },
-	"json":   func() Formatter { return &jsonFormatter{} },
-	"logfmt": func() Formatter { return &logfmtFormatter{} },
-}
-
-func Register(name string, c constructor) {
-	registry[name] = c
-}
-
-func NewFormatter(name string) (Formatter, error) {
-	ctor, ok := registry[name]
-	if !ok {
-		return nil, fmt.Errorf("unknown format: %s", name)
-	}
-	return ctor(), nil
-}
-
-func main() {
-	for _, name := range []string{"text", "json", "logfmt"} {
-		f, err := NewFormatter(name)
-		if err != nil {
-			fmt.Println(err)
-			continue
-		}
-		fmt.Println(f.Format("info", "server started"))
-	}
-}
+func create(id: String) -> Enemy:
+	var scene: PackedScene = scenes.get(id)
+	if scene == null:
+		push_error("EnemyFactory: unknown enemy id '%s'" % id)
+		return null
+	var enemy := scene.instantiate() as Enemy
+	assert(enemy != null, "Scene for '%s' does not have an Enemy root" % id)
+	return enemy
 ```
 
-Output:
+The spawner takes the factory as an exported Resource. It no longer preloads anything and has no opinion about what an archer is.
 
+```gdscript:title="res://levels/wave_spawner.gd"
+class_name WaveSpawner extends Node2D
+
+@export var factory: EnemyFactory
+@export var wave: Array[String] = ["grunt", "grunt", "archer", "brute"]
+
+func _ready() -> void:
+	for i in wave.size():
+		spawn(wave[i], Vector2(120 + 180 * i, 40))
+
+func spawn(id: String, at: Vector2) -> Enemy:
+	var enemy := factory.create(id)
+	if enemy == null:
+		return null
+	enemy.global_position = at
+	add_child(enemy)
+	print("Spawned %s at %s" % [enemy.name, at])
+	return enemy
 ```
-info: server started
-{"level":"info","msg":"server started"}
-level=info msg="server started"
+
+With `brute` missing from the `.tres`:
+
+```text
+Spawned Grunt at (120, 40)
+Spawned Grunt at (300, 40)
+Spawned Archer at (480, 40)
+EnemyFactory: unknown enemy id 'brute'
 ```
+
+The failure is now named and local. It is still a runtime failure, which is the price of the pattern, so the next step is to move it as early as possible.
+
+### Fail at load, not at wave seven
+
+A wave that references an unknown id shouldn't wait until that wave to complain. Validate the whole level's spawn list in `_ready`, where a designer sees it the moment they press play.
+
+```gdscript:title="res://levels/wave_spawner.gd"
+func _ready() -> void:
+	for id in wave:
+		assert(factory.has(id), "Wave references unknown enemy id '%s'" % id)
+	# ... spawn as before
+```
+
+`assert` is stripped from release builds, so pair it with a `push_error` if the wave data can arrive from a mod or a downloaded pack.
+
+### Spawning by Resource
+
+Strings are the weakest kind of id. If enemies already have a data Resource — and once you're using [Data-Driven Design](/patterns/architectural/data-driven) they will — the Resource can carry its own scene, and the factory's job becomes wiring the two together.
+
+```gdscript:title="res://enemies/enemy_data.gd"
+class_name EnemyData extends Resource
+
+@export var display_name: String = "Grunt"
+@export var scene: PackedScene
+@export var max_health: int = 30
+@export var speed: float = 80.0
+@export var points: int = 10
+```
+
+```gdscript:title="res://enemies/enemy_factory.gd"
+func create_from(data: EnemyData) -> Enemy:
+	if data == null or data.scene == null:
+		push_error("EnemyFactory: EnemyData has no scene (%s)" % (data.resource_path if data else "null"))
+		return null
+	var enemy := data.scene.instantiate() as Enemy
+	enemy.setup(data)
+	return enemy
+```
+
+The wave becomes `@export var wave: Array[EnemyData]`, populated by dragging `.tres` files in. The id is now a file path, a misspelling is impossible, and a wave that references a deleted enemy shows a broken-dependency warning in the editor rather than an error at runtime. Several enemies sharing one `EnemyData` is also [Flyweight](/patterns/structural/flyweight): they read the same stats and never write to them.
+
+### Callables for things that aren't scenes
+
+Not every product is a `PackedScene`. Status effects, AI behaviours, and dialogue actions are often plain `RefCounted` classes. The same registry shape works with `Dictionary[String, Callable]`, where each value is a constructor: `"burn": func() -> Effect: return BurnEffect.new()`. The factory calls the Callable instead of `instantiate()`; the rest is identical.
 
 ## When to Use
 
-- You see a growing switch or if/else chain selecting which type to create based on a runtime value.
-- Different parts of your system need to create objects that share a common interface but differ in implementation.
-- You want to let packages or plugins register new implementations without modifying core code.
-- You need to decouple object creation from usage: the caller should work with the interface, not know the concrete type.
+- Two or more scripts select from the same set of scenes, and adding a scene means editing all of them.
+- The choice of scene comes from data: a wave file, a tilemap, a save game, a network message.
+- You want designers to add types by editing a `.tres` in the inspector rather than a `match` in code.
+- A spawner shouldn't pay to `preload` every scene it might theoretically create.
 
 ## When Not to Use
 
-- You have only one or two implementations and no expectation of more. A plain constructor function (`NewJSONFormatter`) is simpler and more direct.
-- The concrete type matters to the caller: they need access to type-specific methods beyond the interface. In that case, return the concrete type.
-- The factory adds indirection without benefit. Don't add a factory "just in case"; add it when you feel the switch-statement pain.
+- There are two enemy types and no plan for more. `const GRUNT := preload(...)` and a direct `instantiate()` are simpler and fail at parse time.
+- The caller needs the concrete type anyway — it configures archer-specific properties after spawning. Then the indirection hides nothing and a direct instantiate is clearer.
+- You haven't felt the `match` pain yet. This is [YAGNI](/philosophy/no-pattern#yagni): the registry is worth its file when the third spawner appears, not before.
 
 ## The Decision
 
-The map-of-constructors style works well because adding a new format does not require changing existing code. Each formatter is also isolated, so a bug in JSON formatting does not directly break text formatting. The tradeoff is indirection. To understand what concrete type is created, you have to follow a registry lookup, and unknown format names fail at runtime instead of being caught at compile time. The registry is also mutable package-level state, which can make tests flaky when they register custom formats and forget to clean up. For a small and stable set of options, such as two formats that almost never change, a plain switch or direct constructor is easier to read. The factory approach is worth it when implementations are open-ended or must be extended from outside the package.
+The registry buys open-ended extension — a new enemy is a new entry, not a new branch — and it buys a single place to report unknown ids. What it costs is that reading the code no longer tells you what gets spawned. To learn what `"brute"` is you open the `.tres`, and to learn whether a wave is valid you run it. A `match` over `preload`s is a closed set the script parser checks for you; a `Dictionary` is an open set nobody checks until it's used. Validation in `_ready` narrows that gap but doesn't close it, because the data can still change after the scene loaded.
+
+The Godot-specific consideration is load time. A `preload` in a `const` is resolved when the script is parsed, so a spawner that preloads twelve enemy scenes pays for all twelve when the level loads. An `EnemyFactory.tres` holding twelve `PackedScene`s pays the same cost when the Resource loads. Neither is lazy. If the boss scene is heavy, keep it out of the registry and use `ResourceLoader.load_threaded_request` behind a [Proxy](/patterns/structural/proxy) instead.
+
+This is the [Open/Closed Principle](/philosophy/keep-changes-local#solid) in practice: the spawner is closed to modification and the registry is open to extension — as long as you accept that the extension point is data, with data's failure mode.
 
 ## Related Patterns
 
-- **Abstract Factory**: Use Abstract Factory when you need to guarantee that multiple created types come from the same family and work together; Factory Method is simpler when you only need to select one type.
-- **Builder**: Use Builder when construction requires many optional parameters or a meaningful sequence of steps; Factory Method is for selecting *which* type to create, not for configuring a complex one.
-- **Prototype**: Use Prototype when cloning an existing instance is cheaper or more convenient than calling a constructor; Factory Method when you want to encapsulate the constructor selection logic.
+- **[Abstract Factory](/patterns/creational/abstract-factory)**: when products come in families that must not mix — a faction's units *and* its projectiles — one registry per product type isn't enough; the family needs to be the unit of selection.
+- **[Builder](/patterns/creational/builder)**: Factory Method chooses *which* scene; Builder configures *one* complex thing with many options. A factory often returns a builder for the caller to finish.
+- **[Prototype](/patterns/creational/prototype)**: when the best template is an already-configured node in the scene, `duplicate()` beats a registry of `PackedScene`s.
+- **[Object Pool](/patterns/creational/object-pool)**: a factory that hands back recycled instances instead of new ones. Same call site, different lifetime.
+- **[Data-Driven Design](/patterns/architectural/data-driven)**: the `EnemyData` variant is the entry point; the factory is what turns a data Resource into a live node.

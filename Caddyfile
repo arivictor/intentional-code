@@ -12,7 +12,7 @@
 	file_server
 	encode gzip zstd
 
-	# Serve the in-browser Go runner module with the correct MIME type.
+	# Serve any .wasm module with the correct MIME type.
 	@wasm path *.wasm
 	header @wasm Content-Type application/wasm
 }

@@ -1,440 +1,302 @@
 ---
-title: "Hexagonal Architecture"
-description: "Place business logic at the centre, define ports (interfaces) for everything the application drives or is driven by, and provide adapters that connect the outside world to those ports."
+title: "Hexagonal"
+description: "Put the game logic in the centre, declare ports for input, save storage, and platform services, and plug in Godot adapters for play and in-memory adapters for tests and headless runs."
 ---
 
-# Hexagonal Architecture
+# Hexagonal
 
-**Buys full application-logic tests with no real infrastructure via in-memory adapters; pays in port proliferation and steady domain-to-infrastructure mapping.**
+**Buys full game-logic tests with no real input, storage, or platform services via in-memory adapters; pays in port proliferation and steady mapping at every edge.**
 
-Hexagonal Architecture fixes a common problem with testability and change. When HTTP handlers, SQL code, and SMTP calls are mixed into business logic, even simple tests need real infrastructure running. Hexagonal creates a clear boundary: business logic stays inside, and infrastructure stays outside. HTTP, databases, queues, and email are all treated as adapters that connect through ports (interfaces).
+Hexagonal Architecture — ports and adapters — answers one question: what does the game logic *need* from the world, and can we hand it a fake? The logic sits in the middle as plain `RefCounted` classes. Around it are **ports**: small base classes that name a need without saying how it is met. "Give me the player's intent this tick." "Store this run under slot 3." "Unlock this achievement." **Adapters** satisfy the ports. In play, the adapters are Godot: `Input.get_vector`, `FileAccess`, the Steam or console SDK. In tests and headless runs, the adapters are Arrays and Dictionaries.
 
-The terminology is important. **Driving adapters** (HTTP handlers, CLI commands, tests) call **driving ports** (the application's use-case API). The application then calls **driven ports** (for example repository and notifier interfaces), which are implemented by **driven adapters** (Postgres, SMTP, in-memory fakes). In short: adapters depend on the application; the application does not depend on adapters.
+The terminology splits ports by direction. **Driving** ports are how the world calls the game (a scene calling `RunService.tick()`); **driven** ports are how the game calls the world (the run asking `SaveStorage` to write). In Godot the driven side is where the pattern earns its keep, because the three things a game most needs from outside — input, storage, platform — are exactly the three things a test cannot have.
 
-If you read the Clean Architecture pattern, you may be asking: "isn't this the same thing?" Essentially, yes. Both patterns enforce the same dependency rule: the application core cannot depend on infrastructure. Both use ports and adapters to achieve that goal. The difference is mostly in vocabulary and structure. Clean Architecture uses the mental model of concentric rings to enforce the inward dependency rule, while Hexagonal uses symmetric ports and adapters. Both achieve the same end of isolating the application core from infrastructure, so use whichever model your team finds easier to understand and enforce. Its common to see both patterns in the same codebase, with Clean Architecture's rings describing the overall structure and Hexagonal's ports and adapters describing the application core.
+If you have read [Clean Architecture](/patterns/architectural/clean-architecture) this will look familiar. Same rule, different diagram: rings emphasise the layering; the hexagon emphasises that every edge is symmetric and swappable. Use whichever your team draws on the whiteboard.
 
 ## Scenario
 
-Your service has an HTTP handler that calls a service that calls `sql.DB` directly. Adding a CLI interface means duplicating the service call setup. Testing requires a live HTTP server and a live database. Switching the message queue means touching business logic. The application has no stable center, so it grows in all directions at once.
+A roguelike's run controller reads the keyboard, writes the save file, and unlocks achievements, all from one node:
 
-```go
-// Everything coupled to concrete infrastructure
-func handleTransfer(w http.ResponseWriter, r *http.Request) {
-    var req TransferRequest
-    json.NewDecoder(r.Body).Decode(&req)
+```gdscript:title="res://run/run_controller.gd"
+extends Node
 
-    // Direct SQL, can't swap this out
-    _, err := db.Exec("UPDATE accounts SET balance = balance - $1 WHERE id = $2", req.Amount, req.From)
-    if err != nil { /* ... */ }
-    db.Exec("UPDATE accounts SET balance = balance + $1 WHERE id = $2", req.Amount, req.To)
+var floor_number: int = 1
+var gold: int = 0
+var hp: int = 30
 
-    // Direct SMTP, can't test without a mail server
-    smtp.SendMail("...", req.Email, "Transfer complete")
-}
+func _physics_process(_delta: float) -> void:
+	var dir := Input.get_vector("left", "right", "up", "down")
+	if dir != Vector2.ZERO:
+		_step(dir)
+	if Input.is_action_just_pressed("descend") and _on_stairs():
+		floor_number += 1
+		if floor_number == 2:
+			Steam.setAchievement("FIRST_DESCENT")   # platform SDK, right here
+		var file := FileAccess.open("user://run.json", FileAccess.WRITE)
+		file.store_string(JSON.stringify({"floor": floor_number, "gold": gold, "hp": hp}))
 ```
+
+To test "descending to floor two unlocks the achievement" you need a keyboard, a writable `user://`, and the Steam client running. On a CI machine you have none of them. So the rule goes untested, and the day someone reorders the two `if`s the achievement silently fires on every floor.
+
+> **Smell:** `Input.`, `FileAccess.` and a platform SDK call within ten lines of each other. Three edges of the hexagon are welded to the logic.
 
 ## Solution
 
-Draw a hexagon. The application (business logic) lives inside. Ports are the sides of the hexagon: interfaces the application defines. Adapters live outside and plug into those ports.
+Draw the hexagon. Game logic inside; one port per outside need; adapters outside.
 
 ```
-          ┌──── Driving Adapters ────┐
-          │  HTTP Handler            │
-          │  gRPC Handler   ─────────┼──► [Port: TransferService]
-          │  CLI             ────────┤         │
-          └──────────────────────────┘    ┌────┴────────────┐
-                                          │  Application    │
-          ┌──── Driven Adapters ─────┐    │  (business      │
-          │  PostgresAccountRepo     │    │   logic)        │
-          │  InMemoryAccountRepo ────┼────┤                 │
-          │  SMTPMailer      ────────┼────┤  defines ports  │
-          │  FakeMailer              │    └─────────────────┘
-          └──────────────────────────┘
+        ┌──────── Driving adapters ────────┐
+        │  RunScene (Node) calls tick()    │
+        │  HeadlessRunner (SceneTree)      ├──►  [driving port: RunService]
+        │  GUT / gdUnit4 test              │              │
+        └──────────────────────────────────┘     ┌────────┴─────────┐
+                                                 │   RunService     │
+        ┌──────── Driven adapters ─────────┐     │   (RefCounted)   │
+        │  GodotInput   / RecordedInput ───┼────►│ port: InputSource│
+        │  FileStorage  / MemoryStorage ───┼────►│ port: SaveStorage│
+        │  SteamPlatform / NullPlatform ───┼────►│ port: Platform   │
+        └──────────────────────────────────┘     └──────────────────┘
 ```
 
-**Left (driving) ports:** interfaces the application exposes *to* be driven. Adapters call them.
-**Right (driven) ports:** interfaces the application uses to *drive* infrastructure. Adapters implement them.
+### The ports
 
-Define the application core with its driven ports:
+GDScript has no `interface` keyword, so a port is a base class whose methods do nothing useful. Static typing on the port type is what keeps adapters honest.
 
-```go
-// app/transfer.go
-package app
+```gdscript:title="res://run/ports/input_source.gd"
+class_name InputSource extends RefCounted
 
-import (
-    "context"
-    "fmt"
-)
+class Intent extends RefCounted:
+	var move: Vector2 = Vector2.ZERO
+	var descend: bool = false
 
-// Driven ports — defined here and implemented by infrastructure adapters.
-type AccountRepository interface {
-    FindByID(ctx context.Context, id string) (*Account, error)
-    Save(ctx context.Context, a *Account) error
-}
-
-type Notifier interface {
-    NotifyTransfer(ctx context.Context, email string, amount int64) error
-}
-
-type Account struct {
-    ID      string
-    Email   string
-    Balance int64
-}
-
-// TransferService is the driving port — what callers interact with.
-type TransferService struct {
-    accounts AccountRepository
-    notifier Notifier
-}
-
-func NewTransferService(accounts AccountRepository, notifier Notifier) *TransferService {
-    return &TransferService{accounts: accounts, notifier: notifier}
-}
-
-func (s *TransferService) Transfer(ctx context.Context, fromID, toID string, amount int64) error {
-    from, err := s.accounts.FindByID(ctx, fromID)
-    if err != nil {
-        return fmt.Errorf("from account: %w", err)
-    }
-    to, err := s.accounts.FindByID(ctx, toID)
-    if err != nil {
-        return fmt.Errorf("to account: %w", err)
-    }
-    if from.Balance < amount {
-        return fmt.Errorf("insufficient funds: have %d, need %d", from.Balance, amount)
-    }
-    from.Balance -= amount
-    to.Balance += amount
-    if err := s.accounts.Save(ctx, from); err != nil {
-        return fmt.Errorf("saving from account: %w", err)
-    }
-    if err := s.accounts.Save(ctx, to); err != nil {
-        return fmt.Errorf("saving to account: %w", err)
-    }
-    s.notifier.NotifyTransfer(ctx, from.Email, amount)
-    return nil
-}
+## Driven port: what did the player want this tick?
+func read_intent() -> Intent:
+	return Intent.new()
 ```
 
-Left adapter (HTTP driving the application):
+```gdscript:title="res://run/ports/save_storage.gd"
+class_name SaveStorage extends RefCounted
 
-```go
-// adapter/http/transfer_handler.go
-package httpadapter
+func write(slot: int, data: Dictionary) -> Error:
+	return ERR_UNAVAILABLE
 
-import (
-    "encoding/json"
-    "myapp/app"
-    "net/http"
-)
-
-type TransferHandler struct {
-    svc *app.TransferService
-}
-
-func (h *TransferHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-    var req struct {
-        From   string `json:"from"`
-        To     string `json:"to"`
-        Amount int64  `json:"amount"`
-    }
-    json.NewDecoder(r.Body).Decode(&req)
-    if err := h.svc.Transfer(r.Context(), req.From, req.To, req.Amount); err != nil {
-        http.Error(w, err.Error(), 422)
-        return
-    }
-    w.WriteHeader(200)
-}
+func read(slot: int) -> Dictionary:
+	return {}
 ```
 
-Right adapter (PostgreSQL implementing AccountRepository):
+```gdscript:title="res://run/ports/platform_services.gd"
+class_name PlatformServices extends RefCounted
 
-```go
-// adapter/postgres/account_repo.go
-package postgres
+func unlock_achievement(id: StringName) -> void:
+	pass
 
-import (
-    "context"
-    "database/sql"
-    "myapp/app"
-)
-
-type AccountRepo struct{ db *sql.DB }
-
-func (r *AccountRepo) FindByID(ctx context.Context, id string) (*app.Account, error) {
-    var a app.Account
-    err := r.db.QueryRowContext(ctx,
-        "SELECT id, email, balance FROM accounts WHERE id = $1", id,
-    ).Scan(&a.ID, &a.Email, &a.Balance)
-    return &a, err
-}
-
-func (r *AccountRepo) Save(ctx context.Context, a *app.Account) error {
-    _, err := r.db.ExecContext(ctx,
-        "UPDATE accounts SET balance = $1 WHERE id = $2", a.Balance, a.ID,
-    )
-    return err
-}
+func submit_score(board: StringName, score: int) -> void:
+	pass
 ```
 
-Right adapter (in-memory fake for tests):
+### The core
 
-```go
-// adapter/memory/account_repo.go
-package memory
+`RunService` is the driving port. It owns the rules and calls the driven ports. It does not know what a `Node` is.
 
-import (
-    "context"
-    "fmt"
-    "myapp/app"
-    "sync"
-)
+```gdscript:title="res://run/run_service.gd"
+class_name RunService extends RefCounted
 
-type AccountRepo struct {
-    mu       sync.RWMutex
-    accounts map[string]*app.Account
-}
+signal floor_changed(floor_number: int)
 
-func NewAccountRepo(accounts ...*app.Account) *AccountRepo {
-    m := make(map[string]*app.Account, len(accounts))
-    for _, a := range accounts {
-        m[a.ID] = a
-    }
-    return &AccountRepo{accounts: m}
-}
+const SAVE_SLOT := 0
 
-func (r *AccountRepo) FindByID(_ context.Context, id string) (*app.Account, error) {
-    r.mu.RLock()
-    defer r.mu.RUnlock()
-    a, ok := r.accounts[id]
-    if !ok {
-        return nil, fmt.Errorf("account %s not found", id)
-    }
-    return a, nil
-}
+var floor_number: int = 1
+var gold: int = 0
+var hp: int = 30
+var position: Vector2i = Vector2i.ZERO
+var stairs_at: Vector2i = Vector2i(3, 3)
 
-func (r *AccountRepo) Save(_ context.Context, a *app.Account) error {
-    r.mu.Lock()
-    defer r.mu.Unlock()
-    r.accounts[a.ID] = a
-    return nil
-}
+var _input: InputSource
+var _storage: SaveStorage
+var _platform: PlatformServices
+
+func _init(input: InputSource, storage: SaveStorage, platform: PlatformServices) -> void:
+	_input = input
+	_storage = storage
+	_platform = platform
+
+func tick() -> void:
+	var intent := _input.read_intent()
+	if intent.move != Vector2.ZERO:
+		position += Vector2i(intent.move.sign())
+	if intent.descend and position == stairs_at:
+		_descend()
+
+func _descend() -> void:
+	floor_number += 1
+	if floor_number == 2:
+		_platform.unlock_achievement(&"first_descent")
+	_storage.write(SAVE_SLOT, to_dict())
+	floor_changed.emit(floor_number)
+
+func to_dict() -> Dictionary:
+	return {"floor": floor_number, "gold": gold, "hp": hp}
 ```
 
-Here's the whole flow as one runnable program — the application core, its driven ports, and in-memory/logging adapters plugged into them:
+### Godot adapters
 
-```go:title="main.go":run=true:editable=true
-package main
+Each adapter is a few lines, because all the *decisions* were made in the core.
 
-import (
-	"context"
-	"fmt"
-	"sync"
-)
+```gdscript:title="res://run/adapters/godot_input.gd"
+class_name GodotInput extends InputSource
 
-// --- Application core (inside the hexagon) ---
-
-type Account struct {
-	ID      string
-	Email   string
-	Balance int64
-}
-
-// Driven ports — defined by the application, implemented by adapters.
-type AccountRepository interface {
-	FindByID(ctx context.Context, id string) (*Account, error)
-	Save(ctx context.Context, a *Account) error
-}
-
-type Notifier interface {
-	NotifyTransfer(ctx context.Context, email string, amount int64) error
-}
-
-type TransferService struct {
-	accounts AccountRepository
-	notifier Notifier
-}
-
-func NewTransferService(accounts AccountRepository, notifier Notifier) *TransferService {
-	return &TransferService{accounts: accounts, notifier: notifier}
-}
-
-func (s *TransferService) Transfer(ctx context.Context, fromID, toID string, amount int64) error {
-	from, err := s.accounts.FindByID(ctx, fromID)
-	if err != nil {
-		return fmt.Errorf("from account: %w", err)
-	}
-	to, err := s.accounts.FindByID(ctx, toID)
-	if err != nil {
-		return fmt.Errorf("to account: %w", err)
-	}
-	if from.Balance < amount {
-		return fmt.Errorf("insufficient funds: have %d, need %d", from.Balance, amount)
-	}
-	from.Balance -= amount
-	to.Balance += amount
-	if err := s.accounts.Save(ctx, from); err != nil {
-		return err
-	}
-	if err := s.accounts.Save(ctx, to); err != nil {
-		return err
-	}
-	if err := s.notifier.NotifyTransfer(ctx, from.Email, amount); err != nil {
-		return fmt.Errorf("notify transfer: %w", err)
-	}
-	return nil
-}
-
-// --- Driven adapters: in-memory repo + logging notifier ---
-
-type memAccountRepo struct {
-	mu       sync.RWMutex
-	accounts map[string]*Account
-}
-
-func newMemAccountRepo(accs ...*Account) *memAccountRepo {
-	m := make(map[string]*Account, len(accs))
-	for _, a := range accs {
-		m[a.ID] = a
-	}
-	return &memAccountRepo{accounts: m}
-}
-
-func (r *memAccountRepo) FindByID(_ context.Context, id string) (*Account, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-	a, ok := r.accounts[id]
-	if !ok {
-		return nil, fmt.Errorf("account %s not found", id)
-	}
-	return a, nil
-}
-
-func (r *memAccountRepo) Save(_ context.Context, a *Account) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.accounts[a.ID] = a
-	return nil
-}
-
-type logNotifier struct{}
-
-func (logNotifier) NotifyTransfer(_ context.Context, email string, amount int64) error {
-	fmt.Printf("notify: emailed %s about transfer of %d\n", email, amount)
-	return nil
-}
-
-func main() {
-	ctx := context.Background()
-	repo := newMemAccountRepo(
-		&Account{ID: "alice", Email: "alice@example.com", Balance: 1000},
-		&Account{ID: "bob", Email: "bob@example.com", Balance: 500},
-	)
-	svc := NewTransferService(repo, logNotifier{})
-
-	if err := svc.Transfer(ctx, "alice", "bob", 300); err != nil {
-		fmt.Println("error:", err)
-		return
-	}
-	alice, _ := repo.FindByID(ctx, "alice")
-	bob, _ := repo.FindByID(ctx, "bob")
-	fmt.Printf("alice=%d bob=%d\n", alice.Balance, bob.Balance)
-
-	if err := svc.Transfer(ctx, "alice", "bob", 5000); err != nil {
-		fmt.Println("rejected:", err)
-	}
-}
+func read_intent() -> Intent:
+	var intent := Intent.new()
+	intent.move = Input.get_vector("left", "right", "up", "down")
+	intent.descend = Input.is_action_just_pressed("descend")
+	return intent
 ```
 
-```
-// Output:
-// notify: emailed alice@example.com about transfer of 300
-// alice=700 bob=800
-// rejected: insufficient funds: have 700, need 5000
-```
+```gdscript:title="res://run/adapters/file_storage.gd"
+class_name FileStorage extends SaveStorage
 
-Test the application core with no infrastructure:
+func _path(slot: int) -> String:
+	return "user://run_%d.json" % slot
 
-```go
-// app/transfer_test.go
-package app_test
+func write(slot: int, data: Dictionary) -> Error:
+	var file := FileAccess.open(_path(slot), FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+	file.store_string(JSON.stringify(data))
+	return OK
 
-import (
-    "context"
-    "myapp/adapter/memory"
-    "myapp/app"
-    "testing"
-)
-
-type fakeNotifier struct{}
-
-func (f *fakeNotifier) NotifyTransfer(_ context.Context, _ string, _ int64) error { return nil }
-
-func TestTransfer(t *testing.T) {
-    accounts := memory.NewAccountRepo(
-        &app.Account{ID: "alice", Email: "alice@example.com", Balance: 1000},
-        &app.Account{ID: "bob",   Email: "bob@example.com",   Balance: 500},
-    )
-    svc := app.NewTransferService(accounts, &fakeNotifier{})
-
-    if err := svc.Transfer(context.Background(), "alice", "bob", 300); err != nil {
-        t.Fatal(err)
-    }
-    alice, _ := accounts.FindByID(context.Background(), "alice")
-    if alice.Balance != 700 {
-        t.Errorf("alice balance = %d, want 700", alice.Balance)
-    }
-}
+func read(slot: int) -> Dictionary:
+	if not FileAccess.file_exists(_path(slot)):
+		return {}
+	var file := FileAccess.open(_path(slot), FileAccess.READ)
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	return parsed if parsed is Dictionary else {}
 ```
 
-## Folder Structure
+```gdscript:title="res://run/adapters/steam_platform.gd"
+class_name SteamPlatform extends PlatformServices
 
-Ports and adapters map directly to packages:
-
-```
-myapp/
-├── cmd/
-│   └── server/
-│       └── main.go         # wires driving and driven adapters to the application core
-├── app/                    # Application core (the hexagon)
-│   ├── transfer.go         # TransferService and driven port interfaces
-│   └── transfer_test.go    # full-logic tests with no infrastructure
-└── adapter/
-    ├── http/
-    │   └── transfer.go     # driving adapter: HTTP requests → TransferService
-    ├── postgres/
-    │   └── account.go      # driven adapter: AccountRepository → PostgreSQL
-    └── memory/
-        └── account.go      # driven adapter: AccountRepository → in-memory (for tests)
+func unlock_achievement(id: StringName) -> void:
+	Steam.setAchievement(String(id).to_upper())
+	Steam.storeStats()
 ```
 
-`app` imports nothing outside the standard library. `adapter/http` and `adapter/postgres` import `app`. `cmd/server` imports both. The boundary is enforced by import direction — the application core is never aware of how it is driven or what drives its ports.
+The scene wires them and drives the core from the engine loop:
+
+```gdscript:title="res://run/run_scene.gd"
+extends Node2D
+
+var _run: RunService
+
+func _ready() -> void:
+	var platform: PlatformServices = SteamPlatform.new() if OS.has_feature("steam") else PlatformServices.new()
+	_run = RunService.new(GodotInput.new(), FileStorage.new(), platform)
+	# Presentation reacts to the core; the core never reaches for a node.
+	_run.floor_changed.connect(func(n: int) -> void: %FloorLabel.text = "Floor %d" % n)
+
+func _physics_process(_delta: float) -> void:
+	_run.tick()
+	%PlayerSprite.position = Vector2(_run.position) * 32.0
+```
+
+Notice `PlatformServices.new()` used directly as the null adapter on builds without Steam. The base class's empty methods *are* the null implementation — no separate `NullPlatform` file needed.
+
+### In-memory adapters and the test
+
+```gdscript:title="res://test/unit/test_run_service.gd"
+extends GdUnitTestSuite
+
+class RecordedInput extends InputSource:
+	var script_intents: Array[Intent] = []
+	func read_intent() -> Intent:
+		return script_intents.pop_front() if not script_intents.is_empty() else Intent.new()
+
+class MemoryStorage extends SaveStorage:
+	var slots: Dictionary[int, Dictionary] = {}
+	func write(slot: int, data: Dictionary) -> Error:
+		slots[slot] = data.duplicate(true)
+		return OK
+	func read(slot: int) -> Dictionary:
+		return slots.get(slot, {})
+
+class RecordingPlatform extends PlatformServices:
+	var unlocked: Array[StringName] = []
+	func unlock_achievement(id: StringName) -> void:
+		unlocked.append(id)
+
+func _move(dir: Vector2, descend := false) -> InputSource.Intent:
+	var i := InputSource.Intent.new()
+	i.move = dir
+	i.descend = descend
+	return i
+
+func test_first_descent_unlocks_once_and_saves() -> void:
+	var input := RecordedInput.new()
+	var storage := MemoryStorage.new()
+	var platform := RecordingPlatform.new()
+	var run := RunService.new(input, storage, platform)
+
+	for i in 3:
+		input.script_intents.append(_move(Vector2(1, 1)))
+	input.script_intents.append(_move(Vector2.ZERO, true))
+	for i in 4:
+		run.tick()
+
+	assert_int(run.floor_number).is_equal(2)
+	assert_array(platform.unlocked).contains_exactly([&"first_descent"])
+	assert_dict(storage.slots[0]).contains_key_value("floor", 2)
+```
+
+No keyboard, no disk, no Steam, no scene tree. The test is the whole point of the pattern; the architecture without it is just extra files.
+
+### A headless run
+
+The same in-memory adapters let you run the game with no window at all — for soak tests, balance simulations, or a dedicated server. A script that extends `SceneTree` is the driving adapter:
+
+```gdscript:title="res://tools/headless_run.gd"
+extends SceneTree
+
+func _initialize() -> void:
+	var input := RandomWalkInput.new(1234)     # a seeded InputSource adapter
+	var run := RunService.new(input, SaveStorage.new(), PlatformServices.new())
+	var ticks := 0
+	while run.hp > 0 and ticks < 100_000:
+		run.tick()
+		ticks += 1
+	print("survived %d ticks, reached floor %d" % [ticks, run.floor_number])
+	quit()
+```
+
+```text
+$ godot --headless -s res://tools/headless_run.gd
+survived 100000 ticks, reached floor 17
+```
 
 ## When to Use
 
-- Testing business logic requires real infrastructure today, and that makes the test suite slow or flaky. The port/adapter model is the direct fix.
-- Your application needs to support multiple delivery mechanisms (HTTP, gRPC, CLI, event consumers) against the same business logic. Each delivery mechanism is a driving adapter; swapping or adding one doesn't touch the application core.
-- Infrastructure is likely to change (new message queue, different database). Driven adapters make that change local.
-- You're building a long-lived service where the domain rules are the primary asset and need to survive infrastructure choices.
+- A rule cannot be tested today because it needs a controller, a file, or a platform SDK to even run. Ports are the direct fix.
+- You ship to several platforms whose services differ (Steam achievements, console trophies, a mobile leaderboard, none at all on itch). One `PlatformServices` port, one adapter per store.
+- You want input to be replayable — for bug reports, demos, or a ghost — which means input must arrive through a port you can record and play back.
+- A headless build (server, CI balance run) needs to exercise real game logic without a display.
 
 ## When Not to Use
 
-- Simple CRUD with no real domain logic. The port/adapter indirection adds overhead with no return.
-- Small services where one HTTP handler → one SQL query is the entire pattern. Don't pre-optimise for a complexity that may never arrive.
+- A prototype where the whole run controller is forty lines. Three ports and six adapters for that is ceremony.
+- Logic that is inseparable from the engine: physics-driven movement, rendering effects, particle timing. There is no meaningful in-memory adapter for `move_and_slide()`.
+- You have no intention of writing the tests. Without them the ports are indirection with nothing on the other side.
 
 ## The Decision
 
-The main question Hexagonal Architecture answers is: "why are my tests slow and hard to run?" If you need a live database and a running HTTP server just to test one business rule, your rule is tied to infrastructure. Ports and adapters remove that tie. The application says what it needs through a port (interface), and infrastructure provides it through an adapter. An in-memory adapter is what lets you run domain tests in milliseconds. If fast, isolated domain tests are not important for your team, this extra port/adapter layer may be overhead without much return.
+The benefit is exact and easy to state: every rule in the core runs in a test with fakes for input, storage, and platform. That is a much stronger guarantee than "we test the parts that don't touch the engine", because with ports there are no such parts — *everything* in the core is reachable.
 
-The biggest benefit is simple: you can test full application logic without real infrastructure. Replace a driven adapter with an in-memory fake and run tests with no network, no database, and no external services. But the payoff only comes if you actually write those tests. The architecture by itself does not create test coverage. The main ongoing cost is interface growth: many small ports per aggregate can become noisy, especially when each aggregate gets its own repository port. Data mapping also adds steady work, for example converting protobuf payloads to domain types or SQL rows to domain objects. That mapping is necessary, but it grows with the model. New team members also need time to learn the port/adapter model before they can move quickly in the codebase.
+The cost is also exact. Each new outside need is a new port, and each port needs a Godot adapter and an in-memory one: audio, haptics, the clock, the RNG, analytics, cloud saves. Six ports in, you will have a `res://run/ports/` folder that looks like an SDK and a constructor with six parameters. And at every edge there is mapping: `InputEvent` becomes `Intent`, `RunService` becomes a `Dictionary`, a `Dictionary` becomes JSON, `StringName` becomes a Steam API id. The mapping is mechanical and it never stops growing with the model.
 
-If you arrived here because the tests were slow, that's [the design talking](/philosophy/listen-to-the-tests) — ports exist precisely so application logic runs without real infrastructure. Adopt them to answer a testing pain you already feel, not as a default layer.
+The Godot-specific gotcha is that ports must not leak node types. A `SaveStorage.write(node: Node)` port is a port in name only — the in-memory adapter now needs a scene tree to have anything to write. Keep port signatures to `Dictionary`, `Array`, `Resource`, and plain `RefCounted` types, and the fakes stay trivial. If you arrived here because a rule was untestable, that is [the tests talking](/philosophy/listen-to-the-tests#test-driven-development): adopt ports for the pain you feel, not as a default layer.
 
 ## Related Patterns
 
-- **Clean Architecture:** Same goals, different vocabulary. It uses "concentric rings" where Hexagonal uses "ports and adapters." Use whichever model helps your team enforce the inward dependency rule most clearly. They compose more often than they compete.
-- **Adapter (structural):** The GoF Adapter pattern is the mechanism that makes Hexagonal work. Each infrastructure adapter wraps a third-party client (a `*sql.DB`, a NATS connection) and exposes the interface the application defined. Hexagonal is the architecture; Adapter is the implementation technique.
-- **Layered Architecture:** Layered organises by tier (Handler, Service, Repository, Infrastructure). Hexagonal replaces strict downward layering with symmetric ports that treat HTTP and databases as equally swappable adapters.
-- **Repository:** The canonical driven port. It's a persistence interface the application defines, implemented by a database adapter that the application never imports directly.
-- **Domain-Driven Design:** DDD's aggregate roots become the application core that hexagonal protects. DDD tells you what should live inside the hexagon; Hexagonal gives you the structural rule for keeping infrastructure out.
+- **[Clean Architecture](/patterns/architectural/clean-architecture)**: same rule, drawn as rings. Read it for the entity/use-case split inside the hexagon; read this page for the edges.
+- **[Adapter](/patterns/structural/adapter)**: the structural pattern each driven adapter uses — `SteamPlatform` wraps the SDK and exposes the port the core defined. Hexagonal is the architecture; Adapter is the technique.
+- **[Repository](/patterns/architectural/repository)**: the `SaveStorage` port grown up — slots, versioned schemas, and migrations behind one contract.
+- **[Command](/patterns/behavioral/command)**: an `InputSource` that returns command objects instead of an `Intent` struct gives you input buffering and replay for free.
+- **[Layered](/patterns/architectural/layered)**: keeps the same core but treats presentation as "above" and data as "below" instead of as equal edges. Prefer layered when only storage needs swapping; prefer hexagonal when input and platform do too.

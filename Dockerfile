@@ -1,7 +1,7 @@
 # This site deploys as static output rendered by the gomark CLI. The content/
 # directory holds the markdown source; gomark.yaml configures the build. There
-# is no long-running Go process in production, and the in-browser Go runner
-# needs no backend.
+# is no long-running Go process in production. The in-browser Go runner is
+# disabled in gomark.yaml: every example on the site is GDScript.
 
 # Stage 1: install the gomark CLI and render the static site.
 FROM golang:1.25-alpine AS builder
@@ -20,8 +20,7 @@ COPY . .
 RUN gomark build 
 
 # Stage 2: serve the static output. The Caddyfile binds to Cloud Run's $PORT
-# (falling back to 80 locally) and sets the application/wasm content type for
-# the in-browser runner module.
+# (falling back to 80 locally).
 FROM caddy:2-alpine AS site
 
 COPY Caddyfile /etc/caddy/Caddyfile
