@@ -108,7 +108,10 @@ func spawn_horde(count: int) -> void:
 	var first: Enemy = get_child(0)
 	var second: Enemy = get_child(1)
 	print("same data object: ", first.data == second.data)
-	print("EnemyData objects alive: ", 2, " for ", count, " enemies")
+	var unique: Dictionary[EnemyData, bool] = {}
+	for enemy: Enemy in get_children():
+		unique[enemy.data] = true
+	print("EnemyData objects alive: %d for %d enemies" % [unique.size(), count])
 ```
 
 ```text
