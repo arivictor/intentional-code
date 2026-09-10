@@ -1,177 +1,250 @@
 ---
-title: "Microkernel (Plugin)"
-description: "Keep a minimal core that provides only essential mechanism, and push every feature into independent plugins that register against a stable extension contract — so the system grows by adding plugins, not by editing the core."
+title: "Microkernel"
+description: "Keep a small core that exposes a versioned ModAPI, and grow the game by loading .pck mods whose mod.gd registers weapons, recipes, and hooks against it — the same shape EditorPlugin addons use inside the editor."
 ---
 
-# Microkernel (Plugin)
+# Microkernel
 
-**Buys a core that grows by adding plugins instead of edits; pays in a load-bearing contract you must version and behaviour that's harder to trace.**
+**Buys a core that grows by loading plugins and mods instead of edits; pays in a load-bearing contract you must version and behaviour that's harder to trace.**
 
-The Microkernel pattern (also called the Plugin architecture) splits a system into two parts: a small, stable **core** that provides only the essential mechanism, and a set of **plugins** that supply the actual features. The core knows nothing about any specific feature; it knows only a plugin *contract* (an interface) and how to discover, register, and dispatch to whatever plugins are present. New capabilities arrive as new plugins. The core never changes to accommodate them.
+A microkernel splits the game into a small, stable **core** and an open-ended set of **plugins** the core knows nothing about individually. The core provides mechanism — a registry of weapons, a recipe table, a hook that fires when a level starts — behind one contract, the `ModAPI`. A plugin is a folder (or a `.pck` file) with a `mod.gd` that receives the API and registers what it brings. Add a mod, the game gains content; the core's source is untouched.
 
-This is the architecture behind editors (VS Code), browsers (extensions), CI systems, and Go tooling that loads drivers or processors at runtime. The payoff is the **Open/Closed Principle** at system scale: open for extension (add a plugin), closed for modification (don't touch the core).
+Godot supports this out of the box in two directions. At runtime, `ProjectSettings.load_resource_pack()` overlays a `.pck` onto `res://`, after which its scripts and scenes load like anything shipped with the game. In the editor, `EditorPlugin` is exactly the same shape: the editor is the kernel, `plugin.gd` is the mod, and `add_custom_type`, `add_control_to_dock`, and friends are the versioned API. Learn one and you have learned the other.
 
 ## Scenario
 
-A payment-processing pipeline applies a growing list of steps: fraud checks, surcharges, loyalty points, currency conversion. Implemented as a hard-coded sequence, every new rule means editing the same central function, which becomes a tangle of unrelated concerns and a magnet for merge conflicts.
+Every new weapon touches the core:
 
-```go
-// The core keeps growing and accumulating knowledge of every feature.
-func Process(e PaymentEvent) PaymentEvent {
-    // fraud
-    if e.Amount > 100000 {
-        e.Tags = append(e.Tags, "review")
-    }
-    // surcharge
-    e.Amount += e.Amount * 3 / 100
-    // loyalty... currency... — every new rule edits THIS function
-    return e
-}
+```gdscript:title="res://weapons/weapon_factory.gd"
+class_name WeaponFactory extends RefCounted
+
+static func make(id: StringName) -> Weapon:
+	match id:
+		&"sword": return preload("res://weapons/sword.tscn").instantiate()
+		&"bow": return preload("res://weapons/bow.tscn").instantiate()
+		&"flail": return preload("res://weapons/flail.tscn").instantiate()
+		# every new weapon: a line here, a line in loot_table.gd,
+		# a line in shop_stock.gd, an entry in the codex …
+	push_error("unknown weapon %s" % id)
+	return null
 ```
+
+A modder who wants to add a spear cannot: the ids are a `match` in a script inside the exported `.pck`. Your own content team is in the same position — every weapon is a pull request against `weapon_factory.gd`, `loot_table.gd`, and `codex.gd`, and the three fall out of sync the week someone forgets one. The core has become a list of everything that exists.
+
+> **Smell:** a `match` on an id whose arms are all `preload`s. That is a registry pretending to be logic, and it has to be edited to grow.
 
 ## Solution
 
-Define a `Plugin` contract. The core holds a registry and runs each registered plugin in turn, knowing nothing about what any of them actually does. Features become self-contained types you register at startup.
-
-```text:title="diagram"
-            ┌──────────────────────────────┐
-            │           Core / Kernel      │
-   input ──►│  for p in registry: p.Run()  │──► output
-            └──────────────┬───────────────┘
-                           │ depends only on Plugin interface
-        ┌──────────────────┼──────────────────┐
-        ▼                  ▼                  ▼
-   ┌─────────┐        ┌──────────┐       ┌──────────┐
-   │ Fraud   │        │ Surcharge│       │ Loyalty  │   ← add a plugin,
-   │ plugin  │        │ plugin   │       │ plugin   │     don't edit core
-   └─────────┘        └──────────┘       └──────────┘
-```
-
-```go:title="main.go":run=true:editable=true
-package main
-
-import (
-	"fmt"
-	"sort"
-	"strings"
-)
-
-// --- The microkernel: a minimal core that knows nothing about concrete
-// features. It only knows the Plugin contract and how to dispatch to plugins
-// registered against it. ---
-
-// Plugin is the extension contract. The core depends on this interface only.
-type Plugin interface {
-	Name() string
-	// Transform processes a payment event and returns a (possibly) modified one.
-	Transform(event PaymentEvent) PaymentEvent
-}
-
-type PaymentEvent struct {
-	Amount int      // in cents
-	Tags   []string // annotations added by plugins
-}
-
-// Kernel is the core. It holds a registry and runs every plugin in order.
-type Kernel struct {
-	plugins []Plugin
-}
-
-func (k *Kernel) Register(p Plugin) {
-	k.plugins = append(k.plugins, p)
-}
-
-func (k *Kernel) Process(event PaymentEvent) PaymentEvent {
-	for _, p := range k.plugins {
-		event = p.Transform(event)
-	}
-	return event
-}
-
-// --- Plugins: each is a self-contained feature the core has no knowledge of. ---
-
-type FraudCheck struct{}
-
-func (FraudCheck) Name() string { return "fraud" }
-func (FraudCheck) Transform(e PaymentEvent) PaymentEvent {
-	if e.Amount > 100000 {
-		e.Tags = append(e.Tags, "review")
-	}
-	return e
-}
-
-type Surcharge struct{ Percent int }
-
-func (Surcharge) Name() string { return "surcharge" }
-func (s Surcharge) Transform(e PaymentEvent) PaymentEvent {
-	e.Amount += e.Amount * s.Percent / 100
-	e.Tags = append(e.Tags, "surcharged")
-	return e
-}
-
-func main() {
-	// The core is assembled at startup from whatever plugins are registered.
-	// Adding a feature means writing a new Plugin, not editing the kernel.
-	kernel := &Kernel{}
-	kernel.Register(FraudCheck{})
-	kernel.Register(Surcharge{Percent: 3})
-
-	out := kernel.Process(PaymentEvent{Amount: 200000})
-
-	sort.Strings(out.Tags)
-	fmt.Printf("amount: %d\n", out.Amount)
-	fmt.Printf("tags:   %s\n", strings.Join(out.Tags, ", "))
-}
-```
+Make the registry an object the core owns and hands out. Move each piece of content into a plugin that registers itself.
 
 ```
-// Output:
-// amount: 206000
-// tags:   review, surcharged
+             ┌────────────────────────────────────────┐
+             │                Core                    │
+   load ────►│  ModLoader  →  ModAPI (v2)             │────► registries the game reads
+             │  weapons: {}  recipes: {}  hooks: []   │
+             └───────────────────┬────────────────────┘
+                                 │ api passed to each mod.gd
+         ┌───────────────────────┼───────────────────────┐
+         ▼                       ▼                       ▼
+  res://mods/base/         user://mods/spears.pck   user://mods/hardcore.pck
+  mod.gd registers         mod.gd registers         mod.gd registers
+  sword, bow, flail        spear, pike              a hook that halves healing
 ```
 
-Go gives you three levels of "plugin", trading flexibility for operational simplicity:
+### The contract
 
-- **Compile-time registration (above).** Plugins are ordinary types wired in at startup, often via an `init()`-based registry keyed by name. This is by far the most common and the most robust: one binary, full type safety, no runtime loading. It's how `database/sql` drivers and `image` decoders work.
-- **`plugin` package (`.so` files).** Go's standard `plugin` package loads shared objects at runtime via `plugin.Open`. It's genuinely dynamic but fragile: Linux/macOS only, every plugin must be built with the *exact* same Go toolchain and dependency versions, and there's no unloading. Use sparingly.
-- **Process isolation (HashiCorp `go-plugin`).** Plugins run as **separate processes** and communicate over gRPC. This is what Terraform and Vault use. A crashing or slow plugin can't take down the host, plugins can be written in other languages, and versioning is explicit — at the cost of an RPC hop per call.
+The API is a plain class. Its version is a constant. Every method that exists in version N still exists, with the same signature, in version N+1 — that is the only promise that makes third-party mods survive your updates.
 
-```go
-// using github.com/hashicorp/go-plugin — plugins are separate processes,
-// so a misbehaving plugin can't crash the core.
-plugin.Serve(&plugin.ServeConfig{
-    HandshakeConfig: handshake,
-    Plugins:         map[string]plugin.Plugin{"processor": &ProcessorPlugin{}},
-    GRPCServer:      plugin.DefaultGRPCServer,
-})
+```gdscript:title="res://core/mod_api.gd"
+class_name ModAPI extends RefCounted
+
+## Bump the minor number for additions, the major for removals or signature changes.
+const VERSION := Vector2i(2, 1)
+
+signal level_started(level_id: StringName)
+
+var weapons: Dictionary[StringName, PackedScene] = {}
+var recipes: Dictionary[StringName, RecipeData] = {}
+var _registered_by: Dictionary[StringName, StringName] = {}   # id → mod id, for tracing
+
+func register_weapon(mod_id: StringName, id: StringName, scene: PackedScene) -> void:
+	if weapons.has(id):
+		push_warning("mod '%s' replaces weapon '%s' from mod '%s'" % [mod_id, id, _registered_by[id]])
+	weapons[id] = scene
+	_registered_by[id] = mod_id
+
+func register_recipe(mod_id: StringName, recipe: RecipeData) -> void:
+	recipes[recipe.id] = recipe
+	_registered_by[recipe.id] = mod_id
+
+## v2.1: mods can react to the game without the game knowing them.
+func on_level_started(callback: Callable) -> void:
+	level_started.connect(callback)
+
+func who_registered(id: StringName) -> StringName:
+	return _registered_by.get(id, &"")
 ```
+
+Passing `mod_id` on every call is deliberate. When the spear has the wrong damage, `who_registered(&"spear")` says which mod to blame.
+
+### A mod
+
+A mod is a folder under `res://mods/<id>/` — inside the main project for your own content, or inside a `.pck` for a third party's. The `.pck` overlays `res://`, so the convention that each mod keeps its files under its own subfolder is what stops two mods clobbering each other.
+
+```gdscript:title="res://mods/spears/mod.gd"
+extends RefCounted
+
+const MOD_ID := &"spears"
+const REQUIRES_API := Vector2i(2, 0)   # needs register_weapon; does not need hooks
+
+func register(api: ModAPI) -> void:
+	api.register_weapon(MOD_ID, &"spear", load("res://mods/spears/spear.tscn"))
+	api.register_weapon(MOD_ID, &"pike", load("res://mods/spears/pike.tscn"))
+	api.register_recipe(MOD_ID, load("res://mods/spears/recipes/spear.tres"))
+```
+
+`load`, not `preload`: the scene paths only exist after the pack is mounted, and `preload` resolves at parse time.
+
+### The loader
+
+```gdscript:title="res://core/mod_loader.gd"
+class_name ModLoader extends RefCounted
+
+const MODS_DIR := "user://mods"
+const BUILTIN := ["res://mods/base/mod.gd"]
+
+var api := ModAPI.new()
+var loaded: Array[StringName] = []
+
+func load_all() -> void:
+	for path in BUILTIN:
+		_load_mod_script(path)
+	DirAccess.make_dir_recursive_absolute(MODS_DIR)
+	var files := DirAccess.get_files_at(MODS_DIR)
+	files.sort()                                     # deterministic order
+	for file in files:
+		if not file.ends_with(".pck"):
+			continue
+		var pack_path := "%s/%s" % [MODS_DIR, file]
+		if not ProjectSettings.load_resource_pack(pack_path):
+			push_error("could not mount %s" % pack_path)
+			continue
+		var mod_id := file.get_basename()
+		_load_mod_script("res://mods/%s/mod.gd" % mod_id)
+
+func _load_mod_script(path: String) -> void:
+	var script := load(path) as GDScript
+	if script == null:
+		push_error("no mod.gd at %s" % path)
+		return
+	var mod: Object = script.new()
+	if not _compatible(mod, path):
+		return
+	if not mod.has_method("register"):
+		push_error("%s has no register(api)" % path)
+		return
+	mod.register(api)
+	loaded.append(mod.MOD_ID)
+	print("loaded mod '%s' from %s" % [mod.MOD_ID, path])
+
+func _compatible(mod: Object, path: String) -> bool:
+	var required: Vector2i = mod.get("REQUIRES_API")
+	if required == null:
+		push_error("%s declares no REQUIRES_API" % path)
+		return false
+	var ok := required.x == ModAPI.VERSION.x and required.y <= ModAPI.VERSION.y
+	if not ok:
+		push_error("%s needs API %s, core provides %s" % [path, required, ModAPI.VERSION])
+	return ok
+```
+
+Same major, minor at most ours: that is the rule. A mod built against 2.0 runs on a 2.1 core; a mod that needs 2.1 refuses to load on 2.0 instead of crashing on a missing method; a 3.0 core rejects every 2.x mod and says why.
+
+### The core reads registries, never ids
+
+```gdscript:title="res://weapons/weapon_factory.gd"
+class_name WeaponFactory extends RefCounted
+
+var _api: ModAPI
+
+func _init(api: ModAPI) -> void:
+	_api = api
+
+func make(id: StringName) -> Weapon:
+	var scene: PackedScene = _api.weapons.get(id)
+	if scene == null:
+		push_error("unknown weapon '%s' (loaded mods: %s)" % [id, _api.weapons.keys()])
+		return null
+	return scene.instantiate() as Weapon
+```
+
+The loot table, the shop, and the codex read `api.weapons` too. Adding a spear now touches zero core files.
+
+```text
+loaded mod 'base' from res://mods/base/mod.gd
+loaded mod 'spears' from res://mods/spears/mod.gd
+WARNING: mod 'hardcore' replaces weapon 'sword' from mod 'base'
+loaded mod 'hardcore' from res://mods/hardcore/mod.gd
+```
+
+That warning is the tracing tax paid up front: when swords behave strangely, the log already told you who touched them.
+
+### Trust
+
+`load_resource_pack` mounts scripts, and `script.new()` runs them. A `.pck` from the internet is arbitrary code with your game's permissions — the same as any mod system in any engine, but say it out loud in the UI: "Mods can run any code. Only install mods you trust." There is no sandbox to offer. What you *can* do is keep the API narrow: a mod that can only call `register_weapon` cannot, through the API, delete saves. It can through `DirAccess`; that is the trust boundary, and it belongs to the player.
+
+## The same shape in the editor
+
+An addon under `res://addons/<name>/` is a microkernel plugin where the kernel is the editor:
+
+```gdscript:title="res://addons/quest_editor/plugin.gd"
+@tool
+extends EditorPlugin
+
+const DOCK := preload("res://addons/quest_editor/quest_dock.tscn")
+var _dock: Control
+
+func _enter_tree() -> void:
+	# Registration against the editor's API.
+	add_custom_type("QuestData", "Resource", preload("quest_data.gd"), preload("icon.svg"))
+	_dock = DOCK.instantiate()
+	add_control_to_dock(DOCK_SLOT_LEFT_UL, _dock)
+
+func _exit_tree() -> void:
+	# Every registration has an unregistration. Leave nothing behind.
+	remove_custom_type("QuestData")
+	remove_control_from_docks(_dock)
+	_dock.queue_free()
+```
+
+`plugin.cfg` is the manifest, `_enter_tree` is `register`, `_exit_tree` is the part the runtime version above is missing — unloading. The editor's API is versioned by the engine release, which is why an addon written for 4.2 may need edits for 4.4: the same contract-drift problem, experienced from the plugin's side. Design your `ModAPI` the way you wish every engine API had been designed: additive, documented, and slow to break.
 
 ## When to Use
 
-- The system has a stable core but an open-ended, growing set of features that vary by customer, deployment, or release.
-- You want third parties (or other teams) to extend the product without modifying or recompiling the core.
-- Features are largely independent and conform to a common contract (processors, validators, exporters, codecs).
-- You want to enable/disable capabilities per deployment by registering a different plugin set.
+- The content set is open-ended and someone other than the core team will add to it: modders, a DLC pipeline, a content team that should not need a programmer per item.
+- The `match`-on-id smell above is present in more than one file, and the files disagree.
+- Features should be switchable per build — a hardcore mode, a platform-specific pack, a demo subset — by choosing which mods load.
+- You are writing an editor addon. There is no choice; `EditorPlugin` *is* the pattern.
 
 ## When Not to Use
 
-- The set of features is small and fixed. The registry and interface are overhead for what a simple sequence of calls expresses more clearly.
-- Plugins are deeply interdependent and must share rich internal state. The clean contract a microkernel relies on breaks down, and you get a distributed ball of mud.
-- You need runtime `.so` loading but can't accept the `plugin` package's toolchain-lockstep and platform constraints — prefer process-based plugins or compile-time registration.
-- The "core" would end up containing most of the real logic anyway. If the plugins are trivial, you don't have a microkernel; you have indirection.
+- The content is fixed and small. A `Dictionary[StringName, PackedScene]` constant in one file is the registry without the loader, the versioning, or the trust problem.
+- Plugins would need to share deep state with each other. A mod that needs another mod's internals is not a plugin; it is a dependency graph the API cannot express.
+- You cannot commit to the contract. A `ModAPI` that changes every sprint breaks every mod every sprint, and the modders leave.
+- Modding would mean shipping scripts you consider secret. A `.pck` is trivially unpacked; the API is a public surface whether you document it or not.
 
-## Tradeoffs
+## The Decision
 
-The microkernel's power is also its hazard: the **contract is everything**. A well-designed plugin interface lets the system grow for years without core changes; a poorly designed one forces a breaking change to every plugin the moment a new feature needs data the interface doesn't expose. Invest in the contract, and version it.
+The core gets smaller and stops changing; that is the whole benefit, and for a game meant to live for years on user content it is decisive. The cost is that the API becomes the most load-bearing code in the project. Every method on it is a promise to code you have not seen, written by people you cannot reach. Rename a parameter and a hundred mods break with a stack trace in someone else's Discord. Version it from the first release, add without removing, and treat a major bump as the event it is.
 
-Indirection has a cost in **discoverability**. With a hard-coded sequence you can read top-to-bottom what happens; with a plugin registry the behaviour is the sum of whatever happened to register, which is harder to trace and debug. Good registration logging and an inspectable plugin list help.
+The second cost is tracing. In the `match` version, "what weapons exist?" is a read of one file. In the plugin version it is "whatever registered", which depends on which `.pck`s were in a folder on the player's machine, in what order, and which of them overrode which. The loader above logs every registration and records who did it; without that, the first bug report is undebuggable. Godot adds a specific wrinkle: a `.pck` overlays `res://`, so a mod that puts a file at `res://player/player.gd` *replaces yours* silently. The per-mod subfolder convention is your only defence, and it is a convention.
 
-Then there's the **isolation spectrum**. Compile-time plugins are simplest and safest but require a rebuild to change the feature set. Runtime/process plugins give true dynamism and fault isolation but add loading, versioning, and (for `go-plugin`) IPC complexity. Most Go systems should default to compile-time registration and only climb the ladder when dynamic loading is a real requirement.
+Reach for the microkernel when the third party is real — a modder, a content team, another studio — and stay with the dictionary constant when the only person adding weapons is you. That is [tenet #2 — name the trade-off](/philosophy/name-the-trade-off): a core that never changes, paid for with a contract that never can.
 
 ## Related Patterns
 
-- **Strategy:** A plugin is essentially a Strategy selected and registered at the system level. Microkernel is Strategy scaled up from one swappable algorithm to an open registry of features.
-- **Chain of Responsibility:** When plugins run in sequence and each may handle or pass along the work, the kernel's dispatch loop is a Chain of Responsibility over the registered plugins.
-- **Pipe and Filter:** The transform-in-sequence kernel above is a pipeline whose filters are plugins; the two patterns overlap when each plugin is a pure data transformation.
-- **Dependency Inversion (SOLID):** The core depends on the plugin abstraction, and plugins depend on it too — the inversion that lets the core stay closed while the system stays open.
-- **Modular Monolith:** Both keep a system extensible via boundaries; a modular monolith partitions one codebase into modules, while a microkernel partitions it into a core plus pluggable features.
+- **[Factory Method](/patterns/creational/factory-method)**: `WeaponFactory.make(id)` is a factory; the microkernel is what fills its table from outside.
+- **[Strategy](/patterns/behavioral/strategy)**: a mod's hook (`on_level_started`) is a strategy chosen at load time. Microkernel is strategy scaled to an open registry.
+- **[Feature Modules](/patterns/architectural/feature-modules)**: the same folder-per-thing discipline without runtime loading or a versioned contract. Start there; graduate to a microkernel when the folders need to arrive as `.pck` files.
+- **[Service Locator](/patterns/architectural/service-locator)**: the `ModAPI` handed to every mod is a locator for the core's registries. Same hidden-dependency cost, deliberately accepted at the mod boundary.
+- **[Data-Driven Design](/patterns/architectural/data-driven)**: most of what a mod registers is `Resource` data. If mods only ever add `.tres` files, a folder scan may be all the kernel you need.
